@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Prepare static ONNX models from dynamic ones.
 
-If input dimensions are dynamic, creates files with fixed 720p and 1080p sizes.
+If input dimensions are dynamic, creates files with fixed target sizes.
 If already static, reports and does nothing.
 
 Usage:
     prepare-onnx models/onnx/model.onnx
+    prepare-onnx models/onnx/model.onnx --size 1280x720
 """
 
 import argparse
@@ -22,6 +23,36 @@ TARGETS = [
 ]
 
 
+def parse_size(size: str) -> dict:
+    """Parse a WIDTHxHEIGHT target size."""
+    normalized = size.lower().replace("*", "x")
+    try:
+        w_str, h_str = normalized.split("x", 1)
+        w, h = int(w_str), int(h_str)
+    except ValueError:
+        print(f"ERROR: Invalid --size '{size}'. Expected WIDTHxHEIGHT, e.g. 1280x720.")
+        sys.exit(1)
+
+    if w <= 0 or h <= 0:
+        print(f"ERROR: Invalid --size '{size}'. Width and height must be positive.")
+        sys.exit(1)
+
+    name = f"{w}x{h}"
+    if (w, h) == (1280, 720):
+        name = "720p"
+    elif (w, h) == (1920, 1080):
+        name = "1080p"
+
+    return {"name": name, "h": h, "w": w}
+
+
+def dim_to_value(dim):
+    """Return a readable ONNX dim value or symbolic name."""
+    if dim.dim_param:
+        return dim.dim_param
+    return dim.dim_value
+
+
 def get_dims(model):
     """Return names and dimensions of input/output tensors.
 
@@ -33,13 +64,13 @@ def get_dims(model):
     """
     inp = model.graph.input[0]
     out = model.graph.output[0]
-    inp_dims = [d.dim_value for d in inp.type.tensor_type.shape.dim]
-    out_dims = [d.dim_value for d in out.type.tensor_type.shape.dim]
+    inp_dims = [dim_to_value(d) for d in inp.type.tensor_type.shape.dim]
+    out_dims = [dim_to_value(d) for d in out.type.tensor_type.shape.dim]
     return inp.name, inp_dims, out.name, out_dims
 
 
 def is_dynamic(dims):
-    """Check for dynamic (zero) axes.
+    """Check for dynamic axes.
 
     Args:
         dims: List of tensor dimensions.
@@ -47,7 +78,12 @@ def is_dynamic(dims):
     Returns:
         True if there are dynamic axes.
     """
-    return any(d == 0 for d in dims)
+    for dim in dims:
+        if isinstance(dim, str) and dim:
+            return True
+        if isinstance(dim, int) and dim <= 0:
+            return True
+    return False
 
 
 def main():
@@ -55,6 +91,12 @@ def main():
     parser.add_argument("onnx_path", help="Path to source ONNX file")
     parser.add_argument("--output_dir", default="./models/onnx", help="Output directory")
     parser.add_argument("--scale", type=int, default=2, help="Model scale factor (default: 2)")
+    parser.add_argument(
+        "--size",
+        action="append",
+        default=[],
+        help="Target input size WIDTHxHEIGHT. Can be repeated. Default: 1280x720 and 1920x1080.",
+    )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
     verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
@@ -71,6 +113,7 @@ def main():
     model = onnx.load(args.onnx_path)
     inp_name, inp_dims, out_name, out_dims = get_dims(model)
     basename = os.path.splitext(os.path.basename(args.onnx_path))[0]
+    targets = [parse_size(size) for size in args.size] or TARGETS
 
     log(f"File:   {args.onnx_path}")
     log(f"Input:  {inp_name} {inp_dims}")
@@ -85,7 +128,7 @@ def main():
     log(f"\nDynamic axes detected. Creating static variants (scale={args.scale}x)...")
     os.makedirs(args.output_dir, exist_ok=True)
 
-    for target in TARGETS:
+    for target in targets:
         h_in, w_in = target["h"], target["w"]
         h_out, w_out = h_in * args.scale, w_in * args.scale
         out_path = os.path.join(args.output_dir, f"{basename}_{target['name']}.onnx")

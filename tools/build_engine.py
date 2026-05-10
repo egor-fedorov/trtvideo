@@ -5,6 +5,7 @@ Builds an optimized engine for the current GPU. Compilation takes 5-15 minutes.
 
 Usage:
     build-engine models/onnx/model_720p.onnx -o models/engines/model_720p.engine
+    build-engine models/onnx/model.onnx --min-shape input:1x3x360x640 --opt-shape input:1x3x720x1280 --max-shape input:1x3x1080x1920
 """
 
 import argparse
@@ -17,12 +18,90 @@ import tensorrt as trt
 TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 
 
-def build_engine(onnx_path: str, engine_path: str):
+def parse_shape_arg(value: str) -> tuple[str, tuple[int, ...]]:
+    """Parse NAME:DIMxDIMx... TensorRT profile shape."""
+    if ":" not in value:
+        print(f"ERROR: Invalid shape '{value}'. Expected NAME:DIMxDIMx..., e.g. input:1x3x720x1280")
+        sys.exit(1)
+
+    name, dims_str = value.split(":", 1)
+    if not name:
+        print(f"ERROR: Invalid shape '{value}'. Tensor name is empty.")
+        sys.exit(1)
+
+    try:
+        dims = tuple(int(part) for part in dims_str.lower().split("x"))
+    except ValueError:
+        print(f"ERROR: Invalid shape '{value}'. Dimensions must be integers.")
+        sys.exit(1)
+
+    if not dims or any(dim <= 0 for dim in dims):
+        print(f"ERROR: Invalid shape '{value}'. Dimensions must be positive.")
+        sys.exit(1)
+
+    return name, dims
+
+
+def shape_has_dynamic_dims(shape) -> bool:
+    """Return True when a TensorRT tensor shape contains dynamic axes."""
+    return any(dim < 0 for dim in shape)
+
+
+def validate_profile_shapes(
+    input_tensor,
+    min_shape: tuple[str, tuple[int, ...]] | None,
+    opt_shape: tuple[str, tuple[int, ...]] | None,
+    max_shape: tuple[str, tuple[int, ...]] | None,
+) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None:
+    """Validate optional TensorRT optimization profile shapes."""
+    provided = [shape for shape in (min_shape, opt_shape, max_shape) if shape is not None]
+    if not provided:
+        return None
+
+    if len(provided) != 3:
+        print("ERROR: Dynamic profile requires all three flags: --min-shape, --opt-shape, --max-shape")
+        sys.exit(1)
+
+    expected_name = input_tensor.name
+    parsed = [min_shape, opt_shape, max_shape]
+    for label, item in zip(("--min-shape", "--opt-shape", "--max-shape"), parsed):
+        name, dims = item
+        if name != expected_name:
+            print(f"ERROR: {label} uses tensor '{name}', but ONNX input tensor is '{expected_name}'.")
+            sys.exit(1)
+        if len(dims) != len(input_tensor.shape):
+            print(
+                f"ERROR: {label} rank is {len(dims)}, but ONNX input rank is {len(input_tensor.shape)}."
+            )
+            sys.exit(1)
+
+    min_dims, opt_dims, max_dims = (item[1] for item in parsed)
+    for axis, (min_dim, opt_dim, max_dim) in enumerate(zip(min_dims, opt_dims, max_dims)):
+        if not (min_dim <= opt_dim <= max_dim):
+            print(
+                f"ERROR: Profile axis {axis} must satisfy min <= opt <= max, "
+                f"got {min_dim} <= {opt_dim} <= {max_dim}."
+            )
+            sys.exit(1)
+
+    return min_dims, opt_dims, max_dims
+
+
+def build_engine(
+    onnx_path: str,
+    engine_path: str,
+    min_shape: tuple[str, tuple[int, ...]] | None = None,
+    opt_shape: tuple[str, tuple[int, ...]] | None = None,
+    max_shape: tuple[str, tuple[int, ...]] | None = None,
+):
     """Compile an ONNX file to a TensorRT engine.
 
     Args:
         onnx_path: Path to the input .onnx file.
         engine_path: Path to save the .engine file.
+        min_shape: Optional optimization profile min shape.
+        opt_shape: Optional optimization profile opt shape.
+        max_shape: Optional optimization profile max shape.
 
     Returns:
         True on success, False on error.
@@ -64,6 +143,35 @@ def build_engine(onnx_path: str, engine_path: str):
     print(f"  Input:  {input_tensor.name} {input_tensor.shape} {input_tensor.dtype}")
     print(f"  Output: {output_tensor.name} {output_tensor.shape} {output_tensor.dtype}")
 
+    profile_shapes = validate_profile_shapes(input_tensor, min_shape, opt_shape, max_shape)
+
+    if shape_has_dynamic_dims(input_tensor.shape):
+        if profile_shapes is None:
+            print(
+                "\nERROR: ONNX input shape is dynamic, but no TensorRT optimization profile was provided."
+            )
+            print("  Option 1: create a static ONNX first:")
+            print(f"    prepare-onnx {onnx_path} --size 1280x720")
+            print("  Option 2: build with an explicit profile:")
+            print(
+                "    build-engine "
+                f"{onnx_path} "
+                "--min-shape input:1x3x360x640 "
+                "--opt-shape input:1x3x720x1280 "
+                "--max-shape input:1x3x1080x1920"
+            )
+            return False
+
+        profile = builder.create_optimization_profile()
+        min_shape, opt_shape, max_shape = profile_shapes
+        profile.set_shape(input_tensor.name, min_shape, opt_shape, max_shape)
+        config.add_optimization_profile(profile)
+        print(f"  Profile min: {min_shape}")
+        print(f"  Profile opt: {opt_shape}")
+        print(f"  Profile max: {max_shape}")
+    elif profile_shapes is not None:
+        print("  WARNING: Static ONNX input shape detected; ignoring optimization profile.")
+
     # Compile
     serialized_engine = builder.build_serialized_network(network, config)
 
@@ -86,6 +194,9 @@ def main():
     parser.add_argument(
         "-o", "--output", default=None, help="Path to .engine file (default: next to ONNX)"
     )
+    parser.add_argument("--min-shape", help="Optimization profile min shape, e.g. input:1x3x360x640")
+    parser.add_argument("--opt-shape", help="Optimization profile opt shape, e.g. input:1x3x720x1280")
+    parser.add_argument("--max-shape", help="Optimization profile max shape, e.g. input:1x3x1080x1920")
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
     verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
@@ -108,7 +219,13 @@ def main():
     if not args.quiet:
         print(f"TensorRT version: {trt.__version__}\n")
         print(f"=== {os.path.basename(args.onnx)} ===")
-    success = build_engine(args.onnx, args.output)
+
+    parsed_min = parse_shape_arg(args.min_shape) if args.min_shape else None
+    parsed_opt = parse_shape_arg(args.opt_shape) if args.opt_shape else None
+    parsed_max = parse_shape_arg(args.max_shape) if args.max_shape else None
+
+    # Profile validation needs the parsed network input, so it happens inside build_engine.
+    success = build_engine(args.onnx, args.output, parsed_min, parsed_opt, parsed_max)
     if not success:
         sys.exit(1)
 

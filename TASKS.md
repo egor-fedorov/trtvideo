@@ -17,9 +17,126 @@ VapourSynth/vs-mlrt/vstrt стоит добавить не как замену �
 
 На следующий этап добавить VapourSynth/vs-mlrt/vstrt и RIFE как отдельную ветку, когда базовые контракты уже будут выделены.
 
+## Stage 0 — закрыть текущие эксплуатационные дыры
+
+Этот этап должен идти перед большим архитектурным рефакторингом. Цель — сделать текущий Docker/ONNX/TensorRT workflow надёжным для уже используемых моделей и GPU.
+
+Статус: реализовано в `prepare-onnx`, `build-engine`, README и CLAUDE. Runtime-проверку нужно выполнять в Docker, потому что локально нет ONNX/TensorRT зависимостей.
+
+### 0.1. `prepare-onnx --size WIDTHxHEIGHT`
+
+Сейчас `prepare_onnx` создаёт только встроенные static variants под 720p/1080p. Нужно добавить явное указание размера из CLI:
+
+```bash
+prepare-onnx models/onnx/model.onnx --size 1280x720
+prepare-onnx models/onnx/model.onnx --size 1280x720 --size 1920x1080
+```
+
+Требования:
+
+* `--size` принимает формат `WIDTHxHEIGHT`;
+* если `--size` не указан, сохраняется текущее поведение: создаются 720p и 1080p variants;
+* output filename должен включать понятный suffix, например `_720p`, `_1080p` или `_1280x720`;
+* output shape вычисляется через `--scale`, как сейчас.
+
+Definition of Done:
+
+* `prepare-onnx model.onnx --size 1280x720` создаёт ONNX с input `[1, 3, 720, 1280]`;
+* output shape становится `[1, 3, 1440, 2560]` при `--scale 2`;
+* команда без `--size` продолжает создавать текущие 720p/1080p файлы.
+
+### 0.2. Корректное распознавание dynamic ONNX dims
+
+Сейчас dynamic detection учитывает только `dim_value == 0`, но TensorRT может показывать dynamic shape как `(-1, 3, -1, -1)`, а ONNX может хранить symbolic dims через `dim_param`.
+
+Нужно считать dynamic:
+
+* `dim_value == 0`;
+* `dim_value < 0`;
+* непустой `dim_param`.
+
+Definition of Done:
+
+* ONNX input `(-1, 3, -1, -1)` считается dynamic;
+* symbolic dims вида `batch`, `height`, `width` считаются dynamic;
+* static ONNX `[1, 3, 720, 1280]` не переписывается без необходимости.
+
+### 0.3. Понятная ошибка `build-engine` для dynamic ONNX без profile
+
+Сейчас dynamic ONNX падает внутри TensorRT с ошибкой `Network has dynamic or shape inputs, but no optimization profile has been defined`.
+
+Нужно перед сборкой проверять network input shapes и печатать понятную ошибку до `build_serialized_network`, если ONNX dynamic и profile не задан.
+
+Definition of Done:
+
+* `build-engine dynamic.onnx` печатает сообщение, что ONNX dynamic и нужен либо `prepare-onnx`, либо explicit optimization profile;
+* сообщение содержит пример команды для static workflow через `prepare-onnx`;
+* TensorRT stacktrace/API Usage Error не является основным user-facing объяснением.
+
+### 0.4. Минимальный dynamic-profile build
+
+После понятной ошибки добавить минимальную поддержку TensorRT optimization profile:
+
+```bash
+build-engine model.onnx \
+  --min-shape input:1x3x360x640 \
+  --opt-shape input:1x3x720x1280 \
+  --max-shape input:1x3x1080x1920
+```
+
+Definition of Done:
+
+* dynamic ONNX собирается, если заданы `--min-shape`, `--opt-shape`, `--max-shape`;
+* shape parser валидирует имя input tensor и rank;
+* static ONNX продолжает собираться без profile;
+* README и CLAUDE показывают оба workflow: static ONNX и dynamic ONNX with profile.
+
 ## Stage 1 — укрепить текущую архитектуру без переезда на VapourSynth
 
-### 1. Разделить CLI, runtime, video IO и task logic
+Stage 1 нужно выполнять после Stage 0 и не начинать с полного переписывания структуры проекта. Сначала выделить контракты, затем build/runtime foundation, затем performance work на основании benchmark.
+
+### Stage 1A — Contracts
+
+Цель: зафиксировать минимальные контракты для текущего single-frame upscale, не пытаясь сразу покрыть все будущие задачи.
+
+### 1. Ввести минимальные `TensorSpec`, `VideoInfo`, `ModelSpec`
+
+Сначала нужен небольшой набор контрактов, который описывает текущий upscale path:
+
+```text
+TensorSpec:
+  name
+  layout
+  dtype
+  shape
+  pixel_format
+  range
+
+VideoInfo:
+  width
+  height
+  fps
+  nb_frames
+  pix_fmt
+  color metadata where available
+
+ModelSpec:
+  name
+  task: upscale
+  scale
+  inputs
+  outputs
+  preprocess
+  postprocess
+```
+
+Definition of Done:
+
+* текущие SPAN/RealESRGAN-like модели описываются без дополнительных предположений в pipeline;
+* runtime validation проверяет layout/range/scale для single-frame upscale;
+* RIFE, matting, OCR, segmentation не входят в MVP `ModelSpec`, а остаются будущим расширением.
+
+### 2. Разделить CLI, runtime, video IO и task logic
 
 Сейчас `BasePipeline` совмещает несколько ролей:
 
@@ -61,7 +178,7 @@ tasks/
 
 Цель: `upscale`, `RIFE`, `denoise`, `restore`, `background removal` и другие задачи должны быть разными task graph, а не копиями pipeline-классов.
 
-### 2. Ввести `ModelSpec`
+### 3. Расширить `ModelSpec` после MVP
 
 Сейчас код implicit-но предполагает модель вида:
 
@@ -118,7 +235,11 @@ license:
   name: CC-BY-NC-SA-4.0
 ```
 
-### 3. Ввести `RuntimeEngine` interface
+### Stage 1B — Build/runtime foundation
+
+Цель: отделить TensorRT runtime, engine metadata и build workflow от video pipeline.
+
+### 4. Ввести `RuntimeEngine` interface
 
 Сейчас pipeline напрямую зависит от `TRTInference` и его внутренних полей: `gpu_input`, `gpu_output`, `stream`, `context`, `input_w`, `input_h` и т.д.
 
@@ -148,7 +269,13 @@ VapourSynthRuntime         # later
 
 Цель: VapourSynth/vs-mlrt можно будет добавить как backend, а не переписывать весь проект под него.
 
-### 4. Engine cache и engine manifest
+Definition of Done:
+
+* video pipeline не обращается напрямую к `context`, `gpu_input`, `gpu_output`;
+* TensorRT runtime остаётся первой и основной реализацией;
+* stream ownership явно описан: caller может передать stream, иначе runtime использует свой.
+
+### 5. Engine cache и engine manifest
 
 Сейчас `.engine` указывается руками через `--engine`. Нужно перейти к model/engine registry.
 
@@ -182,11 +309,11 @@ postprocess_version
 
 Цель: избежать ситуации, когда engine существует, но собран под другую версию TensorRT, другой GPU class, другой shape или другие builder flags.
 
-### 5. Dynamic profiles и timing cache
+### 6. Dynamic profiles и timing cache
 
-Сейчас `prepare_onnx` делает static ONNX variants под 720p/1080p, а `build_engine` не создаёт TensorRT optimization profiles для dynamic ONNX.
+Stage 0 добавляет минимальную сборку dynamic ONNX через явные `--min-shape`, `--opt-shape`, `--max-shape`.
 
-Нужно оставить static engine как fast path, но добавить dynamic-profile build.
+Дальше нужно оставить static engine как fast path, расширить dynamic-profile build и добавить timing cache.
 
 Пример CLI:
 
@@ -208,117 +335,11 @@ build-engine model.onnx \
   --profile vertical:1x3x1280x720
 ```
 
-### 6. Arbitrary resolution через padding/tiling
+### Stage 1C — Benchmark foundation
 
-Сейчас input video size должен точно совпадать с engine input shape. Для реального cloud/S3 продукта это слишком жёстко.
+Цель: сначала получить машинно-читаемый benchmark, затем оптимизировать hot path по измерениям.
 
-Нужен режим:
-
-```text
-any input resolution
-  -> pad to model multiple
-  -> tile with overlap
-  -> run model per tile
-  -> crop overlap
-  -> stitch output
-  -> crop back to expected resolution
-```
-
-Пример config:
-
-```python
-@dataclass
-class TilingConfig:
-    enabled: bool
-    tile_w: int = 512
-    tile_h: int = 512
-    overlap: int = 16
-    pad_multiple: int = 8
-    blend: Literal["none", "linear", "cosine"] = "linear"
-```
-
-Нужно поддерживать два режима:
-
-```text
-full-frame engine  -> fast path для известных разрешений
- tiled engine      -> fallback для любых разрешений и VRAM constraints
-```
-
-### 7. Buffer pool для GPU pipeline
-
-В `NVDEC/NVENC + cvcuda + TensorRT` backend сейчас hot path создаёт GPU buffers для RGB/NV12 conversion на каждый кадр.
-
-Нужно добавить preallocated buffer pool per job/shape:
-
-```python
-class FrameBufferPool:
-    rgb_in: torch.Tensor
-    nchw_in: torch.Tensor
-    rgb_out: torch.Tensor
-    nv12_out: torch.Tensor
-```
-
-Цель: уменьшить per-frame allocations, overhead и фрагментацию CUDA memory allocator.
-
-### 8. Уменьшить per-frame synchronization
-
-Сейчас `stream.synchronize()` вызывается на каждый кадр. Это упрощает корректность, но ограничивает throughput.
-
-Нужно подготовить pipeline к:
-
-```text
-decode N+1 overlaps with inference N
-inference N overlaps with encode N-1
-```
-
-Минимальный API:
-
-```bash
---pipeline-depth 1|2|3
-```
-
-Внутри: ring buffer / double buffering / CUDA events вместо полной синхронизации после каждого кадра.
-
-### 9. FP16 I/O benchmark
-
-Сейчас TensorRT builder включает FP16 kernels, но runtime buffers могут оставаться FP32.
-
-Нужно проверить режим:
-
-```text
-input tensor:  fp16
-output tensor: fp16
-preprocess: uint8 -> fp16 0..1
-postprocess: fp16 -> uint8
-```
-
-CLI:
-
-```bash
-build-engine model.onnx --fp16 --fp16-io
-```
-
-Проверить:
-
-* FPS;
-* VRAM;
-* визуальные артефакты;
-* banding/clipping;
-* совместимость моделей.
-
-### 10. CUDA Graph benchmark для static-shape inference
-
-Static engines подходят под CUDA Graph: fixed shape, fixed buffers, repeated command sequence.
-
-Добавить experimental flag:
-
-```bash
---cuda-graph
-```
-
-Цель: проверить снижение CPU launch overhead на compact/lightweight моделях.
-
-### 11. Benchmark harness с JSON output
+### 7. Benchmark harness с JSON output
 
 Нужна отдельная команда:
 
@@ -359,7 +380,131 @@ benchmark \
 
 Нужно сравнивать не только SPAN/heavy model, но и lightweight/compact модели. На тяжёлых моделях inference доминирует, поэтому NVDEC/NVENC и pipeline optimizations могут выглядеть менее значимыми.
 
-### 12. Улучшить video metadata layer
+Definition of Done:
+
+* benchmark умеет запускать `ffmpeg` и `nvcodec` backend на одинаковом input/engine;
+* JSON содержит FPS, stage timings, GPU name, input/output resolution, frame count;
+* benchmark можно запускать в Docker без ручного парсинга текстовых логов.
+
+### Stage 1D — Arbitrary resolution
+
+### 8. Arbitrary resolution через padding/tiling
+
+Сейчас input video size должен точно совпадать с engine input shape. Для реального cloud/S3 продукта это слишком жёстко.
+
+Нужен режим:
+
+```text
+any input resolution
+  -> pad to model multiple
+  -> tile with overlap
+  -> run model per tile
+  -> crop overlap
+  -> stitch output
+  -> crop back to expected resolution
+```
+
+Пример config:
+
+```python
+@dataclass
+class TilingConfig:
+    enabled: bool
+    tile_w: int = 512
+    tile_h: int = 512
+    overlap: int = 16
+    pad_multiple: int = 8
+    blend: Literal["none", "linear", "cosine"] = "linear"
+```
+
+Нужно поддерживать два режима:
+
+```text
+full-frame engine  -> fast path для известных разрешений
+ tiled engine      -> fallback для любых разрешений и VRAM constraints
+```
+
+### Stage 1E — Pipeline performance
+
+Эти задачи выполнять после benchmark harness, чтобы оптимизации были основаны на измерениях, а не на предположениях.
+
+### 9. Buffer pool для GPU pipeline
+
+В `NVDEC/NVENC + cvcuda + TensorRT` backend сейчас hot path создаёт GPU buffers для RGB/NV12 conversion на каждый кадр.
+
+Нужно добавить preallocated buffer pool per job/shape:
+
+```python
+class FrameBufferPool:
+    rgb_in: torch.Tensor
+    nchw_in: torch.Tensor
+    rgb_out: torch.Tensor
+    nv12_out: torch.Tensor
+```
+
+Цель: уменьшить per-frame allocations, overhead и фрагментацию CUDA memory allocator.
+
+### 10. Уменьшить per-frame synchronization
+
+Сейчас `stream.synchronize()` вызывается на каждый кадр. Это упрощает корректность, но ограничивает throughput.
+
+Нужно подготовить pipeline к:
+
+```text
+decode N+1 overlaps with inference N
+inference N overlaps with encode N-1
+```
+
+Минимальный API:
+
+```bash
+--pipeline-depth 1|2|3
+```
+
+Внутри: ring buffer / double buffering / CUDA events вместо полной синхронизации после каждого кадра.
+
+### 11. FP16 I/O benchmark
+
+Сейчас TensorRT builder включает FP16 kernels, но runtime buffers могут оставаться FP32.
+
+Нужно проверить режим:
+
+```text
+input tensor:  fp16
+output tensor: fp16
+preprocess: uint8 -> fp16 0..1
+postprocess: fp16 -> uint8
+```
+
+CLI:
+
+```bash
+build-engine model.onnx --fp16 --fp16-io
+```
+
+Проверить:
+
+* FPS;
+* VRAM;
+* визуальные артефакты;
+* banding/clipping;
+* совместимость моделей.
+
+### 12. CUDA Graph benchmark для static-shape inference
+
+Static engines подходят под CUDA Graph: fixed shape, fixed buffers, repeated command sequence.
+
+Добавить experimental flag:
+
+```bash
+--cuda-graph
+```
+
+Цель: проверить снижение CPU launch overhead на compact/lightweight моделях.
+
+### Stage 1F — Production media API cleanup
+
+### 13. Улучшить video metadata layer
 
 Сейчас достаточно width/height/fps/nb_frames, но для RIFE и production media processing этого мало.
 
@@ -396,7 +541,7 @@ class VideoInfo:
 * 10-bit formats;
 * correct timestamps for RIFE.
 
-### 13. Color/bit-depth support roadmap
+### 14. Color/bit-depth support roadmap
 
 Сейчас pipeline фактически 8-bit SDR-centric:
 
@@ -419,7 +564,7 @@ Level 4: HDR-aware processing / tonemap / colorspace management
 * явно писать, что текущий output — SDR 8-bit path;
 * заложить P010 path как будущую задачу.
 
-### 14. Encoder quality API
+### 15. Encoder quality API
 
 В GPU backend текущий `--crf` на самом деле мапится в estimated NVENC bitrate. Это нужно переименовать/расширить.
 
@@ -439,7 +584,7 @@ Level 4: HDR-aware processing / tonemap / colorspace management
 
 `--crf` оставить только для libx264/libx265 semantics. Для NVENC использовать `--cq` или `--bitrate`.
 
-### 15. Machine-readable progress/profiling
+### 16. Machine-readable progress/profiling
 
 Добавить:
 
@@ -659,18 +804,18 @@ requires_padding_multiple: 32
 
 ## Предпочтительный порядок работ
 
-1. `ModelSpec`, `VideoInfo`, `RuntimeEngine` interfaces.
-2. Разделить CLI и core pipeline logic.
-3. Engine cache/manifest.
-4. Dynamic profiles + timing cache.
-5. Benchmark command + JSON output.
-6. Buffer pool и частичное уменьшение synchronization в native GPU backend.
-7. Tiling/padding/arbitrary resolution.
-8. Encoder quality API cleanup.
-9. Machine-readable progress/profiling.
-10. Добавить VapourSynth backend как experimental.
-11. Benchmark VapourSynth vs native backends.
-12. Добавить `interpolate-video-vs` для RIFE.
+1. Stage 0: закрыть текущие ONNX/TensorRT build проблемы.
+2. Stage 1A: `VideoInfo`, `TensorSpec`, минимальный `ModelSpec` для single-frame upscale.
+3. Stage 1B: `RuntimeEngine` interface, TensorRT runtime cleanup, engine manifest/cache.
+4. Stage 1B: dynamic profiles + timing cache.
+5. Stage 1C: benchmark command + JSON output.
+6. Stage 1D: arbitrary resolution через padding/tiling.
+7. Stage 1E: buffer pool и частичное уменьшение synchronization в native GPU backend.
+8. Stage 1E: FP16 I/O и CUDA Graph experiments на основании benchmark.
+9. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
+10. Stage 2: добавить VapourSynth backend как experimental.
+11. Stage 2: benchmark VapourSynth vs native backends.
+12. Stage 3: добавить `interpolate-video-vs` для RIFE.
 
 ## Итоговое решение
 

@@ -123,8 +123,13 @@ docker run --rm \
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest prepare-onnx models/onnx/model.onnx
+  upscaler:latest prepare-onnx \
+  models/onnx/model.onnx \
+  --size 1280x720
 ```
+
+Если `--size` не указан, `prepare-onnx` создаёт default variants для 1280x720 и
+1920x1080.
 
 Сборка TensorRT engine. GPU нужен:
 
@@ -134,6 +139,19 @@ docker run --rm --gpus all \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/engines/model_720p.engine
+```
+
+Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest build-engine \
+  models/onnx/model.onnx \
+  -o models/engines/model_dynamic_720p.engine \
+  --min-shape input:1x3x360x640 \
+  --opt-shape input:1x3x720x1280 \
+  --max-shape input:1x3x1080x1920
 ```
 
 Запуск ffmpeg backend:
@@ -282,13 +300,13 @@ TensorRT engine привязан к версии TensorRT и классу GPU. �
 разными GPU или версиями TensorRT container engine лучше пересобрать.
 
 Dynamic ONNX нельзя напрямую собрать через `build-engine`, если не задан TensorRT
-optimization profile. Текущий workflow проекта ожидает static ONNX:
+optimization profile. Есть два поддержанных workflow:
 
-1. Запустить `prepare-onnx` на dynamic ONNX.
-2. Собрать сгенерированный static файл, например `*_720p.onnx`.
+1. Запустить `prepare-onnx` на dynamic ONNX и собрать сгенерированный static файл.
+2. Передать `--min-shape`, `--opt-shape`, `--max-shape` в `build-engine`.
 
 Если TensorRT печатает input/output shape вида `(-1, 3, -1, -1)`, ONNX все еще dynamic,
-и его не нужно напрямую передавать в `build-engine`.
+и его можно передавать в `build-engine` только с explicit optimization profile.
 
 ## Заметки по производительности
 
@@ -301,8 +319,5 @@ optimization profile. Текущий workflow проекта ожидает stat
 
 ## Текущие известные ограничения
 
-- `prepare-onnx` сейчас использует встроенные targets 720p и 1080p. Лучше добавить
-  явный CLI, например `--size 1280x720`.
-- `build-engine` не создает TensorRT optimization profiles для dynamic ONNX.
 - Название `--crf` в NVENC backend приблизительное. Его лучше заменить или дополнить
   явными `--bitrate` / `--quality`.

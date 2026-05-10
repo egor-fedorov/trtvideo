@@ -73,11 +73,14 @@ docker run --rm \
 ### 2. Prepare ONNX
 
 Use this when an ONNX model has dynamic axes and needs fixed input shapes for TensorRT.
+If `--size` is omitted, the tool creates the default 1280x720 and 1920x1080 variants.
 
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest prepare-onnx models/onnx/model.onnx
+  upscaler:latest prepare-onnx \
+  models/onnx/model.onnx \
+  --size 1280x720
 ```
 
 ### 3. Build TensorRT Engine
@@ -90,6 +93,19 @@ docker run --rm --gpus all \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/engines/model_720p.engine
+```
+
+Dynamic ONNX files can also be built directly with an explicit TensorRT optimization profile:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest build-engine \
+  models/onnx/model.onnx \
+  -o models/engines/model_dynamic_720p.engine \
+  --min-shape input:1x3x360x640 \
+  --opt-shape input:1x3x720x1280 \
+  --max-shape input:1x3x1080x1920
 ```
 
 ### 4. Upscale Video
