@@ -375,7 +375,8 @@ benchmark \
 ```
 
 Benchmark обрабатывает `warmup_frames + frames` кадров, исключает warmup из метрик и
-пишет FPS, stage timings, GPU name, peak GPU memory и выбранный engine.
+пишет `fps`, `avg_frame_sec`, `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`,
+stage timings, GPU name, peak GPU memory и выбранный engine.
 `--json -` пишет чистый JSON в stdout; progress и diagnostics benchmark идут в
 stderr. `--quiet` подавляет служебные progress-строки benchmark, ошибки всё равно
 пишутся в stderr.

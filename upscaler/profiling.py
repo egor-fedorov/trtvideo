@@ -71,13 +71,20 @@ class ProfileCollector:
                         stage_ms[name] = sum(vals) / len(vals) * 1000
 
         measured_frame_times = frame_times[skip:]
-        wall_avg = (
+        wall_avg_sec = (
             sum(measured_frame_times) / len(measured_frame_times) if measured_frame_times else 0.0
         )
+        min_frame_sec = min(measured_frame_times) if measured_frame_times else 0.0
+        max_frame_sec = max(measured_frame_times) if measured_frame_times else 0.0
+        fps = 1.0 / wall_avg_sec if wall_avg_sec > 0 else 0.0
         return {
             "warmup_frames": skip,
             "frames": len(measured_frame_times),
-            "fps_wall": 1.0 / wall_avg if wall_avg > 0 else 0.0,
+            "fps": fps,
+            "avg_frame_sec": wall_avg_sec,
+            "avg_frame_ms": wall_avg_sec * 1000,
+            "min_frame_ms": min_frame_sec * 1000,
+            "max_frame_ms": max_frame_sec * 1000,
             "stage_ms": stage_ms,
         }
 
@@ -117,5 +124,5 @@ class ProfileCollector:
         print(dash)
         print(f"{'TOTAL':<40s} {total_avg:>7.1f}ms {'100.0%':>8s}")
 
-        print(f"{'FPS (wall-clock)':<40s} {summary['fps_wall']:>7.1f}")
+        print(f"{'FPS (wall-clock)':<40s} {summary['fps']:>7.1f}")
         print(sep)

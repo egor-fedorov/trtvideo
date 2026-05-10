@@ -225,7 +225,8 @@ docker run --rm --gpus all \
 ```
 
 JSON содержит backend, engine, GPU, input/output resolution, количество измеренных
-кадров, `fps_wall`, `stage_ms` и `gpu_peak_mem_mb`. Для benchmark команда фактически
+кадров, `fps`, `avg_frame_sec`, `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`,
+`stage_ms` и `gpu_peak_mem_mb`. Для benchmark команда фактически
 обрабатывает `warmup_frames + frames` кадров, а первые warmup-кадры исключает из
 метрик.
 
