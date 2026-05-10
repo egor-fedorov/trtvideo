@@ -97,13 +97,15 @@ class FrameBufferPool:
         output_w: int,
         output_h: int,
         device: torch.device,
+        input_dtype: torch.dtype = torch.float32,
+        output_dtype: torch.dtype = torch.float32,
     ) -> "FrameBufferPool":
         return cls(
             nv12_in=torch.empty(input_h * 3 // 2, input_w, dtype=torch.uint8, device=device),
             rgb_in=torch.empty(input_h, input_w, 3, dtype=torch.uint8, device=device),
-            nchw_in=torch.empty(1, 3, input_h, input_w, dtype=torch.float32, device=device),
+            nchw_in=torch.empty(1, 3, input_h, input_w, dtype=input_dtype, device=device),
             rgb_out=torch.empty(output_h, output_w, 3, dtype=torch.uint8, device=device),
-            rgb_out_float=torch.empty(output_h, output_w, 3, dtype=torch.float32, device=device),
+            rgb_out_float=torch.empty(output_h, output_w, 3, dtype=output_dtype, device=device),
             nv12_out=torch.empty(output_h * 3 // 2, output_w, dtype=torch.uint8, device=device),
         )
 
@@ -205,6 +207,8 @@ class GpuPipeline(BasePipeline):
             output_w=runtime.output_w,
             output_h=runtime.output_h,
             device=torch.device(f"cuda:{self.args.gpu_id}"),
+            input_dtype=runtime.input_dtype,
+            output_dtype=runtime.output_dtype,
         )
         bitrate = crf_to_bitrate(
             self.args.crf,

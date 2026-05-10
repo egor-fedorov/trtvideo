@@ -154,6 +154,23 @@ builder flags. Путь можно изменить через `--manifest PATH`
 `--no-manifest`. `--registry models/liveaction-span` дополнительно обновляет
 `models/liveaction-span/manifest.json`.
 
+Experimental FP16 I/O engine:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest build-engine \
+  models/onnx/model_720p.onnx \
+  -o models/liveaction-span/engines/model_720p_fp16io.engine \
+  --fp16-io \
+  --timing-cache models/cache/trt.cache \
+  --registry models/liveaction-span
+```
+
+`--fp16-io` меняет TensorRT input/output bindings на FP16. Это opt-in benchmark path;
+обычный FP16 engine продолжает использовать FP32 I/O. Для выбора из registry
+использовать `--engine-io-precision fp16|fp32` вместе с `--model`.
+
 Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 
 ```bash

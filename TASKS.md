@@ -572,6 +572,8 @@ inference N overlaps with encode N-1
 
 ### 11. FP16 I/O benchmark
 
+Статус: реализован experimental builder/runtime path; требуется Docker/GPU benchmark.
+
 Сейчас TensorRT builder включает FP16 kernels, но runtime buffers могут оставаться FP32.
 
 Нужно проверить режим:
@@ -596,6 +598,16 @@ build-engine model.onnx --fp16 --fp16-io
 * визуальные артефакты;
 * banding/clipping;
 * совместимость моделей.
+
+Текущая реализация:
+
+* `build-engine --fp16-io` выставляет TensorRT input/output tensor dtype в FP16;
+* engine manifest получил `io_precision`;
+* registry selection получил `--engine-io-precision fp16|fp32` для выбора обычного FP32 I/O или FP16 I/O engine;
+* `TensorRTRuntime` определяет dtype bindings из engine и выделяет `gpu_input`/`gpu_output` в FP16 или FP32;
+* CPU и GPU preprocess приводят `uint8 RGB` к dtype input binding;
+* `FrameBufferPool` использует dtype runtime для NCHW input и RGB output scratch;
+* режим opt-in: обычный `--fp16` engine продолжает использовать FP32 I/O.
 
 ### 12. CUDA Graph benchmark для static-shape inference
 

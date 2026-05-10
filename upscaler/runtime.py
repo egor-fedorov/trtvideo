@@ -19,6 +19,8 @@ class RuntimeEngine(Protocol):
     output_specs: tuple[TensorSpec, ...]
     input_name: str
     output_name: str
+    input_dtype: Any
+    output_dtype: Any
     input_w: int
     input_h: int
     output_w: int

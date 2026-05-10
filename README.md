@@ -108,6 +108,24 @@ models/liveaction-span/engines/model_720p.engine.json
 input/output shapes, profile и builder flags. Путь можно задать через `--manifest PATH`,
 а отключить запись через `--no-manifest`.
 
+Экспериментальный FP16 I/O engine можно собрать отдельным файлом:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest build-engine \
+  models/onnx/model_720p.onnx \
+  -o models/liveaction-span/engines/model_720p_fp16io.engine \
+  --fp16-io \
+  --timing-cache models/cache/trt.cache \
+  --registry models/liveaction-span
+```
+
+`--fp16-io` меняет TensorRT input/output bindings на FP16. Это opt-in режим для
+benchmark: проверяйте FPS, VRAM и визуальные артефакты отдельно от обычного FP32 I/O
+engine. Для выбора FP16 I/O engine из registry используйте
+`--engine-io-precision fp16`; для обычного engine — `--engine-io-precision fp32`.
+
 Если передан `--registry models/liveaction-span`, команда также автоматически создаёт или
 обновляет registry manifest:
 
@@ -166,7 +184,7 @@ docker run --rm --gpus all \
 
 `--engine PATH` всё ещё поддерживается для явного выбора engine. Если в registry есть
 несколько engines для одного разрешения, используйте `--engine-precision fp16|fp32`
-вместе с `--model`.
+и при необходимости `--engine-io-precision fp16|fp32` вместе с `--model`.
 
 ### 4. Апскейл Видео
 
@@ -280,6 +298,7 @@ benchmark-video
 --output PATH       выходное видео, default: *_upscaled.ext
 --gpu-id N          CUDA GPU index, default: 0
 --engine-precision  предпочесть fp16 или fp32 при использовании --model
+--engine-io-precision  предпочесть fp16 или fp32 I/O при использовании --model
 --max-frames N      ограничить количество кадров, 0 = все
 --profile           вывести per-stage profiling
 --verbose           подробный вывод

@@ -68,6 +68,8 @@ def build_backend_command(
         command += ["--model", args.model]
         if args.engine_precision:
             command += ["--engine-precision", args.engine_precision]
+        if args.engine_io_precision:
+            command += ["--engine-io-precision", args.engine_io_precision]
 
     return command
 
@@ -166,6 +168,12 @@ def main() -> None:
         choices=["fp16", "fp32"],
         default=None,
         help="Preferred precision when selecting an engine from --model",
+    )
+    parser.add_argument(
+        "--engine-io-precision",
+        choices=["fp16", "fp32"],
+        default=None,
+        help="Preferred input/output binding precision when selecting an engine from --model",
     )
     args = parser.parse_args()
 

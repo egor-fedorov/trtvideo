@@ -8,10 +8,28 @@ import numpy as np
 import tensorrt as trt
 import torch
 
-from upscaler.model_spec import ModelSpec, make_upscale_model_spec
+from upscaler.model_spec import ModelSpec, TensorDType, make_upscale_model_spec
 from upscaler.runtime import CudaStream, TensorLike
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+
+
+def _torch_dtype_from_trt(dtype: trt.DataType) -> torch.dtype:
+    """Map supported TensorRT binding dtypes to torch dtypes."""
+    if dtype == trt.DataType.FLOAT:
+        return torch.float32
+    if dtype == trt.DataType.HALF:
+        return torch.float16
+    raise ValueError(f"Unsupported TensorRT tensor dtype: {dtype}")
+
+
+def _model_dtype_from_trt(dtype: trt.DataType) -> TensorDType:
+    """Map supported TensorRT binding dtypes to ModelSpec dtypes."""
+    if dtype == trt.DataType.FLOAT:
+        return "fp32"
+    if dtype == trt.DataType.HALF:
+        return "fp16"
+    raise ValueError(f"Unsupported TensorRT tensor dtype: {dtype}")
 
 
 class TensorRTRuntime:
@@ -45,6 +63,17 @@ class TensorRTRuntime:
         self.output_name = self.engine.get_tensor_name(1)
         self.input_shape = tuple(self.engine.get_tensor_shape(self.input_name))
         self.output_shape = tuple(self.engine.get_tensor_shape(self.output_name))
+        self.input_trt_dtype = self.engine.get_tensor_dtype(self.input_name)
+        self.output_trt_dtype = self.engine.get_tensor_dtype(self.output_name)
+        try:
+            self.input_dtype = _torch_dtype_from_trt(self.input_trt_dtype)
+            self.output_dtype = _torch_dtype_from_trt(self.output_trt_dtype)
+            input_model_dtype = _model_dtype_from_trt(self.input_trt_dtype)
+            output_model_dtype = _model_dtype_from_trt(self.output_trt_dtype)
+        except ValueError as exc:
+            print(f"ERROR: Unsupported TensorRT engine contract: {exc}")
+            print("  Current video runtime supports fp32/fp16 RGB tensor bindings only.")
+            sys.exit(1)
         try:
             self.model_spec: ModelSpec = make_upscale_model_spec(
                 name=engine_path,
@@ -52,6 +81,8 @@ class TensorRTRuntime:
                 output_name=self.output_name,
                 input_shape=self.input_shape,
                 output_shape=self.output_shape,
+                input_dtype=input_model_dtype,
+                output_dtype=output_model_dtype,
             )
         except ValueError as exc:
             print(f"ERROR: Unsupported TensorRT engine contract: {exc}")
@@ -66,8 +97,12 @@ class TensorRTRuntime:
         _, _, self.output_h, self.output_w = self.output_shape
 
         # Preallocate GPU tensors (reused every frame)
-        self.gpu_input = torch.empty(self.input_shape, dtype=torch.float32, device=self.device)
-        self.gpu_output = torch.empty(self.output_shape, dtype=torch.float32, device=self.device)
+        self.gpu_input = torch.empty(self.input_shape, dtype=self.input_dtype, device=self.device)
+        self.gpu_output = torch.empty(
+            self.output_shape,
+            dtype=self.output_dtype,
+            device=self.device,
+        )
 
         # Bind GPU buffers to TensorRT context
         self.context.set_tensor_address(self.input_name, self.gpu_input.data_ptr())
@@ -79,8 +114,8 @@ class TensorRTRuntime:
         if not quiet:
             print(f"  Engine: {engine_path}")
             print(f"  GPU:    cuda:{gpu_id}")
-            print(f"  Input:  {self.input_w}x{self.input_h}")
-            print(f"  Output: {self.output_w}x{self.output_h}")
+            print(f"  Input:  {self.input_w}x{self.input_h} {self.model_spec.inputs[0].dtype}")
+            print(f"  Output: {self.output_w}x{self.output_h} {self.model_spec.outputs[0].dtype}")
             print(f"  Scale:  {self.model_spec.scale}x")
 
     def infer(
@@ -119,7 +154,9 @@ class TensorRTRuntime:
         """
         with torch.cuda.stream(self.stream):
             frame_gpu = torch.from_numpy(frame_rgb).to(device=self.device, non_blocking=True)
-            frame_gpu = frame_gpu.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
+            frame_gpu = (
+                frame_gpu.permute(2, 0, 1).unsqueeze(0).to(dtype=self.input_dtype).div_(255.0)
+            )
             output_nchw = self._execute_nchw(frame_gpu, self.stream)
             output = self._output_nchw_to_rgb(output_nchw)
 
@@ -136,7 +173,9 @@ class TensorRTRuntime:
         with torch.cuda.stream(self.stream):
             e0.record(self.stream)
             frame_gpu = torch.from_numpy(frame_rgb).to(device=self.device, non_blocking=True)
-            frame_gpu = frame_gpu.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
+            frame_gpu = (
+                frame_gpu.permute(2, 0, 1).unsqueeze(0).to(dtype=self.input_dtype).div_(255.0)
+            )
             e1.record(self.stream)
             output_nchw = self._execute_nchw(frame_gpu, self.stream)
             e2.record(self.stream)
@@ -158,7 +197,9 @@ class TensorRTRuntime:
         should_sync = stream is None if synchronize is None else synchronize
 
         with torch.cuda.stream(run_stream):
-            input_nchw = rgb_hwc.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
+            input_nchw = (
+                rgb_hwc.permute(2, 0, 1).unsqueeze(0).to(dtype=self.input_dtype).div_(255.0)
+            )
             output_nchw = self._execute_nchw(input_nchw, run_stream)
             output = self._output_nchw_to_rgb(output_nchw)
 

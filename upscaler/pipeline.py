@@ -48,6 +48,12 @@ class BasePipeline(ABC):
             default=None,
             help="Preferred precision when selecting an engine from --model",
         )
+        parser.add_argument(
+            "--engine-io-precision",
+            choices=["fp16", "fp32"],
+            default=None,
+            help="Preferred input/output binding precision when selecting an engine from --model",
+        )
         parser.add_argument("--max-frames", type=int, default=0, help="Limit frames (0 = all)")
         parser.add_argument(
             "--warmup-frames",
@@ -107,6 +113,7 @@ class BasePipeline(ABC):
             entries,
             video_info,
             precision=self.args.engine_precision,
+            io_precision=self.args.engine_io_precision,
         )
         if selected is None:
             print(
@@ -115,6 +122,8 @@ class BasePipeline(ABC):
             )
             if self.args.engine_precision:
                 print(f"  Requested precision: {self.args.engine_precision}")
+            if self.args.engine_io_precision:
+                print(f"  Requested I/O precision: {self.args.engine_io_precision}")
             print("Available engines:")
             print(format_registry_entries(entries))
             sys.exit(1)

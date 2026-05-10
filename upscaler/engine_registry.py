@@ -17,6 +17,7 @@ class EngineRegistryEntry:
     engine_path: str
     manifest_path: str | None
     precision: str | None
+    io_precision: str | None
     input_shape: tuple[int, ...]
     output_shape: tuple[int, ...]
     tensorrt_version: str | None = None
@@ -95,6 +96,7 @@ def _entry_from_manifest(data: dict[str, Any], base_dir: str) -> EngineRegistryE
 
     manifest_path = data.get("manifest_path")
     precision = data.get("precision")
+    io_precision = data.get("io_precision")
     tensorrt_version = data.get("tensorrt_version")
     engine_sha256 = data.get("engine_sha256")
     model_sha256 = data.get("model_sha256")
@@ -105,6 +107,7 @@ def _entry_from_manifest(data: dict[str, Any], base_dir: str) -> EngineRegistryE
         if isinstance(manifest_path, str)
         else None,
         precision=precision if isinstance(precision, str) else None,
+        io_precision=io_precision if isinstance(io_precision, str) else None,
         input_shape=_shape(input_info.get("shape")),
         output_shape=_shape(output_info.get("shape")),
         tensorrt_version=tensorrt_version if isinstance(tensorrt_version, str) else None,
@@ -158,11 +161,14 @@ def select_engine_for_video(
     video_info: VideoInfo,
     *,
     precision: str | None = None,
+    io_precision: str | None = None,
 ) -> EngineRegistryEntry | None:
     """Select a static engine whose input shape matches the input video resolution."""
     matches: list[EngineRegistryEntry] = []
     for entry in entries:
         if precision is not None and entry.precision != precision:
+            continue
+        if io_precision is not None and entry.io_precision != io_precision:
             continue
         if entry.input_resolution != (video_info.width, video_info.height):
             continue
@@ -189,8 +195,10 @@ def format_registry_entries(entries: list[EngineRegistryEntry]) -> str:
         input_text = f"{input_res[0]}x{input_res[1]}" if input_res else "dynamic/unknown"
         output_text = f"{output_res[0]}x{output_res[1]}" if output_res else "dynamic/unknown"
         precision = entry.precision or "unknown"
+        io_precision = entry.io_precision or "unknown"
         exists = "ok" if os.path.exists(entry.engine_path) else "missing"
         lines.append(
-            f"  {input_text} -> {output_text} | {precision} | {exists} | {entry.engine_path}"
+            f"  {input_text} -> {output_text} | {precision} | io {io_precision} | "
+            f"{exists} | {entry.engine_path}"
         )
     return "\n".join(lines)

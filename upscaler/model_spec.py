@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 TensorLayout = Literal["nchw"]
-TensorDType = Literal["fp32"]
+TensorDType = Literal["fp32", "fp16"]
 PixelFormat = Literal["rgb"]
 TensorRange = Literal["0_1"]
 TaskType = Literal["upscale"]
@@ -43,6 +43,8 @@ def make_upscale_model_spec(
     output_name: str,
     input_shape: tuple[int, ...],
     output_shape: tuple[int, ...],
+    input_dtype: TensorDType = "fp32",
+    output_dtype: TensorDType = "fp32",
 ) -> ModelSpec:
     """Create and validate a minimal single-frame upscale model spec."""
     if len(input_shape) != 4 or len(output_shape) != 4:
@@ -81,7 +83,7 @@ def make_upscale_model_spec(
             TensorSpec(
                 name=input_name,
                 layout="nchw",
-                dtype="fp32",
+                dtype=input_dtype,
                 shape=input_shape,
                 pixel_format="rgb",
                 value_range="0_1",
@@ -91,7 +93,7 @@ def make_upscale_model_spec(
             TensorSpec(
                 name=output_name,
                 layout="nchw",
-                dtype="fp32",
+                dtype=output_dtype,
                 shape=output_shape,
                 pixel_format="rgb",
                 value_range="0_1",

@@ -235,6 +235,7 @@ def write_engine_manifest(
     output_tensor: Any,
     profile_shapes: ProfileShapes | None,
     fp16_enabled: bool,
+    fp16_io_enabled: bool,
     timing_cache_path: str | None,
 ) -> dict[str, Any]:
     """Write a sidecar manifest with engine compatibility metadata."""
@@ -247,6 +248,7 @@ def write_engine_manifest(
         "onnx_opset": None,
         "tensorrt_version": trt.__version__,
         "precision": "fp16" if fp16_enabled else "fp32",
+        "io_precision": "fp16" if fp16_io_enabled else "fp32",
         "input": {
             "name": input_tensor.name,
             "shape": list(input_tensor.shape),
@@ -262,6 +264,7 @@ def write_engine_manifest(
             flag
             for flag, enabled in (
                 ("FP16", fp16_enabled),
+                ("FP16_IO", fp16_io_enabled),
                 ("PREFER_PRECISION_CONSTRAINTS", True),
             )
             if enabled
@@ -289,6 +292,7 @@ def build_engine(
     opt_shape: ShapeArg | None = None,
     max_shape: ShapeArg | None = None,
     fp16: bool = True,
+    fp16_io: bool = False,
     timing_cache_path: str | None = None,
     manifest_path: str | None = None,
     registry_path: str | None = None,
@@ -302,6 +306,7 @@ def build_engine(
         opt_shape: Optional optimization profile opt shape.
         max_shape: Optional optimization profile max shape.
         fp16: Enable FP16 kernels when hardware supports them.
+        fp16_io: Build engine with FP16 input/output bindings.
         timing_cache_path: Optional TensorRT timing cache path.
         manifest_path: Optional sidecar manifest path.
         registry_path: Optional model registry manifest path to update.
@@ -345,9 +350,22 @@ def build_engine(
     config.builder_optimization_level = 5
     print("  Optimization level: 5 (maximum)")
 
-    # Log input/output shapes
     input_tensor = network.get_input(0)
     output_tensor = network.get_output(0)
+
+    fp16_io_enabled = False
+    if fp16_io:
+        if not fp16_enabled:
+            print("  ERROR: --fp16-io requires FP16 kernels; remove --no-fp16.")
+            return False
+        input_tensor.dtype = trt.DataType.HALF
+        output_tensor.dtype = trt.DataType.HALF
+        fp16_io_enabled = True
+        print("  FP16 I/O: enabled")
+    else:
+        print("  FP16 I/O: disabled")
+
+    # Log input/output shapes
     print(f"  Input:  {input_tensor.name} {input_tensor.shape} {input_tensor.dtype}")
     print(f"  Output: {output_tensor.name} {output_tensor.shape} {output_tensor.dtype}")
 
@@ -405,6 +423,7 @@ def build_engine(
             output_tensor=output_tensor,
             profile_shapes=profile_shapes,
             fp16_enabled=fp16_enabled,
+            fp16_io_enabled=fp16_io_enabled,
             timing_cache_path=timing_cache_path,
         )
         if registry_path is not None:
@@ -446,6 +465,11 @@ def main() -> None:
         dest="fp16",
         action="store_false",
         help="Build without FP16 kernels",
+    )
+    parser.add_argument(
+        "--fp16-io",
+        action="store_true",
+        help="Experimental: build FP16 input/output bindings",
     )
     parser.add_argument(
         "--timing-cache",
@@ -506,6 +530,7 @@ def main() -> None:
         parsed_opt,
         parsed_max,
         fp16=args.fp16,
+        fp16_io=args.fp16_io,
         timing_cache_path=args.timing_cache,
         manifest_path=manifest_path,
         registry_path=args.registry,

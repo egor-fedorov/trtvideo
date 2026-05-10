@@ -35,3 +35,26 @@ Benchmark:
 * общий FPS вырос умеренно, потому что TensorRT inference всё ещё доминирует в 720p SPAN run;
 * `ffmpeg` backend тоже измеряется benchmark'ом, но эта оптимизация не была направлена на `ffmpeg`;
 * для end-to-end скорости использовать `throughput_fps`, для hot-path анализа — `processing_fps` и `stage_ms`.
+
+## 2026-05-11 — FP16 I/O experiment
+
+Что изменено:
+
+* добавлен experimental `build-engine --fp16-io`;
+* TensorRT input/output bindings можно собрать как FP16 вместо FP32;
+* registry selection поддерживает `--engine-io-precision fp16|fp32`;
+* runtime выделяет input/output buffers по dtype engine bindings;
+* preprocess/postprocess path поддерживает FP16 bindings в `upscale-video` и `upscale-video-nvcodec`.
+
+Benchmark:
+
+* status: pending;
+* нужно собрать отдельный engine с `--fp16-io`;
+* сравнивать с обычным FP16 engine на одинаковом input, GPU и TensorRT image.
+
+Проверить:
+
+* `processing_fps` и `throughput_fps`;
+* `stage_ms.trt`, preprocess/postprocess и cvcuda conversion stages;
+* `gpu_peak_mem_mb`;
+* визуальные артефакты, banding/clipping.
