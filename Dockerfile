@@ -12,6 +12,11 @@ COPY upscaler/ upscaler/
 COPY inference.py inference_gpu.py ./
 COPY tools/ tools/
 
-RUN pip install --no-cache-dir ".[docker]"
+ARG INSTALL_DEV=0
+RUN if [ "$INSTALL_DEV" = "1" ]; then \
+        pip install --no-cache-dir ".[docker,dev]"; \
+    else \
+        pip install --no-cache-dir ".[docker]"; \
+    fi
 
 ENTRYPOINT []

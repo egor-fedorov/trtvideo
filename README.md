@@ -221,4 +221,25 @@ runs.
 pip install -e ".[ffmpeg]"
 pip install -e ".[gpu]"
 pip install -e ".[export]"
+pip install -e ".[dev]"
+```
+
+## Quality Checks
+
+Local checks:
+
+```bash
+ruff check .
+mypy .
+python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+```
+
+Docker-based checks:
+
+```bash
+docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
+docker run --rm -v "$PWD:/app" upscaler:dev mypy .
+docker run --rm -v "$PWD:/app" upscaler:dev \
+  python3 -m compileall -q inference.py inference_gpu.py tools upscaler
 ```

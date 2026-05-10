@@ -12,7 +12,6 @@ import torch
 
 from upscaler.pipeline import BasePipeline
 
-
 # ---------------------------------------------------------------------------
 # NV12 <-> RGB color conversion (GPU, cvcuda)
 # ---------------------------------------------------------------------------

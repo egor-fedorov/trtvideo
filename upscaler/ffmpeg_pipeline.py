@@ -9,7 +9,6 @@ import torch
 
 from upscaler.pipeline import BasePipeline
 
-
 _GPU_STAGES = [
     "Preprocess (CPU\u2192GPU)",
     "TRT inference",

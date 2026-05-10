@@ -30,6 +30,10 @@ export = [
     "onnx>=1.16,<2",
     "basicsr>=1.4,<2",
 ]
+dev = [
+    "ruff>=0.11,<1",
+    "mypy>=1.15,<2",
+]
 
 [project.scripts]
 upscale-video = "inference:main"
@@ -46,76 +50,47 @@ packages = ["upscaler", "tools"]
 
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py310"
 line-length = 100
-exclude = ["project/tests", "project/test"]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+    "models",
+    "videos",
+]
 
 [tool.ruff.lint]
-# https://docs.astral.sh/ruff/rules/
-select = ["ALL"]
+# Keep this gate practical for a CLI project: correctness, imports and simple refactors.
+select = ["E", "F", "I", "UP", "B", "SIM", "W"]
 ignore = [
-    # unsorted-imports
-    "I001",
-    # bad-quotes-inline-string
-    "Q000",
-    # docstring
-    "D",
-    # flake8-use-pathlib
-    "PTH",
-    # flake8-future-annotations
-    "FA",
-    # raise-vanilla-args
-    "TRY003",
-    # flake8-errmsg
-    "EM",
-    # flake8-logging-format
-    "G",
-    # implicit-namespace-package
-    "INP001",
-    # missing-todo-link
-    "TD003",
-    # flake8-fixme
-    "FIX",
-    # any-type
-    "ANN401",
-    # include-trailing-comma
-    "COM812"
+    # Hook method intentionally has no default behavior.
+    "B027",
+    # Manual frame counters are clearer in these streaming loops.
+    "SIM113",
+    # The NVENC raw bitstream file is intentionally kept open across methods.
+    "SIM115",
 ]
 
 
 [tool.mypy]
-disallow_untyped_defs=true
-check_untyped_defs=true
-warn_return_any=true
-warn_unused_ignores=true
-namespace_packages=true
-warn_no_return=false
-exclude = "project/api/tests/"
-mypy_path = "project"
-explicit_package_bases = true
+python_version = "3.10"
+files = ["inference.py", "inference_gpu.py", "tools", "upscaler"]
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
 
-[[tool.mypy.overrides]]
-module = [
-    "pytest_asyncio.*",
-    "aiokafka.*",
-    "pytest.*",
-    "_pytest.*",
-    "pytest_mock.*"
+disable_error_code = [
+    # Existing pipelines initialize these fields during BasePipeline.run().
+    # Stage 1B should replace this with explicit runtime interfaces.
+    "union-attr",
+    # Heavy runtime libraries without stubs often collapse return values to Any.
+    "no-any-return",
 ]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "certifi"
-ignore_missing_imports = true
-
-[tool.black]
-line-length = 100
-target-version = ['py311']
-skip-string-normalization = true
-
-[tool.isort]
-line_length = 100
-multi_line_output = 3
-profile = "black"
-lines_after_imports = 2
-include_trailing_comma = true

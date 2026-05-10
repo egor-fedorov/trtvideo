@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import Literal
 
-
 TensorLayout = Literal["nchw"]
 TensorDType = Literal["fp32"]
 PixelFormat = Literal["rgb"]

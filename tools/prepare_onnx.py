@@ -16,7 +16,6 @@ import sys
 import onnx
 from onnx.tools import update_model_dims
 
-
 TARGETS = [
     {"name": "720p", "h": 720, "w": 1280},
     {"name": "1080p", "h": 1080, "w": 1920},

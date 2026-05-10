@@ -249,6 +249,8 @@ license:
 
 Цель: сделать синтаксические и типовые проверки обязательной частью разработки, но отдельным этапом от Stage 1A.
 
+Статус: реализовано как инкрементальный quality gate для текущего проекта.
+
 Требования:
 
 * добавить dev/development dependency group для `ruff` и `mypy`;
@@ -263,6 +265,16 @@ Definition of Done:
 * `mypy` проходит на выбранном scope проекта или имеет явно зафиксированный baseline;
 * README/CLAUDE показывают команды quality checks;
 * CI/local workflow может запускать эти проверки без ручной настройки.
+
+Текущая реализация:
+
+* добавлен optional extra `dev` с `ruff` и `mypy`;
+* `pyproject.toml` очищен от старых путей `project/...` и чужих mypy overrides;
+* `ruff check .` настроен на practical gate: `E`, `F`, `I`, `UP`, `B`, `SIM`, `W`;
+* `mypy .` проверяет `inference.py`, `inference_gpu.py`, `tools`, `upscaler`;
+* `mypy` временно подавляет `union-attr` до Stage 1B, потому что runtime fields сейчас инициализируются в `BasePipeline.run()`;
+* Dockerfile поддерживает dev image через `--build-arg INSTALL_DEV=1`;
+* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q inference.py inference_gpu.py tools upscaler`.
 
 ### Stage 1B — Build/runtime foundation
 

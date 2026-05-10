@@ -8,7 +8,6 @@ import torch
 
 from upscaler.model_spec import ModelSpec, make_upscale_model_spec
 
-
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
 

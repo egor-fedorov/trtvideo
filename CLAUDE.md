@@ -177,6 +177,36 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
+## Проверки качества
+
+Локальная установка проверочных инструментов:
+
+```bash
+pip install -e ".[dev]"
+```
+
+Обязательные проверки:
+
+```bash
+ruff check .
+mypy .
+python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+```
+
+Docker-based вариант:
+
+```bash
+docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
+docker run --rm -v "$PWD:/app" upscaler:dev mypy .
+docker run --rm -v "$PWD:/app" upscaler:dev \
+  python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+```
+
+`mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
+`check_untyped_defs`, игнорирует отсутствующие runtime-only зависимости и временно
+подавляет `union-attr` до выделения явного runtime interface в Stage 1B.
+
 ## Как устроен инференс
 
 В проекте есть два video inference backend. Оба используют TensorRT на GPU, но
