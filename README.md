@@ -224,11 +224,12 @@ docker run --rm --gpus all \
   --json artefacts/benchmark.json
 ```
 
-JSON содержит backend, engine, GPU, input/output resolution, количество измеренных
-кадров, `fps`, `avg_frame_sec`, `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`,
-`stage_ms` и `gpu_peak_mem_mb`. Для benchmark команда фактически
-обрабатывает `warmup_frames + frames` кадров, а первые warmup-кадры исключает из
-метрик.
+JSON содержит backend, engine, GPU, input/output resolution, `processed_frames`,
+количество измеренных кадров, `processing_fps`, `throughput_fps`, `avg_frame_sec`,
+`avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `stage_ms` и `gpu_peak_mem_mb`.
+Для benchmark команда фактически обрабатывает `warmup_frames + frames` кадров, а
+первые warmup-кадры исключает из processing-метрик. `throughput_fps` считается по
+полному wall-clock времени backend run.
 
 Если JSON нужен напрямую в shell pipeline:
 

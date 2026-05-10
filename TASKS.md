@@ -437,8 +437,10 @@ benchmark \
   "backend": "nvcodec",
   "input_resolution": "1280x720",
   "output_resolution": "2560x1440",
+  "processed_frames": 320,
   "frames": 300,
-  "fps": 17.2,
+  "processing_fps": 17.2,
+  "throughput_fps": 16.8,
   "avg_frame_sec": 0.0581,
   "avg_frame_ms": 58.1,
   "min_frame_ms": 55.4,
@@ -472,7 +474,7 @@ Definition of Done:
 * `--json PATH` пишет JSON в файл, `--json -` пишет чистый JSON в stdout;
 * progress и diagnostics benchmark выводятся в stderr, `--quiet` подавляет progress;
 * pipeline получил `--profile-json PATH` и `--warmup-frames N`;
-* итоговый JSON содержит backend, engine, GPU, input/output resolution, measured frames, warmup frames, `fps`, `avg_frame_sec`, `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `stage_ms`, `gpu_peak_mem_mb`;
+* итоговый JSON содержит backend, engine, GPU, input/output resolution, processed frames, measured frames, warmup frames, `processing_fps`, `throughput_fps`, `avg_frame_sec`, `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `stage_ms`, `gpu_peak_mem_mb`;
 * `ffmpeg` stage keys нормализованы в `decode`, `preprocess`, `trt`, `postprocess`, `encode`;
 * `nvcodec` stage keys нормализованы в `nv12_to_rgb`, `trt`, `rgb_to_nv12`, `encode`;
 * локально проверены quality gates и compile/smoke без TensorRT runtime.
