@@ -167,9 +167,40 @@ class TensorRTRuntime:
 
         return output
 
+    def infer_rgb_tensor_into(
+        self,
+        rgb_hwc: TensorLike,
+        output_rgb_hwc: TensorLike,
+        *,
+        input_nchw: TensorLike | None = None,
+        output_rgb_float: TensorLike | None = None,
+        stream: CudaStream | None = None,
+        synchronize: bool | None = None,
+    ) -> TensorLike:
+        """Upscale a GPU RGB HWC uint8 tensor into a preallocated RGB HWC uint8 tensor."""
+        run_stream = stream if stream is not None else self.stream
+        should_sync = stream is None if synchronize is None else synchronize
+
+        with torch.cuda.stream(run_stream):
+            prepared_input = self.gpu_input if input_nchw is None else input_nchw
+            prepared_input.copy_(rgb_hwc.permute(2, 0, 1).unsqueeze(0))
+            prepared_input.div_(255.0)
+            output_nchw = self._execute_nchw(prepared_input, run_stream)
+            output = self._output_nchw_to_rgb_into(
+                output_nchw,
+                output_rgb_hwc,
+                scratch_hwc=output_rgb_float,
+            )
+
+        if should_sync:
+            run_stream.synchronize()
+
+        return output
+
     def _execute_nchw(self, input_nchw: TensorLike, stream: CudaStream) -> TensorLike:
         with torch.cuda.stream(stream):
-            self.gpu_input.copy_(input_nchw)
+            if input_nchw.data_ptr() != self.gpu_input.data_ptr():
+                self.gpu_input.copy_(input_nchw)
             self.context.execute_async_v3(stream_handle=stream.cuda_stream)
         return self.gpu_output
 
@@ -177,6 +208,23 @@ class TensorRTRuntime:
     def _output_nchw_to_rgb(output_nchw: TensorLike) -> TensorLike:
         output = output_nchw.squeeze(0).permute(1, 2, 0).contiguous()
         return output.mul_(255.0).clamp_(0, 255).byte()
+
+    @staticmethod
+    def _output_nchw_to_rgb_into(
+        output_nchw: TensorLike,
+        output_hwc: TensorLike,
+        *,
+        scratch_hwc: TensorLike | None = None,
+    ) -> TensorLike:
+        output_view = output_nchw.squeeze(0).permute(1, 2, 0)
+        if scratch_hwc is None:
+            output_hwc.copy_(output_view.mul(255.0).clamp_(0, 255))
+            return output_hwc
+
+        torch.mul(output_view, 255.0, out=scratch_hwc)
+        torch.clamp(scratch_hwc, 0, 255, out=scratch_hwc)
+        output_hwc.copy_(scratch_hwc)
+        return output_hwc
 
 
 TRTInference = TensorRTRuntime

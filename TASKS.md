@@ -475,6 +475,10 @@ Definition of Done:
 
 ### Stage 1D — Arbitrary resolution
 
+Статус: отложено. Tradeoff требует отдельного решения: для продукта может быть
+выгоднее заранее собирать static engines под нужные размеры, чем платить runtime
+overhead за tiling/stitching на каждом видео.
+
 ### 8. Arbitrary resolution через padding/tiling
 
 Сейчас input video size должен точно совпадать с engine input shape. Для реального cloud/S3 продукта это слишком жёстко.
@@ -515,6 +519,8 @@ full-frame engine  -> fast path для известных разрешений
 
 Эти задачи выполнять после benchmark harness, чтобы оптимизации были основаны на измерениях, а не на предположениях.
 
+Статус: начато с buffer pool для `NVDEC/NVENC + cvcuda + TensorRT` backend.
+
 ### 9. Buffer pool для GPU pipeline
 
 В `NVDEC/NVENC + cvcuda + TensorRT` backend сейчас hot path создаёт GPU buffers для RGB/NV12 conversion на каждый кадр.
@@ -530,6 +536,14 @@ class FrameBufferPool:
 ```
 
 Цель: уменьшить per-frame allocations, overhead и фрагментацию CUDA memory allocator.
+
+Текущая реализация:
+
+* добавлен `FrameBufferPool` per job/shape для `nv12_in`, `rgb_in`, `nchw_in`, `rgb_out`, `rgb_out_float`, `nv12_out`;
+* cvcuda conversion получил `nv12_to_rgb_into(...)` и `rgb_to_nv12_into(...)`, которые пишут в preallocated buffers;
+* `TensorRTRuntime` получил `infer_rgb_tensor_into(...)` для inference в preallocated output buffer;
+* `GpuPipeline` использует buffer pool и в обычном path, и в profiled path;
+* фактический performance эффект нужно подтвердить через `benchmark` в Docker/GPU окружении.
 
 ### 10. Уменьшить per-frame synchronization
 

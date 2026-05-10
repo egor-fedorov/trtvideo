@@ -318,14 +318,17 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 3. Кадры выдаются как NV12 GPU surfaces в device memory.
 4. Python получает frame и делает `torch.from_dlpack(raw_frame)`, то есть берет GPU
    данные без CPU copy.
-5. `nv12_to_rgb()` через cvcuda конвертирует NV12 в RGB на GPU.
-6. RGB tensor приводится к формату TensorRT input: `[1, 3, H, W]`, `float32`, `0..1`.
-7. TensorRT выполняет inference.
-8. Output приводится к `uint8 RGB` на GPU.
-9. `rgb_to_nv12()` через cvcuda конвертирует RGB обратно в NV12 на GPU.
-10. NV12 tensor передается в NVENC через PyNvVideoCodec.
-11. NVENC пишет raw H.264 или HEVC bitstream во временный файл.
-12. В `finalize()` вызывается `ffmpeg`, который mux-ит raw video stream с аудио из
+5. Per-job `FrameBufferPool` переиспользует GPU buffers для NV12/RGB/NCHW hot path.
+6. `nv12_to_rgb_into()` через cvcuda конвертирует NV12 в RGB на GPU.
+7. RGB tensor приводится к формату TensorRT input: `[1, 3, H, W]`, `float32`, `0..1`.
+   Для NVDEC/NVENC backend это делается через `infer_rgb_tensor_into()` с
+   preallocated buffers.
+8. TensorRT выполняет inference.
+9. Output приводится к `uint8 RGB` на GPU.
+10. `rgb_to_nv12_into()` через cvcuda конвертирует RGB обратно в NV12 на GPU.
+11. NV12 tensor передается в NVENC через PyNvVideoCodec.
+12. NVENC пишет raw H.264 или HEVC bitstream во временный файл.
+13. В `finalize()` вызывается `ffmpeg`, который mux-ит raw video stream с аудио из
     исходного файла в финальный MP4.
 
 В этом backend основная data path остается на GPU. CPU участвует в orchestration,

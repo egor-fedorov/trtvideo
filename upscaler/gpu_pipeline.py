@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import types
+from dataclasses import dataclass
 
 import cvcuda
 import PyNvVideoCodec as nvc
@@ -17,33 +18,46 @@ from upscaler.pipeline import BasePipeline
 # ---------------------------------------------------------------------------
 
 
-def nv12_to_rgb(nv12, height, width):
+def nv12_to_rgb_into(nv12, height, width, rgb_buf, nv12_buf=None):
     """NV12 -> RGB on GPU via cvcuda.
 
     Args:
         nv12: torch.Tensor (H*3//2, W) or (H*3//2, pitch) uint8 on GPU.
         height: Frame height.
         width: Frame width.
+        rgb_buf: Preallocated torch.Tensor (H, W, 3) uint8 on GPU.
+        nv12_buf: Optional preallocated contiguous torch.Tensor (H*3//2, W) uint8 on GPU.
 
     Returns:
         torch.Tensor (H, W, 3) uint8 on GPU.
     """
     if nv12.ndim == 2 and nv12.shape[1] != width:
         nv12 = nv12[:, :width]
-    nv12 = nv12.contiguous()
+    if not nv12.is_contiguous():
+        if nv12_buf is None:
+            nv12 = nv12.contiguous()
+        else:
+            nv12_buf.copy_(nv12)
+            nv12 = nv12_buf
     nv12_nhwc = nv12.reshape(1, height * 3 // 2, width, 1)
     nv12_cv = cvcuda.as_tensor(nv12_nhwc, "NHWC")
-    rgb_buf = torch.empty(1, height, width, 3, dtype=torch.uint8, device="cuda")
-    rgb_cv = cvcuda.as_tensor(rgb_buf, "NHWC")
+    rgb_cv = cvcuda.as_tensor(rgb_buf.reshape(1, height, width, 3), "NHWC")
     cvcuda.cvtcolor_into(rgb_cv, nv12_cv, cvcuda.ColorConversion.YUV2RGB_NV12)
-    return rgb_buf.squeeze(0)
+    return rgb_buf
 
 
-def rgb_to_nv12(rgb):
+def nv12_to_rgb(nv12, height, width):
+    """NV12 -> RGB on GPU via cvcuda with a newly allocated output buffer."""
+    rgb_buf = torch.empty(height, width, 3, dtype=torch.uint8, device="cuda")
+    return nv12_to_rgb_into(nv12, height, width, rgb_buf)
+
+
+def rgb_to_nv12_into(rgb, nv12_buf):
     """RGB -> NV12 on GPU via cvcuda.
 
     Args:
         rgb: torch.Tensor (H, W, 3) uint8 on GPU.
+        nv12_buf: Preallocated torch.Tensor (H*3//2, W) uint8 on GPU.
 
     Returns:
         torch.Tensor (H*3//2, W) uint8 on GPU.
@@ -51,10 +65,47 @@ def rgb_to_nv12(rgb):
     h, w = rgb.shape[:2]
     rgb_nhwc = rgb.unsqueeze(0)
     rgb_cv = cvcuda.as_tensor(rgb_nhwc, "NHWC")
-    nv12_buf = torch.empty(1, h * 3 // 2, w, 1, dtype=torch.uint8, device="cuda")
-    nv12_cv = cvcuda.as_tensor(nv12_buf, "NHWC")
+    nv12_cv = cvcuda.as_tensor(nv12_buf.reshape(1, h * 3 // 2, w, 1), "NHWC")
     cvcuda.cvtcolor_into(nv12_cv, rgb_cv, cvcuda.ColorConversion.RGB2YUV_NV12)
-    return nv12_buf.reshape(h * 3 // 2, w)
+    return nv12_buf
+
+
+def rgb_to_nv12(rgb):
+    """RGB -> NV12 on GPU via cvcuda with a newly allocated output buffer."""
+    h, w = rgb.shape[:2]
+    nv12_buf = torch.empty(h * 3 // 2, w, dtype=torch.uint8, device=rgb.device)
+    return rgb_to_nv12_into(rgb, nv12_buf)
+
+
+@dataclass
+class FrameBufferPool:
+    """Per-job GPU buffers reused by the NVDEC/NVENC hot path."""
+
+    nv12_in: torch.Tensor
+    rgb_in: torch.Tensor
+    nchw_in: torch.Tensor
+    rgb_out: torch.Tensor
+    rgb_out_float: torch.Tensor
+    nv12_out: torch.Tensor
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        input_w: int,
+        input_h: int,
+        output_w: int,
+        output_h: int,
+        device: torch.device,
+    ) -> "FrameBufferPool":
+        return cls(
+            nv12_in=torch.empty(input_h * 3 // 2, input_w, dtype=torch.uint8, device=device),
+            rgb_in=torch.empty(input_h, input_w, 3, dtype=torch.uint8, device=device),
+            nchw_in=torch.empty(1, 3, input_h, input_w, dtype=torch.float32, device=device),
+            rgb_out=torch.empty(output_h, output_w, 3, dtype=torch.uint8, device=device),
+            rgb_out_float=torch.empty(output_h, output_w, 3, dtype=torch.float32, device=device),
+            nv12_out=torch.empty(output_h * 3 // 2, output_w, dtype=torch.uint8, device=device),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +149,7 @@ class GpuPipeline(BasePipeline):
         self._encoder = None
         self._tmp_raw_path: str = ""
         self._raw_file = None
+        self._buffer_pool: FrameBufferPool | None = None
         super().__init__()
 
     def add_extra_args(self, parser: argparse.ArgumentParser) -> None:
@@ -128,6 +180,11 @@ class GpuPipeline(BasePipeline):
     def profile_stage_key_map(self) -> dict[str, str]:
         return self._PROFILE_STAGE_KEYS
 
+    def _require_buffer_pool(self) -> FrameBufferPool:
+        if self._buffer_pool is None:
+            raise RuntimeError("Frame buffer pool is not initialized")
+        return self._buffer_pool
+
     def setup_decoder(self) -> None:
         self.log("Initializing NVDEC...")
         self._decoder = nvc.ThreadedDecoder(
@@ -142,6 +199,13 @@ class GpuPipeline(BasePipeline):
 
     def setup_encoder(self) -> None:
         runtime = self.require_runtime()
+        self._buffer_pool = FrameBufferPool.create(
+            input_w=runtime.input_w,
+            input_h=runtime.input_h,
+            output_w=runtime.output_w,
+            output_h=runtime.output_h,
+            device=torch.device(f"cuda:{self.args.gpu_id}"),
+        )
         bitrate = crf_to_bitrate(
             self.args.crf,
             runtime.output_w,
@@ -188,14 +252,21 @@ class GpuPipeline(BasePipeline):
         if self.profiler:
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
         else:
-            rgb = nv12_to_rgb(nv12_tensor, in_h, in_w)
+            pool = self._require_buffer_pool()
+            rgb = nv12_to_rgb_into(nv12_tensor, in_h, in_w, pool.rgb_in, pool.nv12_in)
             upscaled = self._infer_gpu(rgb)
-            nv12_out = rgb_to_nv12(upscaled)
+            nv12_out = rgb_to_nv12_into(upscaled, pool.nv12_out)
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
 
     def _infer_gpu(self, rgb_hwc):
         """TRT inference entirely on GPU."""
-        return self.require_runtime().infer_rgb_tensor(rgb_hwc)
+        pool = self._require_buffer_pool()
+        return self.require_runtime().infer_rgb_tensor_into(
+            rgb_hwc,
+            pool.rgb_out,
+            input_nchw=pool.nchw_in,
+            output_rgb_float=pool.rgb_out_float,
+        )
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
         """Inference with CUDA event profiling on default stream."""
@@ -203,17 +274,21 @@ class GpuPipeline(BasePipeline):
         cur_stream = torch.cuda.current_stream()
 
         e0.record(cur_stream)
-        rgb = nv12_to_rgb(nv12_tensor, in_h, in_w)
+        pool = self._require_buffer_pool()
+        rgb = nv12_to_rgb_into(nv12_tensor, in_h, in_w, pool.rgb_in, pool.nv12_in)
         e1.record(cur_stream)
 
-        upscaled = self.require_runtime().infer_rgb_tensor(
+        upscaled = self.require_runtime().infer_rgb_tensor_into(
             rgb,
+            pool.rgb_out,
+            input_nchw=pool.nchw_in,
+            output_rgb_float=pool.rgb_out_float,
             stream=cur_stream,
             synchronize=False,
         )
         e2.record(cur_stream)
 
-        nv12_out = rgb_to_nv12(upscaled)
+        nv12_out = rgb_to_nv12_into(upscaled, pool.nv12_out)
         e3.record(cur_stream)
 
         self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))

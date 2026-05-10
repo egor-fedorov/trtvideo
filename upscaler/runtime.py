@@ -51,3 +51,15 @@ class RuntimeEngine(Protocol):
         synchronize: bool | None = None,
     ) -> TensorLike:
         """Run GPU RGB HWC tensor -> runtime -> GPU RGB HWC tensor inference."""
+
+    def infer_rgb_tensor_into(
+        self,
+        rgb_hwc: TensorLike,
+        output_rgb_hwc: TensorLike,
+        *,
+        input_nchw: TensorLike | None = None,
+        output_rgb_float: TensorLike | None = None,
+        stream: CudaStream | None = None,
+        synchronize: bool | None = None,
+    ) -> TensorLike:
+        """Run GPU RGB HWC tensor inference into preallocated output buffers."""
