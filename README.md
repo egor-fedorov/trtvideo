@@ -1,67 +1,67 @@
 # AI Video Upscaler
 
-CLI tools for AI video upscaling via TensorRT. Supports RealESRGAN and SPAN models in
-`.pth` and ONNX formats.
+CLI-инструменты для AI-апскейла видео через TensorRT. Поддерживаются модели
+RealESRGAN и SPAN в форматах `.pth` и ONNX.
 
-The recommended workflow is Docker. The container includes the runtime dependencies for
-TensorRT inference, NVDEC/NVENC inference, ONNX preparation, and model export.
+Рекомендуемый workflow — Docker. Образ содержит runtime-зависимости для TensorRT
+inference, NVDEC/NVENC inference, подготовки ONNX и экспорта моделей.
 
-Tested on Tesla T4.
+Проверялось на Tesla T4.
 
-## Structure
+## Структура
 
+```text
+inference.py          - video upscale через ffmpeg pipe + TensorRT
+inference_gpu.py      - video upscale через NVDEC/NVENC + TensorRT
+scripts/run_batch.sh  - batch processing для видео
+tools/export_onnx.py  - экспорт .pth -> .onnx
+tools/prepare_onnx.py - фиксация dynamic axes в ONNX
+tools/build_engine.py - компиляция .onnx -> .engine
+models/               - данные, не хранятся в git
+  pretrained/         - .pth файлы
+  onnx/               - .onnx файлы
+  engines/            - .engine файлы
+videos/               - input/output видео, не хранятся в git
 ```
-inference.py          - video upscale via ffmpeg pipe + TensorRT
-inference_gpu.py      - video upscale via NVDEC/NVENC + TensorRT
-scripts/run_batch.sh  - batch video processing
-tools/export_onnx.py  - export .pth -> .onnx
-tools/prepare_onnx.py - fix dynamic axes in ONNX
-tools/build_engine.py - compile .onnx -> .engine
-models/               - data (not in git)
-  pretrained/         - .pth files
-  onnx/               - .onnx files
-  engines/            - .engine files
-videos/               - input/output videos (not in git)
-```
 
-## Host Requirements
+## Требования К Хосту
 
-Docker runs that use GPU require:
+Для Docker-запусков с GPU нужны:
 
-- NVIDIA driver on the host
+- NVIDIA driver на хосте
 - Docker
 - NVIDIA Container Toolkit (`nvidia-ctk`)
-- NVIDIA runtime/CDI configured for Docker
+- NVIDIA runtime/CDI, настроенный для Docker
 
-Configure Docker after installing NVIDIA Container Toolkit:
+Настройка Docker после установки NVIDIA Container Toolkit:
 
 ```bash
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 ```
 
-Check that GPU passthrough works:
+Проверка проброса GPU:
 
 ```bash
 nvidia-smi
 docker run --rm --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
 ```
 
-If Docker uses CDI, `nvidia-ctk cdi list` should show devices such as
+Если Docker использует CDI, `nvidia-ctk cdi list` должен показывать устройства вроде
 `nvidia.com/gpu=all`.
 
-## Build
+## Сборка Образа
 
 ```bash
 docker build -t upscaler:latest .
 ```
 
-The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is required for
-NVDEC/NVENC through PyNvVideoCodec. Run containers with `--gpus all`.
+Образ задаёт `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`. Это нужно для
+NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаются с `--gpus all`.
 
 ## Docker Workflow
 
-### 1. Export `.pth` to ONNX
+### 1. Экспорт `.pth` В ONNX
 
 ```bash
 docker run --rm \
@@ -70,10 +70,11 @@ docker run --rm \
   --model_path models/pretrained/RealESRGAN_x2plus.pth
 ```
 
-### 2. Prepare ONNX
+### 2. Подготовка ONNX
 
-Use this when an ONNX model has dynamic axes and needs fixed input shapes for TensorRT.
-If `--size` is omitted, the tool creates the default 1280x720 and 1920x1080 variants.
+Используется, когда ONNX-модель имеет dynamic axes и для TensorRT нужны фиксированные
+input shapes. Если `--size` не указан, создаются default variants для 1280x720 и
+1920x1080.
 
 ```bash
 docker run --rm \
@@ -83,9 +84,9 @@ docker run --rm \
   --size 1280x720
 ```
 
-### 3. Build TensorRT Engine
+### 3. Сборка TensorRT Engine
 
-Compilation takes 5-15 minutes. The engine is tied to the TensorRT version and GPU class.
+Компиляция обычно занимает 5-15 минут. Engine привязан к версии TensorRT и классу GPU.
 
 ```bash
 docker run --rm --gpus all \
@@ -97,13 +98,28 @@ docker run --rm --gpus all \
   --registry models/liveaction-span
 ```
 
-`build-engine` writes a sidecar manifest by default at `<engine>.json`. It records the
-ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile and
-builder flags. Use `--manifest PATH` to choose a path or `--no-manifest` to disable it.
-`--registry models/liveaction-span` also upserts this engine into
-`models/liveaction-span/manifest.json`.
+`build-engine` автоматически создаёт sidecar manifest рядом с engine:
 
-Dynamic ONNX files can also be built directly with an explicit TensorRT optimization profile:
+```text
+models/liveaction-span/engines/model_720p.engine.json
+```
+
+В sidecar manifest сохраняются ONNX hash, engine hash, версия TensorRT, precision,
+input/output shapes, profile и builder flags. Путь можно задать через `--manifest PATH`,
+а отключить запись через `--no-manifest`.
+
+Если передан `--registry models/liveaction-span`, команда также автоматически создаёт или
+обновляет registry manifest:
+
+```text
+models/liveaction-span/manifest.json
+```
+
+Этот файл используется `--model models/liveaction-span`, чтобы выбрать подходящий static
+engine по разрешению входного видео. Обычно оба manifest-файла генерируются командой
+`build-engine`; вручную их писать не нужно.
+
+Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 
 ```bash
 docker run --rm --gpus all \
@@ -117,14 +133,15 @@ docker run --rm --gpus all \
   --timing-cache models/cache/trt.cache
 ```
 
-Current video inference commands are static-shape full-frame paths. For `upscale-video` and
-`upscale-video-nvcodec`, use a static ONNX variant from `prepare-onnx` and build a static
-engine. Dynamic-profile engine build support is the foundation for a later dynamic runtime
-path.
+Текущие команды video inference работают как static-shape full-frame path. Для
+`upscale-video` и `upscale-video-nvcodec` используйте static ONNX variant из
+`prepare-onnx` и собирайте static engine. Dynamic-profile build уже поддержан, но
+dynamic runtime path остаётся будущей задачей.
 
 ### Model Registry
 
-A model registry lets inference select the correct static engine by input video resolution:
+Model registry позволяет inference выбрать правильный static engine по разрешению
+входного видео:
 
 ```text
 models/liveaction-span/
@@ -136,7 +153,7 @@ models/liveaction-span/
     model_1080p.engine.json
 ```
 
-Run inference through the registry:
+Запуск через registry:
 
 ```bash
 docker run --rm --gpus all \
@@ -147,13 +164,13 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-`--engine PATH` is still supported for explicit engine selection. Use
-`--engine-precision fp16|fp32` with `--model` when a registry contains multiple engines for
-the same resolution.
+`--engine PATH` всё ещё поддерживается для явного выбора engine. Если в registry есть
+несколько engines для одного разрешения, используйте `--engine-precision fp16|fp32`
+вместе с `--model`.
 
-### 4. Upscale Video
+### 4. Апскейл Видео
 
-Default video command: ffmpeg handles decode/encode, TensorRT runs on GPU.
+Базовая команда: ffmpeg делает decode/encode, TensorRT inference выполняется на GPU.
 
 ```bash
 docker run --rm --gpus all \
@@ -164,7 +181,7 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-NVDEC/NVENC backend: decode, color conversion, TensorRT inference, and encode stay on GPU.
+NVDEC/NVENC backend: decode, color conversion, TensorRT inference и encode остаются на GPU.
 
 ```bash
 docker run --rm --gpus all \
@@ -175,7 +192,7 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-Select a specific CUDA device with `--gpu-id`:
+Выбор конкретного CUDA device:
 
 ```bash
 docker run --rm --gpus all \
@@ -187,23 +204,23 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-## CLI Commands
+## CLI-Команды
 
-Canonical video commands:
+Основные команды для видео:
 
 ```bash
 upscale-video           # ffmpeg decode/encode + TensorRT
 upscale-video-nvcodec   # NVDEC/NVENC + TensorRT
 ```
 
-Compatibility aliases are still available:
+Алиасы для совместимости:
 
 ```bash
 upscale      # alias for upscale-video
 upscale-gpu  # alias for upscale-video-nvcodec
 ```
 
-Tooling commands:
+Команды для подготовки моделей:
 
 ```bash
 export-onnx
@@ -211,19 +228,19 @@ prepare-onnx
 build-engine
 ```
 
-Common inference options:
+Общие inference options:
 
 ```bash
---engine PATH       Path to .engine file
---model PATH        Model registry directory or manifest JSON
---input PATH        Input video
---output PATH       Output video (default: *_upscaled.ext)
---gpu-id N          CUDA GPU index (default: 0)
---engine-precision  Prefer fp16 or fp32 when using --model
---max-frames N      Limit frames (0 = all)
---profile           Print per-stage profiling
---verbose           Verbose output
---quiet             Minimal output
+--engine PATH       путь к .engine файлу
+--model PATH        директория model registry или manifest JSON
+--input PATH        входное видео
+--output PATH       выходное видео, default: *_upscaled.ext
+--gpu-id N          CUDA GPU index, default: 0
+--engine-precision  предпочесть fp16 или fp32 при использовании --model
+--max-frames N      ограничить количество кадров, 0 = все
+--profile           вывести per-stage profiling
+--verbose           подробный вывод
+--quiet             минимальный вывод
 ```
 
 Backend-specific options:
@@ -233,8 +250,8 @@ upscale-video:         --crf N
 upscale-video-nvcodec: --crf N --codec h264|hevc
 ```
 
-Note: `--crf` in the NVDEC/NVENC backend is mapped to an estimated NVENC bitrate. It is
-not identical to x264 CRF.
+Важно: `--crf` в NVDEC/NVENC backend мапится в оценочный NVENC bitrate. Это не то же
+самое, что x264 CRF.
 
 ## Docker Compose
 
@@ -250,12 +267,12 @@ NVDEC/NVENC backend:
 docker compose run --rm upscale-video-nvcodec
 ```
 
-Edit `docker-compose.yml` to set the engine and input paths.
+Пути к engine/model и input video задаются в `docker-compose.yml`.
 
-## Developer Install
+## Установка Для Разработки
 
-Use source installs only for development. Docker is the supported workflow for normal
-runs.
+Локальная установка из исходников нужна только для разработки. Для обычных запусков
+поддерживаемый workflow — Docker.
 
 ```bash
 pip install -e ".[ffmpeg]"
@@ -264,9 +281,9 @@ pip install -e ".[export]"
 pip install -e ".[dev]"
 ```
 
-## Quality Checks
+## Проверки Качества
 
-Local checks:
+Локальные проверки:
 
 ```bash
 ruff check .
@@ -274,7 +291,7 @@ mypy .
 python3 -m compileall -q inference.py inference_gpu.py tools upscaler
 ```
 
-Docker-based checks:
+Docker-based проверки:
 
 ```bash
 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
