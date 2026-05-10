@@ -263,6 +263,12 @@ docker run --rm --gpus all \
   --json -
 ```
 
+Важно про mount для JSON output: если указать `-v "$PWD:/app/artefacts"` и
+`--json artefacts/result.json`, файл окажется в host `$PWD/result.json`, потому что
+внутри контейнера `artefacts/result.json` резолвится как `/app/artefacts/result.json`.
+Чтобы файл попал в host `./artefacts/result.json`, используйте
+`-v "$PWD/artefacts:/app/artefacts"` или монтируйте весь репозиторий как `-v "$PWD:/app"`.
+
 ## CLI-Команды
 
 Основные команды для видео:

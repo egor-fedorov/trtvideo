@@ -48,13 +48,38 @@ Benchmark:
 
 Benchmark:
 
-* status: pending;
-* нужно собрать отдельный engine с `--fp16-io`;
-* сравнивать с обычным FP16 engine на одинаковом input, GPU и TensorRT image.
+* input: `videos/switzerland_1080p.mp4`;
+* default engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p.engine`;
+* FP16 I/O engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`;
+* GPU: Quadro RTX 6000;
+* command: `benchmark --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
+* FP16 I/O command adds: `--engine-io-precision fp16`;
+* source artifacts: `switzerland_1080p_default_benchmark.json`, `switzerland_1080p_fp16io_benchmark.json` (локальные benchmark artifacts, не коммитятся).
 
-Проверить:
+Результат:
 
-* `processing_fps` и `throughput_fps`;
-* `stage_ms.trt`, preprocess/postprocess и cvcuda conversion stages;
-* `gpu_peak_mem_mb`;
-* визуальные артефакты, banding/clipping.
+| Backend | Метрика | Default FP16 / FP32 I/O | FP16 I/O | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| `ffmpeg` | throughput FPS | 7.61 | 7.84 | +3.0% |
+| `ffmpeg` | processing FPS | 16.27 | 16.66 | +2.4% |
+| `ffmpeg` | avg frame time | 61.48 ms | 60.02 ms | -2.4% |
+| `ffmpeg` | GPU peak memory | 261.84 MB | 143.87 MB | -45.1% |
+| `ffmpeg` | postprocess stage | 1.60 ms | 0.94 ms | -41.3% |
+| `ffmpeg` | TRT stage | 52.80 ms | 52.07 ms | -1.4% |
+| `nvcodec` | throughput FPS | 16.53 | 17.20 | +4.1% |
+| `nvcodec` | processing FPS | 16.80 | 17.51 | +4.2% |
+| `nvcodec` | avg frame time | 59.51 ms | 57.10 ms | -4.1% |
+| `nvcodec` | GPU peak memory | 282.74 MB | 164.90 MB | -41.7% |
+| `nvcodec` | `TRT inference` stage | 58.19 ms | 55.71 ms | -4.3% |
+
+Вывод:
+
+* FP16 I/O даёт умеренный speedup на 1080p -> 4K, заметнее на `nvcodec`;
+* главный эффект — снижение peak GPU memory примерно на 42-45%;
+* для 1080p SPAN inference всё ещё доминирует TensorRT compute;
+* перед production default нужно отдельно проверить визуальные артефакты, banding/clipping и совместимость других моделей.
+
+Замечание по Docker mount:
+
+* команда с `-v "$PWD:/app/artefacts"` и `--json artefacts/name.json` сохраняет файл в host `$PWD/name.json`, потому что внутри контейнера относительный путь `artefacts/name.json` резолвится как `/app/artefacts/name.json`;
+* для сохранения в host `./artefacts/name.json` использовать `-v "$PWD/artefacts:/app/artefacts"` или монтировать весь repo как `-v "$PWD:/app"`.

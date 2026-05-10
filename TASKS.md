@@ -572,7 +572,9 @@ inference N overlaps with encode N-1
 
 ### 11. FP16 I/O benchmark
 
-Статус: реализован experimental builder/runtime path; требуется Docker/GPU benchmark.
+Статус: реализован experimental builder/runtime path; 720p и 1080p benchmark выполнены
+на Quadro RTX 6000, результаты зафиксированы в `OPTIMIZATIONS.md`. Перед production
+default требуется визуальная проверка.
 
 Сейчас TensorRT builder включает FP16 kernels, но runtime buffers могут оставаться FP32.
 
@@ -622,6 +624,44 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 Цель: проверить снижение CPU launch overhead на compact/lightweight моделях.
 
 ### Stage Infra — Docker base image refresh
+
+Статус: запланировано.
+
+### Infra 1. Docker layer/cache optimization
+
+Статус: запланировано.
+
+Проблема: текущий Dockerfile копирует application code до `pip install ".[docker]"`.
+Из-за этого любое изменение `upscaler/`, `tools/`, `benchmark.py`, `inference*.py`
+инвалидирует тяжёлый dependency install layer. `--no-cache-dir` не является основной
+проблемой, но при такой структуре не помогает повторным сборкам: Docker заново
+экспортирует большой слой с runtime dependencies.
+
+Цель:
+
+* отделить установку тяжёлых runtime dependencies от копирования application code;
+* сделать пересборку после изменения Python-кода быстрой;
+* сохранить production image без лишнего pip cache внутри финального слоя;
+* использовать BuildKit cache mount для pip download/wheel cache на этапе установки зависимостей.
+
+План:
+
+1. Вынести docker/runtime dependencies из `pyproject.toml` extras в отдельный lockable input или generated requirements file.
+2. Сначала копировать только dependency metadata и ставить зависимости отдельным Docker layer.
+3. Использовать `RUN --mount=type=cache,target=/root/.cache/pip ...` для dependency install.
+4. После этого копировать application code.
+5. Устанавливать сам проект быстрым `pip install --no-deps .` или equivalent editable/non-editable install.
+6. Расширить `.dockerignore`: `.mypy_cache/`, `.ruff_cache/`, benchmark JSON artifacts, временные artefacts.
+7. Замерить `docker build` после code-only изменения и зафиксировать результат.
+
+Definition of Done:
+
+* code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `basicsr`;
+* Docker build с warm cache существенно быстрее текущего;
+* итоговый image не содержит лишний pip cache в production layer;
+* workflow `docker build -t upscaler:latest .` остается прежним для пользователя.
+
+### Infra 2. Docker base image refresh
 
 Статус: запланировано.
 
@@ -963,11 +1003,12 @@ requires_padding_multiple: 32
 7. Stage 1D: arbitrary resolution через padding/tiling.
 8. Stage 1E: buffer pool и частичное уменьшение synchronization в native GPU backend.
 9. Stage 1E: FP16 I/O и CUDA Graph experiments на основании benchmark.
-10. Stage Infra: перейти на `nvcr.io/nvidia/tensorrt:26.04-py3` отдельным коммитом и benchmark.
-11. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
-12. Stage 2: добавить VapourSynth backend как experimental.
-13. Stage 2: benchmark VapourSynth vs native backends.
-14. Stage 3: добавить `interpolate-video-vs` для RIFE.
+10. Stage Infra: оптимизировать Docker dependency/code layers и BuildKit pip cache.
+11. Stage Infra: перейти на `nvcr.io/nvidia/tensorrt:26.04-py3` отдельным коммитом и benchmark.
+12. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
+13. Stage 2: добавить VapourSynth backend как experimental.
+14. Stage 2: benchmark VapourSynth vs native backends.
+15. Stage 3: добавить `interpolate-video-vs` для RIFE.
 
 ## Итоговое решение
 
