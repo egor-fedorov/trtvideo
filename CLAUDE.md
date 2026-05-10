@@ -19,6 +19,7 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 .
 ├── CLAUDE.md
 ├── README.md
+├── OPTIMIZATIONS.md            # журнал performance-изменений и benchmark results
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml

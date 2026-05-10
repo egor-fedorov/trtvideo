@@ -609,6 +609,37 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 Цель: проверить снижение CPU launch overhead на compact/lightweight моделях.
 
+### Stage Infra — Docker base image refresh
+
+Статус: запланировано.
+
+Цель: перейти с текущего base image `nvcr.io/nvidia/tensorrt:26.03-py3` на
+`nvcr.io/nvidia/tensorrt:26.04-py3`, не смешивая upgrade runtime stack с
+performance-оптимизациями pipeline.
+
+Зачем:
+
+* получить актуальный TensorRT/NVIDIA Python runtime;
+* проверить совместимость `torch`, `pynvvideocodec`, `cvcuda-cu12` и TensorRT 26.04 image;
+* зафиксировать, меняется ли performance из-за base image, а не из-за кода pipeline.
+
+План:
+
+1. Проверить доступность tag `nvcr.io/nvidia/tensorrt:26.04-py3` и требования к driver/runtime.
+2. Обновить `Dockerfile` отдельным коммитом.
+3. Пересобрать `upscaler:latest` без изменения application code.
+4. Smoke tests в контейнере: import `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`.
+5. Проверить `prepare-onnx`, `build-engine`, `upscale-video`, `upscale-video-nvcodec`.
+6. Повторить benchmark 720p/1080p и записать результат в `OPTIMIZATIONS.md`.
+
+Definition of Done:
+
+* Docker image собирается на новом base image;
+* GPU проброшен, NVENC/NVDEC доступны;
+* build-engine и оба inference backend проходят smoke/runtime test;
+* benchmark сравнен с текущим `26.03-py3` baseline;
+* результат зафиксирован в `OPTIMIZATIONS.md`.
+
 ### Stage 1F — Production media API cleanup
 
 ### 13. Улучшить video metadata layer
@@ -920,10 +951,11 @@ requires_padding_multiple: 32
 7. Stage 1D: arbitrary resolution через padding/tiling.
 8. Stage 1E: buffer pool и частичное уменьшение synchronization в native GPU backend.
 9. Stage 1E: FP16 I/O и CUDA Graph experiments на основании benchmark.
-10. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
-11. Stage 2: добавить VapourSynth backend как experimental.
-12. Stage 2: benchmark VapourSynth vs native backends.
-13. Stage 3: добавить `interpolate-video-vs` для RIFE.
+10. Stage Infra: перейти на `nvcr.io/nvidia/tensorrt:26.04-py3` отдельным коммитом и benchmark.
+11. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
+12. Stage 2: добавить VapourSynth backend как experimental.
+13. Stage 2: benchmark VapourSynth vs native backends.
+14. Stage 3: добавить `interpolate-video-vs` для RIFE.
 
 ## Итоговое решение
 
