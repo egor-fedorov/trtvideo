@@ -140,14 +140,16 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
-  -o models/engines/model_720p.engine \
-  --timing-cache models/cache/trt.cache
+  -o models/liveaction-span/engines/model_720p.engine \
+  --timing-cache models/cache/trt.cache \
+  --registry models/liveaction-span
 ```
 
 `build-engine` по умолчанию пишет sidecar manifest в `<engine>.json`. Там фиксируются
 ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile и
 builder flags. Путь можно изменить через `--manifest PATH`, отключить через
-`--no-manifest`.
+`--no-manifest`. `--registry models/liveaction-span` дополнительно обновляет
+`models/liveaction-span/manifest.json`.
 
 Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 
@@ -171,6 +173,17 @@ docker run --rm --gpus all \
   -v "$PWD/videos:/app/videos" \
   upscaler:latest upscale-video \
   --engine models/engines/model_720p.engine \
+  --input videos/input.mp4
+```
+
+Запуск через model/engine registry:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  upscaler:latest upscale-video \
+  --model models/liveaction-span \
   --input videos/input.mp4
 ```
 
@@ -225,16 +238,18 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 Общий жизненный цикл задает `BasePipeline` в `upscaler/pipeline.py`:
 
 1. Парсит CLI-аргументы.
-2. Проверяет наличие `--engine` и `--input`.
+2. Проверяет наличие `--engine` или `--model`, а также `--input`.
 3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
    количество кадров и доступные color metadata.
-4. Создает `TensorRTRuntime` из `.engine` через общий `RuntimeEngine` interface.
-5. Валидирует минимальный `ModelSpec`: static single-frame RGB upscale, NCHW,
+4. Если задан `--model`, выбирает static engine из model registry по разрешению видео;
+   если задан `--engine`, использует его напрямую.
+5. Создает `TensorRTRuntime` из выбранного `.engine` через общий `RuntimeEngine` interface.
+6. Валидирует минимальный `ModelSpec`: static single-frame RGB upscale, NCHW,
    batch=1, fp32, range `0_1`, равномерный integer scale.
-6. Проверяет, что размер входного видео совпадает с input shape engine.
-7. Инициализирует decoder и encoder выбранного backend.
-8. Запускает цикл обработки кадров.
-9. Печатает статистику и, если включен `--profile`, таблицу профилирования.
+7. Проверяет, что размер входного видео совпадает с input shape engine.
+8. Инициализирует decoder и encoder выбранного backend.
+9. Запускает цикл обработки кадров.
+10. Печатает статистику и, если включен `--profile`, таблицу профилирования.
 
 `TensorRTRuntime` в `upscaler/engine.py`:
 

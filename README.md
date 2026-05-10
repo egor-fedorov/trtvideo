@@ -92,13 +92,16 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
-  -o models/engines/model_720p.engine \
-  --timing-cache models/cache/trt.cache
+  -o models/liveaction-span/engines/model_720p.engine \
+  --timing-cache models/cache/trt.cache \
+  --registry models/liveaction-span
 ```
 
 `build-engine` writes a sidecar manifest by default at `<engine>.json`. It records the
 ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile and
 builder flags. Use `--manifest PATH` to choose a path or `--no-manifest` to disable it.
+`--registry models/liveaction-span` also upserts this engine into
+`models/liveaction-span/manifest.json`.
 
 Dynamic ONNX files can also be built directly with an explicit TensorRT optimization profile:
 
@@ -118,6 +121,35 @@ Current video inference commands are static-shape full-frame paths. For `upscale
 `upscale-video-nvcodec`, use a static ONNX variant from `prepare-onnx` and build a static
 engine. Dynamic-profile engine build support is the foundation for a later dynamic runtime
 path.
+
+### Model Registry
+
+A model registry lets inference select the correct static engine by input video resolution:
+
+```text
+models/liveaction-span/
+  manifest.json
+  engines/
+    model_720p.engine
+    model_720p.engine.json
+    model_1080p.engine
+    model_1080p.engine.json
+```
+
+Run inference through the registry:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  upscaler:latest upscale-video \
+  --model models/liveaction-span \
+  --input videos/input.mp4
+```
+
+`--engine PATH` is still supported for explicit engine selection. Use
+`--engine-precision fp16|fp32` with `--model` when a registry contains multiple engines for
+the same resolution.
 
 ### 4. Upscale Video
 
@@ -183,9 +215,11 @@ Common inference options:
 
 ```bash
 --engine PATH       Path to .engine file
+--model PATH        Model registry directory or manifest JSON
 --input PATH        Input video
 --output PATH       Output video (default: *_upscaled.ext)
 --gpu-id N          CUDA GPU index (default: 0)
+--engine-precision  Prefer fp16 or fp32 when using --model
 --max-frames N      Limit frames (0 = all)
 --profile           Print per-stage profiling
 --verbose           Verbose output

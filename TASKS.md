@@ -280,9 +280,9 @@ Definition of Done:
 
 Цель: отделить TensorRT runtime, engine metadata и build workflow от video pipeline.
 
-Статус: реализован foundation без полного model registry. Runtime interface, sidecar
-engine manifest и TensorRT timing cache уже добавлены; автоматический подбор engine из
-`models/<model>/manifest.json` остается отдельным следующим шагом.
+Статус: реализован foundation с model/engine registry для static engines. Runtime
+interface, sidecar engine manifest, TensorRT timing cache и автоматический подбор engine
+по разрешению видео уже добавлены.
 
 ### 4. Ввести `RuntimeEngine` interface
 
@@ -367,7 +367,11 @@ postprocess_version
 * `build-engine` по умолчанию пишет sidecar manifest `<engine>.json`;
 * manifest содержит ONNX hash, engine hash, TensorRT version, precision, input/output shapes, dynamic profile, builder flags, preprocess/postprocess versions и timing cache path;
 * `--manifest PATH` задает путь manifest, `--no-manifest` отключает запись;
-* полноценный model/engine registry и автоматический cache lookup еще не реализованы.
+* `--registry PATH` обновляет model registry manifest, например `models/liveaction-span/manifest.json`;
+* `upscale-video` и `upscale-video-nvcodec` поддерживают `--model PATH` и выбирают static engine по input resolution;
+* `--engine PATH` остается прямым compatibility path;
+* `--engine-precision fp16|fp32` ограничивает выбор engine из registry;
+* registry пока выбирает только static-shape full-frame engines; dynamic runtime lookup остается будущей задачей.
 
 ### 6. Dynamic profiles и timing cache
 
