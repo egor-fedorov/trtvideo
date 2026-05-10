@@ -1,0 +1,31 @@
+# Models and data
+models/
+*.engine
+*.onnx
+*.pth
+
+# Artefacts
+artefacts/
+
+# Test outputs
+tests/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

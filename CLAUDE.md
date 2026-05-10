@@ -1,0 +1,308 @@
+# AI Video Upscaler - актуальный контекст проекта
+
+## Текущее состояние
+
+Репозиторий: `RealESRGAN-ONNX-TensorRT`
+
+CLI-инструменты для апскейла видео через TensorRT. Поддерживаются модели
+RealESRGAN и SPAN в форматах `.pth` и ONNX.
+
+Разработка ведется локально. Запуски с тяжелыми зависимостями выполняются в Docker,
+обычно на удаленном сервере с GPU.
+
+Основной рабочий сценарий - Docker-first. Локальная установка из исходников нужна
+только для разработки.
+
+## Структура файлов
+
+```
+.
+├── CLAUDE.md
+├── README.md
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml
+├── inference.py                 # ffmpeg decode/encode + TensorRT
+├── inference_gpu.py             # NVDEC/NVENC + TensorRT
+├── scripts/
+│   └── run_batch.sh             # batch processing для видео
+├── tools/
+│   ├── export_onnx.py           # .pth -> .onnx
+│   ├── prepare_onnx.py          # dynamic ONNX -> static ONNX variants
+│   └── build_engine.py          # .onnx -> .engine
+├── upscaler/
+│   ├── engine.py                # TensorRT runtime wrapper
+│   ├── pipeline.py              # общий CLI и шаблон выполнения
+│   ├── ffmpeg_pipeline.py       # backend через ffmpeg pipe
+│   ├── gpu_pipeline.py          # backend через PyNvVideoCodec/cvcuda
+│   ├── profiling.py
+│   └── video.py
+└── models/                      # данные, игнорируются git
+    ├── pretrained/
+    ├── onnx/
+    └── engines/
+```
+
+## Требования для Docker с GPU
+
+Для Docker-запусков, которым нужен GPU, на хосте должны быть:
+
+- NVIDIA driver
+- Docker
+- NVIDIA Container Toolkit (`nvidia-ctk`)
+- NVIDIA runtime/CDI, настроенный для Docker
+
+Настройка Docker после установки NVIDIA Container Toolkit:
+
+```bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+Проверка проброса GPU:
+
+```bash
+nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
+```
+
+Если Docker использует CDI, команда `nvidia-ctk cdi list` должна показывать устройства
+вроде `nvidia.com/gpu=all`.
+
+Docker-образ проекта задает:
+
+```dockerfile
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+```
+
+Это нужно для NVENC/NVDEC через PyNvVideoCodec.
+
+## CLI-команды
+
+Основные команды для видео:
+
+```bash
+upscale-video           # ffmpeg decode/encode + TensorRT
+upscale-video-nvcodec   # NVDEC/NVENC + cvcuda + TensorRT
+```
+
+Алиасы для совместимости:
+
+```bash
+upscale      # alias for upscale-video
+upscale-gpu  # alias for upscale-video-nvcodec
+```
+
+Команды для подготовки моделей:
+
+```bash
+export-onnx
+prepare-onnx
+build-engine
+```
+
+## Docker workflow
+
+Сборка образа:
+
+```bash
+docker build -t upscaler:latest .
+```
+
+Экспорт `.pth` в ONNX. GPU не нужен:
+
+```bash
+docker run --rm \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest export-onnx \
+  --model_path models/pretrained/RealESRGAN_x2plus.pth
+```
+
+Подготовка dynamic ONNX в static variants. GPU не нужен:
+
+```bash
+docker run --rm \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest prepare-onnx models/onnx/model.onnx
+```
+
+Сборка TensorRT engine. GPU нужен:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  upscaler:latest build-engine \
+  models/onnx/model_720p.onnx \
+  -o models/engines/model_720p.engine
+```
+
+Запуск ffmpeg backend:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  upscaler:latest upscale-video \
+  --engine models/engines/model_720p.engine \
+  --input videos/input.mp4
+```
+
+Запуск NVDEC/NVENC backend:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  upscaler:latest upscale-video-nvcodec \
+  --engine models/engines/model_720p.engine \
+  --input videos/input.mp4
+```
+
+## Как устроен инференс
+
+В проекте есть два video inference backend. Оба используют TensorRT на GPU, но
+отличаются тем, где выполняются decode, color conversion и encode.
+
+### Общая часть
+
+Общий жизненный цикл задает `BasePipeline` в `upscaler/pipeline.py`:
+
+1. Парсит CLI-аргументы.
+2. Проверяет наличие `--engine` и `--input`.
+3. Через `ffprobe` читает параметры видео: ширина, высота, FPS, количество кадров.
+4. Создает `TRTInference` из `.engine`.
+5. Проверяет, что размер входного видео совпадает с input shape engine.
+6. Инициализирует decoder и encoder выбранного backend.
+7. Запускает цикл обработки кадров.
+8. Печатает статистику и, если включен `--profile`, таблицу профилирования.
+
+`TRTInference` в `upscaler/engine.py`:
+
+- загружает serialized TensorRT engine;
+- создает execution context;
+- читает input/output tensor names и shapes;
+- заранее выделяет `gpu_input` и `gpu_output` на выбранном `cuda:<gpu-id>`;
+- привязывает GPU buffers к TensorRT context через `set_tensor_address`;
+- выполняет inference через `execute_async_v3`.
+
+Общий флаг `--gpu-id` выбирает CUDA GPU для TensorRT. В NVDEC/NVENC backend этот же
+ID используется для PyNvVideoCodec decode/encode.
+
+### `upscale-video`: ffmpeg backend
+
+Файл: `upscaler/ffmpeg_pipeline.py`
+
+Путь данных:
+
+```text
+ffmpeg decode (CPU) -> RGB raw pipe -> numpy -> torch cuda -> TensorRT
+-> torch output -> CPU numpy -> RGB raw pipe -> ffmpeg encode (CPU)
+```
+
+Подробно:
+
+1. `setup_decoder()` запускает `ffmpeg` как subprocess.
+2. ffmpeg декодирует входное видео и пишет `rgb24` rawvideo в `stdout`.
+3. Python читает из pipe ровно один RGB frame размером `input_w * input_h * 3`.
+4. Frame превращается в `numpy.ndarray` формы `[H, W, 3]`.
+5. `TRTInference.infer()` переносит кадр в CUDA, делает `permute` в `[1, 3, H, W]`,
+   приводит к `float32` и нормализует в диапазон `0..1`.
+6. TensorRT выполняет inference.
+7. Output TensorRT приводится обратно к `uint8 RGB`.
+8. Результат копируется на CPU как numpy.
+9. Python пишет raw RGB frame в `stdin` encoder subprocess.
+10. ffmpeg кодирует выходное видео через `libx264`, сохраняет аудио через `-c:a copy`.
+
+Этот backend проще и надежнее по зависимостям, но использует CPU pipe и CPU encode/decode.
+Он все равно GPU backend в части нейросетевого inference, потому что TensorRT работает
+на CUDA.
+
+Качество видео задается настоящим x264 `--crf`.
+
+### `upscale-video-nvcodec`: NVDEC/NVENC backend
+
+Файл: `upscaler/gpu_pipeline.py`
+
+Путь данных:
+
+```text
+NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
+-> cvcuda NV12 -> NVENC (GPU) -> raw H.264/HEVC -> ffmpeg mux
+```
+
+Подробно:
+
+1. `setup_decoder()` создает `PyNvVideoCodec.ThreadedDecoder`.
+2. Decoder читает compressed video и декодирует кадры через NVDEC.
+3. Кадры выдаются как NV12 GPU surfaces в device memory.
+4. Python получает frame и делает `torch.from_dlpack(raw_frame)`, то есть берет GPU
+   данные без CPU copy.
+5. `nv12_to_rgb()` через cvcuda конвертирует NV12 в RGB на GPU.
+6. RGB tensor приводится к формату TensorRT input: `[1, 3, H, W]`, `float32`, `0..1`.
+7. TensorRT выполняет inference.
+8. Output приводится к `uint8 RGB` на GPU.
+9. `rgb_to_nv12()` через cvcuda конвертирует RGB обратно в NV12 на GPU.
+10. NV12 tensor передается в NVENC через PyNvVideoCodec.
+11. NVENC пишет raw H.264 или HEVC bitstream во временный файл.
+12. В `finalize()` вызывается `ffmpeg`, который mux-ит raw video stream с аудио из
+    исходного файла в финальный MP4.
+
+В этом backend основная data path остается на GPU. CPU участвует в orchestration,
+записи raw bitstream и финальном mux, но не гоняет кадры туда-сюда как numpy buffers.
+
+Качество задается `--crf`, но это не настоящий CRF. Значение преобразуется в оценочный
+битрейт для NVENC функцией `crf_to_bitrate()`. Это нужно переименовать или заменить
+на более явные `--bitrate` / `--quality`.
+
+### Профилирование
+
+Флаг `--profile` включает `ProfileCollector`.
+
+В ffmpeg backend профиль включает:
+
+- `ffmpeg decode (pipe read)` как wall-clock;
+- `Preprocess (CPU->GPU)` через CUDA events;
+- `TRT inference` через CUDA events;
+- `Postprocess (GPU->CPU)` через CUDA events;
+- `ffmpeg encode (pipe write)` как wall-clock.
+
+В NVDEC/NVENC backend профиль включает:
+
+- `NV12->RGB (cvcuda)`;
+- `TRT inference`;
+- `RGB->NV12 (cvcuda)`;
+- `NVENC encode`.
+
+Текущий profiler измеряет processing stages после получения кадра из decoder. Он не
+является полным end-to-end профилем всего процесса для всех backend.
+
+## Важные заметки про TensorRT
+
+TensorRT engine привязан к версии TensorRT и классу GPU. При переносе между существенно
+разными GPU или версиями TensorRT container engine лучше пересобрать.
+
+Dynamic ONNX нельзя напрямую собрать через `build-engine`, если не задан TensorRT
+optimization profile. Текущий workflow проекта ожидает static ONNX:
+
+1. Запустить `prepare-onnx` на dynamic ONNX.
+2. Собрать сгенерированный static файл, например `*_720p.onnx`.
+
+Если TensorRT печатает input/output shape вида `(-1, 3, -1, -1)`, ONNX все еще dynamic,
+и его не нужно напрямую передавать в `build-engine`.
+
+## Заметки по производительности
+
+Предыдущие измерения на L4 с SPAN 720p -> 1440p:
+
+- TensorRT inference доминировал по времени кадра, около 98% в профилированном запуске.
+- ffmpeg pipe backend и NVDEC/NVENC backend давали похожий FPS на тяжелых моделях.
+- NVDEC/NVENC backend в первую очередь снижает нагрузку на CPU/RAM и должен быть
+  полезнее на более легких и быстрых моделях.
+
+## Текущие известные ограничения
+
+- `prepare-onnx` сейчас использует встроенные targets 720p и 1080p. Лучше добавить
+  явный CLI, например `--size 1280x720`.
+- `build-engine` не создает TensorRT optimization profiles для dynamic ONNX.
+- Название `--crf` в NVENC backend приблизительное. Его лучше заменить или дополнить
+  явными `--bitrate` / `--quality`.

@@ -1,0 +1,34 @@
+services:
+  upscale-video:
+    build: .
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./models:/app/models
+      - ./videos:/app/videos
+    entrypoint: upscale-video
+    command: ["--engine", "models/engines/model.engine", "--input", "videos/input.mp4"]
+
+  upscale-video-nvcodec:
+    build: .
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./models:/app/models
+      - ./videos:/app/videos
+    entrypoint: upscale-video-nvcodec
+    command: ["--engine", "models/engines/model.engine", "--input", "videos/input.mp4"]

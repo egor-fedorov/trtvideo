@@ -1,0 +1,121 @@
+[project]
+name = "ai-video-upscaler"
+version = "0.1.0"
+description = "AI video upscaler via TensorRT with RealESRGAN and SPAN models"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "numpy>=2.0,<3",
+]
+
+[project.optional-dependencies]
+ffmpeg = [
+    "torch>=2.10,<3",
+    "tensorrt>=10.16,<11",
+]
+gpu = [
+    "torch>=2.10,<3",
+    "tensorrt>=10.16,<11",
+    "pynvvideocodec>=2.1,<3",
+    "cvcuda-cu12>=0.16",
+]
+docker = [
+    "torch>=2.10,<3",
+    "pynvvideocodec>=2.1,<3",
+    "cvcuda-cu12>=0.16",
+    "onnx>=1.16,<2",
+    "basicsr>=1.4,<2",
+]
+export = [
+    "torch>=2.10,<3",
+    "onnx>=1.16,<2",
+    "basicsr>=1.4,<2",
+]
+
+[project.scripts]
+upscale-video = "inference:main"
+upscale-video-nvcodec = "inference_gpu:main"
+upscale = "inference:main"
+upscale-gpu = "inference_gpu:main"
+export-onnx = "tools.export_onnx:main"
+prepare-onnx = "tools.prepare_onnx:main"
+build-engine = "tools.build_engine:main"
+
+[tool.setuptools]
+py-modules = ["inference", "inference_gpu"]
+packages = ["upscaler", "tools"]
+
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+exclude = ["project/tests", "project/test"]
+
+[tool.ruff.lint]
+# https://docs.astral.sh/ruff/rules/
+select = ["ALL"]
+ignore = [
+    # unsorted-imports
+    "I001",
+    # bad-quotes-inline-string
+    "Q000",
+    # docstring
+    "D",
+    # flake8-use-pathlib
+    "PTH",
+    # flake8-future-annotations
+    "FA",
+    # raise-vanilla-args
+    "TRY003",
+    # flake8-errmsg
+    "EM",
+    # flake8-logging-format
+    "G",
+    # implicit-namespace-package
+    "INP001",
+    # missing-todo-link
+    "TD003",
+    # flake8-fixme
+    "FIX",
+    # any-type
+    "ANN401",
+    # include-trailing-comma
+    "COM812"
+]
+
+
+[tool.mypy]
+disallow_untyped_defs=true
+check_untyped_defs=true
+warn_return_any=true
+warn_unused_ignores=true
+namespace_packages=true
+warn_no_return=false
+exclude = "project/api/tests/"
+mypy_path = "project"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pytest_asyncio.*",
+    "aiokafka.*",
+    "pytest.*",
+    "_pytest.*",
+    "pytest_mock.*"
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "certifi"
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+skip-string-normalization = true
+
+[tool.isort]
+line_length = 100
+multi_line_output = 3
+profile = "black"
+lines_after_imports = 2
+include_trailing_comma = true

@@ -1,0 +1,15 @@
+models/
+artefacts/
+tests/
+venv/
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+.git/
+.vscode/
+.idea/
+*.engine
+*.onnx
+*.pth
