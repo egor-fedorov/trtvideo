@@ -32,11 +32,12 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 │   └── build_engine.py          # .onnx -> .engine
 ├── upscaler/
 │   ├── engine.py                # TensorRT runtime wrapper
+│   ├── model_spec.py            # минимальный контракт TensorSpec/ModelSpec
 │   ├── pipeline.py              # общий CLI и шаблон выполнения
 │   ├── ffmpeg_pipeline.py       # backend через ffmpeg pipe
 │   ├── gpu_pipeline.py          # backend через PyNvVideoCodec/cvcuda
 │   ├── profiling.py
-│   └── video.py
+│   └── video.py                 # ffprobe metadata -> VideoInfo
 └── models/                      # данные, игнорируются git
     ├── pretrained/
     ├── onnx/
@@ -187,18 +188,22 @@ docker run --rm --gpus all \
 
 1. Парсит CLI-аргументы.
 2. Проверяет наличие `--engine` и `--input`.
-3. Через `ffprobe` читает параметры видео: ширина, высота, FPS, количество кадров.
+3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
+   количество кадров и доступные color metadata.
 4. Создает `TRTInference` из `.engine`.
-5. Проверяет, что размер входного видео совпадает с input shape engine.
-6. Инициализирует decoder и encoder выбранного backend.
-7. Запускает цикл обработки кадров.
-8. Печатает статистику и, если включен `--profile`, таблицу профилирования.
+5. Валидирует минимальный `ModelSpec`: static single-frame RGB upscale, NCHW,
+   batch=1, fp32, range `0_1`, равномерный integer scale.
+6. Проверяет, что размер входного видео совпадает с input shape engine.
+7. Инициализирует decoder и encoder выбранного backend.
+8. Запускает цикл обработки кадров.
+9. Печатает статистику и, если включен `--profile`, таблицу профилирования.
 
 `TRTInference` в `upscaler/engine.py`:
 
 - загружает serialized TensorRT engine;
 - создает execution context;
 - читает input/output tensor names и shapes;
+- строит и валидирует `ModelSpec` до выделения GPU buffers;
 - заранее выделяет `gpu_input` и `gpu_output` на выбранном `cuda:<gpu-id>`;
 - привязывает GPU buffers к TensorRT context через `set_tensor_address`;
 - выполняет inference через `execute_async_v3`.
@@ -307,6 +312,11 @@ optimization profile. Есть два поддержанных workflow:
 
 Если TensorRT печатает input/output shape вида `(-1, 3, -1, -1)`, ONNX все еще dynamic,
 и его можно передавать в `build-engine` только с explicit optimization profile.
+
+Текущий video inference runtime работает как static-shape full-frame path. Dynamic ONNX
+с TensorRT profile можно собрать, но запуск такого engine в `upscale-video` /
+`upscale-video-nvcodec` пока не является поддержанным runtime path без отдельной
+логики выбора concrete shape и перевыделения buffers.
 
 ## Заметки по производительности
 

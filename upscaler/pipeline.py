@@ -10,7 +10,7 @@ import torch
 
 from upscaler.engine import TRTInference
 from upscaler.profiling import ProfileCollector
-from upscaler.video import get_video_info
+from upscaler.video import VideoInfo, get_video_info
 
 
 class BasePipeline(ABC):
@@ -41,7 +41,7 @@ class BasePipeline(ABC):
         self.add_extra_args(parser)
         self.args = parser.parse_args()
 
-        self.info: dict = {}
+        self.info = VideoInfo(width=0, height=0, fps=0.0, fps_str="0/1", nb_frames=0)
         self.trt_model: TRTInference | None = None
         self.total_frames: int = 0
         self.profiler: ProfileCollector | None = None
@@ -115,22 +115,20 @@ class BasePipeline(ABC):
             args.output = f"{base}_upscaled{ext}"
 
         self.info = get_video_info(args.input)
+        info = self.info
         self.log(
-            f"Input video: {self.info['width']}x{self.info['height']}, "
-            f"{self.info['fps']:.2f} fps, {self.info['nb_frames']} frames"
+            f"Input video: {info.width}x{info.height}, "
+            f"{info.fps:.2f} fps, {info.nb_frames} frames"
         )
-        self.total_frames = args.max_frames if args.max_frames > 0 else self.info["nb_frames"]
+        self.total_frames = args.max_frames if args.max_frames > 0 else info.nb_frames
 
         self.log("\nInitializing TensorRT...")
         torch.cuda.set_device(args.gpu_id)
         self.trt_model = TRTInference(args.engine, quiet=args.quiet, gpu_id=args.gpu_id)
 
-        if (
-            self.info["width"] != self.trt_model.input_w
-            or self.info["height"] != self.trt_model.input_h
-        ):
+        if info.width != self.trt_model.input_w or info.height != self.trt_model.input_h:
             print(
-                f"WARNING: Video {self.info['width']}x{self.info['height']} "
+                f"WARNING: Video {info.width}x{info.height} "
                 f"!= engine {self.trt_model.input_w}x{self.trt_model.input_h}"
             )
             sys.exit(1)

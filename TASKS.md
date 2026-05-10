@@ -99,6 +99,8 @@ Stage 1 нужно выполнять после Stage 0 и не начинат�
 
 Цель: зафиксировать минимальные контракты для текущего single-frame upscale, не пытаясь сразу покрыть все будущие задачи.
 
+Статус: реализован минимальный runtime contract без переноса проекта в новую структуру директорий.
+
 ### 1. Ввести минимальные `TensorSpec`, `VideoInfo`, `ModelSpec`
 
 Сначала нужен небольшой набор контрактов, который описывает текущий upscale path:
@@ -135,6 +137,14 @@ Definition of Done:
 * текущие SPAN/RealESRGAN-like модели описываются без дополнительных предположений в pipeline;
 * runtime validation проверяет layout/range/scale для single-frame upscale;
 * RIFE, matting, OCR, segmentation не входят в MVP `ModelSpec`, а остаются будущим расширением.
+
+Текущая реализация:
+
+* `TensorSpec` и `ModelSpec` описывают только static single-frame RGB upscale contract: NCHW, fp32, RGB, range `0_1`, batch=1;
+* `TRTInference` создает `ModelSpec` при загрузке engine и валидирует static tensor shape, batch/channels и uniform integer scale до выделения GPU buffers;
+* `VideoInfo` заменяет неструктурированный dict из `ffprobe`, но сохраняет dict-style доступ для существующих backend call sites;
+* dynamic TensorRT runtime execution не входит в Stage 1A: текущий video inference path остается static-shape full-frame.
+* локально проверено через `python3 -m py_compile`, `git diff --check` и smoke-check контрактов без TensorRT/GPU runtime.
 
 ### 2. Разделить CLI, runtime, video IO и task logic
 
@@ -234,6 +244,25 @@ license:
   commercial_use: false
   name: CC-BY-NC-SA-4.0
 ```
+
+### Stage Q — Ruff/Mypy quality gates
+
+Цель: сделать синтаксические и типовые проверки обязательной частью разработки, но отдельным этапом от Stage 1A.
+
+Требования:
+
+* добавить dev/development dependency group для `ruff` и `mypy`;
+* привести `pyproject.toml` к реальной структуре этого проекта, без старых путей вроде `project/...`;
+* зафиксировать команды проверки для локального и Docker-first workflow;
+* прогнать `ruff check`, `mypy` и `python -m py_compile` по основным модулям;
+* исправить найденные проблемы отдельным коммитом, не смешивая с архитектурными изменениями Stage 1A/1B.
+
+Definition of Done:
+
+* `ruff check .` проходит или имеет явно зафиксированный минимальный набор временных исключений;
+* `mypy` проходит на выбранном scope проекта или имеет явно зафиксированный baseline;
+* README/CLAUDE показывают команды quality checks;
+* CI/local workflow может запускать эти проверки без ручной настройки.
 
 ### Stage 1B — Build/runtime foundation
 
@@ -806,16 +835,17 @@ requires_padding_multiple: 32
 
 1. Stage 0: закрыть текущие ONNX/TensorRT build проблемы.
 2. Stage 1A: `VideoInfo`, `TensorSpec`, минимальный `ModelSpec` для single-frame upscale.
-3. Stage 1B: `RuntimeEngine` interface, TensorRT runtime cleanup, engine manifest/cache.
-4. Stage 1B: dynamic profiles + timing cache.
-5. Stage 1C: benchmark command + JSON output.
-6. Stage 1D: arbitrary resolution через padding/tiling.
-7. Stage 1E: buffer pool и частичное уменьшение synchronization в native GPU backend.
-8. Stage 1E: FP16 I/O и CUDA Graph experiments на основании benchmark.
-9. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
-10. Stage 2: добавить VapourSynth backend как experimental.
-11. Stage 2: benchmark VapourSynth vs native backends.
-12. Stage 3: добавить `interpolate-video-vs` для RIFE.
+3. Stage Q: добавить `ruff`/`mypy` quality gates и поправить код по ним отдельным проходом.
+4. Stage 1B: `RuntimeEngine` interface, TensorRT runtime cleanup, engine manifest/cache.
+5. Stage 1B: dynamic profiles + timing cache.
+6. Stage 1C: benchmark command + JSON output.
+7. Stage 1D: arbitrary resolution через padding/tiling.
+8. Stage 1E: buffer pool и частичное уменьшение synchronization в native GPU backend.
+9. Stage 1E: FP16 I/O и CUDA Graph experiments на основании benchmark.
+10. Stage 1F: encoder quality API cleanup и machine-readable progress/profiling.
+11. Stage 2: добавить VapourSynth backend как experimental.
+12. Stage 2: benchmark VapourSynth vs native backends.
+13. Stage 3: добавить `interpolate-video-vs` для RIFE.
 
 ## Итоговое решение
 

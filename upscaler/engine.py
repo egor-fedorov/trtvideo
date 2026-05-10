@@ -6,6 +6,8 @@ import numpy as np
 import tensorrt as trt
 import torch
 
+from upscaler.model_spec import ModelSpec, make_upscale_model_spec
+
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
@@ -28,7 +30,8 @@ class TRTInference:
         if self.engine is None:
             print(f"ERROR: Failed to load engine: {engine_path}")
             print(
-                f"  Engine may be built with a different TensorRT version (current: {trt.__version__})."
+                "  Engine may be built with a different TensorRT version "
+                f"(current: {trt.__version__})."
             )
             print("  Rebuild: build-engine <model>.onnx")
             sys.exit(1)
@@ -40,6 +43,19 @@ class TRTInference:
         self.output_name = self.engine.get_tensor_name(1)
         self.input_shape = tuple(self.engine.get_tensor_shape(self.input_name))
         self.output_shape = tuple(self.engine.get_tensor_shape(self.output_name))
+        try:
+            self.model_spec: ModelSpec = make_upscale_model_spec(
+                name=engine_path,
+                input_name=self.input_name,
+                output_name=self.output_name,
+                input_shape=self.input_shape,
+                output_shape=self.output_shape,
+            )
+        except ValueError as exc:
+            print(f"ERROR: Unsupported TensorRT engine contract: {exc}")
+            print("  Current video runtime supports static single-frame RGB upscale engines only.")
+            print("  For video inference, build a static engine from a static ONNX variant.")
+            sys.exit(1)
 
         _, _, self.input_h, self.input_w = self.input_shape
         _, _, self.output_h, self.output_w = self.output_shape
@@ -60,6 +76,7 @@ class TRTInference:
             print(f"  GPU:    cuda:{gpu_id}")
             print(f"  Input:  {self.input_w}x{self.input_h}")
             print(f"  Output: {self.output_w}x{self.output_h}")
+            print(f"  Scale:  {self.model_spec.scale}x")
 
     def infer(self, frame_rgb: np.ndarray) -> np.ndarray:
         """Upscale a single frame (CPU->GPU->TRT->GPU->CPU).

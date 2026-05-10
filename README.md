@@ -108,6 +108,11 @@ docker run --rm --gpus all \
   --max-shape input:1x3x1080x1920
 ```
 
+Current video inference commands are static-shape full-frame paths. For `upscale-video` and
+`upscale-video-nvcodec`, use a static ONNX variant from `prepare-onnx` and build a static
+engine. Dynamic-profile engine build support is the foundation for a later dynamic runtime
+path.
+
 ### 4. Upscale Video
 
 Default video command: ffmpeg handles decode/encode, TensorRT runs on GPU.
