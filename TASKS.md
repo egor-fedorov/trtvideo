@@ -274,7 +274,7 @@ Definition of Done:
 * `mypy .` проверяет `inference.py`, `inference_gpu.py`, `tools`, `upscaler`;
 * `mypy` временно подавляет `union-attr` до Stage 1B, потому что runtime fields сейчас инициализируются в `BasePipeline.run()`;
 * Dockerfile поддерживает dev image через `--build-arg INSTALL_DEV=1`;
-* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q inference.py inference_gpu.py tools upscaler`.
+* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler`.
 
 ### Stage 1B — Build/runtime foundation
 
@@ -411,6 +411,8 @@ build-engine model.onnx \
 
 Цель: сначала получить машинно-читаемый benchmark, затем оптимизировать hot path по измерениям.
 
+Статус: реализован базовый benchmark harness с JSON output.
+
 ### 7. Benchmark harness с JSON output
 
 Нужна отдельная команда:
@@ -457,6 +459,19 @@ Definition of Done:
 * benchmark умеет запускать `ffmpeg` и `nvcodec` backend на одинаковом input/engine;
 * JSON содержит FPS, stage timings, GPU name, input/output resolution, frame count;
 * benchmark можно запускать в Docker без ручного парсинга текстовых логов.
+
+Текущая реализация:
+
+* добавлены команды `benchmark` и `benchmark-video`;
+* benchmark запускает `upscale-video` и/или `upscale-video-nvcodec` как child process;
+* `--engine` и `--model` оба поддержаны;
+* `--json PATH` пишет JSON в файл, `--json -` пишет чистый JSON в stdout;
+* progress и diagnostics benchmark выводятся в stderr, `--quiet` подавляет progress;
+* pipeline получил `--profile-json PATH` и `--warmup-frames N`;
+* итоговый JSON содержит backend, engine, GPU, input/output resolution, measured frames, warmup frames, `fps_wall`, `stage_ms`, `gpu_peak_mem_mb`;
+* `ffmpeg` stage keys нормализованы в `decode`, `preprocess`, `trt`, `postprocess`, `encode`;
+* `nvcodec` stage keys нормализованы в `nv12_to_rgb`, `trt`, `rgb_to_nv12`, `encode`;
+* локально проверены quality gates и compile/smoke без TensorRT runtime.
 
 ### Stage 1D — Arbitrary resolution
 

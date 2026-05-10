@@ -1,5 +1,7 @@
 """CUDA event-based profiling for pipeline stages."""
 
+from typing import Any
+
 import torch
 
 
@@ -46,6 +48,39 @@ class ProfileCollector:
     def committed_count(self) -> int:
         return len(self._events)
 
+    def summary(self, frame_times: list[float]) -> dict[str, Any]:
+        """Return machine-readable profiling summary."""
+        torch.cuda.synchronize()
+
+        n_total = len(self._events)
+        skip = self.skip_warmup if n_total > self.skip_warmup else 0
+        events = self._events[skip:]
+        n = len(events)
+
+        stage_ms: dict[str, float] = {}
+        if n > 0:
+            for name in self.stage_names:
+                if name in self.gpu_stages:
+                    idx = self.gpu_stages.index(name)
+                    total_ms = sum(ev[idx].elapsed_time(ev[idx + 1]) for ev in events)
+                    stage_ms[name] = total_ms / n
+                else:
+                    wall_vals = self._wall_times.get(name, [])
+                    if len(wall_vals) > skip:
+                        vals = wall_vals[skip:]
+                        stage_ms[name] = sum(vals) / len(vals) * 1000
+
+        measured_frame_times = frame_times[skip:]
+        wall_avg = (
+            sum(measured_frame_times) / len(measured_frame_times) if measured_frame_times else 0.0
+        )
+        return {
+            "warmup_frames": skip,
+            "frames": len(measured_frame_times),
+            "fps_wall": 1.0 / wall_avg if wall_avg > 0 else 0.0,
+            "stage_ms": stage_ms,
+        }
+
     def print_table(
         self,
         in_w: int,
@@ -55,26 +90,17 @@ class ProfileCollector:
         frame_times: list[float],
     ) -> None:
         """Print the profiling table."""
-        torch.cuda.synchronize()
-
-        n_total = len(self._events)
-        skip = self.skip_warmup if n_total > self.skip_warmup else 0
-        events = self._events[skip:]
-        n = len(events)
+        summary = self.summary(frame_times)
+        n = int(summary["frames"])
         if n == 0:
             return
 
-        rows: list[tuple[str, float]] = []
-        for name in self.stage_names:
-            if name in self.gpu_stages:
-                idx = self.gpu_stages.index(name)
-                total_ms = sum(ev[idx].elapsed_time(ev[idx + 1]) for ev in events)
-                rows.append((name, total_ms / n))
-            else:
-                wall_vals = self._wall_times.get(name, [])
-                if len(wall_vals) > skip:
-                    vals = wall_vals[skip:]
-                    rows.append((name + " *", sum(vals) / len(vals) * 1000))
+        stage_ms = summary["stage_ms"]
+        rows = [
+            (name if name in self.gpu_stages else name + " *", stage_ms[name])
+            for name in self.stage_names
+            if name in stage_ms
+        ]
 
         total_avg = sum(ms for _, ms in rows)
 
@@ -91,10 +117,5 @@ class ProfileCollector:
         print(dash)
         print(f"{'TOTAL':<40s} {total_avg:>7.1f}ms {'100.0%':>8s}")
 
-        # Wall-clock FPS
-        ft = frame_times[skip:]
-        if ft:
-            wall_avg = sum(ft) / len(ft)
-            wall_fps = 1.0 / wall_avg if wall_avg > 0 else 0
-            print(f"{'FPS (wall-clock)':<40s} {wall_fps:>7.1f}")
+        print(f"{'FPS (wall-clock)':<40s} {summary['fps_wall']:>7.1f}")
         print(sep)

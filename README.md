@@ -204,6 +204,45 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
+### 5. Benchmark
+
+`benchmark` запускает один или несколько backend'ов на одинаковом input/engine и пишет
+machine-readable JSON. Прогресс и diagnostics выводятся в `stderr`, поэтому `stdout`
+можно безопасно использовать для JSON через `--json -`.
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  -v "$PWD/artefacts:/app/artefacts" \
+  upscaler:latest benchmark \
+  --model models/liveaction-span \
+  --input videos/input.mp4 \
+  --backend ffmpeg,nvcodec \
+  --warmup-frames 20 \
+  --frames 300 \
+  --json artefacts/benchmark.json
+```
+
+JSON содержит backend, engine, GPU, input/output resolution, количество измеренных
+кадров, `fps_wall`, `stage_ms` и `gpu_peak_mem_mb`. Для benchmark команда фактически
+обрабатывает `warmup_frames + frames` кадров, а первые warmup-кадры исключает из
+метрик.
+
+Если JSON нужен напрямую в shell pipeline:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  upscaler:latest benchmark \
+  --model models/liveaction-span \
+  --input videos/input.mp4 \
+  --backend nvcodec \
+  --quiet \
+  --json -
+```
+
 ## CLI-Команды
 
 Основные команды для видео:
@@ -226,6 +265,8 @@ upscale-gpu  # alias for upscale-video-nvcodec
 export-onnx
 prepare-onnx
 build-engine
+benchmark
+benchmark-video
 ```
 
 Общие inference options:
@@ -288,7 +329,7 @@ pip install -e ".[dev]"
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
 ```
 
 Docker-based проверки:
@@ -298,5 +339,5 @@ docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+  python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
 ```

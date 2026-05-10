@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 
 COPY pyproject.toml .
 COPY upscaler/ upscaler/
-COPY inference.py inference_gpu.py ./
+COPY benchmark.py inference.py inference_gpu.py ./
 COPY tools/ tools/
 
 ARG INSTALL_DEV=0

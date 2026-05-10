@@ -101,6 +101,8 @@ upscale-gpu  # alias for upscale-video-nvcodec
 export-onnx
 prepare-onnx
 build-engine
+benchmark
+benchmark-video
 ```
 
 ## Docker workflow
@@ -211,7 +213,7 @@ pip install -e ".[dev]"
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
 ```
 
 Docker-based вариант:
@@ -221,7 +223,7 @@ docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q inference.py inference_gpu.py tools upscaler
+  python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
 ```
 
 `mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
@@ -354,6 +356,26 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 
 Текущий profiler измеряет processing stages после получения кадра из decoder. Он не
 является полным end-to-end профилем всего процесса для всех backend.
+
+`--profile-json PATH` пишет machine-readable summary для одного запуска backend.
+Команда `benchmark` / `benchmark-video` запускает `upscale-video` и/или
+`upscale-video-nvcodec` на одинаковом input/engine и собирает итоговый JSON:
+
+```bash
+benchmark \
+  --model models/liveaction-span \
+  --input videos/input.mp4 \
+  --backend ffmpeg,nvcodec \
+  --warmup-frames 20 \
+  --frames 300 \
+  --json artefacts/benchmark.json
+```
+
+Benchmark обрабатывает `warmup_frames + frames` кадров, исключает warmup из метрик и
+пишет FPS, stage timings, GPU name, peak GPU memory и выбранный engine.
+`--json -` пишет чистый JSON в stdout; progress и diagnostics benchmark идут в
+stderr. `--quiet` подавляет служебные progress-строки benchmark, ошибки всё равно
+пишутся в stderr.
 
 ## Важные заметки про TensorRT
 

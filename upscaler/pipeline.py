@@ -1,6 +1,7 @@
 """Base pipeline with template method pattern for the frame processing loop."""
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -28,6 +29,7 @@ class BasePipeline(ABC):
     """
 
     DESCRIPTION: str = "TensorRT Video Upscaler"
+    BACKEND_NAME: str = "unknown"
 
     def __init__(self):
         parser = argparse.ArgumentParser(description=self.DESCRIPTION)
@@ -47,10 +49,17 @@ class BasePipeline(ABC):
             help="Preferred precision when selecting an engine from --model",
         )
         parser.add_argument("--max-frames", type=int, default=0, help="Limit frames (0 = all)")
+        parser.add_argument(
+            "--warmup-frames",
+            type=int,
+            default=1,
+            help="Frames to exclude from profiling/benchmark summaries",
+        )
         parser.add_argument("--log-interval", type=int, default=10, help="Log every N frames")
         parser.add_argument(
             "--profile", action="store_true", help="Per-stage profiling (CUDA events)"
         )
+        parser.add_argument("--profile-json", default=None, help="Write profiling JSON summary")
         verbosity = parser.add_mutually_exclusive_group()
         verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
         verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
@@ -79,6 +88,10 @@ class BasePipeline(ABC):
         if self.runtime is None:
             raise RuntimeError("Runtime is not initialized")
         return self.runtime
+
+    def profile_stage_key_map(self) -> dict[str, str]:
+        """Map human-readable profile stage names to stable JSON keys."""
+        return {}
 
     def resolve_engine_path(self, video_info: VideoInfo) -> str:
         """Resolve explicit engine path or select one from a model registry."""
@@ -193,10 +206,11 @@ class BasePipeline(ABC):
             )
             sys.exit(1)
 
-        if args.profile:
+        if args.profile or args.profile_json:
             self.profiler = ProfileCollector(
                 self.profile_stage_names(),
                 gpu_stages=self.gpu_stage_names(),
+                skip_warmup=args.warmup_frames,
             )
 
         self.setup_decoder()
@@ -219,7 +233,7 @@ class BasePipeline(ABC):
         wall_total = time.perf_counter() - wall_start
 
         # Profile table
-        if self.profiler and self.profiler.committed_count > 0:
+        if args.profile and self.profiler and self.profiler.committed_count > 0:
             self.profiler.print_table(
                 runtime.input_w,
                 runtime.input_h,
@@ -227,9 +241,54 @@ class BasePipeline(ABC):
                 runtime.output_h,
                 frame_times,
             )
+        if args.profile_json and self.profiler:
+            self._write_profile_json(args.profile_json, frame_times, wall_total)
 
         # Stats
         self._print_stats(frame_times, wall_total)
+
+    def _write_profile_json(
+        self,
+        output_path: str,
+        frame_times: list[float],
+        wall_total: float,
+    ) -> None:
+        runtime = self.require_runtime()
+        profile = self.profiler.summary(frame_times) if self.profiler else {}
+        stage_ms = profile.get("stage_ms", {})
+        stage_key_map = self.profile_stage_key_map()
+        normalized_stage_ms = {
+            stage_key_map.get(name, name): value for name, value in stage_ms.items()
+        }
+
+        try:
+            gpu_name = torch.cuda.get_device_name(self.args.gpu_id)
+            gpu_peak_mem_mb = torch.cuda.max_memory_allocated(self.args.gpu_id) / (1024 * 1024)
+        except RuntimeError:
+            gpu_name = f"cuda:{self.args.gpu_id}"
+            gpu_peak_mem_mb = 0.0
+
+        report = {
+            "backend": self.BACKEND_NAME,
+            "model": self.args.model,
+            "engine": self.engine_path,
+            "gpu": gpu_name,
+            "input": self.args.input,
+            "output": self.args.output,
+            "input_resolution": f"{self.info.width}x{self.info.height}",
+            "output_resolution": f"{runtime.output_w}x{runtime.output_h}",
+            "frames": profile.get("frames", len(frame_times)),
+            "warmup_frames": profile.get("warmup_frames", 0),
+            "fps_wall": profile.get("fps_wall", 0.0),
+            "wall_total_sec": wall_total,
+            "stage_ms": normalized_stage_ms,
+            "gpu_peak_mem_mb": gpu_peak_mem_mb,
+        }
+
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, sort_keys=True)
+            f.write("\n")
 
     def _run_loop(self, frame_times: list[float]) -> None:
         """Frame loop. Subclasses can override for a tight loop."""

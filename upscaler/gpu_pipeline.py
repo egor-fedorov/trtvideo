@@ -90,6 +90,7 @@ class GpuPipeline(BasePipeline):
     """Pipeline: NVDEC -> NV12 -> RGB (cvcuda) -> TRT -> RGB -> NV12 (cvcuda) -> NVENC."""
 
     DESCRIPTION = "TensorRT Video Upscaler (NVDEC/NVENC backend)"
+    BACKEND_NAME = "nvcodec"
     _DECODE_BATCH_SIZE = 8
 
     def __init__(self):
@@ -111,12 +112,21 @@ class GpuPipeline(BasePipeline):
         "RGB\u2192NV12 (cvcuda)",
         "NVENC encode",
     ]
+    _PROFILE_STAGE_KEYS = {
+        "NV12\u2192RGB (cvcuda)": "nv12_to_rgb",
+        "TRT inference": "trt",
+        "RGB\u2192NV12 (cvcuda)": "rgb_to_nv12",
+        "NVENC encode": "encode",
+    }
 
     def profile_stage_names(self) -> list[str]:
         return self._GPU_STAGES
 
     def gpu_stage_names(self) -> list[str]:
         return self._GPU_STAGES
+
+    def profile_stage_key_map(self) -> dict[str, str]:
+        return self._PROFILE_STAGE_KEYS
 
     def setup_decoder(self) -> None:
         self.log("Initializing NVDEC...")

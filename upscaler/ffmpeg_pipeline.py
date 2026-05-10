@@ -20,6 +20,14 @@ class FfmpegPipeline(BasePipeline):
     """Pipeline: ffmpeg decode (pipe) \u2192 TRT \u2192 ffmpeg encode (pipe)."""
 
     DESCRIPTION = "TensorRT Video Upscaler (ffmpeg backend)"
+    BACKEND_NAME = "ffmpeg"
+    _PROFILE_STAGE_KEYS = {
+        "ffmpeg decode (pipe read)": "decode",
+        "Preprocess (CPU\u2192GPU)": "preprocess",
+        "TRT inference": "trt",
+        "Postprocess (GPU\u2192CPU)": "postprocess",
+        "ffmpeg encode (pipe write)": "encode",
+    }
 
     def __init__(self):
         self._decoder: subprocess.Popen | None = None
@@ -40,6 +48,9 @@ class FfmpegPipeline(BasePipeline):
 
     def gpu_stage_names(self) -> list[str]:
         return _GPU_STAGES
+
+    def profile_stage_key_map(self) -> dict[str, str]:
+        return self._PROFILE_STAGE_KEYS
 
     def setup_decoder(self) -> None:
         runtime = self.require_runtime()

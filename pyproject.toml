@@ -43,9 +43,11 @@ upscale-gpu = "inference_gpu:main"
 export-onnx = "tools.export_onnx:main"
 prepare-onnx = "tools.prepare_onnx:main"
 build-engine = "tools.build_engine:main"
+benchmark = "benchmark:main"
+benchmark-video = "benchmark:main"
 
 [tool.setuptools]
-py-modules = ["inference", "inference_gpu"]
+py-modules = ["benchmark", "inference", "inference_gpu"]
 packages = ["upscaler", "tools"]
 
 
