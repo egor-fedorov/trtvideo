@@ -131,10 +131,11 @@ class GpuPipeline(BasePipeline):
         )
 
     def setup_encoder(self) -> None:
+        runtime = self.require_runtime()
         bitrate = crf_to_bitrate(
             self.args.crf,
-            self.trt_model.output_w,
-            self.trt_model.output_h,
+            runtime.output_w,
+            runtime.output_h,
             self.info["fps"],
         )
         self.log(f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps)...")
@@ -144,8 +145,8 @@ class GpuPipeline(BasePipeline):
         os.close(tmp_fd)
 
         self._encoder = nvc.CreateEncoder(
-            self.trt_model.output_w,
-            self.trt_model.output_h,
+            runtime.output_w,
+            runtime.output_h,
             "NV12",
             False,
             gpu_id=self.args.gpu_id,
@@ -171,7 +172,8 @@ class GpuPipeline(BasePipeline):
 
     def process_frame(self, raw_frame) -> None:
         nv12_tensor = torch.from_dlpack(raw_frame)
-        in_h, in_w = self.trt_model.input_h, self.trt_model.input_w
+        runtime = self.require_runtime()
+        in_h, in_w = runtime.input_h, runtime.input_w
 
         if self.profiler:
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
@@ -183,14 +185,7 @@ class GpuPipeline(BasePipeline):
 
     def _infer_gpu(self, rgb_hwc):
         """TRT inference entirely on GPU."""
-        with torch.cuda.stream(self.trt_model.stream):
-            inp = rgb_hwc.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
-            self.trt_model.gpu_input.copy_(inp)
-            self.trt_model.context.execute_async_v3(stream_handle=self.trt_model.stream.cuda_stream)
-            out = self.trt_model.gpu_output.squeeze(0).permute(1, 2, 0).contiguous()
-            out = out.mul_(255.0).clamp_(0, 255).byte()
-        self.trt_model.stream.synchronize()
-        return out
+        return self.require_runtime().infer_rgb_tensor(rgb_hwc)
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
         """Inference with CUDA event profiling on default stream."""
@@ -201,11 +196,11 @@ class GpuPipeline(BasePipeline):
         rgb = nv12_to_rgb(nv12_tensor, in_h, in_w)
         e1.record(cur_stream)
 
-        inp = rgb.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
-        self.trt_model.gpu_input.copy_(inp)
-        self.trt_model.context.execute_async_v3(stream_handle=cur_stream.cuda_stream)
-        out = self.trt_model.gpu_output.squeeze(0).permute(1, 2, 0).contiguous()
-        upscaled = out.mul_(255.0).clamp_(0, 255).byte()
+        upscaled = self.require_runtime().infer_rgb_tensor(
+            rgb,
+            stream=cur_stream,
+            synchronize=False,
+        )
         e2.record(cur_stream)
 
         nv12_out = rgb_to_nv12(upscaled)

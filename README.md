@@ -92,8 +92,13 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
-  -o models/engines/model_720p.engine
+  -o models/engines/model_720p.engine \
+  --timing-cache models/cache/trt.cache
 ```
+
+`build-engine` writes a sidecar manifest by default at `<engine>.json`. It records the
+ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile and
+builder flags. Use `--manifest PATH` to choose a path or `--no-manifest` to disable it.
 
 Dynamic ONNX files can also be built directly with an explicit TensorRT optimization profile:
 
@@ -105,7 +110,8 @@ docker run --rm --gpus all \
   -o models/engines/model_dynamic_720p.engine \
   --min-shape input:1x3x360x640 \
   --opt-shape input:1x3x720x1280 \
-  --max-shape input:1x3x1080x1920
+  --max-shape input:1x3x1080x1920 \
+  --timing-cache models/cache/trt.cache
 ```
 
 Current video inference commands are static-shape full-frame paths. For `upscale-video` and

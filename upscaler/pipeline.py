@@ -8,8 +8,9 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from upscaler.engine import TRTInference
+from upscaler.engine import TensorRTRuntime
 from upscaler.profiling import ProfileCollector
+from upscaler.runtime import RuntimeEngine
 from upscaler.video import VideoInfo, get_video_info
 
 
@@ -42,7 +43,7 @@ class BasePipeline(ABC):
         self.args = parser.parse_args()
 
         self.info = VideoInfo(width=0, height=0, fps=0.0, fps_str="0/1", nb_frames=0)
-        self.trt_model: TRTInference | None = None
+        self.runtime: RuntimeEngine | None = None
         self.total_frames: int = 0
         self.profiler: ProfileCollector | None = None
 
@@ -55,6 +56,12 @@ class BasePipeline(ABC):
     def log_verbose(self, *a, **kw):
         if self.args.verbose:
             print(*a, **kw)
+
+    def require_runtime(self) -> RuntimeEngine:
+        """Return initialized runtime or fail on invalid lifecycle usage."""
+        if self.runtime is None:
+            raise RuntimeError("Runtime is not initialized")
+        return self.runtime
 
     # --- Abstract hooks ---
 
@@ -124,12 +131,13 @@ class BasePipeline(ABC):
 
         self.log("\nInitializing TensorRT...")
         torch.cuda.set_device(args.gpu_id)
-        self.trt_model = TRTInference(args.engine, quiet=args.quiet, gpu_id=args.gpu_id)
+        self.runtime = TensorRTRuntime(args.engine, quiet=args.quiet, gpu_id=args.gpu_id)
+        runtime = self.require_runtime()
 
-        if info.width != self.trt_model.input_w or info.height != self.trt_model.input_h:
+        if info.width != runtime.input_w or info.height != runtime.input_h:
             print(
                 f"WARNING: Video {info.width}x{info.height} "
-                f"!= engine {self.trt_model.input_w}x{self.trt_model.input_h}"
+                f"!= engine {runtime.input_w}x{runtime.input_h}"
             )
             sys.exit(1)
 
@@ -143,9 +151,7 @@ class BasePipeline(ABC):
         self.setup_encoder()
 
         self.log(f"\nProcessing: {self.total_frames} frames")
-        self.log(
-            f"Output: {args.output} " f"({self.trt_model.output_w}x{self.trt_model.output_h})\n"
-        )
+        self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
 
         frame_times: list[float] = []
         wall_start = time.perf_counter()
@@ -163,10 +169,10 @@ class BasePipeline(ABC):
         # Profile table
         if self.profiler and self.profiler.committed_count > 0:
             self.profiler.print_table(
-                self.trt_model.input_w,
-                self.trt_model.input_h,
-                self.trt_model.output_w,
-                self.trt_model.output_h,
+                runtime.input_w,
+                runtime.input_h,
+                runtime.output_w,
+                runtime.output_h,
                 frame_times,
             )
 

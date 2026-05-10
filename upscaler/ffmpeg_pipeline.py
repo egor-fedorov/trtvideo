@@ -42,7 +42,8 @@ class FfmpegPipeline(BasePipeline):
         return _GPU_STAGES
 
     def setup_decoder(self) -> None:
-        self._frame_size_in = self.trt_model.input_w * self.trt_model.input_h * 3
+        runtime = self.require_runtime()
+        self._frame_size_in = runtime.input_w * runtime.input_h * 3
         decode_cmd = [
             "ffmpeg",
             "-hide_banner",
@@ -62,7 +63,8 @@ class FfmpegPipeline(BasePipeline):
         )
 
     def setup_encoder(self) -> None:
-        self._frame_size_out = self.trt_model.output_w * self.trt_model.output_h * 3
+        runtime = self.require_runtime()
+        self._frame_size_out = runtime.output_w * runtime.output_h * 3
         encode_cmd = [
             "ffmpeg",
             "-hide_banner",
@@ -74,7 +76,7 @@ class FfmpegPipeline(BasePipeline):
             "-pix_fmt",
             "rgb24",
             "-s",
-            f"{self.trt_model.output_w}x{self.trt_model.output_h}",
+            f"{runtime.output_w}x{runtime.output_h}",
             "-r",
             self.info["fps_str"],
             "-i",
@@ -112,9 +114,10 @@ class FfmpegPipeline(BasePipeline):
         # Tight loop
         pipe_read = self._decoder.stdout.read
         pipe_write = self._encoder.stdin.write
-        infer = self.trt_model.infer
+        runtime = self.require_runtime()
+        infer = runtime.infer_rgb_cpu
         frame_size = self._frame_size_in
-        in_h, in_w = self.trt_model.input_h, self.trt_model.input_w
+        in_h, in_w = runtime.input_h, runtime.input_w
         max_frames = self.args.max_frames
         quiet = self.args.quiet
         log_interval = self.args.log_interval
@@ -155,12 +158,12 @@ class FfmpegPipeline(BasePipeline):
         pipe_read = self._decoder.stdout.read
         pipe_write = self._encoder.stdin.write
         frame_size = self._frame_size_in
-        in_h, in_w = self.trt_model.input_h, self.trt_model.input_w
+        runtime = self.require_runtime()
+        in_h, in_w = runtime.input_h, runtime.input_w
         max_frames = self.args.max_frames
         quiet = self.args.quiet
         log_interval = self.args.log_interval
         profiler = self.profiler
-        trt_model = self.trt_model
         frame_idx = 0
 
         while True:
@@ -174,23 +177,7 @@ class FfmpegPipeline(BasePipeline):
             t0 = time.perf_counter()
 
             e0, e1, e2, e3 = (torch.cuda.Event(enable_timing=True) for _ in range(4))
-            stream = trt_model.stream
-            with torch.cuda.stream(stream):
-                e0.record(stream)
-                frame_gpu = torch.from_numpy(frame_rgb).to(
-                    device=trt_model.device,
-                    non_blocking=True,
-                )
-                frame_gpu = frame_gpu.permute(2, 0, 1).unsqueeze(0).float().div_(255.0)
-                trt_model.gpu_input.copy_(frame_gpu)
-                e1.record(stream)
-                trt_model.context.execute_async_v3(stream_handle=stream.cuda_stream)
-                e2.record(stream)
-                output = trt_model.gpu_output.squeeze(0).permute(1, 2, 0)
-                output = output.mul_(255.0).clamp_(0, 255).byte()
-                e3.record(stream)
-            stream.synchronize()
-            upscaled = output.cpu().numpy()
+            upscaled = runtime.infer_rgb_cpu_profiled(frame_rgb, (e0, e1, e2, e3))
 
             t1 = time.perf_counter()
 

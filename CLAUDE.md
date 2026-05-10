@@ -33,6 +33,7 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 ├── upscaler/
 │   ├── engine.py                # TensorRT runtime wrapper
 │   ├── model_spec.py            # минимальный контракт TensorSpec/ModelSpec
+│   ├── runtime.py               # RuntimeEngine protocol
 │   ├── pipeline.py              # общий CLI и шаблон выполнения
 │   ├── ffmpeg_pipeline.py       # backend через ffmpeg pipe
 │   ├── gpu_pipeline.py          # backend через PyNvVideoCodec/cvcuda
@@ -139,8 +140,14 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   upscaler:latest build-engine \
   models/onnx/model_720p.onnx \
-  -o models/engines/model_720p.engine
+  -o models/engines/model_720p.engine \
+  --timing-cache models/cache/trt.cache
 ```
+
+`build-engine` по умолчанию пишет sidecar manifest в `<engine>.json`. Там фиксируются
+ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile и
+builder flags. Путь можно изменить через `--manifest PATH`, отключить через
+`--no-manifest`.
 
 Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 
@@ -152,7 +159,8 @@ docker run --rm --gpus all \
   -o models/engines/model_dynamic_720p.engine \
   --min-shape input:1x3x360x640 \
   --opt-shape input:1x3x720x1280 \
-  --max-shape input:1x3x1080x1920
+  --max-shape input:1x3x1080x1920 \
+  --timing-cache models/cache/trt.cache
 ```
 
 Запуск ffmpeg backend:
@@ -220,7 +228,7 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 2. Проверяет наличие `--engine` и `--input`.
 3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
    количество кадров и доступные color metadata.
-4. Создает `TRTInference` из `.engine`.
+4. Создает `TensorRTRuntime` из `.engine` через общий `RuntimeEngine` interface.
 5. Валидирует минимальный `ModelSpec`: static single-frame RGB upscale, NCHW,
    batch=1, fp32, range `0_1`, равномерный integer scale.
 6. Проверяет, что размер входного видео совпадает с input shape engine.
@@ -228,7 +236,7 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 8. Запускает цикл обработки кадров.
 9. Печатает статистику и, если включен `--profile`, таблицу профилирования.
 
-`TRTInference` в `upscaler/engine.py`:
+`TensorRTRuntime` в `upscaler/engine.py`:
 
 - загружает serialized TensorRT engine;
 - создает execution context;
@@ -236,7 +244,10 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 - строит и валидирует `ModelSpec` до выделения GPU buffers;
 - заранее выделяет `gpu_input` и `gpu_output` на выбранном `cuda:<gpu-id>`;
 - привязывает GPU buffers к TensorRT context через `set_tensor_address`;
-- выполняет inference через `execute_async_v3`.
+- выполняет inference через `execute_async_v3`;
+- скрывает `context`, `gpu_input`, `gpu_output` от video pipeline;
+- позволяет caller передать CUDA stream; если stream не передан, runtime использует
+  свой stream и сам синхронизируется.
 
 Общий флаг `--gpu-id` выбирает CUDA GPU для TensorRT. В NVDEC/NVENC backend этот же
 ID используется для PyNvVideoCodec decode/encode.

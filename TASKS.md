@@ -280,6 +280,10 @@ Definition of Done:
 
 Цель: отделить TensorRT runtime, engine metadata и build workflow от video pipeline.
 
+Статус: реализован foundation без полного model registry. Runtime interface, sidecar
+engine manifest и TensorRT timing cache уже добавлены; автоматический подбор engine из
+`models/<model>/manifest.json` остается отдельным следующим шагом.
+
 ### 4. Ввести `RuntimeEngine` interface
 
 Сейчас pipeline напрямую зависит от `TRTInference` и его внутренних полей: `gpu_input`, `gpu_output`, `stream`, `context`, `input_w`, `input_h` и т.д.
@@ -316,6 +320,14 @@ Definition of Done:
 * TensorRT runtime остаётся первой и основной реализацией;
 * stream ownership явно описан: caller может передать stream, иначе runtime использует свой.
 
+Текущая реализация:
+
+* добавлен `upscaler/runtime.py` с `RuntimeEngine` Protocol;
+* `TRTInference` выделен в `TensorRTRuntime`, старое имя оставлено alias для совместимости;
+* `FfmpegPipeline` и `GpuPipeline` больше не обращаются к `context`, `gpu_input`, `gpu_output`;
+* CPU и GPU RGB inference идут через методы runtime: `infer_rgb_cpu`, `infer_rgb_cpu_profiled`, `infer_rgb_tensor`;
+* caller может передать CUDA stream в runtime; если stream не передан, runtime использует собственный stream и синхронизируется сам.
+
 ### 5. Engine cache и engine manifest
 
 Сейчас `.engine` указывается руками через `--engine`. Нужно перейти к model/engine registry.
@@ -350,6 +362,13 @@ postprocess_version
 
 Цель: избежать ситуации, когда engine существует, но собран под другую версию TensorRT, другой GPU class, другой shape или другие builder flags.
 
+Текущая реализация:
+
+* `build-engine` по умолчанию пишет sidecar manifest `<engine>.json`;
+* manifest содержит ONNX hash, engine hash, TensorRT version, precision, input/output shapes, dynamic profile, builder flags, preprocess/postprocess versions и timing cache path;
+* `--manifest PATH` задает путь manifest, `--no-manifest` отключает запись;
+* полноценный model/engine registry и автоматический cache lookup еще не реализованы.
+
 ### 6. Dynamic profiles и timing cache
 
 Stage 0 добавляет минимальную сборку dynamic ONNX через явные `--min-shape`, `--opt-shape`, `--max-shape`.
@@ -375,6 +394,14 @@ build-engine model.onnx \
   --profile 1080p:1x3x1080x1920 \
   --profile vertical:1x3x1280x720
 ```
+
+Текущая реализация:
+
+* добавлен `--timing-cache PATH`;
+* existing static engine path сохранен как fast path;
+* existing `--min-shape`, `--opt-shape`, `--max-shape` dynamic profile workflow сохранен;
+* `--fp16` остается default behavior, `--no-fp16` позволяет собрать FP32 engine;
+* именованные `--profile NAME:SHAPE` пока не реализованы.
 
 ### Stage 1C — Benchmark foundation
 
