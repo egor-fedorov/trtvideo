@@ -647,13 +647,13 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 * throughput FPS: 17.20 -> 17.15, фактически шум;
 * `stage_ms.trt`: 55.71 ms -> 54.47 ms, примерно -2.2%.
 
-### Stage Infra — Docker base image refresh
+### Stage Infra — Docker infrastructure
 
-Статус: запланировано.
+Статус: в работе. Infra 1 реализован; Infra 2 запланирован отдельно.
 
 ### Infra 1. Docker layer/cache optimization
 
-Статус: запланировано.
+Статус: реализовано; требуется замерить warm-cache `docker build` после code-only изменения.
 
 Проблема: текущий Dockerfile копирует application code до `pip install ".[docker]"`.
 Из-за этого любое изменение `upscaler/`, `tools/`, `benchmark.py`, `inference*.py`
@@ -665,24 +665,26 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 * отделить установку тяжёлых runtime dependencies от копирования application code;
 * сделать пересборку после изменения Python-кода быстрой;
-* сохранить production image без лишнего pip cache внутри финального слоя;
-* использовать BuildKit cache mount для pip download/wheel cache на этапе установки зависимостей.
+* сохранить production image без лишнего dependency cache внутри финального слоя;
+* использовать BuildKit cache mount для uv download/wheel cache на этапе установки зависимостей.
 
-План:
+Реализация:
 
-1. Вынести docker/runtime dependencies из `pyproject.toml` extras в отдельный lockable input или generated requirements file.
-2. Сначала копировать только dependency metadata и ставить зависимости отдельным Docker layer.
-3. Использовать `RUN --mount=type=cache,target=/root/.cache/pip ...` для dependency install.
-4. После этого копировать application code.
-5. Устанавливать сам проект быстрым `pip install --no-deps .` или equivalent editable/non-editable install.
-6. Расширить `.dockerignore`: `.mypy_cache/`, `.ruff_cache/`, benchmark JSON artifacts, временные artefacts.
-7. Замерить `docker build` после code-only изменения и зафиксировать результат.
+1. `pyproject.toml` остаётся единственным источником зависимостей.
+2. Dockerfile устанавливает `uv`, затем копирует `pyproject.toml`.
+3. Runtime dependencies устанавливаются через `uv sync --no-install-project` отдельным слоем.
+4. Dependency install использует `RUN --mount=type=cache,target=/root/.cache/uv ...`.
+5. `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image.
+6. Application code копируется после dependency layer.
+7. Сам проект устанавливается быстрым `uv sync --only-install-project`.
+8. `.dockerignore` расширен для локальных cache dirs, benchmark JSON artifacts и временных логов.
+9. Осталось замерить `docker build` после code-only изменения и зафиксировать результат.
 
 Definition of Done:
 
 * code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `basicsr`;
 * Docker build с warm cache существенно быстрее текущего;
-* итоговый image не содержит лишний pip cache в production layer;
+* итоговый image не содержит лишний uv/pip cache в production layer;
 * workflow `docker build -t upscaler:latest .` остается прежним для пользователя.
 
 ### Infra 2. Docker base image refresh

@@ -53,11 +53,29 @@ docker run --rm --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
 ## Сборка Образа
 
 ```bash
-docker build -t upscaler:latest .
+DOCKER_BUILDKIT=1 docker build -t upscaler:latest .
 ```
 
 Образ задаёт `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`. Это нужно для
 NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаются с `--gpus all`.
+
+Dockerfile отделяет тяжёлый dependency layer от application code:
+
+* зависимости читаются из `pyproject.toml` через `uv sync --no-install-project`
+  до копирования `upscaler/`, `tools/` и CLI-файлов;
+* dependencies и финальная установка проекта выполняются через `uv sync`;
+* `uv sync --inexact` используется намеренно, чтобы не удалять preinstalled
+  NVIDIA/TensorRT packages из базового образа;
+* повторная сборка после изменения Python-кода должна переиспользовать слой с
+  `torch`, `cvcuda`, `pynvvideocodec`, `onnx`, `basicsr`;
+* BuildKit cache mount используется для uv download/wheel cache и не попадает в
+  production image layer.
+
+Dev-образ с `ruff`/`mypy`:
+
+```bash
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+```
 
 ## Docker Workflow
 
@@ -384,7 +402,7 @@ python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscal
 Docker-based проверки:
 
 ```bash
-docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \

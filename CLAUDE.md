@@ -111,7 +111,22 @@ benchmark-video
 Сборка образа:
 
 ```bash
-docker build -t upscaler:latest .
+DOCKER_BUILDKIT=1 docker build -t upscaler:latest .
+```
+
+Dockerfile устроен так, чтобы code-only изменения не инвалидировали тяжёлый
+dependency layer:
+
+- dependencies читаются из `pyproject.toml` через `uv sync --no-install-project` до
+  копирования application code;
+- `uv sync --inexact` нужен, чтобы не удалить preinstalled packages из TensorRT base image;
+- `RUN --mount=type=cache,target=/root/.cache/uv` использует BuildKit uv cache;
+- сам проект устанавливается после копирования кода через `uv sync --only-install-project`.
+
+Dev-образ с `ruff`/`mypy`:
+
+```bash
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 ```
 
 Экспорт `.pth` в ONNX. GPU не нужен:
@@ -237,7 +252,7 @@ python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscal
 Docker-based вариант:
 
 ```bash
-docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \

@@ -118,3 +118,23 @@ Benchmark:
 * на тяжёлой 1080p SPAN-модели эффект небольшой, потому что время кадра dominated by TensorRT compute;
 * end-to-end throughput фактически в пределах шума, поэтому production default пока не менять;
 * следующий полезный замер — lightweight/compact model, где CPU launch overhead должен быть заметнее.
+
+## 2026-05-11 — Docker dependency layer/cache
+
+Что изменено:
+
+* Docker runtime dependencies читаются из `pyproject.toml` через `uv sync --no-install-project`;
+* dev-only dependencies читаются из extra `dev` при `--build-arg INSTALL_DEV=1`;
+* Dockerfile устанавливает dependencies через `uv sync` до копирования application code;
+* `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image;
+* uv download/wheel cache подключён через BuildKit cache mount;
+* application code устанавливается быстрым `uv sync --only-install-project`;
+* `.dockerignore` исключает локальные cache dirs, benchmark JSON artifacts и временные логи.
+
+Ожидаемый эффект:
+
+* code-only изменения больше не должны переустанавливать `torch`, `cvcuda`,
+  `pynvvideocodec`, `onnx`, `basicsr`;
+* production image не должен содержать uv/pip download cache в финальном слое;
+* фактическое ускорение нужно замерить на удалённом сервере через повторный
+  `DOCKER_BUILDKIT=1 docker build -t upscaler:latest .` после изменения Python-кода.
