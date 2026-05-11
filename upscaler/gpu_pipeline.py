@@ -273,25 +273,29 @@ class GpuPipeline(BasePipeline):
         )
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
-        """Inference with CUDA event profiling on default stream."""
+        """Inference with CUDA event profiling and explicit TRT stream handoff."""
         e0, e1, e2, e3, e4 = (torch.cuda.Event(enable_timing=True) for _ in range(5))
         cur_stream = torch.cuda.current_stream()
+        runtime = self.require_runtime()
+        trt_stream = runtime.stream
 
         e0.record(cur_stream)
         pool = self._require_buffer_pool()
         rgb = nv12_to_rgb_into(nv12_tensor, in_h, in_w, pool.rgb_in, pool.nv12_in)
         e1.record(cur_stream)
 
-        upscaled = self.require_runtime().infer_rgb_tensor_into(
+        trt_stream.wait_event(e1)
+        upscaled = runtime.infer_rgb_tensor_into(
             rgb,
             pool.rgb_out,
             input_nchw=pool.nchw_in,
             output_rgb_float=pool.rgb_out_float,
-            stream=cur_stream,
+            stream=trt_stream,
             synchronize=False,
         )
-        e2.record(cur_stream)
+        e2.record(trt_stream)
 
+        cur_stream.wait_event(e2)
         nv12_out = rgb_to_nv12_into(upscaled, pool.nv12_out)
         e3.record(cur_stream)
 

@@ -244,10 +244,32 @@ docker run --rm --gpus all \
 
 JSON содержит backend, engine, GPU, input/output resolution, `processed_frames`,
 количество измеренных кадров, `processing_fps`, `throughput_fps`, `avg_frame_sec`,
-`avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `stage_ms` и `gpu_peak_mem_mb`.
+`avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `cuda_graph_requested`,
+`cuda_graph`, `cuda_graph_error`, `stage_ms` и `gpu_peak_mem_mb`.
 Для benchmark команда фактически обрабатывает `warmup_frames + frames` кадров, а
 первые warmup-кадры исключает из processing-метрик. `throughput_fps` считается по
 полному wall-clock времени backend run.
+
+Experimental CUDA Graph benchmark:
+
+```bash
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  -v "$PWD/artefacts:/app/artefacts" \
+  upscaler:latest benchmark \
+  --model models/liveaction-span \
+  --input videos/input.mp4 \
+  --backend nvcodec \
+  --cuda-graph \
+  --warmup-frames 20 \
+  --frames 1000 \
+  --json artefacts/benchmark_cuda_graph.json
+```
+
+`--cuda-graph` захватывает TensorRT enqueue для static-shape engine. Это opt-in
+режим для benchmark; если CUDA Graph capture не поддержится конкретным runtime/stream,
+pipeline откатится на обычный TensorRT enqueue.
 
 Если JSON нужен напрямую в shell pipeline:
 

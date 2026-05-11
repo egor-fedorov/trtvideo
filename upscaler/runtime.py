@@ -21,6 +21,9 @@ class RuntimeEngine(Protocol):
     output_name: str
     input_dtype: Any
     output_dtype: Any
+    stream: CudaStream
+    cuda_graph_enabled: bool
+    cuda_graph_error: str | None
     input_w: int
     input_h: int
     output_w: int

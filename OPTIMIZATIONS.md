@@ -83,3 +83,38 @@ Benchmark:
 
 * команда с `-v "$PWD:/app/artefacts"` и `--json artefacts/name.json` сохраняет файл в host `$PWD/name.json`, потому что внутри контейнера относительный путь `artefacts/name.json` резолвится как `/app/artefacts/name.json`;
 * для сохранения в host `./artefacts/name.json` использовать `-v "$PWD/artefacts:/app/artefacts"` или монтировать весь repo как `-v "$PWD:/app"`.
+
+## 2026-05-11 — CUDA Graph experiment
+
+Что изменено:
+
+* добавлен experimental `--cuda-graph`;
+* benchmark harness пробрасывает `--cuda-graph` в `upscale-video` и `upscale-video-nvcodec`;
+* `TensorRTRuntime` пытается захватить TensorRT `execute_async_v3` в CUDA Graph;
+* при ошибке capture runtime откатывается на обычный TensorRT enqueue.
+
+Benchmark:
+
+* input: `videos/switzerland_1080p.mp4`;
+* engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`;
+* GPU: Quadro RTX 6000;
+* command: `benchmark --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`;
+* source artifacts: `switzerland_1080p_fp16io_benchmark.json`, `switzerland_1080p_fp16io_cuda_graph_benchmark.json` (локальные benchmark artifacts, не коммитятся).
+
+Результат:
+
+| Backend | Метрика | FP16 I/O | FP16 I/O + CUDA Graph | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| `nvcodec` | `cuda_graph` | false | true | capture работает |
+| `nvcodec` | processing FPS | 17.51 | 17.86 | +2.0% |
+| `nvcodec` | throughput FPS | 17.20 | 17.15 | -0.3% |
+| `nvcodec` | avg frame time | 57.10 ms | 55.98 ms | -2.0% |
+| `nvcodec` | `TRT inference` stage | 55.71 ms | 54.47 ms | -2.2% |
+| `nvcodec` | GPU peak memory | 164.90 MB | 164.90 MB | без изменений |
+
+Вывод:
+
+* CUDA Graph capture теперь реально включается: `cuda_graph: true`, `cuda_graph_error: null`;
+* на тяжёлой 1080p SPAN-модели эффект небольшой, потому что время кадра dominated by TensorRT compute;
+* end-to-end throughput фактически в пределах шума, поэтому production default пока не менять;
+* следующий полезный замер — lightweight/compact model, где CPU launch overhead должен быть заметнее.

@@ -394,9 +394,13 @@ benchmark \
 
 Benchmark обрабатывает `warmup_frames + frames` кадров, исключает warmup из метрик и
 пишет `processing_fps`, `throughput_fps`, `avg_frame_sec`, `avg_frame_ms`,
-`min_frame_ms`, `max_frame_ms`, stage timings, GPU name, peak GPU memory и выбранный
-engine. `processing_fps` исключает warmup, `throughput_fps` считается по полному
-wall-clock времени backend run.
+`min_frame_ms`, `max_frame_ms`, `cuda_graph_requested`, `cuda_graph`,
+`cuda_graph_error`, stage timings, GPU name, peak GPU memory и выбранный engine.
+`processing_fps` исключает warmup, `throughput_fps` считается по полному wall-clock
+времени backend run.
+`--cuda-graph` включает experimental CUDA Graph capture для TensorRT enqueue в
+static-shape runtime. Если capture не поддерживается конкретным stream/runtime,
+pipeline пишет warning и откатывается на обычный TensorRT enqueue.
 `--json -` пишет чистый JSON в stdout; progress и diagnostics benchmark идут в
 stderr. `--quiet` подавляет служебные progress-строки benchmark, ошибки всё равно
 пишутся в stderr.

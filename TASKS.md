@@ -613,6 +613,8 @@ build-engine model.onnx --fp16 --fp16-io
 
 ### 12. CUDA Graph benchmark для static-shape inference
 
+Статус: реализовано и проверено на 1080p `nvcodec` FP16 I/O; lightweight benchmark ещё нужен.
+
 Static engines подходят под CUDA Graph: fixed shape, fixed buffers, repeated command sequence.
 
 Добавить experimental flag:
@@ -622,6 +624,28 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 ```
 
 Цель: проверить снижение CPU launch overhead на compact/lightweight моделях.
+
+Текущая реализация:
+
+* добавлен `--cuda-graph` в video pipelines и benchmark harness;
+* `TensorRTRuntime` пытается захватить TensorRT `execute_async_v3` в CUDA Graph;
+* capture выполняется после lazy warmup enqueue, чтобы не записывать TensorRT initialization в graph;
+* если capture падает, runtime пишет warning и откатывается на обычный TensorRT enqueue;
+* profile JSON содержит `cuda_graph_requested`, `cuda_graph`, `cuda_graph_error`.
+
+Проверить:
+
+* 720p/1080p SPAN на `nvcodec` и `ffmpeg`;
+* отдельно lightweight/compact model, где CPU launch overhead может быть заметнее;
+* `processing_fps`, `throughput_fps`, `stage_ms.trt`;
+* не ломается ли capture в profiled benchmark path.
+
+Результат 1080p SPAN `nvcodec` FP16 I/O:
+
+* capture работает: `cuda_graph: true`, `cuda_graph_error: null`;
+* processing FPS: 17.51 -> 17.86, примерно +2.0%;
+* throughput FPS: 17.20 -> 17.15, фактически шум;
+* `stage_ms.trt`: 55.71 ms -> 54.47 ms, примерно -2.2%.
 
 ### Stage Infra — Docker base image refresh
 

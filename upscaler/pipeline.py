@@ -66,6 +66,11 @@ class BasePipeline(ABC):
             "--profile", action="store_true", help="Per-stage profiling (CUDA events)"
         )
         parser.add_argument("--profile-json", default=None, help="Write profiling JSON summary")
+        parser.add_argument(
+            "--cuda-graph",
+            action="store_true",
+            help="Experimental: capture TensorRT enqueue with CUDA Graph",
+        )
         verbosity = parser.add_mutually_exclusive_group()
         verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
         verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
@@ -205,7 +210,12 @@ class BasePipeline(ABC):
 
         self.log("\nInitializing TensorRT...")
         torch.cuda.set_device(args.gpu_id)
-        self.runtime = TensorRTRuntime(self.engine_path, quiet=args.quiet, gpu_id=args.gpu_id)
+        self.runtime = TensorRTRuntime(
+            self.engine_path,
+            quiet=args.quiet,
+            gpu_id=args.gpu_id,
+            use_cuda_graph=args.cuda_graph,
+        )
         runtime = self.require_runtime()
 
         if info.width != runtime.input_w or info.height != runtime.input_h:
@@ -286,6 +296,9 @@ class BasePipeline(ABC):
             "output": self.args.output,
             "input_resolution": f"{self.info.width}x{self.info.height}",
             "output_resolution": f"{runtime.output_w}x{runtime.output_h}",
+            "cuda_graph_requested": self.args.cuda_graph,
+            "cuda_graph": runtime.cuda_graph_enabled,
+            "cuda_graph_error": runtime.cuda_graph_error,
             "processed_frames": len(frame_times),
             "frames": profile.get("frames", len(frame_times)),
             "warmup_frames": profile.get("warmup_frames", 0),

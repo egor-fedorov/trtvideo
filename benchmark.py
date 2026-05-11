@@ -58,6 +58,8 @@ def build_backend_command(
         profile_json_path,
         "--quiet",
     ]
+    if args.cuda_graph:
+        command += ["--cuda-graph"]
 
     if args.frames > 0:
         command += ["--max-frames", str(args.frames + args.warmup_frames)]
@@ -163,6 +165,11 @@ def main() -> None:
     )
     parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU index")
     parser.add_argument("--quiet", action="store_true", help="Suppress benchmark progress output")
+    parser.add_argument(
+        "--cuda-graph",
+        action="store_true",
+        help="Experimental: benchmark TensorRT CUDA Graph capture",
+    )
     parser.add_argument(
         "--engine-precision",
         choices=["fp16", "fp32"],

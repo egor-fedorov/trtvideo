@@ -38,10 +38,21 @@ class TensorRTRuntime:
     Pipeline: CPU uint8 -> GPU -> float32/permute -> TRT -> permute/uint8 -> CPU.
     """
 
-    def __init__(self, engine_path: str, quiet: bool = False, gpu_id: int = 0):
+    def __init__(
+        self,
+        engine_path: str,
+        quiet: bool = False,
+        gpu_id: int = 0,
+        use_cuda_graph: bool = False,
+    ):
+        self.quiet = quiet
         self.gpu_id = gpu_id
         self.device = torch.device(f"cuda:{gpu_id}")
         torch.cuda.set_device(self.device)
+        self.cuda_graph_enabled = use_cuda_graph
+        self.cuda_graph_error: str | None = None
+        self._cuda_graph: Any | None = None
+        self._cuda_graph_stream_ptr: int | None = None
 
         runtime = trt.Runtime(TRT_LOGGER)
         with open(engine_path, "rb") as f:
@@ -117,6 +128,7 @@ class TensorRTRuntime:
             print(f"  Input:  {self.input_w}x{self.input_h} {self.model_spec.inputs[0].dtype}")
             print(f"  Output: {self.output_w}x{self.output_h} {self.model_spec.outputs[0].dtype}")
             print(f"  Scale:  {self.model_spec.scale}x")
+            print(f"  CUDA Graph: {'enabled' if self.cuda_graph_enabled else 'disabled'}")
 
     def infer(
         self,
@@ -242,8 +254,43 @@ class TensorRTRuntime:
         with torch.cuda.stream(stream):
             if input_nchw.data_ptr() != self.gpu_input.data_ptr():
                 self.gpu_input.copy_(input_nchw)
-            self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+            self._execute_bound(stream)
         return self.gpu_output
+
+    def _execute_bound(self, stream: CudaStream) -> None:
+        if not self.cuda_graph_enabled:
+            self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+            return
+
+        stream_ptr = int(stream.cuda_stream)
+        if self._cuda_graph is None or self._cuda_graph_stream_ptr != stream_ptr:
+            try:
+                self._capture_cuda_graph(stream, stream_ptr)
+            except RuntimeError as exc:
+                self.cuda_graph_enabled = False
+                self.cuda_graph_error = str(exc)
+                if not self.quiet:
+                    print(f"  WARNING: CUDA Graph capture failed, falling back: {exc}")
+                self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+                return
+
+        graph = self._cuda_graph
+        if graph is None:
+            self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+            return
+        graph.replay()
+
+    def _capture_cuda_graph(self, stream: CudaStream, stream_ptr: int) -> None:
+        # TensorRT may lazily initialize resources on first enqueue; keep that out of capture.
+        self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+        stream.synchronize()
+
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph, stream=stream):
+            self.context.execute_async_v3(stream_handle=stream.cuda_stream)
+
+        self._cuda_graph = graph
+        self._cuda_graph_stream_ptr = stream_ptr
 
     @staticmethod
     def _output_nchw_to_rgb(output_nchw: TensorLike) -> TensorLike:
