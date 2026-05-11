@@ -138,3 +138,19 @@ Benchmark:
 * production image не должен содержать uv/pip download cache в финальном слое;
 * фактическое ускорение нужно замерить на удалённом сервере через повторный
   `DOCKER_BUILDKIT=1 docker build -t upscaler:latest .` после изменения Python-кода.
+
+## 2026-05-12 — Docker base image refresh
+
+Что изменено:
+
+* базовый образ обновлён с `nvcr.io/nvidia/tensorrt:26.03-py3` до
+  `nvcr.io/nvidia/tensorrt:26.04-py3`;
+* pipeline code не менялся, чтобы отдельно оценить влияние NVIDIA/TensorRT runtime stack.
+
+Проверить на сервере:
+
+* `DOCKER_BUILDKIT=1 docker build -t upscaler:latest .`;
+* imports в контейнере: `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`, `spandrel`;
+* `build-engine`;
+* `upscale-video` и `upscale-video-nvcodec`;
+* benchmark 720p/1080p и сравнение с baseline на `26.03-py3`.

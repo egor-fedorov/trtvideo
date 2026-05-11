@@ -649,11 +649,11 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 ### Stage Infra — Docker infrastructure
 
-Статус: в работе. Infra 1 реализован; Infra 2 запланирован отдельно.
+Статус: в работе. Infra 1 реализован; Infra 2 переведён на новый base image и ожидает runtime-проверки/benchmark.
 
 ### Infra 1. Docker layer/cache optimization
 
-Статус: реализовано; требуется замерить warm-cache `docker build` после code-only изменения.
+Статус: реализовано; warm-cache `docker build` подтверждён на сервере.
 
 Проблема: текущий Dockerfile копирует application code до `pip install ".[docker]"`.
 Из-за этого любое изменение `upscaler/`, `tools/`, `benchmark.py`, `inference*.py`
@@ -680,7 +680,7 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 8. Application code копируется после dependency layer.
 9. Сам проект устанавливается быстрым `uv pip install --python "$VIRTUAL_ENV" --no-deps .`.
 10. `.dockerignore` расширен для локальных cache dirs, benchmark JSON artifacts и временных логов.
-11. Осталось замерить `docker build` после code-only изменения и зафиксировать результат.
+11. Warm-cache `docker build` после code-only изменения подтверждён на сервере.
 
 Definition of Done:
 
@@ -691,9 +691,9 @@ Definition of Done:
 
 ### Infra 2. Docker base image refresh
 
-Статус: запланировано.
+Статус: в работе; `Dockerfile` переведён на `nvcr.io/nvidia/tensorrt:26.04-py3`, runtime-проверка и benchmark ожидаются на сервере.
 
-Цель: перейти с текущего base image `nvcr.io/nvidia/tensorrt:26.03-py3` на
+Цель: перейти с предыдущего base image `nvcr.io/nvidia/tensorrt:26.03-py3` на
 `nvcr.io/nvidia/tensorrt:26.04-py3`, не смешивая upgrade runtime stack с
 performance-оптимизациями pipeline.
 
@@ -706,7 +706,7 @@ performance-оптимизациями pipeline.
 План:
 
 1. Проверить доступность tag `nvcr.io/nvidia/tensorrt:26.04-py3` и требования к driver/runtime.
-2. Обновить `Dockerfile` отдельным коммитом.
+2. Обновить `Dockerfile` отдельным коммитом. Выполнено.
 3. Пересобрать `upscaler:latest` без изменения application code.
 4. Smoke tests в контейнере: import `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`.
 5. Проверить `prepare-onnx`, `build-engine`, `upscale-video`, `upscale-video-nvcodec`.

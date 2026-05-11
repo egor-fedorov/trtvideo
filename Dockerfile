@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM nvcr.io/nvidia/tensorrt:26.03-py3
+FROM nvcr.io/nvidia/tensorrt:26.04-py3
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \

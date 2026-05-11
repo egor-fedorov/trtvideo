@@ -13,7 +13,8 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 Основной рабочий сценарий - Docker-first. Локальная установка из исходников нужна
 только для разработки.
 
-Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image.
+Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
+`nvcr.io/nvidia/tensorrt:26.04-py3`.
 
 ## Структура файлов
 

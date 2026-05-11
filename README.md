@@ -6,7 +6,8 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 Рекомендуемый workflow — Docker. Образ содержит runtime-зависимости для TensorRT
 inference, NVDEC/NVENC inference, подготовки ONNX и экспорта моделей.
 
-Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image.
+Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
+`nvcr.io/nvidia/tensorrt:26.04-py3`.
 
 Проверялось на Tesla T4.
 
