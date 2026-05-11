@@ -13,6 +13,8 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 Основной рабочий сценарий - Docker-first. Локальная установка из исходников нужна
 только для разработки.
 
+Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image.
+
 ## Структура файлов
 
 ```
@@ -117,8 +119,8 @@ DOCKER_BUILDKIT=1 docker build -t upscaler:latest .
 Dockerfile устроен так, чтобы code-only изменения не инвалидировали тяжёлый
 dependency layer:
 
-- dependencies читаются из `pyproject.toml` через `uv sync --no-install-project` до
-  копирования application code;
+- dependencies читаются из `pyproject.toml`/`uv.lock` через
+  `uv sync --frozen --no-install-project` до копирования application code;
 - `uv sync --inexact` нужен, чтобы не удалить preinstalled packages из TensorRT base image;
 - `RUN --mount=type=cache,target=/root/.cache/uv` использует BuildKit uv cache;
 - сам проект устанавливается после копирования кода через `uv sync --only-install-project`.
@@ -238,7 +240,7 @@ docker run --rm --gpus all \
 Локальная установка проверочных инструментов:
 
 ```bash
-pip install -e ".[dev]"
+uv sync --group dev
 ```
 
 Обязательные проверки:

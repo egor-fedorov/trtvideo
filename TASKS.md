@@ -671,18 +671,20 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 Реализация:
 
 1. `pyproject.toml` остаётся единственным источником зависимостей.
-2. Dockerfile устанавливает `uv`, затем копирует `pyproject.toml`.
-3. Runtime dependencies устанавливаются через `uv sync --no-install-project` отдельным слоем.
+2. Dockerfile устанавливает pinned `uv`, затем копирует `pyproject.toml` и `uv.lock`.
+3. Runtime dependencies устанавливаются через `uv sync --frozen --no-install-project` отдельным слоем.
 4. Dependency install использует `RUN --mount=type=cache,target=/root/.cache/uv ...`.
 5. `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image.
-6. Application code копируется после dependency layer.
-7. Сам проект устанавливается быстрым `uv sync --only-install-project`.
-8. `.dockerignore` расширен для локальных cache dirs, benchmark JSON artifacts и временных логов.
-9. Осталось замерить `docker build` после code-only изменения и зафиксировать результат.
+6. `requires-python` ограничен до Python 3.12, потому что production runtime берётся из TensorRT Docker image.
+7. Production build использует `--no-dev`, dev build использует `--group dev`.
+8. Application code копируется после dependency layer.
+9. Сам проект устанавливается быстрым `uv sync --frozen --only-install-project`.
+10. `.dockerignore` расширен для локальных cache dirs, benchmark JSON artifacts и временных логов.
+11. Осталось замерить `docker build` после code-only изменения и зафиксировать результат.
 
 Definition of Done:
 
-* code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `basicsr`;
+* code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `spandrel`;
 * Docker build с warm cache существенно быстрее текущего;
 * итоговый image не содержит лишний uv/pip cache в production layer;
 * workflow `docker build -t upscaler:latest .` остается прежним для пользователя.

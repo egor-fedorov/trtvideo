@@ -12,43 +12,33 @@ import os
 import sys
 
 import onnx
+import spandrel
 import torch
 import torch.onnx
-from basicsr.archs.rrdbnet_arch import RRDBNet
 
 
-def load_model(model_path: str) -> RRDBNet:
+def load_model(model_path: str) -> spandrel.ImageModelDescriptor:
     """Load the RealESRGAN_x2plus model.
 
     Args:
         model_path: Path to .pth weights file.
 
     Returns:
-        RRDBNet model in eval mode.
+        Spandrel image model descriptor in eval mode.
     """
-    model = RRDBNet(
-        num_in_ch=3,
-        num_out_ch=3,
-        num_feat=64,
-        num_block=23,
-        num_grow_ch=32,
-        scale=2,  # x2plus model
-    )
-
-    # Weights can be stored directly or inside 'params_ema' / 'params' key
-    state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
-    if "params_ema" in state_dict:
-        state_dict = state_dict["params_ema"]
-    elif "params" in state_dict:
-        state_dict = state_dict["params"]
-
-    model.load_state_dict(state_dict, strict=True)
+    model = spandrel.ModelLoader().load_from_file(model_path)
+    if not isinstance(model, spandrel.ImageModelDescriptor):
+        raise TypeError(f"Expected an image-to-image model, got {type(model).__name__}")
     model.eval()
-
     return model
 
 
-def export_onnx(model: RRDBNet, input_h: int, input_w: int, output_path: str):
+def export_onnx(
+    model: spandrel.ImageModelDescriptor,
+    input_h: int,
+    input_w: int,
+    output_path: str,
+) -> None:
     """Export model to ONNX with fixed input size.
 
     Args:

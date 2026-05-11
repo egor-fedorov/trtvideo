@@ -123,18 +123,18 @@ Benchmark:
 
 Что изменено:
 
-* Docker runtime dependencies читаются из `pyproject.toml` через `uv sync --no-install-project`;
-* dev-only dependencies читаются из extra `dev` при `--build-arg INSTALL_DEV=1`;
-* Dockerfile устанавливает dependencies через `uv sync` до копирования application code;
+* Docker runtime dependencies читаются из `pyproject.toml`/`uv.lock` через `uv sync --frozen --no-install-project`;
+* dev-only dependencies оформлены как `[dependency-groups].dev` и ставятся через `--group dev` при `--build-arg INSTALL_DEV=1`;
+* Dockerfile устанавливает dependencies через pinned `uv` до копирования application code;
 * `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image;
 * uv download/wheel cache подключён через BuildKit cache mount;
-* application code устанавливается быстрым `uv sync --only-install-project`;
+* application code устанавливается быстрым `uv sync --frozen --only-install-project`;
 * `.dockerignore` исключает локальные cache dirs, benchmark JSON artifacts и временные логи.
 
 Ожидаемый эффект:
 
 * code-only изменения больше не должны переустанавливать `torch`, `cvcuda`,
-  `pynvvideocodec`, `onnx`, `basicsr`;
+  `pynvvideocodec`, `onnx`, `spandrel`;
 * production image не должен содержать uv/pip download cache в финальном слое;
 * фактическое ускорение нужно замерить на удалённом сервере через повторный
   `DOCKER_BUILDKIT=1 docker build -t upscaler:latest .` после изменения Python-кода.

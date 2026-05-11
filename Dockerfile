@@ -15,25 +15,25 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends ffmpeg
 
-ARG UV_VERSION=0.8
+ARG UV_VERSION=0.8.15
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    python -m pip install "uv>=${UV_VERSION},<1"
+    python -m pip install "uv==${UV_VERSION}"
 
 ARG INSTALL_DEV=0
-COPY pyproject.toml .
+COPY pyproject.toml uv.lock ./
 # Keep sync inexact because the TensorRT base image preinstalls runtime packages
 # that are intentionally outside this project's dependency metadata.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     if [ "$INSTALL_DEV" = "1" ]; then \
-        uv sync --inexact --no-install-project --extra docker --extra dev; \
+        uv sync --frozen --inexact --no-install-project --extra docker --group dev; \
     else \
-        uv sync --inexact --no-install-project --extra docker; \
+        uv sync --frozen --inexact --no-dev --no-install-project --extra docker; \
     fi
 
 COPY upscaler/ upscaler/
 COPY benchmark.py inference.py inference_gpu.py ./
 COPY tools/ tools/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    uv sync --inexact --no-editable --only-install-project
+    uv sync --frozen --inexact --no-editable --only-install-project
 
 ENTRYPOINT []
