@@ -123,12 +123,12 @@ Benchmark:
 
 Что изменено:
 
-* Docker runtime dependencies читаются из `pyproject.toml`/`uv.lock` через `uv sync --frozen --no-install-project`;
+* Docker runtime dependencies читаются из `pyproject.toml`/`uv.lock` через `uv export --frozen --no-emit-project`;
 * dev-only dependencies оформлены как `[dependency-groups].dev` и ставятся через `--group dev` при `--build-arg INSTALL_DEV=1`;
-* Dockerfile устанавливает dependencies через pinned `uv` до копирования application code;
-* `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image;
+* Dockerfile устанавливает dependencies в venv `/opt/upscaler` с `--system-site-packages` до копирования application code;
+* venv видит preinstalled packages из TensorRT base image, но не меняет managed `/usr`;
 * uv download/wheel cache подключён через BuildKit cache mount;
-* application code устанавливается быстрым `uv sync --frozen --only-install-project`;
+* application code устанавливается быстрым `uv pip install --python "$VIRTUAL_ENV" --no-deps .`;
 * `.dockerignore` исключает локальные cache dirs, benchmark JSON artifacts и временные логи.
 
 Ожидаемый эффект:

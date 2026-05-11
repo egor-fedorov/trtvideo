@@ -64,11 +64,10 @@ NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаютс
 Dockerfile отделяет тяжёлый dependency layer от application code:
 
 * зависимости читаются из `pyproject.toml`/`uv.lock` через
-  `uv sync --frozen --no-install-project` до копирования `upscaler/`, `tools/`
+  `uv export --frozen --no-emit-project` до копирования `upscaler/`, `tools/`
   и CLI-файлов;
-* dependencies и финальная установка проекта выполняются через `uv sync`;
-* `uv sync --inexact` используется намеренно, чтобы не удалять preinstalled
-  NVIDIA/TensorRT packages из базового образа;
+* dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
+  preinstalled NVIDIA/TensorRT packages из базового образа и не менять managed `/usr`;
 * повторная сборка после изменения Python-кода должна переиспользовать слой с
   `torch`, `cvcuda`, `pynvvideocodec`, `onnx`, `spandrel`;
 * BuildKit cache mount используется для uv download/wheel cache и не попадает в

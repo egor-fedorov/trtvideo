@@ -7,8 +7,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore \
     UV_LINK_MODE=copy \
     UV_NO_MANAGED_PYTHON=1 \
-    UV_PROJECT_ENVIRONMENT=/usr/local \
+    VIRTUAL_ENV=/opt/upscaler \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -21,19 +22,23 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 
 ARG INSTALL_DEV=0
 COPY pyproject.toml uv.lock ./
-# Keep sync inexact because the TensorRT base image preinstalls runtime packages
-# that are intentionally outside this project's dependency metadata.
+# Use a dedicated venv because the base image's /usr Python is externally managed.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv venv "${VIRTUAL_ENV}" --system-site-packages && \
     if [ "$INSTALL_DEV" = "1" ]; then \
-        uv sync --frozen --inexact --no-install-project --extra docker --group dev; \
+        uv export --frozen --no-emit-project --extra docker --group dev \
+            --output-file /tmp/requirements.txt; \
     else \
-        uv sync --frozen --inexact --no-dev --no-install-project --extra docker; \
-    fi
+        uv export --frozen --no-emit-project --no-dev --extra docker \
+            --output-file /tmp/requirements.txt; \
+    fi && \
+    uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
 COPY upscaler/ upscaler/
 COPY benchmark.py inference.py inference_gpu.py ./
 COPY tools/ tools/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --inexact --no-editable --only-install-project
+    uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 
 ENTRYPOINT []

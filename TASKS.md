@@ -672,13 +672,13 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 1. `pyproject.toml` остаётся единственным источником зависимостей.
 2. Dockerfile устанавливает pinned `uv`, затем копирует `pyproject.toml` и `uv.lock`.
-3. Runtime dependencies устанавливаются через `uv sync --frozen --no-install-project` отдельным слоем.
+3. Runtime dependencies экспортируются из lockfile через `uv export --frozen --no-emit-project`.
 4. Dependency install использует `RUN --mount=type=cache,target=/root/.cache/uv ...`.
-5. `uv sync --inexact` сохраняет preinstalled packages из TensorRT base image.
+5. Dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, сохраняя доступ к preinstalled packages из TensorRT base image.
 6. `requires-python` ограничен до Python 3.12, потому что production runtime берётся из TensorRT Docker image.
 7. Production build использует `--no-dev`, dev build использует `--group dev`.
 8. Application code копируется после dependency layer.
-9. Сам проект устанавливается быстрым `uv sync --frozen --only-install-project`.
+9. Сам проект устанавливается быстрым `uv pip install --python "$VIRTUAL_ENV" --no-deps .`.
 10. `.dockerignore` расширен для локальных cache dirs, benchmark JSON artifacts и временных логов.
 11. Осталось замерить `docker build` после code-only изменения и зафиксировать результат.
 

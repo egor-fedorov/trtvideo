@@ -120,10 +120,11 @@ Dockerfile устроен так, чтобы code-only изменения не �
 dependency layer:
 
 - dependencies читаются из `pyproject.toml`/`uv.lock` через
-  `uv sync --frozen --no-install-project` до копирования application code;
-- `uv sync --inexact` нужен, чтобы не удалить preinstalled packages из TensorRT base image;
+  `uv export --frozen --no-emit-project` до копирования application code;
+- dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
+  preinstalled packages из TensorRT base image и не менять managed `/usr`;
 - `RUN --mount=type=cache,target=/root/.cache/uv` использует BuildKit uv cache;
-- сам проект устанавливается после копирования кода через `uv sync --only-install-project`.
+- сам проект устанавливается после копирования кода через `uv pip install --python "$VIRTUAL_ENV" --no-deps .`.
 
 Dev-образ с `ruff`/`mypy`:
 
