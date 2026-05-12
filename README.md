@@ -70,7 +70,7 @@ Dockerfile отделяет тяжёлый dependency layer от application cod
 * dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
   preinstalled NVIDIA/TensorRT packages из базового образа и не менять managed `/usr`;
 * повторная сборка после изменения Python-кода должна переиспользовать слой с
-  `torch`, `cvcuda`, `pynvvideocodec`, `onnx`, `spandrel`;
+  `torch`, `cvcuda`, `pynvvideocodec`, `onnx`, `onnxscript`, `spandrel`;
 * BuildKit cache mount используется для uv download/wheel cache и не попадает в
   production image layer.
 

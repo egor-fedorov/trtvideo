@@ -649,7 +649,7 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 ### Stage Infra — Docker infrastructure
 
-Статус: в работе. Infra 1 реализован; Infra 2 переведён на новый base image и ожидает runtime-проверки/benchmark.
+Статус: в работе. Infra 1 реализован; Infra 2 переведён на новый base image, engine пересобран на новом runtime, benchmark записан.
 
 ### Infra 1. Docker layer/cache optimization
 
@@ -684,14 +684,14 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 
 Definition of Done:
 
-* code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `spandrel`;
+* code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `onnxscript`, `spandrel`;
 * Docker build с warm cache существенно быстрее текущего;
 * итоговый image не содержит лишний uv/pip cache в production layer;
 * workflow `docker build -t upscaler:latest .` остается прежним для пользователя.
 
 ### Infra 2. Docker base image refresh
 
-Статус: в работе; `Dockerfile` переведён на `nvcr.io/nvidia/tensorrt:26.04-py3`, runtime-проверка и benchmark ожидаются на сервере.
+Статус: в работе; `Dockerfile` переведён на `nvcr.io/nvidia/tensorrt:26.04-py3`, engine пересобран, benchmark записан.
 
 Цель: перейти с предыдущего base image `nvcr.io/nvidia/tensorrt:26.03-py3` на
 `nvcr.io/nvidia/tensorrt:26.04-py3`, не смешивая upgrade runtime stack с
@@ -707,10 +707,10 @@ performance-оптимизациями pipeline.
 
 1. Проверить доступность tag `nvcr.io/nvidia/tensorrt:26.04-py3` и требования к driver/runtime.
 2. Обновить `Dockerfile` отдельным коммитом. Выполнено.
-3. Пересобрать `upscaler:latest` без изменения application code.
+3. Пересобрать `upscaler:latest` без изменения application code. Выполнено.
 4. Smoke tests в контейнере: import `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`.
-5. Проверить `prepare-onnx`, `build-engine`, `upscale-video`, `upscale-video-nvcodec`.
-6. Повторить benchmark 720p/1080p и записать результат в `OPTIMIZATIONS.md`.
+5. Проверить `prepare-onnx`, `build-engine`, `upscale-video`, `upscale-video-nvcodec`. `build-engine` проверен пересборкой engine.
+6. Повторить benchmark 720p/1080p и записать результат в `OPTIMIZATIONS.md`. Выполнено.
 
 Definition of Done:
 
