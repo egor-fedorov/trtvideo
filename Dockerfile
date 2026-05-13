@@ -36,8 +36,6 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     rm /tmp/requirements.txt
 
 COPY upscaler/ upscaler/
-COPY benchmark.py inference.py inference_gpu.py ./
-COPY tools/ tools/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 

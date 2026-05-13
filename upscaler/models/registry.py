@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from upscaler.video import VideoInfo
+from upscaler.video.info import VideoInfo
 
 REGISTRY_FILENAME = "manifest.json"
 

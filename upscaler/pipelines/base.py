@@ -9,75 +9,30 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from upscaler.engine import TensorRTRuntime
-from upscaler.engine_registry import (
+from upscaler.models.registry import (
     format_registry_entries,
     load_engine_registry,
     select_engine_for_video,
 )
 from upscaler.profiling import ProfileCollector
 from upscaler.runtime import RuntimeEngine
-from upscaler.video import VideoInfo, get_video_info
+from upscaler.runtime.tensorrt import TensorRTRuntime
+from upscaler.video.info import VideoInfo, get_video_info
 
 
 class BasePipeline(ABC):
     """Base class for video upscaling pipeline.
 
     Template method: run() controls the full cycle.
-    Subclasses implement hooks: add_extra_args, setup_decoder, setup_encoder,
-    decode_frames, process_frame, finalize, cleanup.
+    Subclasses implement hooks: setup_decoder, setup_encoder, decode_frames,
+    process_frame, finalize, cleanup.
     """
 
     DESCRIPTION: str = "TensorRT Video Upscaler"
     BACKEND_NAME: str = "unknown"
 
-    def __init__(self):
-        parser = argparse.ArgumentParser(description=self.DESCRIPTION)
-        engine_source = parser.add_mutually_exclusive_group(required=True)
-        engine_source.add_argument("--engine", help="Path to .engine file")
-        engine_source.add_argument(
-            "--model",
-            help="Path to model registry directory, registry manifest, or engine manifest",
-        )
-        parser.add_argument("--input", required=True, help="Input video")
-        parser.add_argument("--output", default=None, help="Output video")
-        parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU index")
-        parser.add_argument(
-            "--engine-precision",
-            choices=["fp16", "fp32"],
-            default=None,
-            help="Preferred precision when selecting an engine from --model",
-        )
-        parser.add_argument(
-            "--engine-io-precision",
-            choices=["fp16", "fp32"],
-            default=None,
-            help="Preferred input/output binding precision when selecting an engine from --model",
-        )
-        parser.add_argument("--max-frames", type=int, default=0, help="Limit frames (0 = all)")
-        parser.add_argument(
-            "--warmup-frames",
-            type=int,
-            default=1,
-            help="Frames to exclude from profiling/benchmark summaries",
-        )
-        parser.add_argument("--log-interval", type=int, default=10, help="Log every N frames")
-        parser.add_argument(
-            "--profile", action="store_true", help="Per-stage profiling (CUDA events)"
-        )
-        parser.add_argument("--profile-json", default=None, help="Write profiling JSON summary")
-        parser.add_argument(
-            "--cuda-graph",
-            action="store_true",
-            help="Experimental: capture TensorRT enqueue with CUDA Graph",
-        )
-        verbosity = parser.add_mutually_exclusive_group()
-        verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
-        verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
-
-        self.add_extra_args(parser)
-        self.args = parser.parse_args()
-
+    def __init__(self, args: argparse.Namespace):
+        self.args = args
         self.info = VideoInfo(width=0, height=0, fps=0.0, fps_str="0/1", nb_frames=0)
         self.runtime: RuntimeEngine | None = None
         self.engine_path: str = ""
@@ -139,10 +94,6 @@ class BasePipeline(ABC):
         return selected.engine_path
 
     # --- Abstract hooks ---
-
-    @abstractmethod
-    def add_extra_args(self, parser: argparse.ArgumentParser) -> None:
-        """Add CLI arguments specific to the subclass."""
 
     @abstractmethod
     def profile_stage_names(self) -> list[str]:

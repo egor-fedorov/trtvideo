@@ -42,19 +42,14 @@ dev = [
 ]
 
 [project.scripts]
-upscale-video = "inference:main"
-upscale-video-nvcodec = "inference_gpu:main"
-upscale = "inference:main"
-upscale-gpu = "inference_gpu:main"
-export-onnx = "tools.export_onnx:main"
-prepare-onnx = "tools.prepare_onnx:main"
-build-engine = "tools.build_engine:main"
-benchmark = "benchmark:main"
-benchmark-video = "benchmark:main"
+upscale = "upscaler.cli.upscale:main"
+benchmark-upscale = "upscaler.cli.benchmark_upscale:main"
+export-onnx = "upscaler.cli.export_onnx:main"
+prepare-onnx = "upscaler.cli.prepare_onnx:main"
+build-engine = "upscaler.cli.build_engine:main"
 
-[tool.setuptools]
-py-modules = ["benchmark", "inference", "inference_gpu"]
-packages = ["upscaler", "tools"]
+[tool.setuptools.packages.find]
+include = ["upscaler*"]
 
 
 [tool.ruff]
@@ -86,7 +81,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["inference.py", "inference_gpu.py", "tools", "upscaler"]
+files = ["upscaler"]
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true

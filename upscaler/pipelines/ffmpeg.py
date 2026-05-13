@@ -7,7 +7,7 @@ import time
 import numpy as np
 import torch
 
-from upscaler.pipeline import BasePipeline
+from upscaler.pipelines.base import BasePipeline
 
 _GPU_STAGES = [
     "Preprocess (CPU\u2192GPU)",
@@ -29,15 +29,12 @@ class FfmpegPipeline(BasePipeline):
         "ffmpeg encode (pipe write)": "encode",
     }
 
-    def __init__(self):
+    def __init__(self, args: argparse.Namespace):
         self._decoder: subprocess.Popen | None = None
         self._encoder: subprocess.Popen | None = None
         self._frame_size_in: int = 0
         self._frame_size_out: int = 0
-        super().__init__()
-
-    def add_extra_args(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--crf", type=int, default=18, help="CRF for x264")
+        super().__init__(args)
 
     def profile_stage_names(self) -> list[str]:
         return [

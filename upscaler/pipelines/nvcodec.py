@@ -6,75 +6,13 @@ import subprocess
 import tempfile
 import types
 from dataclasses import dataclass
+from typing import Any
 
-import cvcuda
 import PyNvVideoCodec as nvc
 import torch
 
-from upscaler.pipeline import BasePipeline
-
-# ---------------------------------------------------------------------------
-# NV12 <-> RGB color conversion (GPU, cvcuda)
-# ---------------------------------------------------------------------------
-
-
-def nv12_to_rgb_into(nv12, height, width, rgb_buf, nv12_buf=None):
-    """NV12 -> RGB on GPU via cvcuda.
-
-    Args:
-        nv12: torch.Tensor (H*3//2, W) or (H*3//2, pitch) uint8 on GPU.
-        height: Frame height.
-        width: Frame width.
-        rgb_buf: Preallocated torch.Tensor (H, W, 3) uint8 on GPU.
-        nv12_buf: Optional preallocated contiguous torch.Tensor (H*3//2, W) uint8 on GPU.
-
-    Returns:
-        torch.Tensor (H, W, 3) uint8 on GPU.
-    """
-    if nv12.ndim == 2 and nv12.shape[1] != width:
-        nv12 = nv12[:, :width]
-    if not nv12.is_contiguous():
-        if nv12_buf is None:
-            nv12 = nv12.contiguous()
-        else:
-            nv12_buf.copy_(nv12)
-            nv12 = nv12_buf
-    nv12_nhwc = nv12.reshape(1, height * 3 // 2, width, 1)
-    nv12_cv = cvcuda.as_tensor(nv12_nhwc, "NHWC")
-    rgb_cv = cvcuda.as_tensor(rgb_buf.reshape(1, height, width, 3), "NHWC")
-    cvcuda.cvtcolor_into(rgb_cv, nv12_cv, cvcuda.ColorConversion.YUV2RGB_NV12)
-    return rgb_buf
-
-
-def nv12_to_rgb(nv12, height, width):
-    """NV12 -> RGB on GPU via cvcuda with a newly allocated output buffer."""
-    rgb_buf = torch.empty(height, width, 3, dtype=torch.uint8, device="cuda")
-    return nv12_to_rgb_into(nv12, height, width, rgb_buf)
-
-
-def rgb_to_nv12_into(rgb, nv12_buf):
-    """RGB -> NV12 on GPU via cvcuda.
-
-    Args:
-        rgb: torch.Tensor (H, W, 3) uint8 on GPU.
-        nv12_buf: Preallocated torch.Tensor (H*3//2, W) uint8 on GPU.
-
-    Returns:
-        torch.Tensor (H*3//2, W) uint8 on GPU.
-    """
-    h, w = rgb.shape[:2]
-    rgb_nhwc = rgb.unsqueeze(0)
-    rgb_cv = cvcuda.as_tensor(rgb_nhwc, "NHWC")
-    nv12_cv = cvcuda.as_tensor(nv12_buf.reshape(1, h * 3 // 2, w, 1), "NHWC")
-    cvcuda.cvtcolor_into(nv12_cv, rgb_cv, cvcuda.ColorConversion.RGB2YUV_NV12)
-    return nv12_buf
-
-
-def rgb_to_nv12(rgb):
-    """RGB -> NV12 on GPU via cvcuda with a newly allocated output buffer."""
-    h, w = rgb.shape[:2]
-    nv12_buf = torch.empty(h * 3 // 2, w, dtype=torch.uint8, device=rgb.device)
-    return rgb_to_nv12_into(rgb, nv12_buf)
+from upscaler.pipelines.base import BasePipeline
+from upscaler.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 
 
 @dataclass
@@ -139,26 +77,20 @@ def crf_to_bitrate(crf, width, height, fps):
 # ---------------------------------------------------------------------------
 
 
-class GpuPipeline(BasePipeline):
+class NvcodecPipeline(BasePipeline):
     """Pipeline: NVDEC -> NV12 -> RGB (cvcuda) -> TRT -> RGB -> NV12 (cvcuda) -> NVENC."""
 
     DESCRIPTION = "TensorRT Video Upscaler (NVDEC/NVENC backend)"
     BACKEND_NAME = "nvcodec"
     _DECODE_BATCH_SIZE = 8
 
-    def __init__(self):
-        self._decoder = None
-        self._encoder = None
+    def __init__(self, args: argparse.Namespace):
+        self._decoder: Any | None = None
+        self._encoder: Any | None = None
         self._tmp_raw_path: str = ""
-        self._raw_file = None
+        self._raw_file: Any | None = None
         self._buffer_pool: FrameBufferPool | None = None
-        super().__init__()
-
-    def add_extra_args(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--crf", type=int, default=18, help="Quality (mapped to bitrate for NVENC)"
-        )
-        parser.add_argument("--codec", default="h264", choices=["h264", "hevc"], help="NVENC codec")
+        super().__init__(args)
 
     _GPU_STAGES = [
         "NV12\u2192RGB (cvcuda)",

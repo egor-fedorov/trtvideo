@@ -1,5 +1,5 @@
 services:
-  upscale-video:
+  upscale-ffmpeg:
     build: .
     environment:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
@@ -13,10 +13,16 @@ services:
     volumes:
       - ./models:/app/models
       - ./videos:/app/videos
-    entrypoint: upscale-video
-    command: ["--engine", "models/engines/model.engine", "--input", "videos/input.mp4"]
+    entrypoint: upscale
+    command:
+      - --backend
+      - ffmpeg
+      - --engine
+      - models/engines/model.engine
+      - --input
+      - videos/input.mp4
 
-  upscale-video-nvcodec:
+  upscale-nvcodec:
     build: .
     environment:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
@@ -30,5 +36,11 @@ services:
     volumes:
       - ./models:/app/models
       - ./videos:/app/videos
-    entrypoint: upscale-video-nvcodec
-    command: ["--engine", "models/engines/model.engine", "--input", "videos/input.mp4"]
+    entrypoint: upscale
+    command:
+      - --backend
+      - nvcodec
+      - --engine
+      - models/engines/model.engine
+      - --input
+      - videos/input.mp4

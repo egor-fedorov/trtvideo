@@ -40,7 +40,7 @@ for input_file in "$SAMPLES_DIR"/*.mp4; do
     echo "  Output: $output_file"
     echo ""
 
-    python inference.py \
+    upscale --backend ffmpeg \
         --engine "$engine" \
         --input "$input_file" \
         --output "$output_file" \

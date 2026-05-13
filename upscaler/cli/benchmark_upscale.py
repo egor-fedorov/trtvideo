@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark video inference backends and write machine-readable JSON."""
+"""Benchmark video upscale backends and write machine-readable JSON."""
 
 import argparse
 import json
@@ -9,10 +9,7 @@ import sys
 import tempfile
 from collections.abc import Iterable
 
-BACKEND_COMMANDS = {
-    "ffmpeg": "upscale-video",
-    "nvcodec": "upscale-video-nvcodec",
-}
+SUPPORTED_BACKENDS = ("ffmpeg", "nvcodec")
 
 
 def parse_backends(value: str) -> list[str]:
@@ -22,10 +19,10 @@ def parse_backends(value: str) -> list[str]:
         print("ERROR: --backend must contain at least one backend", file=sys.stderr)
         sys.exit(1)
 
-    invalid = [backend for backend in backends if backend not in BACKEND_COMMANDS]
+    invalid = [backend for backend in backends if backend not in SUPPORTED_BACKENDS]
     if invalid:
         print(f"ERROR: Unsupported backend(s): {', '.join(invalid)}", file=sys.stderr)
-        print(f"Supported backends: {', '.join(BACKEND_COMMANDS)}", file=sys.stderr)
+        print(f"Supported backends: {', '.join(SUPPORTED_BACKENDS)}", file=sys.stderr)
         sys.exit(1)
 
     return backends
@@ -45,7 +42,9 @@ def build_backend_command(
 ) -> list[str]:
     """Build one backend command invocation."""
     command = [
-        BACKEND_COMMANDS[backend],
+        "upscale",
+        "--backend",
+        backend,
         "--input",
         args.input,
         "--output",
@@ -141,7 +140,10 @@ def write_report(path: str, report: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark TensorRT video inference backends")
+    parser = argparse.ArgumentParser(
+        prog="benchmark-upscale",
+        description="Benchmark TensorRT video upscale backends",
+    )
     engine_source = parser.add_mutually_exclusive_group(required=True)
     engine_source.add_argument("--engine", help="Path to .engine file")
     engine_source.add_argument("--model", help="Path to model registry directory or manifest JSON")

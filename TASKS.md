@@ -164,14 +164,23 @@ Definition of Done:
 ```text
 cli/
   upscale.py
-  benchmark.py
+  benchmark_upscale.py
   inspect_model.py
 
+runtime/
+  __init__.py
+  tensorrt.py
+
+models/
+  manifest.py
+  registry.py
+
+pipelines/
+  base.py
+  ffmpeg.py
+  nvcodec.py
+
 core/
-  model_spec.py
-  runtime.py
-  trt_runtime.py
-  engine_cache.py
   task.py
 
 video/
@@ -271,10 +280,10 @@ Definition of Done:
 * добавлен optional extra `dev` с `ruff` и `mypy`;
 * `pyproject.toml` очищен от старых путей `project/...` и чужих mypy overrides;
 * `ruff check .` настроен на practical gate: `E`, `F`, `I`, `UP`, `B`, `SIM`, `W`;
-* `mypy .` проверяет `inference.py`, `inference_gpu.py`, `tools`, `upscaler`;
+* `mypy .` проверяет пакет `upscaler`;
 * `mypy` временно подавляет `union-attr` до Stage 1B, потому что runtime fields сейчас инициализируются в `BasePipeline.run()`;
 * Dockerfile поддерживает dev image через `--build-arg INSTALL_DEV=1`;
-* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler`.
+* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q upscaler`.
 
 ### Stage 1B — Build/runtime foundation
 
@@ -322,7 +331,7 @@ Definition of Done:
 
 Текущая реализация:
 
-* добавлен `upscaler/runtime.py` с `RuntimeEngine` Protocol;
+* добавлен `upscaler/runtime/__init__.py` с `RuntimeEngine` Protocol;
 * `TRTInference` выделен в `TensorRTRuntime`, старое имя оставлено alias для совместимости;
 * `FfmpegPipeline` и `GpuPipeline` больше не обращаются к `context`, `gpu_input`, `gpu_output`;
 * CPU и GPU RGB inference идут через методы runtime: `infer_rgb_cpu`, `infer_rgb_cpu_profiled`, `infer_rgb_tensor`;
@@ -368,7 +377,7 @@ postprocess_version
 * manifest содержит ONNX hash, engine hash, TensorRT version, precision, input/output shapes, dynamic profile, builder flags, preprocess/postprocess versions и timing cache path;
 * `--manifest PATH` задает путь manifest, `--no-manifest` отключает запись;
 * `--registry PATH` обновляет model registry manifest, например `models/liveaction-span/manifest.json`;
-* `upscale-video` и `upscale-video-nvcodec` поддерживают `--model PATH` и выбирают static engine по input resolution;
+* `upscale --backend ffmpeg|nvcodec` поддерживает `--model PATH` и выбирает static engine по input resolution;
 * `--engine PATH` остается прямым compatibility path;
 * `--engine-precision fp16|fp32` ограничивает выбор engine из registry;
 * registry пока выбирает только static-shape full-frame engines; dynamic runtime lookup остается будущей задачей.
@@ -418,7 +427,7 @@ build-engine model.onnx \
 Нужна отдельная команда:
 
 ```bash
-benchmark \
+benchmark-upscale \
   --engine model.engine \
   --input video.mp4 \
   --backend ffmpeg,nvcodec \
@@ -462,14 +471,14 @@ benchmark \
 
 Definition of Done:
 
-* benchmark умеет запускать `ffmpeg` и `nvcodec` backend на одинаковом input/engine;
+* `benchmark-upscale` умеет запускать `ffmpeg` и `nvcodec` backend на одинаковом input/engine;
 * JSON содержит FPS, stage timings, GPU name, input/output resolution, frame count;
-* benchmark можно запускать в Docker без ручного парсинга текстовых логов.
+* `benchmark-upscale` можно запускать в Docker без ручного парсинга текстовых логов.
 
 Текущая реализация:
 
-* добавлены команды `benchmark` и `benchmark-video`;
-* benchmark запускает `upscale-video` и/или `upscale-video-nvcodec` как child process;
+* команда переименована в `benchmark-upscale`;
+* benchmark запускает `upscale --backend ffmpeg` и/или `upscale --backend nvcodec` как child process;
 * `--engine` и `--model` оба поддержаны;
 * `--json PATH` пишет JSON в файл, `--json -` пишет чистый JSON в stdout;
 * progress и diagnostics benchmark выводятся в stderr, `--quiet` подавляет progress;
@@ -549,7 +558,7 @@ class FrameBufferPool:
 * cvcuda conversion получил `nv12_to_rgb_into(...)` и `rgb_to_nv12_into(...)`, которые пишут в preallocated buffers;
 * `TensorRTRuntime` получил `infer_rgb_tensor_into(...)` для inference в preallocated output buffer;
 * `GpuPipeline` использует buffer pool и в обычном path, и в profiled path;
-* фактический performance эффект нужно подтвердить через `benchmark` в Docker/GPU окружении.
+* фактический performance эффект нужно подтвердить через `benchmark-upscale` в Docker/GPU окружении.
 
 ### 10. Уменьшить per-frame synchronization
 
@@ -656,7 +665,7 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 Статус: реализовано; warm-cache `docker build` подтверждён на сервере.
 
 Проблема: текущий Dockerfile копирует application code до `pip install ".[docker]"`.
-Из-за этого любое изменение `upscaler/`, `tools/`, `benchmark.py`, `inference*.py`
+Из-за этого любое изменение application code в `upscaler/`
 инвалидирует тяжёлый dependency install layer. `--no-cache-dir` не является основной
 проблемой, но при такой структуре не помогает повторным сборкам: Docker заново
 экспортирует большой слой с runtime dependencies.
@@ -709,7 +718,7 @@ performance-оптимизациями pipeline.
 2. Обновить `Dockerfile` отдельным коммитом. Выполнено.
 3. Пересобрать `upscaler:latest` без изменения application code. Выполнено.
 4. Smoke tests в контейнере: import `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`.
-5. Проверить `prepare-onnx`, `build-engine`, `upscale-video`, `upscale-video-nvcodec`. `build-engine` проверен пересборкой engine.
+5. Проверить `prepare-onnx`, `build-engine`, `upscale --backend ffmpeg`, `upscale --backend nvcodec`. `build-engine` проверен пересборкой engine.
 6. Повторить benchmark 720p/1080p и записать результат в `OPTIMIZATIONS.md`. Выполнено.
 
 Definition of Done:
@@ -836,16 +845,16 @@ backend=vapoursynth   # graph/RIFE/experimental/model-chaining path
 CLI варианты:
 
 ```bash
-upscale-video --backend nvcodec ...
-upscale-video --backend vapoursynth ...
+upscale --backend nvcodec ...
+upscale --backend vapoursynth ...
 interpolate-video --backend vapoursynth ...
 ```
 
 Или отдельные команды:
 
 ```bash
-upscale-video-nvcodec
-upscale-video-vs
+upscale --backend nvcodec
+upscale --backend vapoursynth
 interpolate-video-vs
 ```
 

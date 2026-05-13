@@ -26,23 +26,15 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
-├── inference.py                 # ffmpeg decode/encode + TensorRT
-├── inference_gpu.py             # NVDEC/NVENC + TensorRT
 ├── scripts/
 │   └── run_batch.sh             # batch processing для видео
-├── tools/
-│   ├── export_onnx.py           # .pth -> .onnx
-│   ├── prepare_onnx.py          # dynamic ONNX -> static ONNX variants
-│   └── build_engine.py          # .onnx -> .engine
 ├── upscaler/
-│   ├── engine.py                # TensorRT runtime wrapper
-│   ├── model_spec.py            # минимальный контракт TensorSpec/ModelSpec
-│   ├── runtime.py               # RuntimeEngine protocol
-│   ├── pipeline.py              # общий CLI и шаблон выполнения
-│   ├── ffmpeg_pipeline.py       # backend через ffmpeg pipe
-│   ├── gpu_pipeline.py          # backend через PyNvVideoCodec/cvcuda
-│   ├── profiling.py
-│   └── video.py                 # ffprobe metadata -> VideoInfo
+│   ├── cli/                     # console entrypoints
+│   ├── pipelines/               # ffmpeg и NVDEC/NVENC backends
+│   ├── runtime/                 # TensorRT runtime и RuntimeEngine protocol
+│   ├── video/                   # ffprobe metadata и colorspace helpers
+│   ├── models/                  # ModelSpec и engine registry
+│   └── profiling.py
 └── models/                      # данные, игнорируются git
     ├── pretrained/
     ├── onnx/
@@ -85,28 +77,20 @@ ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 
 ## CLI-команды
 
-Основные команды для видео:
+Основная команда для видео:
 
 ```bash
-upscale-video           # ffmpeg decode/encode + TensorRT
-upscale-video-nvcodec   # NVDEC/NVENC + cvcuda + TensorRT
+upscale --backend ffmpeg    # ffmpeg decode/encode + TensorRT
+upscale --backend nvcodec   # NVDEC/NVENC + cvcuda + TensorRT
 ```
 
-Алиасы для совместимости:
-
-```bash
-upscale      # alias for upscale-video
-upscale-gpu  # alias for upscale-video-nvcodec
-```
-
-Команды для подготовки моделей:
+Команды для подготовки моделей и benchmark:
 
 ```bash
 export-onnx
 prepare-onnx
 build-engine
-benchmark
-benchmark-video
+benchmark-upscale
 ```
 
 ## Docker workflow
@@ -210,7 +194,8 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video \
+  upscaler:latest upscale \
+  --backend ffmpeg \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
 ```
@@ -221,7 +206,8 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video \
+  upscaler:latest upscale \
+  --backend nvcodec \
   --model models/liveaction-span \
   --input videos/input.mp4
 ```
@@ -232,7 +218,8 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video-nvcodec \
+  upscaler:latest upscale \
+  --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
 ```
@@ -250,7 +237,7 @@ uv sync --group dev
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
+python3 -m compileall -q upscaler
 ```
 
 Docker-based вариант:
@@ -260,7 +247,7 @@ DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
+  python3 -m compileall -q upscaler
 ```
 
 `mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
@@ -274,9 +261,9 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 
 ### Общая часть
 
-Общий жизненный цикл задает `BasePipeline` в `upscaler/pipeline.py`:
+Общий жизненный цикл задает `BasePipeline` в `upscaler/pipelines/base.py`:
 
-1. Парсит CLI-аргументы.
+1. Получает уже распарсенные CLI-аргументы из `upscaler/cli/upscale.py`.
 2. Проверяет наличие `--engine` или `--model`, а также `--input`.
 3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
    количество кадров и доступные color metadata.
@@ -290,7 +277,7 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 9. Запускает цикл обработки кадров.
 10. Печатает статистику и, если включен `--profile`, таблицу профилирования.
 
-`TensorRTRuntime` в `upscaler/engine.py`:
+`TensorRTRuntime` в `upscaler/runtime/tensorrt.py`:
 
 - загружает serialized TensorRT engine;
 - создает execution context;
@@ -306,9 +293,9 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 Общий флаг `--gpu-id` выбирает CUDA GPU для TensorRT. В NVDEC/NVENC backend этот же
 ID используется для PyNvVideoCodec decode/encode.
 
-### `upscale-video`: ffmpeg backend
+### `upscale --backend ffmpeg`
 
-Файл: `upscaler/ffmpeg_pipeline.py`
+Файл: `upscaler/pipelines/ffmpeg.py`
 
 Путь данных:
 
@@ -337,9 +324,9 @@ ffmpeg decode (CPU) -> RGB raw pipe -> numpy -> torch cuda -> TensorRT
 
 Качество видео задается настоящим x264 `--crf`.
 
-### `upscale-video-nvcodec`: NVDEC/NVENC backend
+### `upscale --backend nvcodec`
 
-Файл: `upscaler/gpu_pipeline.py`
+Файл: `upscaler/pipelines/nvcodec.py`
 
 Путь данных:
 
@@ -398,11 +385,11 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 является полным end-to-end профилем всего процесса для всех backend.
 
 `--profile-json PATH` пишет machine-readable summary для одного запуска backend.
-Команда `benchmark` / `benchmark-video` запускает `upscale-video` и/или
-`upscale-video-nvcodec` на одинаковом input/engine и собирает итоговый JSON:
+Команда `benchmark-upscale` запускает `upscale --backend ffmpeg` и/или
+`upscale --backend nvcodec` на одинаковом input/engine и собирает итоговый JSON:
 
 ```bash
-benchmark \
+benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
@@ -439,8 +426,8 @@ optimization profile. Есть два поддержанных workflow:
 и его можно передавать в `build-engine` только с explicit optimization profile.
 
 Текущий video inference runtime работает как static-shape full-frame path. Dynamic ONNX
-с TensorRT profile можно собрать, но запуск такого engine в `upscale-video` /
-`upscale-video-nvcodec` пока не является поддержанным runtime path без отдельной
+с TensorRT profile можно собрать, но запуск такого engine в `upscale --backend ...`
+пока не является поддержанным runtime path без отдельной
 логики выбора concrete shape и перевыделения buffers.
 
 ## Заметки по производительности

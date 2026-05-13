@@ -14,12 +14,12 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ## Структура
 
 ```text
-inference.py          - video upscale через ffmpeg pipe + TensorRT
-inference_gpu.py      - video upscale через NVDEC/NVENC + TensorRT
-scripts/run_batch.sh  - batch processing для видео
-tools/export_onnx.py  - экспорт .pth -> .onnx
-tools/prepare_onnx.py - фиксация dynamic axes в ONNX
-tools/build_engine.py - компиляция .onnx -> .engine
+upscaler/cli/        - CLI entrypoints
+upscaler/pipelines/  - ffmpeg и NVDEC/NVENC pipeline backends
+upscaler/runtime/    - TensorRT runtime wrapper и runtime protocol
+upscaler/video/      - video metadata и GPU colorspace helpers
+upscaler/models/     - model/engine manifests и registry lookup
+scripts/run_batch.sh - batch processing для видео
 models/               - данные, не хранятся в git
   pretrained/         - .pth файлы
   onnx/               - .onnx файлы
@@ -65,8 +65,7 @@ NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаютс
 Dockerfile отделяет тяжёлый dependency layer от application code:
 
 * зависимости читаются из `pyproject.toml`/`uv.lock` через
-  `uv export --frozen --no-emit-project` до копирования `upscaler/`, `tools/`
-  и CLI-файлов;
+  `uv export --frozen --no-emit-project` до копирования `upscaler/`;
 * dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
   preinstalled NVIDIA/TensorRT packages из базового образа и не менять managed `/usr`;
 * повторная сборка после изменения Python-кода должна переиспользовать слой с
@@ -143,7 +142,7 @@ docker run --rm --gpus all \
 ```
 
 `--fp16-io` меняет TensorRT input/output bindings на FP16. Это opt-in режим для
-benchmark: проверяйте FPS, VRAM и визуальные артефакты отдельно от обычного FP32 I/O
+benchmark-upscale: проверяйте FPS, VRAM и визуальные артефакты отдельно от обычного FP32 I/O
 engine. Для выбора FP16 I/O engine из registry используйте
 `--engine-io-precision fp16`; для обычного engine — `--engine-io-precision fp32`.
 
@@ -172,8 +171,8 @@ docker run --rm --gpus all \
   --timing-cache models/cache/trt.cache
 ```
 
-Текущие команды video inference работают как static-shape full-frame path. Для
-`upscale-video` и `upscale-video-nvcodec` используйте static ONNX variant из
+Текущая команда video upscale работает как static-shape full-frame path. Для
+`upscale --backend ffmpeg|nvcodec` используйте static ONNX variant из
 `prepare-onnx` и собирайте static engine. Dynamic-profile build уже поддержан, но
 dynamic runtime path остаётся будущей задачей.
 
@@ -198,7 +197,8 @@ models/liveaction-span/
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video \
+  upscaler:latest upscale \
+  --backend nvcodec \
   --model models/liveaction-span \
   --input videos/input.mp4
 ```
@@ -209,13 +209,14 @@ docker run --rm --gpus all \
 
 ### 4. Апскейл Видео
 
-Базовая команда: ffmpeg делает decode/encode, TensorRT inference выполняется на GPU.
+ffmpeg backend: ffmpeg делает decode/encode, TensorRT inference выполняется на GPU.
 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video \
+  upscaler:latest upscale \
+  --backend ffmpeg \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
 ```
@@ -226,7 +227,8 @@ NVDEC/NVENC backend: decode, color conversion, TensorRT inference и encode ос
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video-nvcodec \
+  upscaler:latest upscale \
+  --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
 ```
@@ -237,7 +239,8 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale-video-nvcodec \
+  upscaler:latest upscale \
+  --backend nvcodec \
   --gpu-id 1 \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -245,7 +248,7 @@ docker run --rm --gpus all \
 
 ### 5. Benchmark
 
-`benchmark` запускает один или несколько backend'ов на одинаковом input/engine и пишет
+`benchmark-upscale` запускает один или несколько backend'ов на одинаковом input/engine и пишет
 machine-readable JSON. Прогресс и diagnostics выводятся в `stderr`, поэтому `stdout`
 можно безопасно использовать для JSON через `--json -`.
 
@@ -254,7 +257,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  upscaler:latest benchmark \
+  upscaler:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
@@ -267,7 +270,7 @@ JSON содержит backend, engine, GPU, input/output resolution, `processed_
 количество измеренных кадров, `processing_fps`, `throughput_fps`, `avg_frame_sec`,
 `avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `cuda_graph_requested`,
 `cuda_graph`, `cuda_graph_error`, `stage_ms` и `gpu_peak_mem_mb`.
-Для benchmark команда фактически обрабатывает `warmup_frames + frames` кадров, а
+Для benchmark-upscale команда фактически обрабатывает `warmup_frames + frames` кадров, а
 первые warmup-кадры исключает из processing-метрик. `throughput_fps` считается по
 полному wall-clock времени backend run.
 
@@ -278,7 +281,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  upscaler:latest benchmark \
+  upscaler:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend nvcodec \
@@ -289,7 +292,7 @@ docker run --rm --gpus all \
 ```
 
 `--cuda-graph` захватывает TensorRT enqueue для static-shape engine. Это opt-in
-режим для benchmark; если CUDA Graph capture не поддержится конкретным runtime/stream,
+режим для benchmark-upscale; если CUDA Graph capture не поддержится конкретным runtime/stream,
 pipeline откатится на обычный TensorRT enqueue.
 
 Если JSON нужен напрямую в shell pipeline:
@@ -298,7 +301,7 @@ pipeline откатится на обычный TensorRT enqueue.
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest benchmark \
+  upscaler:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend nvcodec \
@@ -314,34 +317,27 @@ docker run --rm --gpus all \
 
 ## CLI-Команды
 
-Основные команды для видео:
+Основная команда для видео:
 
 ```bash
-upscale-video           # ffmpeg decode/encode + TensorRT
-upscale-video-nvcodec   # NVDEC/NVENC + TensorRT
+upscale --backend ffmpeg    # ffmpeg decode/encode + TensorRT
+upscale --backend nvcodec   # NVDEC/NVENC + TensorRT
 ```
 
-Алиасы для совместимости:
-
-```bash
-upscale      # alias for upscale-video
-upscale-gpu  # alias for upscale-video-nvcodec
-```
-
-Команды для подготовки моделей:
+Команды для подготовки моделей и benchmark:
 
 ```bash
 export-onnx
 prepare-onnx
 build-engine
-benchmark
-benchmark-video
+benchmark-upscale
 ```
 
 Общие inference options:
 
 ```bash
 --engine PATH       путь к .engine файлу
+--backend BACKEND   ffmpeg или nvcodec, default: nvcodec
 --model PATH        директория model registry или manifest JSON
 --input PATH        входное видео
 --output PATH       выходное видео, default: *_upscaled.ext
@@ -354,11 +350,11 @@ benchmark-video
 --quiet             минимальный вывод
 ```
 
-Backend-specific options:
+Backend options:
 
 ```bash
-upscale-video:         --crf N
-upscale-video-nvcodec: --crf N --codec h264|hevc
+--crf N
+--codec h264|hevc   используется nvcodec backend, ffmpeg backend пока игнорирует
 ```
 
 Важно: `--crf` в NVDEC/NVENC backend мапится в оценочный NVENC bitrate. Это не то же
@@ -369,13 +365,13 @@ upscale-video-nvcodec: --crf N --codec h264|hevc
 ffmpeg backend:
 
 ```bash
-docker compose run --rm upscale-video
+docker compose run --rm upscale-ffmpeg
 ```
 
 NVDEC/NVENC backend:
 
 ```bash
-docker compose run --rm upscale-video-nvcodec
+docker compose run --rm upscale-nvcodec
 ```
 
 Пути к engine/model и input video задаются в `docker-compose.yml`.
@@ -398,7 +394,7 @@ uv sync --extra export --group dev
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
+python3 -m compileall -q upscaler
 ```
 
 Docker-based проверки:
@@ -408,5 +404,5 @@ DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
 docker run --rm -v "$PWD:/app" upscaler:dev mypy .
 docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q benchmark.py inference.py inference_gpu.py tools upscaler
+  python3 -m compileall -q upscaler
 ```

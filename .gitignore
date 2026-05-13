@@ -1,5 +1,5 @@
 # Models and data
-models/
+/models/
 *.engine
 *.onnx
 *.pth
