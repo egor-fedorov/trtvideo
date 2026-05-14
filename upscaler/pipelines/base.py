@@ -55,6 +55,13 @@ class BasePipeline(ABC):
             raise RuntimeError("Runtime is not initialized")
         return self.runtime
 
+    def ffmpeg_limited_duration_args(self) -> list[str]:
+        """Return ffmpeg output args that keep audio aligned with --max-frames."""
+        if self.args.max_frames <= 0 or self.info.fps <= 0:
+            return []
+        duration_sec = self.args.max_frames / self.info.fps
+        return ["-t", f"{duration_sec:.6f}", "-shortest"]
+
     def profile_stage_key_map(self) -> dict[str, str]:
         """Map human-readable profile stage names to stable JSON keys."""
         return {}

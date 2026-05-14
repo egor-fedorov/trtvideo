@@ -164,34 +164,63 @@ artefacts/sample-runs/
   realesrgan-x2plus/
 ```
 
-Batch command:
+Batch command. `upscale` печатает полный лог каждого запуска в stdout, а в конце
+команда дополнительно выводит компактную FPS-таблицу по всем обработанным файлам.
+Для итоговой таблицы используется `Without warmup` FPS из stdout каждого запуска.
 
 ```bash
 mkdir -p "$OUTPUT_DIR/liveaction-span" "$OUTPUT_DIR/realesrgan-x2plus"
 
-find "$SAMPLES_DIR" -maxdepth 1 -type f \( -name '*720*.mp4' -o -name '*1080*.mp4' \) -print0 |
-while IFS= read -r -d '' sample; do
-  name="$(basename "$sample")"
-  stem="${name%.*}"
+summary_rows=""
+exec 3>&1
 
-  for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
-    model_name="$(basename "$model")"
+for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
+  model_name="$(basename "$model")"
+
+  while IFS= read -r -d '' sample; do
+    name="$(basename "$sample")"
+    stem="${name%.*}"
     out_file="out/$model_name/${stem}_${model_name}_${BACKEND}.mp4"
 
     echo "=== $name -> $model_name ($BACKEND) ==="
-    docker run --rm --gpus all \
-      -v "$PWD/models:/app/models" \
-      -v "$SAMPLES_DIR:/app/samples:ro" \
-      -v "$OUTPUT_DIR:/app/out" \
-      "$IMAGE" upscale \
-      --backend "$BACKEND" \
-      --model "$model" \
-      --engine-io-precision "$ENGINE_IO_PRECISION" \
-      --input "samples/$name" \
-      --output "$out_file" \
-      --log-interval 100
-  done
+    run_status=0
+    run_output="$(
+      set -o pipefail
+      docker run --rm --gpus all \
+        -v "$PWD/models:/app/models" \
+        -v "$SAMPLES_DIR:/app/samples:ro" \
+        -v "$OUTPUT_DIR:/app/out" \
+        "$IMAGE" upscale \
+        --backend "$BACKEND" \
+        --model "$model" \
+        --engine-io-precision "$ENGINE_IO_PRECISION" \
+        --input "samples/$name" \
+        --output "$out_file" \
+        --log-interval 100 2>&1 | tee /dev/fd/3
+    )" || run_status=$?
+
+    if [ "$run_status" -ne 0 ]; then
+      exec 3>&-
+      exit "$run_status"
+    fi
+
+    fps="$(printf '%s\n' "$run_output" |
+      sed -nE 's/.*Without warmup:.*\(([0-9.]+) fps\).*/\1/p' |
+      tail -n 1)"
+    if [ -z "$fps" ]; then
+      fps="n/a"
+    fi
+
+    printf -v row '%-34s %-20s %-8s %10s\n' "$name" "$model_name" "$BACKEND" "$fps"
+    summary_rows+="$row"
+  done < <(find "$SAMPLES_DIR" -maxdepth 1 -type f \( -name '*720*.mp4' -o -name '*1080*.mp4' \) -print0)
 done
+
+exec 3>&-
+
+printf '\n=== FPS summary, without warmup ===\n'
+printf '%-34s %-20s %-8s %10s\n' "input" "model" "backend" "fps"
+printf '%s' "$summary_rows"
 ```
 
 ## 7. Быстрый smoke на одном файле

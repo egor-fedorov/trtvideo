@@ -267,6 +267,7 @@ class NvcodecPipeline(BasePipeline):
             "1:a:0?",
             "-movflags",
             "+faststart",
+            *self.ffmpeg_limited_duration_args(),
             self.args.output,
         ]
         self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")

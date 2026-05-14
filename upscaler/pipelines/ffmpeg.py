@@ -105,6 +105,7 @@ class FfmpegPipeline(BasePipeline):
             "yuv420p",
             "-c:a",
             "copy",
+            *self.ffmpeg_limited_duration_args(),
             self.args.output,
         ]
         self.log_verbose(f"Encode cmd: {' '.join(encode_cmd)}")
