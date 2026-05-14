@@ -17,24 +17,29 @@ import torch
 import torch.onnx
 
 
-def load_model(model_path: str) -> spandrel.ImageModelDescriptor:
+def load_model(model_path: str) -> torch.nn.Module:
     """Load the RealESRGAN_x2plus model.
 
     Args:
         model_path: Path to .pth weights file.
 
     Returns:
-        Spandrel image model descriptor in eval mode.
+        PyTorch module in eval mode.
     """
-    model = spandrel.ModelLoader().load_from_file(model_path)
-    if not isinstance(model, spandrel.ImageModelDescriptor):
-        raise TypeError(f"Expected an image-to-image model, got {type(model).__name__}")
+    descriptor = spandrel.ModelLoader().load_from_file(model_path)
+    if not isinstance(descriptor, spandrel.ImageModelDescriptor):
+        raise TypeError(f"Expected an image-to-image model, got {type(descriptor).__name__}")
+
+    # torch.onnx.export expects torch.nn.Module. Spandrel returns a descriptor wrapper;
+    # descriptor.model is the underlying loaded module.
+    descriptor.eval()
+    model = descriptor.model
     model.eval()
     return model
 
 
 def export_onnx(
-    model: spandrel.ImageModelDescriptor,
+    model: torch.nn.Module,
     input_h: int,
     input_w: int,
     output_path: str,
