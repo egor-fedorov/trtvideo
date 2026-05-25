@@ -59,6 +59,8 @@ def build_backend_command(
     ]
     if args.cuda_graph:
         command += ["--cuda-graph"]
+    if args.bitrate_mbps is not None:
+        command += ["--bitrate-mbps", str(args.bitrate_mbps)]
 
     if args.frames > 0:
         command += ["--max-frames", str(args.frames + args.warmup_frames)]
@@ -167,6 +169,12 @@ def main() -> None:
     )
     parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU index")
     parser.add_argument("--quiet", action="store_true", help="Suppress benchmark progress output")
+    parser.add_argument(
+        "--bitrate-mbps",
+        type=float,
+        default=None,
+        help="NVENC target bitrate in Mbps; forwarded to nvcodec backend",
+    )
     parser.add_argument(
         "--cuda-graph",
         action="store_true",

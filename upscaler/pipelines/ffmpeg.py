@@ -103,6 +103,7 @@ class FfmpegPipeline(BasePipeline):
             str(self.args.crf),
             "-pix_fmt",
             "yuv420p",
+            *self.ffmpeg_color_metadata_args(),
             "-c:a",
             "copy",
             *self.ffmpeg_limited_duration_args(),

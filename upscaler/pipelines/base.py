@@ -19,6 +19,17 @@ from upscaler.runtime import RuntimeEngine
 from upscaler.runtime.tensorrt import TensorRTRuntime
 from upscaler.video.info import VideoInfo, get_video_info
 
+_UNKNOWN_COLOR_VALUES = {None, "", "unknown", "reserved"}
+_HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
+
+
+def _known_color_value(value: str | None) -> bool:
+    return value not in _UNKNOWN_COLOR_VALUES
+
+
+def _color_or_default(value: str | None, default: str) -> str:
+    return value if _known_color_value(value) and value is not None else default
+
 
 class BasePipeline(ABC):
     """Base class for video upscaling pipeline.
@@ -61,6 +72,53 @@ class BasePipeline(ABC):
             return []
         duration_sec = self.args.max_frames / self.info.fps
         return ["-t", f"{duration_sec:.6f}", "-shortest"]
+
+    def default_sdr_colorspace(self) -> str:
+        """Infer a safe SDR YUV matrix when source metadata is absent."""
+        return "bt709" if self.info.width >= 1280 or self.info.height >= 720 else "smpte170m"
+
+    def normalized_color_metadata(self) -> dict[str, str]:
+        """Return explicit SDR color metadata for ffmpeg output tagging."""
+        default_colorspace = self.default_sdr_colorspace()
+        colorspace = _color_or_default(self.info.color_space, default_colorspace)
+        return {
+            "color_range": _color_or_default(self.info.color_range, "tv"),
+            "colorspace": colorspace,
+            "color_trc": _color_or_default(self.info.color_transfer, default_colorspace),
+            "color_primaries": _color_or_default(self.info.color_primaries, default_colorspace),
+        }
+
+    def ffmpeg_color_metadata_args(self) -> list[str]:
+        """Return ffmpeg args that avoid unknown color tags in encoded outputs."""
+        metadata = self.normalized_color_metadata()
+        return [
+            "-color_range",
+            metadata["color_range"],
+            "-colorspace",
+            metadata["colorspace"],
+            "-color_trc",
+            metadata["color_trc"],
+            "-color_primaries",
+            metadata["color_primaries"],
+        ]
+
+    def cvcuda_color_spec_name(self) -> str:
+        """Map video metadata to the color specs supported by CV-CUDA AdvCvtColor."""
+        colorspace = self.normalized_color_metadata()["colorspace"]
+        if colorspace in {"bt2020nc", "bt2020c"}:
+            return "bt2020"
+        if colorspace in {"smpte170m", "bt470bg", "bt470m"}:
+            return "bt601"
+        return "bt709"
+
+    def validate_video_input(self, info: VideoInfo) -> None:
+        """Fail fast for inputs outside the current SDR model contract."""
+        if info.color_transfer in _HDR_TRANSFERS:
+            print(
+                "ERROR: HDR input is not supported by the current SDR RGB model contract: "
+                f"color_transfer={info.color_transfer}. Convert/tonemap to SDR first."
+            )
+            sys.exit(1)
 
     def profile_stage_key_map(self) -> dict[str, str]:
         """Map human-readable profile stage names to stable JSON keys."""
@@ -163,6 +221,15 @@ class BasePipeline(ABC):
             f"Input video: {info.width}x{info.height}, "
             f"{info.fps:.2f} fps, {info.nb_frames} frames"
         )
+        self.log(
+            "Input color: "
+            f"pix_fmt={info.pix_fmt or 'unknown'}, "
+            f"range={info.color_range or 'unknown'}, "
+            f"space={info.color_space or 'unknown'}, "
+            f"transfer={info.color_transfer or 'unknown'}, "
+            f"primaries={info.color_primaries or 'unknown'}"
+        )
+        self.validate_video_input(info)
         self.total_frames = args.max_frames if args.max_frames > 0 else info.nb_frames
         self.engine_path = self.resolve_engine_path(info)
 

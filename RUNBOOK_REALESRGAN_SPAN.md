@@ -26,6 +26,7 @@ export SPAN_ONNX_720=models/onnx/2xLiveActionV1_SPAN_490000_720p.onnx
 export SPAN_ONNX_1080=models/onnx/2xLiveActionV1_SPAN_490000_1080p.onnx
 export BACKEND=nvcodec
 export ENGINE_IO_PRECISION=fp16
+export NVENC_BITRATE_MBPS=35
 ```
 
 ## 1. Собрать Docker image
@@ -181,6 +182,10 @@ for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
     name="$(basename "$sample")"
     stem="${name%.*}"
     out_file="out/$model_name/${stem}_${model_name}_${BACKEND}.mp4"
+    bitrate_args=()
+    if [ "$BACKEND" = "nvcodec" ] && [ -n "${NVENC_BITRATE_MBPS:-}" ]; then
+      bitrate_args=(--bitrate-mbps "$NVENC_BITRATE_MBPS")
+    fi
 
     echo "=== $name -> $model_name ($BACKEND) ==="
     run_status=0
@@ -194,6 +199,7 @@ for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
         --backend "$BACKEND" \
         --model "$model" \
         --engine-io-precision "$ENGINE_IO_PRECISION" \
+        "${bitrate_args[@]}" \
         --input "samples/$name" \
         --output "$out_file" \
         --log-interval 100 2>&1 | tee /dev/fd/3
@@ -239,6 +245,7 @@ docker run --rm --gpus all \
   --backend "$BACKEND" \
   --model "$REALESRGAN_MODEL" \
   --engine-io-precision "$ENGINE_IO_PRECISION" \
+  --bitrate-mbps "$NVENC_BITRATE_MBPS" \
   --input "samples/$name" \
   --output "out/${name%.*}_realesrgan_smoke.mp4" \
   --max-frames 30 \

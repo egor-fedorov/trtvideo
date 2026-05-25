@@ -50,6 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Experimental: capture TensorRT enqueue with CUDA Graph",
     )
     parser.add_argument("--crf", type=int, default=18, help="Encoding quality")
+    parser.add_argument(
+        "--bitrate-mbps",
+        type=float,
+        default=None,
+        help="NVENC target bitrate in Mbps; overrides nvcodec CRF-to-bitrate estimate",
+    )
     parser.add_argument("--codec", default="h264", choices=["h264", "hevc"], help="NVENC codec")
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")

@@ -343,13 +343,15 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 4. Python получает frame и делает `torch.from_dlpack(raw_frame)`, то есть берет GPU
    данные без CPU copy.
 5. Per-job `FrameBufferPool` переиспользует GPU buffers для NV12/RGB/NCHW hot path.
-6. `nv12_to_rgb_into()` через cvcuda конвертирует NV12 в RGB на GPU.
+6. `nv12_to_rgb_into()` через cvcuda конвертирует NV12 в RGB на GPU с явным
+   SDR color spec (`BT709` для HD/UHD, `BT601` для SD).
 7. RGB tensor приводится к формату TensorRT input: `[1, 3, H, W]`, `float32`, `0..1`.
    Для NVDEC/NVENC backend это делается через `infer_rgb_tensor_into()` с
    preallocated buffers.
 8. TensorRT выполняет inference.
 9. Output приводится к `uint8 RGB` на GPU.
-10. `rgb_to_nv12_into()` через cvcuda конвертирует RGB обратно в NV12 на GPU.
+10. `rgb_to_nv12_into()` через cvcuda конвертирует RGB обратно в NV12 на GPU
+    с тем же color spec.
 11. NV12 tensor передается в NVENC через PyNvVideoCodec.
 12. NVENC пишет raw H.264 или HEVC bitstream во временный файл.
 13. В `finalize()` вызывается `ffmpeg`, который mux-ит raw video stream с аудио из
@@ -358,9 +360,10 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 В этом backend основная data path остается на GPU. CPU участвует в orchestration,
 записи raw bitstream и финальном mux, но не гоняет кадры туда-сюда как numpy buffers.
 
-Качество задается `--crf`, но это не настоящий CRF. Значение преобразуется в оценочный
-битрейт для NVENC функцией `crf_to_bitrate()`. Это нужно переименовать или заменить
-на более явные `--bitrate` / `--quality`.
+Качество задается `--crf` или явным `--bitrate-mbps`. В NVENC backend `--crf`
+не является настоящим CRF: значение преобразуется в оценочный bitrate функцией
+`crf_to_bitrate()`. Если нужен предсказуемый размер файла, использовать
+`--bitrate-mbps`.
 
 ### Профилирование
 
@@ -441,5 +444,7 @@ optimization profile. Есть два поддержанных workflow:
 
 ## Текущие известные ограничения
 
-- Название `--crf` в NVENC backend приблизительное. Его лучше заменить или дополнить
-  явными `--bitrate` / `--quality`.
+- `--crf` в NVENC backend приблизительное. Для предсказуемого размера output
+  использовать `--bitrate-mbps`.
+- Runtime рассчитан на SDR 8-bit video. HDR/P010/yuv422/yuv444 требуют отдельной
+  цветовой политики/tonemap и сейчас должны отклоняться fail-fast.

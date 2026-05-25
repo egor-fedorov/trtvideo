@@ -230,6 +230,7 @@ docker run --rm --gpus all \
   upscaler:latest upscale \
   --backend nvcodec \
   --engine models/engines/model_720p.engine \
+  --bitrate-mbps 35 \
   --input videos/input.mp4
 ```
 
@@ -354,11 +355,18 @@ Backend options:
 
 ```bash
 --crf N
+--bitrate-mbps N  явный target bitrate для nvcodec backend, перекрывает --crf
 --codec h264|hevc   используется nvcodec backend, ffmpeg backend пока игнорирует
 ```
 
 Важно: `--crf` в NVDEC/NVENC backend мапится в оценочный NVENC bitrate. Это не то же
-самое, что x264 CRF.
+самое, что x264 CRF. Для контролируемого размера output используйте `--bitrate-mbps`;
+например, `--crf 18` на 4K 59.94 fps может дать около 88 Mbps.
+
+Color contract: текущий runtime рассчитан на SDR 8-bit video. `nvcodec` backend
+fail-fast отклоняет не-`yuv420p`/`nv12` inputs и HDR transfer functions; для
+NV12/RGB conversion используется явный CV-CUDA color spec, а output получает
+явные color tags вместо `unknown`.
 
 ## Docker Compose
 

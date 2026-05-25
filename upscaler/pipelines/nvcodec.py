@@ -3,6 +3,7 @@
 import argparse
 import os
 import subprocess
+import sys
 import tempfile
 import types
 from dataclasses import dataclass
@@ -90,6 +91,7 @@ class NvcodecPipeline(BasePipeline):
         self._tmp_raw_path: str = ""
         self._raw_file: Any | None = None
         self._buffer_pool: FrameBufferPool | None = None
+        self._color_spec_name = "bt709"
         super().__init__(args)
 
     _GPU_STAGES = [
@@ -119,8 +121,20 @@ class NvcodecPipeline(BasePipeline):
             raise RuntimeError("Frame buffer pool is not initialized")
         return self._buffer_pool
 
+    def validate_video_input(self, info) -> None:
+        super().validate_video_input(info)
+        if info.pix_fmt not in {"nv12", "yuv420p"}:
+            print(
+                "ERROR: nvcodec backend currently supports only 8-bit SDR NV12/yuv420p "
+                f"input, got pix_fmt={info.pix_fmt or 'unknown'}. "
+                "Use --backend ffmpeg or transcode/tonemap the input to SDR yuv420p first."
+            )
+            sys.exit(1)
+
     def setup_decoder(self) -> None:
         self.log("Initializing NVDEC...")
+        self._color_spec_name = self.cvcuda_color_spec_name()
+        self.log_verbose(f"CV-CUDA color spec: {self._color_spec_name}")
         self._decoder = nvc.ThreadedDecoder(
             enc_file_path=self.args.input,
             buffer_size=self._DECODE_BATCH_SIZE,
@@ -142,13 +156,22 @@ class NvcodecPipeline(BasePipeline):
             input_dtype=runtime.input_dtype,
             output_dtype=runtime.output_dtype,
         )
-        bitrate = crf_to_bitrate(
-            self.args.crf,
-            runtime.output_w,
-            runtime.output_h,
-            self.info["fps"],
+        if self.args.bitrate_mbps is not None:
+            if self.args.bitrate_mbps <= 0:
+                print("ERROR: --bitrate-mbps must be greater than zero")
+                sys.exit(1)
+            bitrate = int(self.args.bitrate_mbps * 1_000_000)
+        else:
+            bitrate = crf_to_bitrate(
+                self.args.crf,
+                runtime.output_w,
+                runtime.output_h,
+                self.info["fps"],
+            )
+        self.log(
+            f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps, "
+            f"{self._color_spec_name})..."
         )
-        self.log(f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps)...")
 
         raw_ext = ".h264" if self.args.codec == "h264" else ".hevc"
         tmp_fd, self._tmp_raw_path = tempfile.mkstemp(suffix=raw_ext)
@@ -189,9 +212,20 @@ class NvcodecPipeline(BasePipeline):
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
         else:
             pool = self._require_buffer_pool()
-            rgb = nv12_to_rgb_into(nv12_tensor, in_h, in_w, pool.rgb_in, pool.nv12_in)
+            rgb = nv12_to_rgb_into(
+                nv12_tensor,
+                in_h,
+                in_w,
+                pool.rgb_in,
+                pool.nv12_in,
+                color_spec=self._color_spec_name,
+            )
             upscaled = self._infer_gpu(rgb)
-            nv12_out = rgb_to_nv12_into(upscaled, pool.nv12_out)
+            nv12_out = rgb_to_nv12_into(
+                upscaled,
+                pool.nv12_out,
+                color_spec=self._color_spec_name,
+            )
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
 
     def _infer_gpu(self, rgb_hwc):
@@ -213,7 +247,14 @@ class NvcodecPipeline(BasePipeline):
 
         e0.record(cur_stream)
         pool = self._require_buffer_pool()
-        rgb = nv12_to_rgb_into(nv12_tensor, in_h, in_w, pool.rgb_in, pool.nv12_in)
+        rgb = nv12_to_rgb_into(
+            nv12_tensor,
+            in_h,
+            in_w,
+            pool.rgb_in,
+            pool.nv12_in,
+            color_spec=self._color_spec_name,
+        )
         e1.record(cur_stream)
 
         trt_stream.wait_event(e1)
@@ -228,7 +269,11 @@ class NvcodecPipeline(BasePipeline):
         e2.record(trt_stream)
 
         cur_stream.wait_event(e2)
-        nv12_out = rgb_to_nv12_into(upscaled, pool.nv12_out)
+        nv12_out = rgb_to_nv12_into(
+            upscaled,
+            pool.nv12_out,
+            color_spec=self._color_spec_name,
+        )
         e3.record(cur_stream)
 
         self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
@@ -267,6 +312,7 @@ class NvcodecPipeline(BasePipeline):
             "1:a:0?",
             "-movflags",
             "+faststart",
+            *self.ffmpeg_color_metadata_args(),
             *self.ffmpeg_limited_duration_args(),
             self.args.output,
         ]
