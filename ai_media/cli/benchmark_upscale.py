@@ -199,7 +199,7 @@ def main() -> None:
     if args.output_dir:
         results = run_benchmarks(backends=backends, args=args, output_dir=args.output_dir)
     else:
-        with tempfile.TemporaryDirectory(prefix="upscaler-benchmark-") as tmp_dir:
+        with tempfile.TemporaryDirectory(prefix="ai-media-benchmark-") as tmp_dir:
             results = run_benchmarks(backends=backends, args=args, output_dir=tmp_dir)
 
     report = {

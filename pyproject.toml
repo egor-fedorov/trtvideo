@@ -1,7 +1,7 @@
 [project]
-name = "ai-video-upscaler"
+name = "ai-media-enhancer"
 version = "0.1.0"
-description = "AI video upscaler via TensorRT with RealESRGAN and SPAN models"
+description = "AI media enhancer via TensorRT with video upscale workflows"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "numpy>=2.0,<3",
@@ -42,14 +42,14 @@ dev = [
 ]
 
 [project.scripts]
-upscale = "upscaler.cli.upscale:main"
-benchmark-upscale = "upscaler.cli.benchmark_upscale:main"
-export-onnx = "upscaler.cli.export_onnx:main"
-prepare-onnx = "upscaler.cli.prepare_onnx:main"
-build-engine = "upscaler.cli.build_engine:main"
+upscale = "ai_media.cli.upscale:main"
+benchmark-upscale = "ai_media.cli.benchmark_upscale:main"
+export-onnx = "ai_media.cli.export_onnx:main"
+prepare-onnx = "ai_media.cli.prepare_onnx:main"
+build-engine = "ai_media.cli.build_engine:main"
 
 [tool.setuptools.packages.find]
-include = ["upscaler*"]
+include = ["ai_media*"]
 
 
 [tool.ruff]
@@ -81,7 +81,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["upscaler"]
+files = ["ai_media"]
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true

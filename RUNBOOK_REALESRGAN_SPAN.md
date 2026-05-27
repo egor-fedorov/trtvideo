@@ -16,7 +16,7 @@
 Если `.pth` лежит в другом месте, поменяйте только `REALESRGAN_PTH`.
 
 ```bash
-export IMAGE=upscaler:latest
+export IMAGE=ai-media-enhancer:latest
 export SAMPLES_DIR="$PWD/../samples"
 export OUTPUT_DIR="$PWD/artefacts/sample-runs"
 export REALESRGAN_PTH=models/pth/RealESRGAN_x2plus.pth
@@ -26,7 +26,7 @@ export SPAN_ONNX_720=models/onnx/2xLiveActionV1_SPAN_490000_720p.onnx
 export SPAN_ONNX_1080=models/onnx/2xLiveActionV1_SPAN_490000_1080p.onnx
 export BACKEND=nvcodec
 export ENGINE_IO_PRECISION=fp16
-export NVENC_BITRATE_MBPS=35
+export NVENC_BITRATE_MBPS=45
 ```
 
 ## 1. Собрать Docker image

@@ -1,23 +1,25 @@
-# Журнал Оптимизаций
+# Performance Log
 
-Краткий журнал performance-изменений. Для каждой оптимизации фиксируем, что
-изменилось, на каком benchmark проверялось, какой прирост получен и где он проявился.
+Исторический журнал performance-изменений. Актуальные команды запуска смотреть в
+`README.md` и `AGENTS.md`.
+Для новых performance-изменений фиксировать: что изменилось, benchmark/команду,
+прирост или регресс и где он проявился.
 
 ## 2026-05-11 — NVDEC/NVENC buffer pool
 
 Что изменено:
 
-* добавлен per-job `FrameBufferPool` в `upscaler/gpu_pipeline.py`;
+* добавлен per-job `FrameBufferPool` в `ai_media/pipelines/nvcodec.py`;
 * `NV12->RGB` и `RGB->NV12` cvcuda conversion теперь пишут в preallocated buffers;
 * `TensorRTRuntime.infer_rgb_tensor_into(...)` пишет output в preallocated RGB buffer;
-* hot path `upscale-video-nvcodec` переиспользует `nv12_in`, `rgb_in`, `nchw_in`, `rgb_out`, `rgb_out_float`, `nv12_out`.
+* hot path `upscale --backend nvcodec` переиспользует `nv12_in`, `rgb_in`, `nchw_in`, `rgb_out`, `rgb_out_float`, `nv12_out`.
 
 Benchmark:
 
 * input: `videos/switzerland_720p.mp4`;
 * engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_720p.engine`;
 * GPU: Quadro RTX 6000;
-* command: `benchmark --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
+* command: `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
 * source artifact: `switzerland_720p_benchmark.json` (локальный benchmark artifact, не коммитится).
 
 Результат:
@@ -44,7 +46,7 @@ Benchmark:
 * TensorRT input/output bindings можно собрать как FP16 вместо FP32;
 * registry selection поддерживает `--engine-io-precision fp16|fp32`;
 * runtime выделяет input/output buffers по dtype engine bindings;
-* preprocess/postprocess path поддерживает FP16 bindings в `upscale-video` и `upscale-video-nvcodec`.
+* preprocess/postprocess path поддерживает FP16 bindings в `upscale --backend ffmpeg` и `upscale --backend nvcodec`.
 
 Benchmark:
 
@@ -52,7 +54,7 @@ Benchmark:
 * default engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p.engine`;
 * FP16 I/O engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`;
 * GPU: Quadro RTX 6000;
-* command: `benchmark --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
+* command: `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
 * FP16 I/O command adds: `--engine-io-precision fp16`;
 * source artifacts: `switzerland_1080p_default_benchmark.json`, `switzerland_1080p_fp16io_benchmark.json` (локальные benchmark artifacts, не коммитятся).
 
@@ -89,7 +91,7 @@ Benchmark:
 Что изменено:
 
 * добавлен experimental `--cuda-graph`;
-* benchmark harness пробрасывает `--cuda-graph` в `upscale-video` и `upscale-video-nvcodec`;
+* benchmark harness пробрасывает `--cuda-graph` в `upscale --backend ffmpeg|nvcodec`;
 * `TensorRTRuntime` пытается захватить TensorRT `execute_async_v3` в CUDA Graph;
 * при ошибке capture runtime откатывается на обычный TensorRT enqueue.
 
@@ -98,7 +100,7 @@ Benchmark:
 * input: `videos/switzerland_1080p.mp4`;
 * engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`;
 * GPU: Quadro RTX 6000;
-* command: `benchmark --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`;
+* command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`;
 * source artifacts: `switzerland_1080p_fp16io_benchmark.json`, `switzerland_1080p_fp16io_cuda_graph_benchmark.json` (локальные benchmark artifacts, не коммитятся).
 
 Результат:
@@ -125,7 +127,7 @@ Benchmark:
 
 * Docker runtime dependencies читаются из `pyproject.toml`/`uv.lock` через `uv export --frozen --no-emit-project`;
 * dev-only dependencies оформлены как `[dependency-groups].dev` и ставятся через `--group dev` при `--build-arg INSTALL_DEV=1`;
-* Dockerfile устанавливает dependencies в venv `/opt/upscaler` с `--system-site-packages` до копирования application code;
+* Dockerfile устанавливает dependencies в venv `/opt/ai-media-enhancer` с `--system-site-packages` до копирования application code;
 * venv видит preinstalled packages из TensorRT base image, но не меняет managed `/usr`;
 * uv download/wheel cache подключён через BuildKit cache mount;
 * application code устанавливается быстрым `uv pip install --python "$VIRTUAL_ENV" --no-deps .`;
@@ -137,7 +139,7 @@ Benchmark:
   `pynvvideocodec`, `onnx`, `onnxscript`, `spandrel`;
 * production image не должен содержать uv/pip download cache в финальном слое;
 * фактическое ускорение нужно замерить на удалённом сервере через повторный
-  `DOCKER_BUILDKIT=1 docker build -t upscaler:latest .` после изменения Python-кода.
+  `DOCKER_BUILDKIT=1 docker build -t ai-media-enhancer:latest .` после изменения Python-кода.
 
 ## 2026-05-12 — Docker base image refresh
 
@@ -156,7 +158,7 @@ Benchmark:
 * engine: FP16 I/O engines from `models/liveaction-span/engines/`, для `26.04` engine
   был пересобран на новом TensorRT runtime;
 * GPU: Quadro RTX 6000;
-* command: `benchmark --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`;
+* command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`;
 * CUDA Graph command adds: `--cuda-graph`;
 * source artifacts: `artefacts/switzerland_720_2604_fp16io_benchmark.json`,
   `artefacts/switzerland_720p_2604_fp16io_cuda_graph_benchmark.json`,

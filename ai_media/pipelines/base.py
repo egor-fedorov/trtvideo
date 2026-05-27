@@ -9,15 +9,15 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from upscaler.models.registry import (
+from ai_media.models.registry import (
     format_registry_entries,
     load_engine_registry,
     select_engine_for_video,
 )
-from upscaler.profiling import ProfileCollector
-from upscaler.runtime import RuntimeEngine
-from upscaler.runtime.tensorrt import TensorRTRuntime
-from upscaler.video.info import VideoInfo, get_video_info
+from ai_media.profiling import ProfileCollector
+from ai_media.runtime import RuntimeEngine
+from ai_media.runtime.tensorrt import TensorRTRuntime
+from ai_media.video.info import VideoInfo, get_video_info
 
 _UNKNOWN_COLOR_VALUES = {None, "", "unknown", "reserved"}
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}

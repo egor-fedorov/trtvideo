@@ -5,7 +5,7 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from upscaler.models.manifest import ModelSpec, TensorSpec
+from ai_media.models.manifest import ModelSpec, TensorSpec
 
 TensorLike = Any
 CudaStream = Any

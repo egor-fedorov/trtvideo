@@ -8,8 +8,8 @@ import numpy as np
 import tensorrt as trt
 import torch
 
-from upscaler.models.manifest import ModelSpec, TensorDType, make_upscale_model_spec
-from upscaler.runtime import CudaStream, TensorLike
+from ai_media.models.manifest import ModelSpec, TensorDType, make_upscale_model_spec
+from ai_media.runtime import CudaStream, TensorLike
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 

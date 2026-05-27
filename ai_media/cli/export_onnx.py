@@ -10,14 +10,10 @@ Usage:
 import argparse
 import os
 import sys
-
-import onnx
-import spandrel
-import torch
-import torch.onnx
+from typing import Any
 
 
-def load_model(model_path: str) -> torch.nn.Module:
+def load_model(model_path: str) -> Any:
     """Load the RealESRGAN_x2plus model.
 
     Args:
@@ -26,6 +22,8 @@ def load_model(model_path: str) -> torch.nn.Module:
     Returns:
         PyTorch module in eval mode.
     """
+    import spandrel
+
     descriptor = spandrel.ModelLoader().load_from_file(model_path)
     if not isinstance(descriptor, spandrel.ImageModelDescriptor):
         raise TypeError(f"Expected an image-to-image model, got {type(descriptor).__name__}")
@@ -39,7 +37,7 @@ def load_model(model_path: str) -> torch.nn.Module:
 
 
 def export_onnx(
-    model: torch.nn.Module,
+    model: Any,
     input_h: int,
     input_w: int,
     output_path: str,
@@ -52,6 +50,9 @@ def export_onnx(
         input_w: Input width in pixels.
         output_path: Path to save .onnx file.
     """
+    import onnx
+    import torch
+
     dummy_input = torch.randn(1, 3, input_h, input_w, dtype=torch.float32)
 
     print(f"  Export: input {input_w}x{input_h} -> output {input_w*2}x{input_h*2}")

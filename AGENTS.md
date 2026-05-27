@@ -1,11 +1,12 @@
-# AI Video Upscaler - актуальный контекст проекта
+# AI Media Enhancer - актуальный контекст проекта
 
 ## Текущее состояние
 
-Репозиторий: `RealESRGAN-ONNX-TensorRT`
+Репозиторий: `ai-media-enhancer`
 
-CLI-инструменты для апскейла видео через TensorRT. Поддерживаются модели
-RealESRGAN и SPAN в форматах `.pth` и ONNX.
+CLI-инструменты для AI-обработки медиа через TensorRT. Текущий реализованный
+workflow - апскейл видео; поддерживаются модели RealESRGAN и SPAN в форматах
+`.pth` и ONNX.
 
 Разработка ведется локально. Запуски с тяжелыми зависимостями выполняются в Docker,
 обычно на удаленном сервере с GPU.
@@ -16,19 +17,37 @@ RealESRGAN и SPAN в форматах `.pth` и ONNX.
 Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
 `nvcr.io/nvidia/tensorrt:26.04-py3`.
 
+## Правила работы агента
+
+- Основной workflow - Docker-first. Локально часто нет TensorRT/PyNvVideoCodec/CV-CUDA,
+  поэтому GPU/runtime проверки выполняются в контейнере на GPU-хосте.
+- Не коммитить `models/`, `videos/` и большие runtime artefacts без явной команды.
+- Перед полным batch-прогоном сначала делать короткий smoke через `--max-frames`.
+- Для изменений в color/encoding path проверять не только запуск, но и `ffprobe`
+  output: `pix_fmt`, `color_range`, `color_space`, `color_transfer`,
+  `color_primaries`, bitrate, duration и frame count.
+- Заметные изменения workflow, CLI, Docker, структуры файлов и проектных правил
+  фиксировать в `docs/CHANGES.md`.
+- Performance-изменения фиксировать в `docs/PERFORMANCE_LOG.md` только вместе с
+  измерением: что изменилось, какой benchmark/команда, какой прирост или регресс.
+- Если проверку нельзя выполнить локально из-за отсутствующих GPU/runtime зависимостей,
+  явно указать это в финальном ответе.
+
 ## Структура файлов
 
 ```
 .
-├── CLAUDE.md
+├── AGENTS.md
 ├── README.md
-├── OPTIMIZATIONS.md            # журнал performance-изменений и benchmark results
+├── docs/
+│   ├── ROADMAP.md              # короткий актуальный план
+│   ├── CHANGES.md              # журнал заметных проектных изменений
+│   ├── PERFORMANCE_LOG.md      # журнал performance-изменений и benchmark results
+│   └── archive/                # исторические планы
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
-├── scripts/
-│   └── run_batch.sh             # batch processing для видео
-├── upscaler/
+├── ai_media/
 │   ├── cli/                     # console entrypoints
 │   ├── pipelines/               # ffmpeg и NVDEC/NVENC backends
 │   ├── runtime/                 # TensorRT runtime и RuntimeEngine protocol
@@ -98,7 +117,7 @@ benchmark-upscale
 Сборка образа:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build -t upscaler:latest .
+DOCKER_BUILDKIT=1 docker build -t ai-media-enhancer:latest .
 ```
 
 Dockerfile устроен так, чтобы code-only изменения не инвалидировали тяжёлый
@@ -106,7 +125,7 @@ dependency layer:
 
 - dependencies читаются из `pyproject.toml`/`uv.lock` через
   `uv export --frozen --no-emit-project` до копирования application code;
-- dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
+- dependencies ставятся в venv `/opt/ai-media-enhancer` с `--system-site-packages`, чтобы видеть
   preinstalled packages из TensorRT base image и не менять managed `/usr`;
 - `RUN --mount=type=cache,target=/root/.cache/uv` использует BuildKit uv cache;
 - сам проект устанавливается после копирования кода через `uv pip install --python "$VIRTUAL_ENV" --no-deps .`.
@@ -114,7 +133,7 @@ dependency layer:
 Dev-образ с `ruff`/`mypy`:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
 ```
 
 Экспорт `.pth` в ONNX. GPU не нужен:
@@ -122,7 +141,7 @@ DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest export-onnx \
+  ai-media-enhancer:latest export-onnx \
   --model_path models/pretrained/RealESRGAN_x2plus.pth
 ```
 
@@ -131,7 +150,7 @@ docker run --rm \
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest prepare-onnx \
+  ai-media-enhancer:latest prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720
 ```
@@ -144,7 +163,7 @@ docker run --rm \
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p.engine \
   --timing-cache models/cache/trt.cache \
@@ -162,7 +181,7 @@ Experimental FP16 I/O engine:
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p_fp16io.engine \
   --fp16-io \
@@ -179,7 +198,7 @@ Dynamic ONNX можно собрать напрямую, если явно за�
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model.onnx \
   -o models/engines/model_dynamic_720p.engine \
   --min-shape input:1x3x360x640 \
@@ -194,7 +213,7 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend ffmpeg \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -206,7 +225,7 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend nvcodec \
   --model models/liveaction-span \
   --input videos/input.mp4
@@ -218,7 +237,7 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -237,17 +256,28 @@ uv sync --group dev
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q upscaler
+python3 -m compileall -q ai_media
 ```
+
+Правила работы с проверками:
+
+- После любых Python-изменений минимум запускать `ruff check .`.
+- Перед коммитом с изменениями Python-кода запускать полный gate: `ruff check .`,
+  `mypy .`, `python3 -m compileall -q ai_media`.
+- `ruff check . --fix` допустим только для механических исправлений; после него нужно
+  посмотреть diff и не принимать автоправки вслепую.
+- Не передавать Markdown-файлы в `ruff` явно. `ruff check .` сам применяет конфиг
+  проекта и проверяет Python scope.
+- Если локально нет runtime-only зависимостей, использовать Docker-based вариант ниже.
 
 Docker-based вариант:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
-docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
-docker run --rm -v "$PWD:/app" upscaler:dev mypy .
-docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q upscaler
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev ruff check .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev mypy .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev \
+  python3 -m compileall -q ai_media
 ```
 
 `mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
@@ -261,9 +291,9 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 
 ### Общая часть
 
-Общий жизненный цикл задает `BasePipeline` в `upscaler/pipelines/base.py`:
+Общий жизненный цикл задает `BasePipeline` в `ai_media/pipelines/base.py`:
 
-1. Получает уже распарсенные CLI-аргументы из `upscaler/cli/upscale.py`.
+1. Получает уже распарсенные CLI-аргументы из `ai_media/cli/upscale.py`.
 2. Проверяет наличие `--engine` или `--model`, а также `--input`.
 3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
    количество кадров и доступные color metadata.
@@ -277,7 +307,7 @@ docker run --rm -v "$PWD:/app" upscaler:dev \
 9. Запускает цикл обработки кадров.
 10. Печатает статистику и, если включен `--profile`, таблицу профилирования.
 
-`TensorRTRuntime` в `upscaler/runtime/tensorrt.py`:
+`TensorRTRuntime` в `ai_media/runtime/tensorrt.py`:
 
 - загружает serialized TensorRT engine;
 - создает execution context;
@@ -295,7 +325,7 @@ ID используется для PyNvVideoCodec decode/encode.
 
 ### `upscale --backend ffmpeg`
 
-Файл: `upscaler/pipelines/ffmpeg.py`
+Файл: `ai_media/pipelines/ffmpeg.py`
 
 Путь данных:
 
@@ -326,7 +356,7 @@ ffmpeg decode (CPU) -> RGB raw pipe -> numpy -> torch cuda -> TensorRT
 
 ### `upscale --backend nvcodec`
 
-Файл: `upscaler/pipelines/nvcodec.py`
+Файл: `ai_media/pipelines/nvcodec.py`
 
 Путь данных:
 

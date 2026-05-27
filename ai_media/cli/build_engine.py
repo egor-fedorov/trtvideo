@@ -19,11 +19,22 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-import tensorrt as trt
-
-TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+trt: Any = None
+TRT_LOGGER: Any = None
 ShapeArg = tuple[str, tuple[int, ...]]
 ProfileShapes = tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
+
+
+def _load_tensorrt() -> None:
+    """Load TensorRT only after argparse handled lightweight flags such as --help."""
+    global TRT_LOGGER, trt
+    if trt is not None:
+        return
+
+    import tensorrt as trt_module
+
+    trt = trt_module
+    TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 
 
 def parse_shape_arg(value: str) -> ShapeArg:
@@ -314,6 +325,7 @@ def build_engine(
     Returns:
         True on success, False on error.
     """
+    _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     parser = trt.OnnxParser(network, TRT_LOGGER)
@@ -504,6 +516,8 @@ def main() -> None:
         args.output = os.path.splitext(args.onnx)[0] + ".engine"
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+
+    _load_tensorrt()
 
     if args.verbose:
         TRT_LOGGER.min_severity = trt.Logger.VERBOSE

@@ -12,8 +12,8 @@ from typing import Any
 import PyNvVideoCodec as nvc
 import torch
 
-from upscaler.pipelines.base import BasePipeline
-from upscaler.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
+from ai_media.pipelines.base import BasePipeline
+from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 
 
 @dataclass

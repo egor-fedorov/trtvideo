@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore \
     UV_LINK_MODE=copy \
     UV_NO_MANAGED_PYTHON=1 \
-    VIRTUAL_ENV=/opt/upscaler \
+    VIRTUAL_ENV=/opt/ai-media-enhancer \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-COPY upscaler/ upscaler/
+COPY ai_media/ ai_media/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 

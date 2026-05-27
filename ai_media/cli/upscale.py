@@ -6,7 +6,7 @@ import sys
 
 def build_parser() -> argparse.ArgumentParser:
     """Create parser for all current upscale backends."""
-    parser = argparse.ArgumentParser(prog="upscale", description="TensorRT video upscaler")
+    parser = argparse.ArgumentParser(prog="upscale", description="TensorRT media enhancer")
     parser.add_argument(
         "--backend",
         choices=["ffmpeg", "nvcodec"],
@@ -66,12 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     if args.backend == "ffmpeg":
-        from upscaler.pipelines.ffmpeg import FfmpegPipeline
+        from ai_media.pipelines.ffmpeg import FfmpegPipeline
 
         FfmpegPipeline(args).run()
         return
     if args.backend == "nvcodec":
-        from upscaler.pipelines.nvcodec import NvcodecPipeline
+        from ai_media.pipelines.nvcodec import NvcodecPipeline
 
         NvcodecPipeline(args).run()
         return

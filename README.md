@@ -1,7 +1,8 @@
-# AI Video Upscaler
+# AI Media Enhancer
 
-CLI-инструменты для AI-апскейла видео через TensorRT. Поддерживаются модели
-RealESRGAN и SPAN в форматах `.pth` и ONNX.
+CLI-инструменты для AI-обработки медиа через TensorRT. Текущий реализованный
+workflow - апскейл видео; поддерживаются модели RealESRGAN и SPAN в форматах
+`.pth` и ONNX.
 
 Рекомендуемый workflow — Docker. Образ содержит runtime-зависимости для TensorRT
 inference, NVDEC/NVENC inference, подготовки ONNX и экспорта моделей.
@@ -14,12 +15,14 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ## Структура
 
 ```text
-upscaler/cli/        - CLI entrypoints
-upscaler/pipelines/  - ffmpeg и NVDEC/NVENC pipeline backends
-upscaler/runtime/    - TensorRT runtime wrapper и runtime protocol
-upscaler/video/      - video metadata и GPU colorspace helpers
-upscaler/models/     - model/engine manifests и registry lookup
-scripts/run_batch.sh - batch processing для видео
+ai_media/cli/        - CLI entrypoints
+ai_media/pipelines/  - ffmpeg и NVDEC/NVENC pipeline backends
+ai_media/runtime/    - TensorRT runtime wrapper и runtime protocol
+ai_media/video/      - video metadata и GPU colorspace helpers
+ai_media/models/     - model/engine manifests и registry lookup
+docs/ROADMAP.md      - короткий актуальный план
+docs/CHANGES.md      - журнал заметных проектных изменений
+docs/PERFORMANCE_LOG.md - журнал performance-изменений
 models/               - данные, не хранятся в git
   pretrained/         - .pth файлы
   onnx/               - .onnx файлы
@@ -56,7 +59,7 @@ docker run --rm --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
 ## Сборка Образа
 
 ```bash
-DOCKER_BUILDKIT=1 docker build -t upscaler:latest .
+DOCKER_BUILDKIT=1 docker build -t ai-media-enhancer:latest .
 ```
 
 Образ задаёт `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`. Это нужно для
@@ -65,8 +68,8 @@ NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаютс
 Dockerfile отделяет тяжёлый dependency layer от application code:
 
 * зависимости читаются из `pyproject.toml`/`uv.lock` через
-  `uv export --frozen --no-emit-project` до копирования `upscaler/`;
-* dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, чтобы видеть
+  `uv export --frozen --no-emit-project` до копирования `ai_media/`;
+* dependencies ставятся в venv `/opt/ai-media-enhancer` с `--system-site-packages`, чтобы видеть
   preinstalled NVIDIA/TensorRT packages из базового образа и не менять managed `/usr`;
 * повторная сборка после изменения Python-кода должна переиспользовать слой с
   `torch`, `cvcuda`, `pynvvideocodec`, `onnx`, `onnxscript`, `spandrel`;
@@ -76,7 +79,7 @@ Dockerfile отделяет тяжёлый dependency layer от application cod
 Dev-образ с `ruff`/`mypy`:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
 ```
 
 ## Docker Workflow
@@ -86,7 +89,7 @@ DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest export-onnx \
+  ai-media-enhancer:latest export-onnx \
   --model_path models/pretrained/RealESRGAN_x2plus.pth
 ```
 
@@ -99,7 +102,7 @@ input shapes. Если `--size` не указан, создаются default va
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  upscaler:latest prepare-onnx \
+  ai-media-enhancer:latest prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720
 ```
@@ -111,7 +114,7 @@ docker run --rm \
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p.engine \
   --timing-cache models/cache/trt.cache \
@@ -133,7 +136,7 @@ input/output shapes, profile и builder flags. Путь можно задать 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p_fp16io.engine \
   --fp16-io \
@@ -162,7 +165,7 @@ Dynamic ONNX можно собрать напрямую, если явно за�
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  upscaler:latest build-engine \
+  ai-media-enhancer:latest build-engine \
   models/onnx/model.onnx \
   -o models/engines/model_dynamic_720p.engine \
   --min-shape input:1x3x360x640 \
@@ -197,7 +200,7 @@ models/liveaction-span/
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend nvcodec \
   --model models/liveaction-span \
   --input videos/input.mp4
@@ -215,7 +218,7 @@ ffmpeg backend: ffmpeg делает decode/encode, TensorRT inference выпол
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend ffmpeg \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -227,7 +230,7 @@ NVDEC/NVENC backend: decode, color conversion, TensorRT inference и encode ос
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --bitrate-mbps 35 \
@@ -240,7 +243,7 @@ docker run --rm --gpus all \
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest upscale \
+  ai-media-enhancer:latest upscale \
   --backend nvcodec \
   --gpu-id 1 \
   --engine models/engines/model_720p.engine \
@@ -258,7 +261,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  upscaler:latest benchmark-upscale \
+  ai-media-enhancer:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
@@ -282,7 +285,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  upscaler:latest benchmark-upscale \
+  ai-media-enhancer:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend nvcodec \
@@ -302,7 +305,7 @@ pipeline откатится на обычный TensorRT enqueue.
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  upscaler:latest benchmark-upscale \
+  ai-media-enhancer:latest benchmark-upscale \
   --model models/liveaction-span \
   --input videos/input.mp4 \
   --backend nvcodec \
@@ -402,15 +405,15 @@ uv sync --extra export --group dev
 ```bash
 ruff check .
 mypy .
-python3 -m compileall -q upscaler
+python3 -m compileall -q ai_media
 ```
 
 Docker-based проверки:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t upscaler:dev .
-docker run --rm -v "$PWD:/app" upscaler:dev ruff check .
-docker run --rm -v "$PWD:/app" upscaler:dev mypy .
-docker run --rm -v "$PWD:/app" upscaler:dev \
-  python3 -m compileall -q upscaler
+DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev ruff check .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev mypy .
+docker run --rm -v "$PWD:/app" ai-media-enhancer:dev \
+  python3 -m compileall -q ai_media
 ```

@@ -7,7 +7,7 @@ import time
 import numpy as np
 import torch
 
-from upscaler.pipelines.base import BasePipeline
+from ai_media.pipelines.base import BasePipeline
 
 _GPU_STAGES = [
     "Preprocess (CPU\u2192GPU)",

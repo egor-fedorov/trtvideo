@@ -13,9 +13,6 @@ import argparse
 import os
 import sys
 
-import onnx
-from onnx.tools import update_model_dims
-
 TARGETS = [
     {"name": "720p", "h": 720, "w": 1280},
     {"name": "1080p", "h": 1080, "w": 1920},
@@ -108,6 +105,9 @@ def main():
     def log(*a, **kw):
         if not args.quiet:
             print(*a, **kw)
+
+    import onnx
+    from onnx.tools import update_model_dims
 
     model = onnx.load(args.onnx_path)
     inp_name, inp_dims, out_name, out_dims = get_dims(model)

@@ -1,4 +1,7 @@
-# Task: укрепление ONNX/TensorRT video inference foundation и подготовка к VapourSynth/RIFE
+# Archived Task Plan: укрепление ONNX/TensorRT video inference foundation и подготовка к VapourSynth/RIFE
+
+Этот файл архивный. Он сохранён как исторический контекст по уже выполненным и
+частично устаревшим этапам. Актуальный короткий план находится в `docs/ROADMAP.md`.
 
 ## Контекст
 
@@ -21,7 +24,7 @@ VapourSynth/vs-mlrt/vstrt стоит добавить не как замену �
 
 Этот этап должен идти перед большим архитектурным рефакторингом. Цель — сделать текущий Docker/ONNX/TensorRT workflow надёжным для уже используемых моделей и GPU.
 
-Статус: реализовано в `prepare-onnx`, `build-engine`, README и CLAUDE. Runtime-проверку нужно выполнять в Docker, потому что локально нет ONNX/TensorRT зависимостей.
+Статус: реализовано в `prepare-onnx`, `build-engine`, README и AGENTS. Runtime-проверку нужно выполнять в Docker, потому что локально нет ONNX/TensorRT зависимостей.
 
 ### 0.1. `prepare-onnx --size WIDTHxHEIGHT`
 
@@ -89,7 +92,7 @@ Definition of Done:
 * dynamic ONNX собирается, если заданы `--min-shape`, `--opt-shape`, `--max-shape`;
 * shape parser валидирует имя input tensor и rank;
 * static ONNX продолжает собираться без profile;
-* README и CLAUDE показывают оба workflow: static ONNX и dynamic ONNX with profile.
+* README и AGENTS показывают оба workflow: static ONNX и dynamic ONNX with profile.
 
 ## Stage 1 — укрепить текущую архитектуру без переезда на VapourSynth
 
@@ -272,7 +275,7 @@ Definition of Done:
 
 * `ruff check .` проходит или имеет явно зафиксированный минимальный набор временных исключений;
 * `mypy` проходит на выбранном scope проекта или имеет явно зафиксированный baseline;
-* README/CLAUDE показывают команды quality checks;
+* README/AGENTS показывают команды quality checks;
 * CI/local workflow может запускать эти проверки без ручной настройки.
 
 Текущая реализация:
@@ -280,10 +283,10 @@ Definition of Done:
 * добавлен optional extra `dev` с `ruff` и `mypy`;
 * `pyproject.toml` очищен от старых путей `project/...` и чужих mypy overrides;
 * `ruff check .` настроен на practical gate: `E`, `F`, `I`, `UP`, `B`, `SIM`, `W`;
-* `mypy .` проверяет пакет `upscaler`;
+* `mypy .` проверяет пакет `ai_media`;
 * `mypy` временно подавляет `union-attr` до Stage 1B, потому что runtime fields сейчас инициализируются в `BasePipeline.run()`;
 * Dockerfile поддерживает dev image через `--build-arg INSTALL_DEV=1`;
-* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q upscaler`.
+* локально проходят `ruff check .`, `mypy .`, `python3 -m compileall -q ai_media`.
 
 ### Stage 1B — Build/runtime foundation
 
@@ -331,7 +334,7 @@ Definition of Done:
 
 Текущая реализация:
 
-* добавлен `upscaler/runtime/__init__.py` с `RuntimeEngine` Protocol;
+* добавлен `ai_media/runtime/__init__.py` с `RuntimeEngine` Protocol;
 * `TRTInference` выделен в `TensorRTRuntime`, старое имя оставлено alias для совместимости;
 * `FfmpegPipeline` и `GpuPipeline` больше не обращаются к `context`, `gpu_input`, `gpu_output`;
 * CPU и GPU RGB inference идут через методы runtime: `infer_rgb_cpu`, `infer_rgb_cpu_profiled`, `infer_rgb_tensor`;
@@ -582,7 +585,7 @@ inference N overlaps with encode N-1
 ### 11. FP16 I/O benchmark
 
 Статус: реализован experimental builder/runtime path; 720p и 1080p benchmark выполнены
-на Quadro RTX 6000, результаты зафиксированы в `OPTIMIZATIONS.md`. Перед production
+на Quadro RTX 6000, результаты зафиксированы в `docs/PERFORMANCE_LOG.md`. Перед production
 default требуется визуальная проверка.
 
 Сейчас TensorRT builder включает FP16 kernels, но runtime buffers могут оставаться FP32.
@@ -665,7 +668,7 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 Статус: реализовано; warm-cache `docker build` подтверждён на сервере.
 
 Проблема: текущий Dockerfile копирует application code до `pip install ".[docker]"`.
-Из-за этого любое изменение application code в `upscaler/`
+Из-за этого любое изменение application code в `ai_media/`
 инвалидирует тяжёлый dependency install layer. `--no-cache-dir` не является основной
 проблемой, но при такой структуре не помогает повторным сборкам: Docker заново
 экспортирует большой слой с runtime dependencies.
@@ -683,7 +686,7 @@ Static engines подходят под CUDA Graph: fixed shape, fixed buffers, r
 2. Dockerfile устанавливает pinned `uv`, затем копирует `pyproject.toml` и `uv.lock`.
 3. Runtime dependencies экспортируются из lockfile через `uv export --frozen --no-emit-project`.
 4. Dependency install использует `RUN --mount=type=cache,target=/root/.cache/uv ...`.
-5. Dependencies ставятся в venv `/opt/upscaler` с `--system-site-packages`, сохраняя доступ к preinstalled packages из TensorRT base image.
+5. Dependencies ставятся в venv `/opt/ai-media-enhancer` с `--system-site-packages`, сохраняя доступ к preinstalled packages из TensorRT base image.
 6. `requires-python` ограничен до Python 3.12, потому что production runtime берётся из TensorRT Docker image.
 7. Production build использует `--no-dev`, dev build использует `--group dev`.
 8. Application code копируется после dependency layer.
@@ -696,7 +699,7 @@ Definition of Done:
 * code-only изменение не запускает повторную установку `torch`, `cvcuda`, `pynvvideocodec`, `onnxscript`, `spandrel`;
 * Docker build с warm cache существенно быстрее текущего;
 * итоговый image не содержит лишний uv/pip cache в production layer;
-* workflow `docker build -t upscaler:latest .` остается прежним для пользователя.
+* workflow `docker build -t ai-media-enhancer:latest .` остается прежним для пользователя.
 
 ### Infra 2. Docker base image refresh
 
@@ -716,10 +719,10 @@ performance-оптимизациями pipeline.
 
 1. Проверить доступность tag `nvcr.io/nvidia/tensorrt:26.04-py3` и требования к driver/runtime.
 2. Обновить `Dockerfile` отдельным коммитом. Выполнено.
-3. Пересобрать `upscaler:latest` без изменения application code. Выполнено.
+3. Пересобрать `ai-media-enhancer:latest` без изменения application code. Выполнено.
 4. Smoke tests в контейнере: import `tensorrt`, `torch`, `PyNvVideoCodec`, `cvcuda`.
 5. Проверить `prepare-onnx`, `build-engine`, `upscale --backend ffmpeg`, `upscale --backend nvcodec`. `build-engine` проверен пересборкой engine.
-6. Повторить benchmark 720p/1080p и записать результат в `OPTIMIZATIONS.md`. Выполнено.
+6. Повторить benchmark 720p/1080p и записать результат в `docs/PERFORMANCE_LOG.md`. Выполнено.
 
 Definition of Done:
 
@@ -727,7 +730,7 @@ Definition of Done:
 * GPU проброшен, NVENC/NVDEC доступны;
 * build-engine и оба inference backend проходят smoke/runtime test;
 * benchmark сравнен с текущим `26.03-py3` baseline;
-* результат зафиксирован в `OPTIMIZATIONS.md`.
+* результат зафиксирован в `docs/PERFORMANCE_LOG.md`.
 
 ### Stage 1F — Production media API cleanup
 
