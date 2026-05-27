@@ -173,7 +173,7 @@ def main() -> None:
         "--bitrate-mbps",
         type=float,
         default=None,
-        help="NVENC target bitrate in Mbps; forwarded to nvcodec backend",
+        help="Explicit NVENC target bitrate in Mbps; forwarded to nvcodec backend",
     )
     parser.add_argument(
         "--cuda-graph",

@@ -133,13 +133,14 @@ Benchmark:
 * application code устанавливается быстрым `uv pip install --python "$VIRTUAL_ENV" --no-deps .`;
 * `.dockerignore` исключает локальные cache dirs, benchmark JSON artifacts и временные логи.
 
-Ожидаемый эффект:
+Подтверждённый эффект:
 
-* code-only изменения больше не должны переустанавливать `torch`, `cvcuda`,
+* warm-cache rebuild после code-only изменения переиспользует dependency layer;
+* тяжёлые зависимости больше не переустанавливаются: `torch`, `cvcuda`,
   `pynvvideocodec`, `onnx`, `onnxscript`, `spandrel`;
 * production image не должен содержать uv/pip download cache в финальном слое;
-* фактическое ускорение нужно замерить на удалённом сервере через повторный
-  `DOCKER_BUILDKIT=1 docker build -t ai-media-enhancer:latest .` после изменения Python-кода.
+* точное время ускорения зависит от host cache и Docker storage driver, поэтому
+  конкретные секунды фиксировать только вместе с полным build log.
 
 ## 2026-05-12 — Docker base image refresh
 

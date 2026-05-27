@@ -23,6 +23,22 @@ Performance-изменения с цифрами и benchmark-сравнения
 * ...
 ```
 
+## 2026-05-28 - Auto bitrate для NVENC backend
+
+Что изменилось:
+
+* `nvcodec` backend теперь по умолчанию оценивает target bitrate от source video bitrate;
+* формула auto bitrate: `source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`;
+* `--bitrate-mbps` оставлен как явный override;
+* `--crf` для `nvcodec` используется только как fallback, если bitrate исходника недоступен.
+
+Цель:
+
+* уменьшить риск случайно получить слишком большой output при smoke/batch прогонах;
+* сохранить ручной контроль bitrate для воспроизводимых сравнений.
+
+Проверки: `ruff`, `mypy`, `compileall`, CLI `--help`.
+
 ## 2026-05-27 - Переименование проекта и пакета
 
 Что изменилось:

@@ -390,10 +390,11 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 В этом backend основная data path остается на GPU. CPU участвует в orchestration,
 записи raw bitstream и финальном mux, но не гоняет кадры туда-сюда как numpy buffers.
 
-Качество задается `--crf` или явным `--bitrate-mbps`. В NVENC backend `--crf`
-не является настоящим CRF: значение преобразуется в оценочный bitrate функцией
-`crf_to_bitrate()`. Если нужен предсказуемый размер файла, использовать
-`--bitrate-mbps`.
+Качество задается автоматически или явным `--bitrate-mbps`. Если `--bitrate-mbps`
+не указан, NVENC backend оценивает target bitrate от source video bitrate:
+`source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`. `--crf` в NVENC backend не
+является настоящим CRF и используется только как fallback, если `ffprobe` не смог
+определить bitrate исходного видео.
 
 ### Профилирование
 
@@ -474,7 +475,7 @@ optimization profile. Есть два поддержанных workflow:
 
 ## Текущие известные ограничения
 
-- `--crf` в NVENC backend приблизительное. Для предсказуемого размера output
-  использовать `--bitrate-mbps`.
+- Auto bitrate в NVENC backend является эвристикой от source bitrate. Для
+  воспроизводимого размера output использовать явный `--bitrate-mbps`.
 - Runtime рассчитан на SDR 8-bit video. HDR/P010/yuv422/yuv444 требуют отдельной
   цветовой политики/tonemap и сейчас должны отклоняться fail-fast.

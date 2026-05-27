@@ -73,6 +73,25 @@ def crf_to_bitrate(crf, width, height, fps):
     return int(bpp * width * height * fps)
 
 
+def auto_bitrate_from_source(
+    *,
+    source_bitrate: int,
+    input_w: int,
+    input_h: int,
+    output_w: int,
+    output_h: int,
+    input_fps: float,
+    output_fps: float,
+) -> tuple[int, float, float]:
+    """Estimate target bitrate from source bitrate and output complexity."""
+    input_pixels = input_w * input_h
+    output_pixels = output_w * output_h
+    pixel_ratio = output_pixels / input_pixels if input_pixels > 0 else 1.0
+    fps_ratio = output_fps / input_fps if input_fps > 0 and output_fps > 0 else 1.0
+    scale = (pixel_ratio * fps_ratio) ** 0.6
+    return int(source_bitrate * scale), pixel_ratio, fps_ratio
+
+
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
@@ -156,18 +175,7 @@ class NvcodecPipeline(BasePipeline):
             input_dtype=runtime.input_dtype,
             output_dtype=runtime.output_dtype,
         )
-        if self.args.bitrate_mbps is not None:
-            if self.args.bitrate_mbps <= 0:
-                print("ERROR: --bitrate-mbps must be greater than zero")
-                sys.exit(1)
-            bitrate = int(self.args.bitrate_mbps * 1_000_000)
-        else:
-            bitrate = crf_to_bitrate(
-                self.args.crf,
-                runtime.output_w,
-                runtime.output_h,
-                self.info["fps"],
-            )
+        bitrate = self._resolve_bitrate(runtime)
         self.log(
             f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps, "
             f"{self._color_spec_name})..."
@@ -190,6 +198,48 @@ class NvcodecPipeline(BasePipeline):
             fps=int(round(self.info["fps"])),
         )
         self._raw_file = open(self._tmp_raw_path, "wb")
+
+    def _resolve_bitrate(self, runtime) -> int:
+        if self.args.bitrate_mbps is not None:
+            if self.args.bitrate_mbps <= 0:
+                print("ERROR: --bitrate-mbps must be greater than zero")
+                sys.exit(1)
+            bitrate = int(self.args.bitrate_mbps * 1_000_000)
+            self.log(f"NVENC bitrate: manual {bitrate / 1e6:.1f} Mbps")
+            return bitrate
+
+        source_bitrate = self.info.video_bit_rate or self.info.container_bit_rate
+        if source_bitrate:
+            bitrate, pixel_ratio, fps_ratio = auto_bitrate_from_source(
+                source_bitrate=source_bitrate,
+                input_w=runtime.input_w,
+                input_h=runtime.input_h,
+                output_w=runtime.output_w,
+                output_h=runtime.output_h,
+                input_fps=self.info.fps,
+                output_fps=self.info.fps,
+            )
+            source = "video stream" if self.info.video_bit_rate else "container"
+            self.log(
+                "NVENC bitrate auto: "
+                f"source={source_bitrate / 1e6:.1f} Mbps ({source}), "
+                f"pixel_ratio={pixel_ratio:.2f}, "
+                f"fps_ratio={fps_ratio:.2f}, "
+                f"target={bitrate / 1e6:.1f} Mbps"
+            )
+            return bitrate
+
+        bitrate = crf_to_bitrate(
+            self.args.crf,
+            runtime.output_w,
+            runtime.output_h,
+            self.info.fps,
+        )
+        self.log(
+            "NVENC bitrate auto: source bitrate unavailable; "
+            f"fallback from --crf {self.args.crf} -> {bitrate / 1e6:.1f} Mbps"
+        )
+        return bitrate
 
     def decode_frames(self):
         """Yield NV12 frames from NVDEC decoder."""

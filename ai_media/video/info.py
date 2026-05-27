@@ -21,6 +21,8 @@ class VideoInfo:
     color_space: str | None = None
     color_transfer: str | None = None
     color_primaries: str | None = None
+    video_bit_rate: int | None = None
+    container_bit_rate: int | None = None
 
     def __getitem__(self, key: str) -> Any:
         """Preserve existing dict-style call sites during the contracts split."""
@@ -33,6 +35,16 @@ class VideoInfo:
 def _parse_fps(value: str) -> float:
     num, den = map(int, value.split("/"))
     return num / den if den else 0.0
+
+
+def _parse_optional_int(value: Any) -> int | None:
+    if value in {None, "", "N/A"}:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
 
 
 def get_video_info(input_path: str) -> VideoInfo:
@@ -51,6 +63,7 @@ def get_video_info(input_path: str) -> VideoInfo:
         "-print_format",
         "json",
         "-show_streams",
+        "-show_format",
         input_path,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -59,6 +72,8 @@ def get_video_info(input_path: str) -> VideoInfo:
         sys.exit(1)
 
     info = json.loads(result.stdout)
+    container_bit_rate = _parse_optional_int(info.get("format", {}).get("bit_rate"))
+
     for stream in info["streams"]:
         if stream["codec_type"] == "video":
             fps_str = stream.get("r_frame_rate", "30/1")
@@ -79,6 +94,8 @@ def get_video_info(input_path: str) -> VideoInfo:
                 color_space=stream.get("color_space"),
                 color_transfer=stream.get("color_transfer"),
                 color_primaries=stream.get("color_primaries"),
+                video_bit_rate=_parse_optional_int(stream.get("bit_rate")),
+                container_bit_rate=container_bit_rate,
             )
 
     print("ERROR: No video stream found")

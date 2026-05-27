@@ -54,7 +54,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--bitrate-mbps",
         type=float,
         default=None,
-        help="NVENC target bitrate in Mbps; overrides nvcodec CRF-to-bitrate estimate",
+        help=(
+            "Explicit NVENC target bitrate in Mbps; "
+            "default nvcodec mode estimates it from source bitrate"
+        ),
     )
     parser.add_argument("--codec", default="h264", choices=["h264", "hevc"], help="NVENC codec")
     verbosity = parser.add_mutually_exclusive_group()
