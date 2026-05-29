@@ -26,8 +26,12 @@ export SPAN_ONNX_720=models/onnx/2xLiveActionV1_SPAN_490000_720p.onnx
 export SPAN_ONNX_1080=models/onnx/2xLiveActionV1_SPAN_490000_1080p.onnx
 export BACKEND=nvcodec
 export ENGINE_IO_PRECISION=fp16
-export NVENC_BITRATE_MBPS=45
+export NVENC_BITRATE_MBPS=auto
 ```
+
+`NVENC_BITRATE_MBPS=auto` означает не передавать `--bitrate-mbps`: `nvcodec` сам
+оценивает target bitrate от bitrate исходного видео. Для ручного контроля можно
+указать число, например `export NVENC_BITRATE_MBPS=16`.
 
 ## 1. Собрать Docker image
 
@@ -183,7 +187,9 @@ for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
     stem="${name%.*}"
     out_file="out/$model_name/${stem}_${model_name}_${BACKEND}.mp4"
     bitrate_args=()
-    if [ "$BACKEND" = "nvcodec" ] && [ -n "${NVENC_BITRATE_MBPS:-}" ]; then
+    if [ "$BACKEND" = "nvcodec" ] && \
+       [ -n "${NVENC_BITRATE_MBPS:-}" ] && \
+       [ "$NVENC_BITRATE_MBPS" != "auto" ]; then
       bitrate_args=(--bitrate-mbps "$NVENC_BITRATE_MBPS")
     fi
 
@@ -236,6 +242,12 @@ printf '%s' "$summary_rows"
 ```bash
 sample="$(find "$SAMPLES_DIR" -maxdepth 1 -type f -name '*720*.mp4' | head -n 1)"
 name="$(basename "$sample")"
+bitrate_args=()
+if [ "$BACKEND" = "nvcodec" ] && \
+   [ -n "${NVENC_BITRATE_MBPS:-}" ] && \
+   [ "$NVENC_BITRATE_MBPS" != "auto" ]; then
+  bitrate_args=(--bitrate-mbps "$NVENC_BITRATE_MBPS")
+fi
 
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
@@ -245,7 +257,7 @@ docker run --rm --gpus all \
   --backend "$BACKEND" \
   --model "$REALESRGAN_MODEL" \
   --engine-io-precision "$ENGINE_IO_PRECISION" \
-  --bitrate-mbps "$NVENC_BITRATE_MBPS" \
+  "${bitrate_args[@]}" \
   --input "samples/$name" \
   --output "out/${name%.*}_realesrgan_smoke.mp4" \
   --max-frames 30 \

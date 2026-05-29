@@ -15,6 +15,8 @@ import torch
 from ai_media.pipelines.base import BasePipeline
 from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 
+AUTO_BITRATE_COMPLEXITY_EXPONENT = 0.6
+
 
 @dataclass
 class FrameBufferPool:
@@ -88,7 +90,7 @@ def auto_bitrate_from_source(
     output_pixels = output_w * output_h
     pixel_ratio = output_pixels / input_pixels if input_pixels > 0 else 1.0
     fps_ratio = output_fps / input_fps if input_fps > 0 and output_fps > 0 else 1.0
-    scale = (pixel_ratio * fps_ratio) ** 0.6
+    scale = (pixel_ratio * fps_ratio) ** AUTO_BITRATE_COMPLEXITY_EXPONENT
     return int(source_bitrate * scale), pixel_ratio, fps_ratio
 
 
