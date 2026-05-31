@@ -6,6 +6,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
+from ai_media.video.fps import parse_fps
+
 
 @dataclass(frozen=True)
 class VideoInfo:
@@ -33,8 +35,7 @@ class VideoInfo:
 
 
 def _parse_fps(value: str) -> float:
-    num, den = map(int, value.split("/"))
-    return num / den if den else 0.0
+    return parse_fps(value)
 
 
 def _parse_optional_int(value: Any) -> int | None:

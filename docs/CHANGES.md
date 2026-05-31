@@ -63,6 +63,8 @@ Performance-изменения с цифрами и benchmark-сравнения
 * `nvcodec` backend отключает B-frames в NVENC (`bf=0`), чтобы избежать reorder
   timestamps и ошибок вида `non monotonically increasing dts` при проверке MP4
   через ffmpeg.
+* `nvcodec` backend больше не округляет дробный FPS до целого перед передачей в
+  PyNvVideoCodec encoder; mux по-прежнему использует точный `ffprobe r_frame_rate`.
 
 ### Цель
 

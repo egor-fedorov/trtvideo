@@ -15,6 +15,7 @@ import torch
 from ai_media.pipelines.base import BasePipeline
 from ai_media.video.bitrate import auto_bitrate_from_source, crf_to_bitrate
 from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
+from ai_media.video.fps import format_nvenc_fps
 
 
 @dataclass
@@ -149,9 +150,14 @@ class NvcodecPipeline(BasePipeline):
             output_dtype=runtime.output_dtype,
         )
         bitrate = self._resolve_bitrate(runtime)
+        try:
+            encoder_fps = format_nvenc_fps(self.info.fps_str)
+        except ValueError as exc:
+            print(f"ERROR: Unsupported input FPS for NVENC: {exc}")
+            sys.exit(1)
         self.log(
             f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps, "
-            f"{self._color_spec_name}, bframes=0)..."
+            f"{self._color_spec_name}, fps={encoder_fps}, bframes=0)..."
         )
 
         raw_ext = ".h264" if self.args.codec == "h264" else ".hevc"
@@ -168,7 +174,7 @@ class NvcodecPipeline(BasePipeline):
             bitrate=bitrate,
             preset="P4",
             tuning_info="high_quality",
-            fps=int(round(self.info["fps"])),
+            fps=encoder_fps,
             bf=0,
         )
         self._raw_file = open(self._tmp_raw_path, "wb")
