@@ -100,7 +100,7 @@ class FfmpegPipeline(BasePipeline):
             "-preset",
             "medium",
             "-crf",
-            str(self.args.crf),
+            str(self.args.crf if self.args.crf is not None else 18),
             "-pix_fmt",
             "yuv420p",
             *self.ffmpeg_color_metadata_args(),

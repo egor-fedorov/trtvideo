@@ -383,9 +383,9 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 
 Качество задается автоматически или явным `--bitrate-mbps`. Если `--bitrate-mbps`
 не указан, NVENC backend оценивает target bitrate от source video bitrate:
-`source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`. `--crf` в NVENC backend не
-является настоящим CRF и используется только как fallback, если `ffprobe` не смог
-определить bitrate исходного видео.
+`source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`. Если `ffprobe` не смог
+определить bitrate исходного видео, NVENC backend требует явный `--bitrate-mbps`
+и завершится с ошибкой. `--crf` поддерживается только для ffmpeg backend.
 
 ### Профилирование
 

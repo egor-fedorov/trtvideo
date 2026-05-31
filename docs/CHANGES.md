@@ -46,6 +46,13 @@ Performance-изменения с цифрами и benchmark-сравнения
 ## Unreleased
 
 ### Added
+### Changed
+### Fixed
+### Removed
+
+## 0.2.0 - 2026-05-31
+
+### Added
 
 * Добавлен `Makefile` с Docker-only командами `build-dev`, `check`, `test-unit`,
   `lint`, `typecheck` и `compile`.
@@ -56,7 +63,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Changed
 
 * `--bitrate-mbps` остаётся явным override для воспроизводимых прогонов.
-* `--crf` для `nvcodec` используется только как fallback, если bitrate исходника недоступен.
+* `--crf` больше не поддерживается в `nvcodec`; backend использует auto bitrate от
+  source metadata или явный `--bitrate-mbps`. Если source bitrate недоступен,
+  нужно явно передать `--bitrate-mbps`.
 
 ### Fixed
 

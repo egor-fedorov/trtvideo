@@ -13,7 +13,7 @@ import PyNvVideoCodec as nvc
 import torch
 
 from ai_media.pipelines.base import BasePipeline
-from ai_media.video.bitrate import auto_bitrate_from_source, crf_to_bitrate
+from ai_media.video.bitrate import auto_bitrate_from_source
 from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 from ai_media.video.fps import format_nvenc_fps
 
@@ -209,17 +209,11 @@ class NvcodecPipeline(BasePipeline):
             )
             return bitrate
 
-        bitrate = crf_to_bitrate(
-            self.args.crf,
-            runtime.output_w,
-            runtime.output_h,
-            self.info.fps,
+        print(
+            "ERROR: nvcodec auto bitrate requires source video bitrate metadata. "
+            "Pass --bitrate-mbps explicitly."
         )
-        self.log(
-            "NVENC bitrate auto: source bitrate unavailable; "
-            f"fallback from --crf {self.args.crf} -> {bitrate / 1e6:.1f} Mbps"
-        )
-        return bitrate
+        sys.exit(1)
 
     def decode_frames(self):
         """Yield NV12 frames from NVDEC decoder."""

@@ -358,7 +358,7 @@ benchmark-upscale
 Backend options:
 
 ```bash
---crf N
+--crf N          ffmpeg/libx264 CRF, default: 18; не поддерживается nvcodec
 --bitrate-mbps N  явный target bitrate для nvcodec backend, перекрывает auto
 --codec h264|hevc   используется nvcodec backend, ffmpeg backend пока игнорирует
 ```
@@ -369,8 +369,9 @@ target bitrate от source video bitrate:
 получить огромный output после апскейла. Для полностью контролируемого размера
 используйте явный `--bitrate-mbps`.
 
-`--crf` в NVDEC/NVENC backend не является настоящим CRF. Сейчас он используется
-только как fallback, если `ffprobe` не смог определить bitrate исходного видео.
+Если `ffprobe` не смог определить bitrate исходного видео, NVDEC/NVENC backend
+требует явный `--bitrate-mbps` и завершится с ошибкой. `--crf` поддерживается
+только для ffmpeg backend.
 
 Color contract: текущий runtime рассчитан на SDR 8-bit video. `nvcodec` backend
 fail-fast отклоняет не-`yuv420p`/`nv12` inputs и HDR transfer functions; для

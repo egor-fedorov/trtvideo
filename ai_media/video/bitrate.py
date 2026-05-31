@@ -3,15 +3,6 @@
 AUTO_BITRATE_COMPLEXITY_EXPONENT = 0.6
 
 
-def crf_to_bitrate(crf: int, width: int, height: int, fps: float) -> int:
-    """Estimate bitrate from a CRF-like value.
-
-    bpp ~ 0.1 at CRF 23, doubles every 6 units.
-    """
-    bpp = 0.1 * (2.0 ** ((23 - crf) / 6.0))
-    return int(bpp * width * height * fps)
-
-
 def auto_bitrate_from_source(
     *,
     source_bitrate: int,

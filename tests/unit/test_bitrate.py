@@ -1,7 +1,6 @@
 from ai_media.video.bitrate import (
     AUTO_BITRATE_COMPLEXITY_EXPONENT,
     auto_bitrate_from_source,
-    crf_to_bitrate,
 )
 
 
@@ -50,8 +49,3 @@ def test_auto_bitrate_falls_back_to_neutral_ratios_for_invalid_inputs() -> None:
     )
 
     assert (bitrate, pixel_ratio, fps_ratio) == (5_000_000, 1.0, 1.0)
-
-
-def test_crf_to_bitrate_keeps_existing_fallback_formula() -> None:
-    assert crf_to_bitrate(23, 100, 100, 10.0) == 10_000
-    assert crf_to_bitrate(17, 100, 100, 10.0) == 20_000

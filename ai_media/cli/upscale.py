@@ -49,7 +49,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Experimental: capture TensorRT enqueue with CUDA Graph",
     )
-    parser.add_argument("--crf", type=int, default=18, help="Encoding quality")
+    parser.add_argument(
+        "--crf",
+        type=int,
+        default=None,
+        help="ffmpeg/libx264 CRF quality, default: 18; unsupported by nvcodec",
+    )
     parser.add_argument(
         "--bitrate-mbps",
         type=float,
@@ -66,8 +71,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate cross-backend CLI combinations before importing runtime dependencies."""
+    if args.backend == "nvcodec" and args.crf is not None:
+        print(
+            "ERROR: --crf is only supported by --backend ffmpeg. "
+            "Use --bitrate-mbps for --backend nvcodec.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def main() -> None:
     args = build_parser().parse_args()
+    validate_args(args)
     if args.backend == "ffmpeg":
         from ai_media.pipelines.ffmpeg import FfmpegPipeline
 

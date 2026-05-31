@@ -5,12 +5,9 @@
 
 ## Next
 
-- Проверить smoke/batch после color metadata и `--bitrate-mbps` изменений:
-  SPAN 720p/1080p через `nvcodec`, затем полный batch.
-- Разделить encoder quality API: оставить настоящий `--crf` для `ffmpeg`,
-  для `nvcodec` перейти на явные `--bitrate-mbps`, `--max-bitrate-mbps`,
-  `--nvenc-rc`, `--constqp`/quality options.
-- Обновить benchmark/performance log после новых smoke/batch результатов.
+- Добавить media validation checks для будущих smoke/integration тестов:
+  `ffmpeg -f null -`, `ffprobe has_b_frames`, FPS/duration/frame count и
+  монотонность PTS/DTS в packet metadata.
 
 ## Later
 
