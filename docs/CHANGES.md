@@ -58,6 +58,12 @@ Performance-изменения с цифрами и benchmark-сравнения
 * `--bitrate-mbps` остаётся явным override для воспроизводимых прогонов.
 * `--crf` для `nvcodec` используется только как fallback, если bitrate исходника недоступен.
 
+### Fixed
+
+* `nvcodec` backend отключает B-frames в NVENC (`bf=0`), чтобы избежать reorder
+  timestamps и ошибок вида `non monotonically increasing dts` при проверке MP4
+  через ffmpeg.
+
 ### Цель
 
 * Уменьшить риск случайно получить слишком большой output при smoke/batch прогонах.

@@ -151,7 +151,7 @@ class NvcodecPipeline(BasePipeline):
         bitrate = self._resolve_bitrate(runtime)
         self.log(
             f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps, "
-            f"{self._color_spec_name})..."
+            f"{self._color_spec_name}, bframes=0)..."
         )
 
         raw_ext = ".h264" if self.args.codec == "h264" else ".hevc"
@@ -169,6 +169,7 @@ class NvcodecPipeline(BasePipeline):
             preset="P4",
             tuning_info="high_quality",
             fps=int(round(self.info["fps"])),
+            bf=0,
         )
         self._raw_file = open(self._tmp_raw_path, "wb")
 

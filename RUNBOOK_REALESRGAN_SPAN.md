@@ -208,7 +208,7 @@ for model in "$SPAN_MODEL" "$REALESRGAN_MODEL"; do
         "${bitrate_args[@]}" \
         --input "samples/$name" \
         --output "$out_file" \
-        --log-interval 100 2>&1 | tee /dev/fd/3
+        --log-interval 250 2>&1 | tee /dev/fd/3
     )" || run_status=$?
 
     if [ "$run_status" -ne 0 ]; then
