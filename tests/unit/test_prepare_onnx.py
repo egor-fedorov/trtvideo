@@ -1,0 +1,34 @@
+import pytest
+
+from ai_media.cli.prepare_onnx import is_dynamic, parse_size
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("1280x720", {"name": "720p", "h": 720, "w": 1280}),
+        ("1920*1080", {"name": "1080p", "h": 1080, "w": 1920}),
+        ("640x360", {"name": "640x360", "h": 360, "w": 640}),
+    ],
+)
+def test_parse_size(value: str, expected: dict[str, int | str]) -> None:
+    assert parse_size(value) == expected
+
+
+@pytest.mark.parametrize("value", ["bad", "0x720", "1280x0", "-1x720"])
+def test_parse_size_exits_for_invalid_values(value: str) -> None:
+    with pytest.raises(SystemExit):
+        parse_size(value)
+
+
+@pytest.mark.parametrize(
+    ("dims", "expected"),
+    [
+        ([1, 3, 720, 1280], False),
+        ([1, 3, "height", 1280], True),
+        ([1, 3, -1, 1280], True),
+        ([1, 3, 0, 1280], True),
+    ],
+)
+def test_is_dynamic(dims: list[int | str], expected: bool) -> None:
+    assert is_dynamic(dims) is expected

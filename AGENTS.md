@@ -32,6 +32,8 @@ Production runtime сейчас привязан к Python 3.12 из базов�
   измерением: что изменилось, какой benchmark/команда, какой прирост или регресс.
 - Если проверку нельзя выполнить локально из-за отсутствующих GPU/runtime зависимостей,
   явно указать это в финальном ответе.
+- Тесты запускать через Docker dev image. Unit tests должны оставаться pure-Python и
+  не импортировать TensorRT, CV-CUDA или PyNvVideoCodec.
 
 ## Структура файлов
 
@@ -42,6 +44,7 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ├── docs/
 │   ├── ROADMAP.md              # короткий актуальный план
 │   ├── CHANGES.md              # журнал заметных проектных изменений
+│   ├── TESTING.md              # архитектура тестов и Docker-only workflow
 │   ├── PERFORMANCE_LOG.md      # журнал performance-изменений и benchmark results
 │   └── archive/                # исторические планы
 ├── Dockerfile
@@ -245,25 +248,13 @@ docker run --rm --gpus all \
 
 ## Проверки качества
 
-Локальная установка проверочных инструментов:
-
-```bash
-uv sync --group dev
-```
-
-Обязательные проверки:
-
-```bash
-ruff check .
-mypy .
-python3 -m compileall -q ai_media
-```
+Проверочные инструменты устанавливаются в Docker dev image.
 
 Правила работы с проверками:
 
-- После любых Python-изменений минимум запускать `ruff check .`.
-- Перед коммитом с изменениями Python-кода запускать полный gate: `ruff check .`,
-  `mypy .`, `python3 -m compileall -q ai_media`.
+- После любых Python-изменений минимум запускать `ruff check .` в Docker dev image.
+- Перед коммитом с изменениями Python-кода запускать полный Docker gate: `ruff`,
+  `mypy`, `compileall`, `pytest -q tests/unit`.
 - `ruff check . --fix` допустим только для механических исправлений; после него нужно
   посмотреть diff и не принимать автоправки вслепую.
 - Не передавать Markdown-файлы в `ruff` явно. `ruff check .` сам применяет конфиг
@@ -273,16 +264,16 @@ python3 -m compileall -q ai_media
 Docker-based вариант:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev ruff check .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev mypy .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev \
-  python3 -m compileall -q ai_media
+make build-dev
+make check
 ```
 
 `mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
 `check_untyped_defs`, игнорирует отсутствующие runtime-only зависимости и временно
 подавляет `union-attr` до выделения явного runtime interface в Stage 1B.
+
+Unit tests описаны в `docs/TESTING.md`. Они не должны импортировать runtime-only
+модули и не должны требовать `--gpus all`.
 
 ## Как устроен инференс
 

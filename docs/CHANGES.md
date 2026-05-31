@@ -47,6 +47,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Added
 
+* Добавлен `Makefile` с Docker-only командами `build-dev`, `check`, `test-unit`,
+  `lint`, `typecheck` и `compile`.
+* Добавлена Docker-only unit test architecture на `pytest` для pure-Python контрактов.
 * `nvcodec` backend теперь по умолчанию оценивает target bitrate от source video bitrate.
 * Формула auto bitrate: `source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`.
 

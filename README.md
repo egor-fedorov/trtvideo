@@ -22,6 +22,7 @@ ai_media/video/      - video metadata и GPU colorspace helpers
 ai_media/models/     - model/engine manifests и registry lookup
 docs/ROADMAP.md      - короткий актуальный план
 docs/CHANGES.md      - журнал заметных проектных изменений
+docs/TESTING.md      - архитектура тестов и Docker-only test workflow
 docs/PERFORMANCE_LOG.md - журнал performance-изменений
 models/               - данные, не хранятся в git
   pretrained/         - .pth файлы
@@ -405,20 +406,14 @@ uv sync --extra export --group dev
 
 ## Проверки Качества
 
-Локальные проверки:
-
-```bash
-ruff check .
-mypy .
-python3 -m compileall -q ai_media
-```
+Проверки запускаются через Docker dev image. Unit tests не требуют GPU и не должны
+импортировать TensorRT, CV-CUDA или PyNvVideoCodec.
 
 Docker-based проверки:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev ruff check .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev mypy .
-docker run --rm -v "$PWD:/app" ai-media-enhancer:dev \
-  python3 -m compileall -q ai_media
+make build-dev
+make check
 ```
+
+Подробная архитектура тестовых слоёв описана в `docs/TESTING.md`.

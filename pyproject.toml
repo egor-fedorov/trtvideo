@@ -37,6 +37,7 @@ export = [
 
 [dependency-groups]
 dev = [
+    "pytest>=8,<9",
     "ruff>=0.11,<1",
     "mypy>=1.15,<2",
 ]
@@ -50,6 +51,17 @@ build-engine = "ai_media.cli.build_engine:main"
 
 [tool.setuptools.packages.find]
 include = ["ai_media*"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+addopts = "-q"
+markers = [
+    "unit: pure Python tests without GPU/runtime dependencies",
+    "docker: Docker smoke tests",
+    "gpu: GPU integration smoke tests",
+    "benchmark: performance benchmark tests",
+]
 
 
 [tool.ruff]
