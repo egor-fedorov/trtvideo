@@ -4,9 +4,137 @@
 `README.md` и `AGENTS.md`.
 Для новых performance-изменений фиксировать: что изменилось, benchmark/команду,
 прирост или регресс и где он проявился.
+Записи располагать в обратном хронологическом порядке: новые сверху.
 
 Записи до удаления runtime registry содержат исторические команды с `--model` и
 precision-фильтрами. В актуальном CLI вместо них нужно явно передавать `--engine`.
+
+## 2026-07-12 — TensorRT base image 26.04 -> 26.06
+
+Что изменено:
+
+* базовый образ обновлён с `nvcr.io/nvidia/tensorrt:26.04-py3` до
+  `nvcr.io/nvidia/tensorrt:26.06-py3`;
+* engines для `26.06` пересобраны из mixed-precision FP16 ONNX после перехода на
+  TensorRT 11 strong typing;
+* сравнение отражает обновление всего TensorRT stack и пересборку engine, а не
+  изолированное влияние версии базового Docker image.
+
+Benchmark:
+
+* input: `videos/new_york_720p.mp4`, `videos/new_york_1080p.mp4`;
+* model: `2xLiveActionV1_SPAN_490000`;
+* backend: `nvcodec`;
+* GPU: Quadro RTX 6000;
+* workload: 20 warmup frames и 1000 measured frames;
+* command: `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`;
+* CUDA Graph command дополнительно использует `--cuda-graph`;
+* source artifacts: `artefacts/baseline_2604_span_720p_nvcodec.json`,
+  `artefacts/baseline_2604_span_1080p_nvcodec.json`,
+  `artefacts/baseline_2606_span_720p_nvcodec.json`,
+  `artefacts/baseline_2606_span_1080p_nvcodec.json`,
+  `artefacts/baseline_2606_span_720p_nvcodec_cuda_graph.json`,
+  `artefacts/baseline_2606_span_1080p_nvcodec_cuda_graph.json` (локальные benchmark
+  artifacts, не коммитятся).
+
+Сравнение `26.04` -> `26.06` без CUDA Graph:
+
+| Input | Метрика | `26.04` | `26.06` | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| 720p | processing FPS | 38.45 | 38.69 | +0.6% |
+| 720p | throughput FPS | 37.68 | 37.94 | +0.7% |
+| 720p | avg frame time | 26.01 ms | 25.85 ms | -0.6% |
+| 720p | `TRT inference` stage | 24.41 ms | 24.42 ms | +0.0% |
+| 1080p | processing FPS | 17.90 | 18.12 | +1.2% |
+| 1080p | throughput FPS | 17.66 | 17.87 | +1.2% |
+| 1080p | avg frame time | 55.86 ms | 55.17 ms | -1.2% |
+| 1080p | `TRT inference` stage | 54.09 ms | 53.59 ms | -0.9% |
+
+Влияние CUDA Graph внутри `26.06`:
+
+| Input | Метрика | Обычный enqueue | CUDA Graph | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| 720p | processing FPS | 38.69 | 39.13 | +1.1% |
+| 720p | throughput FPS | 37.94 | 38.29 | +0.9% |
+| 720p | avg frame time | 25.85 ms | 25.55 ms | -1.1% |
+| 720p | `TRT inference` stage | 24.42 ms | 24.35 ms | -0.3% |
+| 1080p | processing FPS | 18.12 | 18.05 | -0.4% |
+| 1080p | throughput FPS | 17.87 | 17.79 | -0.4% |
+| 1080p | avg frame time | 55.17 ms | 55.39 ms | +0.4% |
+| 1080p | `TRT inference` stage | 53.59 ms | 53.85 ms | +0.5% |
+
+Вывод:
+
+* переход `26.04` -> `26.06` не вызвал performance-регрессии на этих SPAN
+  workload: результаты улучшились на 0.6-1.2%;
+* величина изменения близка к типичному single-run noise, поэтому устойчивый speedup
+  без повторных прогонов утверждать нельзя;
+* CUDA Graph по-прежнему не даёт стабильного выигрыша для тяжёлой SPAN-модели:
+  небольшой плюс на 720p сменяется небольшим минусом на 1080p;
+* `--cuda-graph` следует оставить experimental opt-in и не включать по умолчанию.
+
+## 2026-05-12 — Docker base image refresh
+
+Что изменено:
+
+* базовый образ обновлён с `nvcr.io/nvidia/tensorrt:26.03-py3` до
+  `nvcr.io/nvidia/tensorrt:26.04-py3`;
+* pipeline code не менялся;
+* `26.04` benchmark выполнялся на engine, пересобранном на новом образе, поэтому это
+  сравнение полного TensorRT stack refresh, а не чистый runtime-only A/B на одном и том
+  же `.engine`.
+
+Benchmark:
+
+* input: `videos/switzerland_720p.mp4`, `videos/switzerland_1080p.mp4`;
+* engine: FP16 I/O engines from `models/liveaction-span/engines/`, для `26.04` engine
+  был пересобран на новом TensorRT runtime;
+* GPU: Quadro RTX 6000;
+* command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`;
+* CUDA Graph command adds: `--cuda-graph`;
+* source artifacts: `artefacts/switzerland_720_2604_fp16io_benchmark.json`,
+  `artefacts/switzerland_720p_2604_fp16io_cuda_graph_benchmark.json`,
+  `artefacts/switzerland_1080p_2604_fp16io_benchmark.json`,
+  `artefacts/switzerland_1080p_2604_fp16io_benchmark_2.json`,
+  `artefacts/switzerland_1080p_2604_fp16io_cuda_graph_benchmark.json`.
+* для `1080p` без CUDA Graph в колонке `26.04` указано среднее двух прогонов.
+
+Сравнение `26.03` stack -> `26.04` stack без CUDA Graph:
+
+| Input | Метрика | `26.03` FP16 I/O | `26.04` FP16 I/O | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| 720p | processing FPS | 37.76 | 37.22 | -1.4% |
+| 720p | throughput FPS | 36.75 | 35.81 | -2.5% |
+| 720p | avg frame time | 26.49 ms | 26.87 ms | +1.4% |
+| 720p | `TRT inference` stage | 25.29 ms | 25.00 ms | -1.1% |
+| 1080p | processing FPS | 17.51 | 16.78 | -4.2% |
+| 1080p | throughput FPS | 17.20 | 15.93 | -7.4% |
+| 1080p | avg frame time | 57.10 ms | 59.58 ms | +4.3% |
+| 1080p | `TRT inference` stage | 55.71 ms | 57.64 ms | +3.5% |
+
+CUDA Graph на `26.04`:
+
+| Input | Метрика | FP16 I/O | FP16 I/O + CUDA Graph | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| 720p | `cuda_graph` | false | true | capture работает |
+| 720p | processing FPS | 37.22 | 36.99 | -0.6% |
+| 720p | throughput FPS | 35.81 | 34.09 | -4.8% |
+| 720p | avg frame time | 26.87 ms | 27.04 ms | +0.6% |
+| 720p | `TRT inference` stage | 25.00 ms | 24.97 ms | -0.1% |
+| 1080p | `cuda_graph` | false | true | capture работает |
+| 1080p | processing FPS | 16.78 | 16.14 | -3.8% |
+| 1080p | throughput FPS | 15.93 | 15.72 | -1.3% |
+| 1080p | avg frame time | 59.58 ms | 61.94 ms | +4.0% |
+| 1080p | `TRT inference` stage | 57.64 ms | 59.95 ms | +4.0% |
+
+Вывод:
+
+* переход на `26.04` вместе с пересборкой engine не дал speedup на текущей SPAN FP16 I/O модели и Quadro RTX 6000;
+* 720p почти в пределах шума, но 1080p стал медленнее по processing FPS и TRT stage;
+* CUDA Graph capture работает на `26.04`, но не даёт устойчивого выигрыша на 720p/1080p SPAN;
+* `--cuda-graph` не переводить в default, оставить experimental flag;
+* `build-engine` на новом образе фактически проверен пересборкой engine;
+* если нужен чистый runtime-only A/B, нужно отдельно прогнать старый `26.03` engine внутри `26.04` image, но такой замер может быть нерепрезентативен из-за совместимости TensorRT engine/runtime.
 
 ## 2026-05-11 — NVDEC/NVENC buffer pool
 
@@ -144,130 +272,3 @@ Benchmark:
 * production image не должен содержать uv/pip download cache в финальном слое;
 * точное время ускорения зависит от host cache и Docker storage driver, поэтому
   конкретные секунды фиксировать только вместе с полным build log.
-
-## 2026-05-12 — Docker base image refresh
-
-Что изменено:
-
-* базовый образ обновлён с `nvcr.io/nvidia/tensorrt:26.03-py3` до
-  `nvcr.io/nvidia/tensorrt:26.04-py3`;
-* pipeline code не менялся;
-* `26.04` benchmark выполнялся на engine, пересобранном на новом образе, поэтому это
-  сравнение полного TensorRT stack refresh, а не чистый runtime-only A/B на одном и том
-  же `.engine`.
-
-Benchmark:
-
-* input: `videos/switzerland_720p.mp4`, `videos/switzerland_1080p.mp4`;
-* engine: FP16 I/O engines from `models/liveaction-span/engines/`, для `26.04` engine
-  был пересобран на новом TensorRT runtime;
-* GPU: Quadro RTX 6000;
-* command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`;
-* CUDA Graph command adds: `--cuda-graph`;
-* source artifacts: `artefacts/switzerland_720_2604_fp16io_benchmark.json`,
-  `artefacts/switzerland_720p_2604_fp16io_cuda_graph_benchmark.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_benchmark.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_benchmark_2.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_cuda_graph_benchmark.json`.
-* для `1080p` без CUDA Graph в колонке `26.04` указано среднее двух прогонов.
-
-Сравнение `26.03` stack -> `26.04` stack без CUDA Graph:
-
-| Input | Метрика | `26.03` FP16 I/O | `26.04` FP16 I/O | Изменение |
-| --- | ---: | ---: | ---: | ---: |
-| 720p | processing FPS | 37.76 | 37.22 | -1.4% |
-| 720p | throughput FPS | 36.75 | 35.81 | -2.5% |
-| 720p | avg frame time | 26.49 ms | 26.87 ms | +1.4% |
-| 720p | `TRT inference` stage | 25.29 ms | 25.00 ms | -1.1% |
-| 1080p | processing FPS | 17.51 | 16.78 | -4.2% |
-| 1080p | throughput FPS | 17.20 | 15.93 | -7.4% |
-| 1080p | avg frame time | 57.10 ms | 59.58 ms | +4.3% |
-| 1080p | `TRT inference` stage | 55.71 ms | 57.64 ms | +3.5% |
-
-CUDA Graph на `26.04`:
-
-| Input | Метрика | FP16 I/O | FP16 I/O + CUDA Graph | Изменение |
-| --- | ---: | ---: | ---: | ---: |
-| 720p | `cuda_graph` | false | true | capture работает |
-| 720p | processing FPS | 37.22 | 36.99 | -0.6% |
-| 720p | throughput FPS | 35.81 | 34.09 | -4.8% |
-| 720p | avg frame time | 26.87 ms | 27.04 ms | +0.6% |
-| 720p | `TRT inference` stage | 25.00 ms | 24.97 ms | -0.1% |
-| 1080p | `cuda_graph` | false | true | capture работает |
-| 1080p | processing FPS | 16.78 | 16.14 | -3.8% |
-| 1080p | throughput FPS | 15.93 | 15.72 | -1.3% |
-| 1080p | avg frame time | 59.58 ms | 61.94 ms | +4.0% |
-| 1080p | `TRT inference` stage | 57.64 ms | 59.95 ms | +4.0% |
-
-Вывод:
-
-* переход на `26.04` вместе с пересборкой engine не дал speedup на текущей SPAN FP16 I/O модели и Quadro RTX 6000;
-* 720p почти в пределах шума, но 1080p стал медленнее по processing FPS и TRT stage;
-* CUDA Graph capture работает на `26.04`, но не даёт устойчивого выигрыша на 720p/1080p SPAN;
-* `--cuda-graph` не переводить в default, оставить experimental flag;
-* `build-engine` на новом образе фактически проверен пересборкой engine;
-* если нужен чистый runtime-only A/B, нужно отдельно прогнать старый `26.03` engine внутри `26.04` image, но такой замер может быть нерепрезентативен из-за совместимости TensorRT engine/runtime.
-
-## 2026-07-12 — TensorRT base image 26.04 -> 26.06
-
-Что изменено:
-
-* базовый образ обновлён с `nvcr.io/nvidia/tensorrt:26.04-py3` до
-  `nvcr.io/nvidia/tensorrt:26.06-py3`;
-* engines для `26.06` пересобраны из mixed-precision FP16 ONNX после перехода на
-  TensorRT 11 strong typing;
-* сравнение отражает обновление всего TensorRT stack и пересборку engine, а не
-  изолированное влияние версии базового Docker image.
-
-Benchmark:
-
-* input: `videos/new_york_720p.mp4`, `videos/new_york_1080p.mp4`;
-* model: `2xLiveActionV1_SPAN_490000`;
-* backend: `nvcodec`;
-* GPU: Quadro RTX 6000;
-* workload: 20 warmup frames и 1000 measured frames;
-* command: `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`;
-* CUDA Graph command дополнительно использует `--cuda-graph`;
-* source artifacts: `artefacts/baseline_2604_span_720p_nvcodec.json`,
-  `artefacts/baseline_2604_span_1080p_nvcodec.json`,
-  `artefacts/baseline_2606_span_720p_nvcodec.json`,
-  `artefacts/baseline_2606_span_1080p_nvcodec.json`,
-  `artefacts/baseline_2606_span_720p_nvcodec_cuda_graph.json`,
-  `artefacts/baseline_2606_span_1080p_nvcodec_cuda_graph.json` (локальные benchmark
-  artifacts, не коммитятся).
-
-Сравнение `26.04` -> `26.06` без CUDA Graph:
-
-| Input | Метрика | `26.04` | `26.06` | Изменение |
-| --- | ---: | ---: | ---: | ---: |
-| 720p | processing FPS | 38.45 | 38.69 | +0.6% |
-| 720p | throughput FPS | 37.68 | 37.94 | +0.7% |
-| 720p | avg frame time | 26.01 ms | 25.85 ms | -0.6% |
-| 720p | `TRT inference` stage | 24.41 ms | 24.42 ms | +0.0% |
-| 1080p | processing FPS | 17.90 | 18.12 | +1.2% |
-| 1080p | throughput FPS | 17.66 | 17.87 | +1.2% |
-| 1080p | avg frame time | 55.86 ms | 55.17 ms | -1.2% |
-| 1080p | `TRT inference` stage | 54.09 ms | 53.59 ms | -0.9% |
-
-Влияние CUDA Graph внутри `26.06`:
-
-| Input | Метрика | Обычный enqueue | CUDA Graph | Изменение |
-| --- | ---: | ---: | ---: | ---: |
-| 720p | processing FPS | 38.69 | 39.13 | +1.1% |
-| 720p | throughput FPS | 37.94 | 38.29 | +0.9% |
-| 720p | avg frame time | 25.85 ms | 25.55 ms | -1.1% |
-| 720p | `TRT inference` stage | 24.42 ms | 24.35 ms | -0.3% |
-| 1080p | processing FPS | 18.12 | 18.05 | -0.4% |
-| 1080p | throughput FPS | 17.87 | 17.79 | -0.4% |
-| 1080p | avg frame time | 55.17 ms | 55.39 ms | +0.4% |
-| 1080p | `TRT inference` stage | 53.59 ms | 53.85 ms | +0.5% |
-
-Вывод:
-
-* переход `26.04` -> `26.06` не вызвал performance-регрессии на этих SPAN
-  workload: результаты улучшились на 0.6-1.2%;
-* величина изменения близка к типичному single-run noise, поэтому устойчивый speedup
-  без повторных прогонов утверждать нельзя;
-* CUDA Graph по-прежнему не даёт стабильного выигрыша для тяжёлой SPAN-модели:
-  небольшой плюс на 720p сменяется небольшим минусом на 1080p;
-* `--cuda-graph` следует оставить experimental opt-in и не включать по умолчанию.

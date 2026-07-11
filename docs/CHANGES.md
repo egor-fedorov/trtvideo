@@ -24,6 +24,8 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Removed
 ```
 
+Версии располагать в обратном хронологическом порядке.
+
 В `CHANGES.md` попадают:
 
 * изменения CLI, Docker workflow, engine metadata и runtime defaults;
@@ -102,11 +104,6 @@ Performance-изменения с цифрами и benchmark-сравнения
 * `nvcodec` backend больше не округляет дробный FPS до целого перед передачей в
   PyNvVideoCodec encoder; mux по-прежнему использует точный `ffprobe r_frame_rate`.
 
-### Цель
-
-* Уменьшить риск случайно получить слишком большой output при smoke/batch прогонах.
-* Сохранить ручной контроль bitrate для воспроизводимых сравнений.
-
 ## 0.1.0 - 2026-05-27
 
 ### Changed
@@ -124,9 +121,3 @@ Performance-изменения с цифрами и benchmark-сравнения
 * `TASKS.md` перенесён в `docs/archive/TASKS.md`.
 * Добавлен `docs/ROADMAP.md` как короткий актуальный план.
 * Удалён устаревший `scripts/run_batch.sh`.
-
-### Цель
-
-* Название `ai-media-enhancer` лучше подходит под будущие video/image workflows.
-* `ai_media` оставляет место для upscale, interpolation, restore и image tasks.
-* Документация разделена на актуальный контекст, roadmap, performance log и архив.
