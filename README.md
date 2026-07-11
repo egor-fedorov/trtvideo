@@ -22,8 +22,10 @@ ai_media/video/      - video metadata и GPU colorspace helpers
 ai_media/models/     - model/engine manifests и registry lookup
 docs/ROADMAP.md      - короткий актуальный план
 docs/CHANGES.md      - журнал заметных проектных изменений
+docs/MODELS.md       - источники моделей, лицензии и локальные пути
 docs/TESTING.md      - архитектура тестов и Docker-only test workflow
 docs/PERFORMANCE_LOG.md - журнал performance-изменений
+model_sources.json   - машинно-читаемый каталог upstream model sources
 models/               - данные, не хранятся в git
   pretrained/         - .pth файлы
   onnx/               - .onnx файлы
@@ -33,29 +35,11 @@ videos/               - input/output видео, не хранятся в git
 
 ## Требования К Хосту
 
-Для Docker-запусков с GPU нужны:
+Для GPU-запусков нужен хост, на котором уже настроены:
 
-- NVIDIA driver на хосте
-- Docker
-- NVIDIA Container Toolkit (`nvidia-ctk`)
-- NVIDIA runtime/CDI, настроенный для Docker
-
-Настройка Docker после установки NVIDIA Container Toolkit:
-
-```bash
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Проверка проброса GPU:
-
-```bash
-nvidia-smi
-docker run --rm --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
-```
-
-Если Docker использует CDI, `nvidia-ctk cdi list` должен показывать устройства вроде
-`nvidia.com/gpu=all`.
+- NVIDIA driver;
+- Docker;
+- GPU passthrough в Docker для `docker run --gpus all`.
 
 ## Сборка Образа
 
@@ -82,6 +66,23 @@ Dev-образ с `ruff`/`mypy`:
 ```bash
 DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
 ```
+
+## Модели
+
+Веса моделей, ONNX-файлы и TensorRT engines не входят в репозиторий. Источники и
+лицензии RealESRGAN/SPAN описаны в `model_sources.json`, локальные пути и workflow -
+в `docs/MODELS.md`.
+
+## Batch SPAN
+
+Короткий helper для обработки всех файлов из `./videos` через SPAN/NVENC:
+
+```bash
+./run_span_batch.sh
+```
+
+Скрипт выбирает `720p` или `1080p` engine по имени файла и пишет результат рядом в
+`./videos`.
 
 ## Docker Workflow
 

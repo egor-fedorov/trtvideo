@@ -22,6 +22,8 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 - Основной workflow - Docker-first. Локально часто нет TensorRT/PyNvVideoCodec/CV-CUDA,
   поэтому GPU/runtime проверки выполняются в контейнере на GPU-хосте.
 - Не коммитить `models/`, `videos/` и большие runtime artefacts без явной команды.
+- Источники моделей фиксировать в `docs/MODELS.md` и `model_sources.json`; веса,
+  ONNX и TensorRT engines не vendored в репозиторий.
 - Перед полным batch-прогоном сначала делать короткий smoke через `--max-frames`.
 - Для изменений в color/encoding path проверять не только запуск, но и `ffprobe`
   output: `pix_fmt`, `color_range`, `color_space`, `color_transfer`,
@@ -44,12 +46,13 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ├── docs/
 │   ├── ROADMAP.md              # короткий актуальный план
 │   ├── CHANGES.md              # журнал заметных проектных изменений
+│   ├── MODELS.md               # источники моделей, лицензии и локальные пути
 │   ├── TESTING.md              # архитектура тестов и Docker-only workflow
-│   ├── PERFORMANCE_LOG.md      # журнал performance-изменений и benchmark results
-│   └── archive/                # исторические планы
+│   └── PERFORMANCE_LOG.md      # журнал performance-изменений и benchmark results
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
+├── model_sources.json           # машинно-читаемый каталог upstream model sources
 ├── ai_media/
 │   ├── cli/                     # console entrypoints
 │   ├── pipelines/               # ffmpeg и NVDEC/NVENC backends

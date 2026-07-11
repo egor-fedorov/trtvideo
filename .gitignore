@@ -1,5 +1,6 @@
 # Models and data
 /models/
+/videos/
 *.engine
 *.onnx
 *.pth

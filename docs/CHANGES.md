@@ -14,6 +14,13 @@ Performance-изменения с цифрами и benchmark-сравнения
 ## Unreleased
 
 ### Added
+
+* Добавлен каталог источников моделей `model_sources.json` и документация
+  `docs/MODELS.md` с upstream links, лицензиями и локальными путями для RealESRGAN
+  и `2xLiveActionV1_SPAN`.
+* Добавлен короткий `run_span_batch.sh` для обработки всех видео из `./videos`
+  через SPAN/NVENC.
+
 ### Changed
 ### Fixed
 ### Removed
@@ -48,7 +55,14 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Added
 ### Changed
 ### Fixed
+
+* `nvcodec` backend теперь явно задаёт `gop` и `idrperiod` примерно в один
+  ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
+
 ### Removed
+
+* Удалён устаревший `RUNBOOK_REALESRGAN_SPAN.md`.
+* Удалён устаревший архивный план `docs/archive/TASKS.md`.
 
 ## 0.2.0 - 2026-05-31
 
