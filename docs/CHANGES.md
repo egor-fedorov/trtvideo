@@ -57,13 +57,15 @@ Performance-изменения с цифрами и benchmark-сравнения
 * TensorRT build workflow переведён на TensorRT 11 strong typing: FP16 теперь
   задаётся через `prepare-onnx --precision fp16`, а `build-engine` компилирует
   уже типизированный ONNX без precision builder flags.
-* В runtime/export dependencies добавлен `nvidia-modelopt[onnx]` для mixed-precision
-  ONNX conversion.
+* В runtime/export dependencies добавлен `onnxconverter-common` для lightweight
+  mixed-precision ONNX graph rewrite.
 
 ### Fixed
 
 * `nvcodec` backend теперь явно задаёт `gop` и `idrperiod` примерно в один
   ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
+* `prepare-onnx --precision fp16` больше не запускает ModelOpt/ONNX Runtime reference
+  pass на полном кадре и не требует 15+ GB памяти для 1080p conversion.
 
 ### Removed
 

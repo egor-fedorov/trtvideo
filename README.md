@@ -110,8 +110,9 @@ docker run --rm \
   --precision fp16
 ```
 
-`--precision fp16` использует NVIDIA ModelOpt AutoCast и сохраняет input/output
-тензоры как FP32, чтобы не менять текущий video runtime contract.
+`--precision fp16` делает лёгкий ONNX graph rewrite через `onnxconverter-common`:
+внутренние float tensors переводятся в FP16, а input/output тензоры остаются FP32,
+чтобы не менять текущий video runtime contract. GPU для этого шага не нужен.
 
 ### 3. Сборка TensorRT Engine
 

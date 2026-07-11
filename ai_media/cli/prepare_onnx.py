@@ -110,20 +110,20 @@ def output_path_for_variant(
 
 
 def convert_to_mixed_precision(source_path: str, output_path: str) -> None:
-    """Convert FP32 ONNX to mixed-precision FP16 using NVIDIA ModelOpt AutoCast."""
+    """Convert FP32 ONNX to mixed-precision FP16 without running inference."""
     try:
-        import modelopt.onnx.autocast as autocast
         import onnx
+        from onnxconverter_common import float16
     except ImportError as exc:
         print(
-            "ERROR: FP16 ONNX conversion requires NVIDIA ModelOpt. "
-            "Install the Docker/runtime dependencies or nvidia-modelopt[onnx]."
+            "ERROR: FP16 ONNX conversion requires onnxconverter-common. "
+            "Install the Docker/runtime dependencies or the export extra."
         )
         raise SystemExit(1) from exc
 
-    converted_model = autocast.convert_to_mixed_precision(
-        onnx_path=source_path,
-        low_precision_type="fp16",
+    model = onnx.load(source_path)
+    converted_model = float16.convert_float_to_float16(
+        model,
         keep_io_types=KEEP_IO_TYPES_FOR_FP16,
     )
     onnx.save(converted_model, output_path)
@@ -162,7 +162,7 @@ def main() -> None:
         choices=["fp32", "fp16"],
         default="fp32",
         help=(
-            "Output ONNX precision. fp16 uses NVIDIA ModelOpt AutoCast and keeps "
+            "Output ONNX precision. fp16 rewrites float tensors to FP16 and keeps "
             "input/output tensors as FP32."
         ),
     )
