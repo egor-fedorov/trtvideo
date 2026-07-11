@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile ONNX to TensorRT engine with FP16.
+"""Compile ONNX to a TensorRT engine.
 
 Builds an optimized engine for the current GPU. Compilation takes 5-15 minutes.
 
@@ -120,19 +120,63 @@ def validate_profile_shapes(
     return min_dims, opt_dims, max_dims
 
 
-def _network_creation_flags() -> int:
-    """Return TensorRT network creation flags across old and new Python APIs."""
-    flags_enum = getattr(trt, "NetworkDefinitionCreationFlag", None)
-    explicit_batch = getattr(flags_enum, "EXPLICIT_BATCH", None)
-    if explicit_batch is None:
-        # Recent TensorRT builds no longer expose the explicit-batch flag.
-        return 0
-    return 1 << int(explicit_batch)
+def _onnx_tensor_elem_type(tensor: Any) -> int | None:
+    tensor_type = getattr(getattr(tensor, "type", None), "tensor_type", None)
+    if tensor_type is None:
+        return None
+    elem_type = getattr(tensor_type, "elem_type", 0)
+    return elem_type or None
 
 
-def _builder_has_fast_fp16(builder: Any) -> bool:
-    """Return FP16 platform capability across TensorRT Builder API versions."""
-    return bool(getattr(builder, "platform_has_fast_fp16", True))
+def _onnx_model_precision(model: Any) -> str:
+    """Infer model compute precision from ONNX tensor and initializer dtypes."""
+    import onnx
+
+    has_fp16 = False
+    has_fp32 = False
+    graph = model.graph
+
+    for initializer in graph.initializer:
+        if initializer.data_type == onnx.TensorProto.FLOAT16:
+            has_fp16 = True
+        elif initializer.data_type == onnx.TensorProto.FLOAT:
+            has_fp32 = True
+
+    for tensor in (*graph.input, *graph.output, *graph.value_info):
+        elem_type = _onnx_tensor_elem_type(tensor)
+        if elem_type == onnx.TensorProto.FLOAT16:
+            has_fp16 = True
+        elif elem_type == onnx.TensorProto.FLOAT:
+            has_fp32 = True
+
+    if has_fp16:
+        return "fp16"
+    if has_fp32:
+        return "fp32"
+    return "unknown"
+
+
+def infer_onnx_precision(onnx_path: str) -> str:
+    """Infer source ONNX precision for engine manifest metadata."""
+    import onnx
+
+    return _onnx_model_precision(onnx.load(onnx_path, load_external_data=False))
+
+
+def _trt_dtype_precision(dtype: Any) -> str:
+    if dtype == trt.DataType.HALF:
+        return "fp16"
+    if dtype == trt.DataType.FLOAT:
+        return "fp32"
+    return str(dtype)
+
+
+def _engine_io_precision(input_dtype: Any, output_dtype: Any) -> str:
+    input_precision = _trt_dtype_precision(input_dtype)
+    output_precision = _trt_dtype_precision(output_dtype)
+    if input_precision == output_precision:
+        return input_precision
+    return "mixed"
 
 
 def sha256_file(path: str) -> str:
@@ -260,8 +304,8 @@ def write_engine_manifest(
     input_tensor: Any,
     output_tensor: Any,
     profile_shapes: ProfileShapes | None,
-    fp16_enabled: bool,
-    fp16_io_enabled: bool,
+    precision: str,
+    io_precision: str,
     timing_cache_path: str | None,
 ) -> dict[str, Any]:
     """Write a sidecar manifest with engine compatibility metadata."""
@@ -273,8 +317,8 @@ def write_engine_manifest(
         "model_sha256": sha256_file(onnx_path),
         "onnx_opset": None,
         "tensorrt_version": trt.__version__,
-        "precision": "fp16" if fp16_enabled else "fp32",
-        "io_precision": "fp16" if fp16_io_enabled else "fp32",
+        "precision": precision,
+        "io_precision": io_precision,
         "input": {
             "name": input_tensor.name,
             "shape": list(input_tensor.shape),
@@ -286,15 +330,7 @@ def write_engine_manifest(
             "dtype": str(output_tensor.dtype),
         },
         "input_profile": profile_manifest(profile_shapes),
-        "builder_flags": [
-            flag
-            for flag, enabled in (
-                ("FP16", fp16_enabled),
-                ("FP16_IO", fp16_io_enabled),
-                ("PREFER_PRECISION_CONSTRAINTS", True),
-            )
-            if enabled
-        ],
+        "builder_flags": [],
         "builder_optimization_level": 5,
         "timing_cache": timing_cache_path,
         "preprocess_version": "uint8_to_float_0_1",
@@ -317,8 +353,6 @@ def build_engine(
     min_shape: ShapeArg | None = None,
     opt_shape: ShapeArg | None = None,
     max_shape: ShapeArg | None = None,
-    fp16: bool = True,
-    fp16_io: bool = False,
     timing_cache_path: str | None = None,
     manifest_path: str | None = None,
     registry_path: str | None = None,
@@ -331,8 +365,6 @@ def build_engine(
         min_shape: Optional optimization profile min shape.
         opt_shape: Optional optimization profile opt shape.
         max_shape: Optional optimization profile max shape.
-        fp16: Enable FP16 kernels when hardware supports them.
-        fp16_io: Build engine with FP16 input/output bindings.
         timing_cache_path: Optional TensorRT timing cache path.
         manifest_path: Optional sidecar manifest path.
         registry_path: Optional model registry manifest path to update.
@@ -342,7 +374,7 @@ def build_engine(
     """
     _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network(_network_creation_flags())
+    network = builder.create_network()
     parser = trt.OnnxParser(network, TRT_LOGGER)
 
     # Parse ONNX
@@ -360,39 +392,18 @@ def build_engine(
     # 8 GB workspace for intermediate buffers during optimization
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 8 << 30)  # 8 GB
 
-    # FP16 — main speedup source on Tensor Core GPUs
-    fp16_enabled = False
-    if fp16 and _builder_has_fast_fp16(builder):
-        config.set_flag(trt.BuilderFlag.FP16)
-        fp16_enabled = True
-        print("  FP16: enabled (Tensor Cores)")
-    elif fp16:
-        print("  FP16: not supported on this GPU")
-    else:
-        print("  FP16: disabled")
-
-    config.set_flag(trt.BuilderFlag.PREFER_PRECISION_CONSTRAINTS)
-
     # Optimization level 5 — maximum (more kernel variants, longer compilation)
     config.builder_optimization_level = 5
     print("  Optimization level: 5 (maximum)")
 
     input_tensor = network.get_input(0)
     output_tensor = network.get_output(0)
-
-    fp16_io_enabled = False
-    if fp16_io:
-        if not fp16_enabled:
-            print("  ERROR: --fp16-io requires FP16 kernels; remove --no-fp16.")
-            return False
-        input_tensor.dtype = trt.DataType.HALF
-        output_tensor.dtype = trt.DataType.HALF
-        fp16_io_enabled = True
-        print("  FP16 I/O: enabled")
-    else:
-        print("  FP16 I/O: disabled")
+    precision = infer_onnx_precision(onnx_path)
+    io_precision = _engine_io_precision(input_tensor.dtype, output_tensor.dtype)
 
     # Log input/output shapes
+    print(f"  Precision: {precision}")
+    print(f"  I/O precision: {io_precision}")
     print(f"  Input:  {input_tensor.name} {input_tensor.shape} {input_tensor.dtype}")
     print(f"  Output: {output_tensor.name} {output_tensor.shape} {output_tensor.dtype}")
 
@@ -449,8 +460,8 @@ def build_engine(
             input_tensor=input_tensor,
             output_tensor=output_tensor,
             profile_shapes=profile_shapes,
-            fp16_enabled=fp16_enabled,
-            fp16_io_enabled=fp16_io_enabled,
+            precision=precision,
+            io_precision=io_precision,
             timing_cache_path=timing_cache_path,
         )
         if registry_path is not None:
@@ -479,24 +490,6 @@ def main() -> None:
     parser.add_argument(
         "--max-shape",
         help="Optimization profile max shape, e.g. input:1x3x1080x1920",
-    )
-    parser.add_argument(
-        "--fp16",
-        dest="fp16",
-        action="store_true",
-        default=True,
-        help="Enable FP16 kernels when supported (default)",
-    )
-    parser.add_argument(
-        "--no-fp16",
-        dest="fp16",
-        action="store_false",
-        help="Build without FP16 kernels",
-    )
-    parser.add_argument(
-        "--fp16-io",
-        action="store_true",
-        help="Experimental: build FP16 input/output bindings",
     )
     parser.add_argument(
         "--timing-cache",
@@ -558,8 +551,6 @@ def main() -> None:
         parsed_min,
         parsed_opt,
         parsed_max,
-        fp16=args.fp16,
-        fp16_io=args.fp16_io,
         timing_cache_path=args.timing_cache,
         manifest_path=manifest_path,
         registry_path=args.registry,

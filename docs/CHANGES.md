@@ -54,20 +54,23 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Changed
 
 * Базовый Docker image обновлён до `nvcr.io/nvidia/tensorrt:26.06-py3`.
+* TensorRT build workflow переведён на TensorRT 11 strong typing: FP16 теперь
+  задаётся через `prepare-onnx --precision fp16`, а `build-engine` компилирует
+  уже типизированный ONNX без precision builder flags.
+* В runtime/export dependencies добавлен `nvidia-modelopt[onnx]` для mixed-precision
+  ONNX conversion.
 
 ### Fixed
 
 * `nvcodec` backend теперь явно задаёт `gop` и `idrperiod` примерно в один
   ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
-* `build-engine` теперь совместим с TensorRT Python API, где больше нет
-  `NetworkDefinitionCreationFlag.EXPLICIT_BATCH`.
-* `build-engine` теперь совместим с TensorRT Builder API, где больше нет
-  `platform_has_fast_fp16`.
 
 ### Removed
 
 * Удалён устаревший `RUNBOOK_REALESRGAN_SPAN.md`.
 * Удалён устаревший архивный план `docs/archive/TASKS.md`.
+* Из `build-engine` удалены weak-typing флаги `--fp16`, `--no-fp16` и
+  experimental `--fp16-io`; для TensorRT 11 используйте FP16 ONNX.
 
 ## 0.2.0 - 2026-05-31
 

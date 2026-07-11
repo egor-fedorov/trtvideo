@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from types import SimpleNamespace
 
 import pytest
 
@@ -73,39 +72,32 @@ def test_validate_profile_shapes_exits_for_invalid_profiles(
         )
 
 
-def test_network_creation_flags_use_explicit_batch_when_available(
+def test_engine_io_precision_returns_matching_precision(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_trt = SimpleNamespace(
-        NetworkDefinitionCreationFlag=SimpleNamespace(EXPLICIT_BATCH=0),
-    )
-    monkeypatch.setattr(build_engine, "trt", fake_trt)
+    class FakeDataType:
+        FLOAT = object()
+        HALF = object()
 
-    assert build_engine._network_creation_flags() == 1
+    class FakeTrt:
+        DataType = FakeDataType
+
+    monkeypatch.setattr(build_engine, "trt", FakeTrt)
+
+    assert build_engine._engine_io_precision(FakeDataType.FLOAT, FakeDataType.FLOAT) == "fp32"
+    assert build_engine._engine_io_precision(FakeDataType.HALF, FakeDataType.HALF) == "fp16"
 
 
-def test_network_creation_flags_support_new_tensorrt_without_explicit_batch(
+def test_engine_io_precision_returns_mixed_for_different_bindings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_trt = SimpleNamespace(NetworkDefinitionCreationFlag=SimpleNamespace())
-    monkeypatch.setattr(build_engine, "trt", fake_trt)
+    class FakeDataType:
+        FLOAT = object()
+        HALF = object()
 
-    assert build_engine._network_creation_flags() == 0
+    class FakeTrt:
+        DataType = FakeDataType
 
+    monkeypatch.setattr(build_engine, "trt", FakeTrt)
 
-def test_builder_has_fast_fp16_uses_legacy_platform_capability_when_available() -> None:
-    fake_builder = SimpleNamespace(platform_has_fast_fp16=True)
-
-    assert build_engine._builder_has_fast_fp16(fake_builder) is True
-
-
-def test_builder_has_fast_fp16_rejects_legacy_platform_without_fast_fp16() -> None:
-    fake_builder = SimpleNamespace(platform_has_fast_fp16=False)
-
-    assert build_engine._builder_has_fast_fp16(fake_builder) is False
-
-
-def test_builder_has_fast_fp16_supports_new_tensorrt_builder_without_platform_capability() -> None:
-    fake_builder = SimpleNamespace()
-
-    assert build_engine._builder_has_fast_fp16(fake_builder) is True
+    assert build_engine._engine_io_precision(FakeDataType.FLOAT, FakeDataType.HALF) == "mixed"

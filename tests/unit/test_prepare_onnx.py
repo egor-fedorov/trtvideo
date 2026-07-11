@@ -1,6 +1,8 @@
+import os
+
 import pytest
 
-from ai_media.cli.prepare_onnx import is_dynamic, parse_size
+from ai_media.cli.prepare_onnx import ONNXPrecision, is_dynamic, output_path_for_variant, parse_size
 
 
 @pytest.mark.parametrize(
@@ -32,3 +34,22 @@ def test_parse_size_exits_for_invalid_values(value: str) -> None:
 )
 def test_is_dynamic(dims: list[int | str], expected: bool) -> None:
     assert is_dynamic(dims) is expected
+
+
+@pytest.mark.parametrize(
+    ("variant", "precision", "expected"),
+    [
+        ("720p", "fp32", "model_720p.onnx"),
+        ("720p", "fp16", "model_720p_fp16.onnx"),
+        (None, "fp16", "model_fp16.onnx"),
+    ],
+)
+def test_output_path_for_variant(
+    variant: str | None,
+    precision: ONNXPrecision,
+    expected: str,
+) -> None:
+    assert output_path_for_variant("/tmp/onnx", "model", variant, precision) == os.path.join(
+        "/tmp/onnx",
+        expected,
+    )

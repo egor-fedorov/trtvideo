@@ -164,6 +164,20 @@ docker run --rm \
 Если `--size` не указан, `prepare-onnx` создаёт default variants для 1280x720 и
 1920x1080.
 
+Mixed-precision FP16 ONNX для TensorRT 11 создаётся на этом же этапе:
+
+```bash
+docker run --rm \
+  -v "$PWD/models:/app/models" \
+  ai-media-enhancer:latest prepare-onnx \
+  models/onnx/model.onnx \
+  --size 1280x720 \
+  --precision fp16
+```
+
+`--precision fp16` использует NVIDIA ModelOpt AutoCast и сохраняет input/output
+тензоры как FP32, чтобы не менять текущий video runtime contract.
+
 Сборка TensorRT engine. GPU нужен:
 
 ```bash
@@ -182,22 +196,22 @@ builder flags. Путь можно изменить через `--manifest PATH`
 `--no-manifest`. `--registry models/liveaction-span` дополнительно обновляет
 `models/liveaction-span/manifest.json`.
 
-Experimental FP16 I/O engine:
+FP16 engine собирается из FP16/mixed-precision ONNX без дополнительных precision-флагов
+в `build-engine`:
 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   ai-media-enhancer:latest build-engine \
-  models/onnx/model_720p.onnx \
-  -o models/liveaction-span/engines/model_720p_fp16io.engine \
-  --fp16-io \
+  models/onnx/model_720p_fp16.onnx \
+  -o models/liveaction-span/engines/model_720p_fp16.engine \
   --timing-cache models/cache/trt.cache \
   --registry models/liveaction-span
 ```
 
-`--fp16-io` меняет TensorRT input/output bindings на FP16. Это opt-in benchmark path;
-обычный FP16 engine продолжает использовать FP32 I/O. Для выбора из registry
-использовать `--engine-io-precision fp16|fp32` вместе с `--model`.
+В TensorRT 11 weak-typing флаги вроде `BuilderFlag.FP16` удалены. Если нужен FP16,
+сначала создайте ONNX через `prepare-onnx --precision fp16`, затем передайте этот ONNX
+в `build-engine`.
 
 Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 

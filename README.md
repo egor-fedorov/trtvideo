@@ -98,6 +98,21 @@ docker run --rm \
   --size 1280x720
 ```
 
+Для TensorRT 11 FP16 задаётся не builder flag, а типами внутри ONNX. Mixed-precision
+variant создаётся на этом этапе:
+
+```bash
+docker run --rm \
+  -v "$PWD/models:/app/models" \
+  ai-media-enhancer:latest prepare-onnx \
+  models/onnx/model.onnx \
+  --size 1280x720 \
+  --precision fp16
+```
+
+`--precision fp16` использует NVIDIA ModelOpt AutoCast и сохраняет input/output
+тензоры как FP32, чтобы не менять текущий video runtime contract.
+
 ### 3. Сборка TensorRT Engine
 
 Компиляция обычно занимает 5-15 минут. Engine привязан к версии TensorRT и классу GPU.
@@ -122,23 +137,22 @@ models/liveaction-span/engines/model_720p.engine.json
 input/output shapes, profile и builder flags. Путь можно задать через `--manifest PATH`,
 а отключить запись через `--no-manifest`.
 
-Экспериментальный FP16 I/O engine можно собрать отдельным файлом:
+FP16 engine собирается из FP16/mixed-precision ONNX без дополнительных precision-флагов
+в `build-engine`:
 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   ai-media-enhancer:latest build-engine \
-  models/onnx/model_720p.onnx \
-  -o models/liveaction-span/engines/model_720p_fp16io.engine \
-  --fp16-io \
+  models/onnx/model_720p_fp16.onnx \
+  -o models/liveaction-span/engines/model_720p_fp16.engine \
   --timing-cache models/cache/trt.cache \
   --registry models/liveaction-span
 ```
 
-`--fp16-io` меняет TensorRT input/output bindings на FP16. Это opt-in режим для
-benchmark-upscale: проверяйте FPS, VRAM и визуальные артефакты отдельно от обычного FP32 I/O
-engine. Для выбора FP16 I/O engine из registry используйте
-`--engine-io-precision fp16`; для обычного engine — `--engine-io-precision fp32`.
+В TensorRT 11 weak-typing флаги вроде `BuilderFlag.FP16` удалены. Если нужен FP16,
+сначала создайте ONNX через `prepare-onnx --precision fp16`, затем передайте этот ONNX
+в `build-engine`.
 
 Если передан `--registry models/liveaction-span`, команда также автоматически создаёт или
 обновляет registry manifest:
@@ -199,7 +213,8 @@ docker run --rm --gpus all \
 
 `--engine PATH` всё ещё поддерживается для явного выбора engine. Если в registry есть
 несколько engines для одного разрешения, используйте `--engine-precision fp16|fp32`
-и при необходимости `--engine-io-precision fp16|fp32` вместе с `--model`.
+вместе с `--model`. `--engine-io-precision` остаётся фильтром registry по binding
+precision; текущий FP16 workflow обычно сохраняет FP32 I/O.
 
 ### 4. Апскейл Видео
 
@@ -338,7 +353,7 @@ benchmark-upscale
 --output PATH       выходное видео, default: *_upscaled.ext
 --gpu-id N          CUDA GPU index, default: 0
 --engine-precision  предпочесть fp16 или fp32 при использовании --model
---engine-io-precision  предпочесть fp16 или fp32 I/O при использовании --model
+--engine-io-precision  предпочесть fp16 или fp32 binding precision при использовании --model
 --max-frames N      ограничить количество кадров, 0 = все
 --profile           вывести per-stage profiling
 --verbose           подробный вывод

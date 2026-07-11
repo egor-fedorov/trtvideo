@@ -26,12 +26,14 @@ docker = [
     "cvcuda-cu12>=0.16",
     "onnx>=1.16,<2",
     "onnxscript>=0.4,<1",
+    "nvidia-modelopt[onnx]>=0.45,<1",
     "spandrel>=0.4,<1",
 ]
 export = [
     "torch>=2.10,<3",
     "onnx>=1.16,<2",
     "onnxscript>=0.4,<1",
+    "nvidia-modelopt[onnx]>=0.45,<1",
     "spandrel>=0.4,<1",
 ]
 
