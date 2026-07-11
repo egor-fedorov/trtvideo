@@ -18,8 +18,6 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Добавлен каталог источников моделей `model_sources.json` и документация
   `docs/MODELS.md` с upstream links, лицензиями и локальными путями для RealESRGAN
   и `2xLiveActionV1_SPAN`.
-* Добавлен короткий `run_span_batch.sh` для обработки всех видео из `./videos`
-  через SPAN/NVENC.
 
 ### Changed
 ### Fixed

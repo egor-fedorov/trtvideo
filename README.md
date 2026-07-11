@@ -73,17 +73,6 @@ DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:de
 лицензии RealESRGAN/SPAN описаны в `model_sources.json`, локальные пути и workflow -
 в `docs/MODELS.md`.
 
-## Batch SPAN
-
-Короткий helper для обработки всех файлов из `./videos` через SPAN/NVENC:
-
-```bash
-./run_span_batch.sh
-```
-
-Скрипт выбирает `720p` или `1080p` engine по имени файла и пишет результат рядом в
-`./videos`.
-
 ## Docker Workflow
 
 ### 1. Экспорт `.pth` В ONNX
