@@ -26,3 +26,11 @@ def format_nvenc_fps(value: str) -> str:
     if fps.denominator == 1:
         return str(fps.numerator)
     return str(float(fps))
+
+
+def gop_size_for_one_second(value: str) -> int:
+    """Return a GOP/IDR interval of roughly one second, measured in frames."""
+    fps = parse_fps_fraction(value)
+    if fps <= 0:
+        raise ValueError(f"invalid frame rate: {value}")
+    return max(1, int(fps + Fraction(1, 2)))
