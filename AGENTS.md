@@ -15,7 +15,7 @@ workflow - апскейл видео; поддерживаются модели 
 только для разработки.
 
 Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
-`nvcr.io/nvidia/tensorrt:26.04-py3`.
+`nvcr.io/nvidia/tensorrt:26.06-py3`.
 
 ## Правила работы агента
 

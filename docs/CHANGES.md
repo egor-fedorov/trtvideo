@@ -52,10 +52,15 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Added
 ### Changed
+
+* Базовый Docker image обновлён до `nvcr.io/nvidia/tensorrt:26.06-py3`.
+
 ### Fixed
 
 * `nvcodec` backend теперь явно задаёт `gop` и `idrperiod` примерно в один
   ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
+* `build-engine` теперь совместим с TensorRT Python API, где больше нет
+  `NetworkDefinitionCreationFlag.EXPLICIT_BATCH`.
 
 ### Removed
 

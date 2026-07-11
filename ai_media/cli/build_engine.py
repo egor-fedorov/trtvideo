@@ -120,6 +120,16 @@ def validate_profile_shapes(
     return min_dims, opt_dims, max_dims
 
 
+def _network_creation_flags() -> int:
+    """Return TensorRT network creation flags across old and new Python APIs."""
+    flags_enum = getattr(trt, "NetworkDefinitionCreationFlag", None)
+    explicit_batch = getattr(flags_enum, "EXPLICIT_BATCH", None)
+    if explicit_batch is None:
+        # Recent TensorRT builds no longer expose the explicit-batch flag.
+        return 0
+    return 1 << int(explicit_batch)
+
+
 def sha256_file(path: str) -> str:
     """Return SHA256 for a model/build artifact."""
     digest = hashlib.sha256()
@@ -327,7 +337,7 @@ def build_engine(
     """
     _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    network = builder.create_network(_network_creation_flags())
     parser = trt.OnnxParser(network, TRT_LOGGER)
 
     # Parse ONNX

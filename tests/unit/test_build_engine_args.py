@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 import pytest
 
+from ai_media.cli import build_engine
 from ai_media.cli.build_engine import parse_shape_arg, validate_profile_shapes
 
 
@@ -69,3 +71,23 @@ def test_validate_profile_shapes_exits_for_invalid_profiles(
             opt_shape,
             max_shape,
         )
+
+
+def test_network_creation_flags_use_explicit_batch_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_trt = SimpleNamespace(
+        NetworkDefinitionCreationFlag=SimpleNamespace(EXPLICIT_BATCH=0),
+    )
+    monkeypatch.setattr(build_engine, "trt", fake_trt)
+
+    assert build_engine._network_creation_flags() == 1
+
+
+def test_network_creation_flags_support_new_tensorrt_without_explicit_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_trt = SimpleNamespace(NetworkDefinitionCreationFlag=SimpleNamespace())
+    monkeypatch.setattr(build_engine, "trt", fake_trt)
+
+    assert build_engine._network_creation_flags() == 0

@@ -8,7 +8,7 @@ workflow - апскейл видео; поддерживаются модели 
 inference, NVDEC/NVENC inference, подготовки ONNX и экспорта моделей.
 
 Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
-`nvcr.io/nvidia/tensorrt:26.04-py3`.
+`nvcr.io/nvidia/tensorrt:26.06-py3`.
 
 Проверялось на Tesla T4.
 
