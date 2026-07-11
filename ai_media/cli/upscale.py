@@ -13,27 +13,10 @@ def build_parser() -> argparse.ArgumentParser:
         default="nvcodec",
         help="Video IO backend",
     )
-    engine_source = parser.add_mutually_exclusive_group(required=True)
-    engine_source.add_argument("--engine", help="Path to .engine file")
-    engine_source.add_argument(
-        "--model",
-        help="Path to model registry directory, registry manifest, or engine manifest",
-    )
+    parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")
     parser.add_argument("--output", default=None, help="Output video")
     parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU index")
-    parser.add_argument(
-        "--engine-precision",
-        choices=["fp16", "fp32"],
-        default=None,
-        help="Preferred precision when selecting an engine from --model",
-    )
-    parser.add_argument(
-        "--engine-io-precision",
-        choices=["fp16", "fp32"],
-        default=None,
-        help="Preferred input/output binding precision when selecting an engine from --model",
-    )
     parser.add_argument("--max-frames", type=int, default=0, help="Limit frames (0 = all)")
     parser.add_argument(
         "--warmup-frames",

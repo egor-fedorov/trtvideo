@@ -19,7 +19,7 @@ ai_media/cli/        - CLI entrypoints
 ai_media/pipelines/  - ffmpeg и NVDEC/NVENC pipeline backends
 ai_media/runtime/    - TensorRT runtime wrapper и runtime protocol
 ai_media/video/      - video metadata и GPU colorspace helpers
-ai_media/models/     - model/engine manifests и registry lookup
+ai_media/models/     - model contracts для runtime validation
 docs/ROADMAP.md      - короткий актуальный план
 docs/CHANGES.md      - журнал заметных проектных изменений
 docs/MODELS.md       - источники моделей, лицензии и локальные пути
@@ -124,8 +124,7 @@ docker run --rm --gpus all \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p.engine \
-  --timing-cache models/cache/trt.cache \
-  --registry models/liveaction-span
+  --timing-cache models/cache/trt.cache
 ```
 
 `build-engine` автоматически создаёт sidecar manifest рядом с engine:
@@ -147,24 +146,12 @@ docker run --rm --gpus all \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p_fp16.onnx \
   -o models/liveaction-span/engines/model_720p_fp16.engine \
-  --timing-cache models/cache/trt.cache \
-  --registry models/liveaction-span
+  --timing-cache models/cache/trt.cache
 ```
 
 В TensorRT 11 weak-typing флаги вроде `BuilderFlag.FP16` удалены. Если нужен FP16,
 сначала создайте ONNX через `prepare-onnx --precision fp16`, затем передайте этот ONNX
 в `build-engine`.
-
-Если передан `--registry models/liveaction-span`, команда также автоматически создаёт или
-обновляет registry manifest:
-
-```text
-models/liveaction-span/manifest.json
-```
-
-Этот файл используется `--model models/liveaction-span`, чтобы выбрать подходящий static
-engine по разрешению входного видео. Обычно оба manifest-файла генерируются командой
-`build-engine`; вручную их писать не нужно.
 
 Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
 
@@ -185,39 +172,10 @@ docker run --rm --gpus all \
 `prepare-onnx` и собирайте static engine. Dynamic-profile build уже поддержан, но
 dynamic runtime path остаётся будущей задачей.
 
-### Model Registry
-
-Model registry позволяет inference выбрать правильный static engine по разрешению
-входного видео:
-
-```text
-models/liveaction-span/
-  manifest.json
-  engines/
-    model_720p.engine
-    model_720p.engine.json
-    model_1080p.engine
-    model_1080p.engine.json
-```
-
-Запуск через registry:
-
-```bash
-docker run --rm --gpus all \
-  -v "$PWD/models:/app/models" \
-  -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest upscale \
-  --backend nvcodec \
-  --model models/liveaction-span \
-  --input videos/input.mp4
-```
-
-`--engine PATH` всё ещё поддерживается для явного выбора engine. Если в registry есть
-несколько engines для одного разрешения, используйте `--engine-precision fp16|fp32`
-вместе с `--model`. `--engine-io-precision` остаётся фильтром registry по binding
-precision; текущий FP16 workflow обычно сохраняет FP32 I/O.
-
 ### 4. Апскейл Видео
+
+`--engine` обязателен и должен соответствовать разрешению входного видео. Runtime
+проверяет input shape engine и завершает запуск при несовпадении.
 
 ffmpeg backend: ffmpeg делает decode/encode, TensorRT inference выполняется на GPU.
 
@@ -269,7 +227,7 @@ docker run --rm --gpus all \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
   ai-media-enhancer:latest benchmark-upscale \
-  --model models/liveaction-span \
+  --engine models/liveaction-span/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
   --warmup-frames 20 \
@@ -293,7 +251,7 @@ docker run --rm --gpus all \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
   ai-media-enhancer:latest benchmark-upscale \
-  --model models/liveaction-span \
+  --engine models/liveaction-span/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend nvcodec \
   --cuda-graph \
@@ -313,7 +271,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   ai-media-enhancer:latest benchmark-upscale \
-  --model models/liveaction-span \
+  --engine models/liveaction-span/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend nvcodec \
   --quiet \
@@ -349,12 +307,9 @@ benchmark-upscale
 ```bash
 --engine PATH       путь к .engine файлу
 --backend BACKEND   ffmpeg или nvcodec, default: nvcodec
---model PATH        директория model registry или manifest JSON
 --input PATH        входное видео
 --output PATH       выходное видео, default: *_upscaled.ext
 --gpu-id N          CUDA GPU index, default: 0
---engine-precision  предпочесть fp16 или fp32 при использовании --model
---engine-io-precision  предпочесть fp16 или fp32 binding precision при использовании --model
 --max-frames N      ограничить количество кадров, 0 = все
 --profile           вывести per-stage profiling
 --verbose           подробный вывод
@@ -398,7 +353,7 @@ NVDEC/NVENC backend:
 docker compose run --rm upscale-nvcodec
 ```
 
-Пути к engine/model и input video задаются в `docker-compose.yml`.
+Пути к engine и input video задаются в `docker-compose.yml`.
 
 ## Установка Для Разработки
 

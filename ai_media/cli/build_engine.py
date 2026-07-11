@@ -235,67 +235,6 @@ def profile_manifest(profile_shapes: ProfileShapes | None) -> dict[str, list[int
     }
 
 
-def _registry_manifest_path(path: str) -> str:
-    """Return a registry manifest file path from a directory or JSON path."""
-    if path.endswith(".json"):
-        return path
-    return os.path.join(path, "manifest.json")
-
-
-def _relative_to(path: str, base_dir: str) -> str:
-    """Store registry paths relative to the registry file when practical."""
-    return os.path.relpath(os.path.abspath(path), os.path.abspath(base_dir))
-
-
-def update_model_registry(
-    *,
-    registry_path: str,
-    engine_manifest: dict[str, Any],
-    manifest_path: str,
-) -> None:
-    """Upsert one engine entry into a model registry manifest."""
-    registry_path = _registry_manifest_path(registry_path)
-    registry_dir = os.path.dirname(registry_path) or "."
-    os.makedirs(registry_dir, exist_ok=True)
-
-    if os.path.exists(registry_path):
-        with open(registry_path, encoding="utf-8") as f:
-            registry = json.load(f)
-        if not isinstance(registry, dict):
-            print(f"ERROR: Registry manifest must be a JSON object: {registry_path}")
-            sys.exit(1)
-    else:
-        registry = {"schema_version": 1, "engines": []}
-
-    engines = registry.setdefault("engines", [])
-    if not isinstance(engines, list):
-        print(f"ERROR: Registry 'engines' must be a list: {registry_path}")
-        sys.exit(1)
-
-    entry = dict(engine_manifest)
-    entry["engine_path"] = _relative_to(engine_manifest["engine_path"], registry_dir)
-    entry["manifest_path"] = _relative_to(manifest_path, registry_dir)
-
-    upserted = False
-    for idx, existing in enumerate(engines):
-        if not isinstance(existing, dict):
-            continue
-        same_engine = existing.get("engine_path") == entry["engine_path"]
-        same_manifest = existing.get("manifest_path") == entry["manifest_path"]
-        if same_engine or same_manifest:
-            engines[idx] = entry
-            upserted = True
-            break
-
-    if not upserted:
-        engines.append(entry)
-
-    with open(registry_path, "w", encoding="utf-8") as f:
-        json.dump(registry, f, indent=2, sort_keys=True)
-        f.write("\n")
-    print(f"  Registry updated: {registry_path}")
-
-
 def write_engine_manifest(
     *,
     manifest_path: str,
@@ -355,7 +294,6 @@ def build_engine(
     max_shape: ShapeArg | None = None,
     timing_cache_path: str | None = None,
     manifest_path: str | None = None,
-    registry_path: str | None = None,
 ) -> bool:
     """Compile an ONNX file to a TensorRT engine.
 
@@ -367,7 +305,6 @@ def build_engine(
         max_shape: Optional optimization profile max shape.
         timing_cache_path: Optional TensorRT timing cache path.
         manifest_path: Optional sidecar manifest path.
-        registry_path: Optional model registry manifest path to update.
 
     Returns:
         True on success, False on error.
@@ -453,7 +390,7 @@ def build_engine(
     save_timing_cache(config, timing_cache_path)
 
     if manifest_path is not None:
-        engine_manifest = write_engine_manifest(
+        write_engine_manifest(
             manifest_path=manifest_path,
             onnx_path=onnx_path,
             engine_path=engine_path,
@@ -464,12 +401,6 @@ def build_engine(
             io_precision=io_precision,
             timing_cache_path=timing_cache_path,
         )
-        if registry_path is not None:
-            update_model_registry(
-                registry_path=registry_path,
-                engine_manifest=engine_manifest,
-                manifest_path=manifest_path,
-            )
     return True
 
 
@@ -500,11 +431,6 @@ def main() -> None:
         "--manifest",
         default=None,
         help="Path to engine manifest JSON (default: <engine>.json)",
-    )
-    parser.add_argument(
-        "--registry",
-        default=None,
-        help="Update model registry manifest JSON or model directory",
     )
     parser.add_argument(
         "--no-manifest",
@@ -540,10 +466,6 @@ def main() -> None:
     parsed_opt = parse_shape_arg(args.opt_shape) if args.opt_shape else None
     parsed_max = parse_shape_arg(args.max_shape) if args.max_shape else None
     manifest_path = None if args.no_manifest else (args.manifest or f"{args.output}.json")
-    if args.registry and manifest_path is None:
-        print("ERROR: --registry requires engine manifest output; remove --no-manifest.")
-        sys.exit(1)
-
     # Profile validation needs the parsed network input, so it happens inside build_engine.
     success = build_engine(
         args.onnx,
@@ -553,7 +475,6 @@ def main() -> None:
         parsed_max,
         timing_cache_path=args.timing_cache,
         manifest_path=manifest_path,
-        registry_path=args.registry,
     )
     if not success:
         sys.exit(1)

@@ -9,11 +9,6 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from ai_media.models.registry import (
-    format_registry_entries,
-    load_engine_registry,
-    select_engine_for_video,
-)
 from ai_media.profiling import ProfileCollector
 from ai_media.runtime import RuntimeEngine
 from ai_media.runtime.tensorrt import TensorRTRuntime
@@ -124,40 +119,6 @@ class BasePipeline(ABC):
         """Map human-readable profile stage names to stable JSON keys."""
         return {}
 
-    def resolve_engine_path(self, video_info: VideoInfo) -> str:
-        """Resolve explicit engine path or select one from a model registry."""
-        if self.args.engine:
-            return self.args.engine
-
-        try:
-            entries = load_engine_registry(self.args.model)
-        except (OSError, ValueError) as exc:
-            print(f"ERROR: Failed to load model registry: {exc}")
-            sys.exit(1)
-        selected = select_engine_for_video(
-            entries,
-            video_info,
-            precision=self.args.engine_precision,
-            io_precision=self.args.engine_io_precision,
-        )
-        if selected is None:
-            print(
-                "ERROR: No compatible static engine found in model registry "
-                f"for {video_info.width}x{video_info.height}"
-            )
-            if self.args.engine_precision:
-                print(f"  Requested precision: {self.args.engine_precision}")
-            if self.args.engine_io_precision:
-                print(f"  Requested I/O precision: {self.args.engine_io_precision}")
-            print("Available engines:")
-            print(format_registry_entries(entries))
-            sys.exit(1)
-
-        self.log(f"Selected engine: {selected.engine_path}")
-        if selected.manifest_path:
-            self.log_verbose(f"Engine manifest: {selected.manifest_path}")
-        return selected.engine_path
-
     # --- Abstract hooks ---
 
     @abstractmethod
@@ -204,9 +165,6 @@ class BasePipeline(ABC):
         if args.engine and not os.path.exists(args.engine):
             print(f"ERROR: Engine not found: {args.engine}")
             sys.exit(1)
-        if args.model and not os.path.exists(args.model):
-            print(f"ERROR: Model registry not found: {args.model}")
-            sys.exit(1)
         if not os.path.exists(args.input):
             print(f"ERROR: Video not found: {args.input}")
             sys.exit(1)
@@ -231,7 +189,7 @@ class BasePipeline(ABC):
         )
         self.validate_video_input(info)
         self.total_frames = args.max_frames if args.max_frames > 0 else info.nb_frames
-        self.engine_path = self.resolve_engine_path(info)
+        self.engine_path = args.engine
 
         self.log("\nInitializing TensorRT...")
         torch.cuda.set_device(args.gpu_id)
@@ -314,7 +272,6 @@ class BasePipeline(ABC):
 
         report = {
             "backend": self.BACKEND_NAME,
-            "model": self.args.model,
             "engine": self.engine_path,
             "gpu": gpu_name,
             "input": self.args.input,

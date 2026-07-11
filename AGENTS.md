@@ -58,7 +58,7 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 │   ├── pipelines/               # ffmpeg и NVDEC/NVENC backends
 │   ├── runtime/                 # TensorRT runtime и RuntimeEngine protocol
 │   ├── video/                   # ffprobe metadata и colorspace helpers
-│   ├── models/                  # ModelSpec и engine registry
+│   ├── models/                  # ModelSpec для runtime validation
 │   └── profiling.py
 └── models/                      # данные, игнорируются git
     ├── pretrained/
@@ -187,15 +187,14 @@ docker run --rm --gpus all \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/liveaction-span/engines/model_720p.engine \
-  --timing-cache models/cache/trt.cache \
-  --registry models/liveaction-span
+  --timing-cache models/cache/trt.cache
 ```
 
 `build-engine` по умолчанию пишет sidecar manifest в `<engine>.json`. Там фиксируются
 ONNX hash, engine hash, TensorRT version, precision, input/output shapes, profile и
 builder flags. Путь можно изменить через `--manifest PATH`, отключить через
-`--no-manifest`. `--registry models/liveaction-span` дополнительно обновляет
-`models/liveaction-span/manifest.json`.
+`--no-manifest`. Runtime не использует sidecar для поиска engine: пользователь
+всегда передаёт конкретный `.engine` через `--engine`.
 
 FP16 engine собирается из FP16/mixed-precision ONNX без дополнительных precision-флагов
 в `build-engine`:
@@ -206,8 +205,7 @@ docker run --rm --gpus all \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p_fp16.onnx \
   -o models/liveaction-span/engines/model_720p_fp16.engine \
-  --timing-cache models/cache/trt.cache \
-  --registry models/liveaction-span
+  --timing-cache models/cache/trt.cache
 ```
 
 В TensorRT 11 weak-typing флаги вроде `BuilderFlag.FP16` удалены. Если нужен FP16,
@@ -237,18 +235,6 @@ docker run --rm --gpus all \
   ai-media-enhancer:latest upscale \
   --backend ffmpeg \
   --engine models/engines/model_720p.engine \
-  --input videos/input.mp4
-```
-
-Запуск через model/engine registry:
-
-```bash
-docker run --rm --gpus all \
-  -v "$PWD/models:/app/models" \
-  -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest upscale \
-  --backend nvcodec \
-  --model models/liveaction-span \
   --input videos/input.mp4
 ```
 
@@ -303,11 +289,10 @@ Unit tests описаны в `docs/TESTING.md`. Они не должны имп�
 Общий жизненный цикл задает `BasePipeline` в `ai_media/pipelines/base.py`:
 
 1. Получает уже распарсенные CLI-аргументы из `ai_media/cli/upscale.py`.
-2. Проверяет наличие `--engine` или `--model`, а также `--input`.
+2. Проверяет наличие явно указанного `--engine`, а также `--input`.
 3. Через `ffprobe` читает параметры видео в `VideoInfo`: ширина, высота, FPS,
    количество кадров и доступные color metadata.
-4. Если задан `--model`, выбирает static engine из model registry по разрешению видео;
-   если задан `--engine`, использует его напрямую.
+4. Использует указанный static TensorRT engine без автоматического discovery.
 5. Создает `TensorRTRuntime` из выбранного `.engine` через общий `RuntimeEngine` interface.
 6. Валидирует минимальный `ModelSpec`: static single-frame RGB upscale, NCHW,
    batch=1, fp32, range `0_1`, равномерный integer scale.
@@ -433,7 +418,7 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 
 ```bash
 benchmark-upscale \
-  --model models/liveaction-span \
+  --engine models/liveaction-span/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
   --warmup-frames 20 \

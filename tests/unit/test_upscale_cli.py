@@ -21,8 +21,8 @@ def test_nvcodec_rejects_crf() -> None:
 def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
     args = build_parser().parse_args(
         [
-            "--model",
-            "models/liveaction-span",
+            "--engine",
+            "models/liveaction-span/engines/model.engine",
             "--input",
             "videos/input.mp4",
         ]
@@ -30,3 +30,8 @@ def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
 
     assert args.backend == "nvcodec"
     assert args.crf is None
+
+
+def test_engine_is_required() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--input", "videos/input.mp4"])

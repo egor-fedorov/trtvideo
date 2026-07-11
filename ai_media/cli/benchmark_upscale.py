@@ -65,14 +65,7 @@ def build_backend_command(
     if args.frames > 0:
         command += ["--max-frames", str(args.frames + args.warmup_frames)]
 
-    if args.engine:
-        command += ["--engine", args.engine]
-    else:
-        command += ["--model", args.model]
-        if args.engine_precision:
-            command += ["--engine-precision", args.engine_precision]
-        if args.engine_io_precision:
-            command += ["--engine-io-precision", args.engine_io_precision]
+    command += ["--engine", args.engine]
 
     return command
 
@@ -146,9 +139,7 @@ def main() -> None:
         prog="benchmark-upscale",
         description="Benchmark TensorRT video upscale backends",
     )
-    engine_source = parser.add_mutually_exclusive_group(required=True)
-    engine_source.add_argument("--engine", help="Path to .engine file")
-    engine_source.add_argument("--model", help="Path to model registry directory or manifest JSON")
+    parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")
     parser.add_argument(
         "--backend",
@@ -180,18 +171,6 @@ def main() -> None:
         action="store_true",
         help="Experimental: benchmark TensorRT CUDA Graph capture",
     )
-    parser.add_argument(
-        "--engine-precision",
-        choices=["fp16", "fp32"],
-        default=None,
-        help="Preferred precision when selecting an engine from --model",
-    )
-    parser.add_argument(
-        "--engine-io-precision",
-        choices=["fp16", "fp32"],
-        default=None,
-        help="Preferred input/output binding precision when selecting an engine from --model",
-    )
     args = parser.parse_args()
 
     backends = parse_backends(args.backend)
@@ -205,7 +184,6 @@ def main() -> None:
     report = {
         "input": args.input,
         "engine": args.engine,
-        "model": args.model,
         "frames": args.frames,
         "warmup_frames": args.warmup_frames,
         "backends": backends,

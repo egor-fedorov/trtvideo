@@ -1,1 +1,1 @@
-"""Model and engine metadata helpers."""
+"""Model contracts used by inference runtimes."""

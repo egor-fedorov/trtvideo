@@ -5,7 +5,7 @@
 проверяет лицензию и кладёт файлы в `models/`.
 
 Краткий машинно-читаемый каталог источников хранится в `model_sources.json`. Он не
-интегрирован с runtime registry и нужен только как справочник provenance:
+интегрирован с runtime и нужен только как справочник provenance:
 идентификатор модели, upstream URL, download URL и license.
 
 ## RealESRGAN_x2plus
@@ -53,15 +53,12 @@ curl -L \
 После этого создайте static variants через `prepare-onnx` и соберите TensorRT
 engines через `build-engine`.
 
-## Связь С Runtime Registry
+## Связь С Runtime
 
-`model_sources.json` не заменяет runtime registry. Разделение такое:
-
-- `model_sources.json` отвечает на вопрос "откуда взять исходную модель".
-- `models/<name>/manifest.json` отвечает на вопрос "какие локальные TensorRT engines
-  собраны и какой engine выбрать для конкретного input resolution".
-- Связь между ними пока только соглашение по `id` и ручные пути, описанные в этом
-  документе.
+`model_sources.json` отвечает только на вопрос "откуда взять исходную модель".
+Runtime registry отсутствует: конкретный TensorRT engine пользователь передаёт в
+`upscale` или `benchmark-upscale` через `--engine`. Sidecar `<engine>.json` хранит
+метаданные сборки конкретного engine, но не участвует в его выборе.
 
 ## Проверка Целостности
 

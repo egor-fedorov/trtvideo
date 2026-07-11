@@ -26,7 +26,7 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 В `CHANGES.md` попадают:
 
-* изменения CLI, Docker workflow, model/engine registry и runtime defaults;
+* изменения CLI, Docker workflow, engine metadata и runtime defaults;
 * изменения поведения output, encoding, color metadata, benchmark или manifest;
 * миграции структуры проекта, влияющие на работу агента или разработчика;
 * breaking changes и manual migration steps.
@@ -46,7 +46,7 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 * `0.1.PATCH` - bugfix, runbook/docs fix, совместимая эксплуатационная правка;
 * `0.MINOR.0` - новая возможность, новый CLI/workflow, изменение default behavior;
-* `1.0.0` - когда CLI, Docker workflow и registry contract считаются стабильными.
+* `1.0.0` - когда CLI и Docker/runtime workflow считаются стабильными.
 
 ## Unreleased
 
@@ -69,6 +69,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Removed
 
+* Удалены runtime model registry и automatic engine discovery. `upscale` и
+  `benchmark-upscale` теперь требуют явный `--engine`; из `build-engine` удалён
+  `--registry`. Sidecar `<engine>.json` остаётся метаданными конкретного engine.
 * Удалён устаревший `RUNBOOK_REALESRGAN_SPAN.md`.
 * Удалён устаревший архивный план `docs/archive/TASKS.md`.
 * Из `build-engine` удалены weak-typing флаги `--fp16`, `--no-fp16` и

@@ -20,7 +20,7 @@ compile:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q ai_media tests/unit
 
 test-unit:
-	$(DOCKER_RUN) $(DEV_IMAGE) pytest -q tests/unit
+	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q tests/unit
 
 check: lint typecheck compile test-unit
 
