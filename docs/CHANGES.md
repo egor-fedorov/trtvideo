@@ -61,6 +61,8 @@ Performance-изменения с цифрами и benchmark-сравнения
   ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
 * `build-engine` теперь совместим с TensorRT Python API, где больше нет
   `NetworkDefinitionCreationFlag.EXPLICIT_BATCH`.
+* `build-engine` теперь совместим с TensorRT Builder API, где больше нет
+  `platform_has_fast_fp16`.
 
 ### Removed
 

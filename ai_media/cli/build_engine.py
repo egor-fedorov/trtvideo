@@ -130,6 +130,11 @@ def _network_creation_flags() -> int:
     return 1 << int(explicit_batch)
 
 
+def _builder_has_fast_fp16(builder: Any) -> bool:
+    """Return FP16 platform capability across TensorRT Builder API versions."""
+    return bool(getattr(builder, "platform_has_fast_fp16", True))
+
+
 def sha256_file(path: str) -> str:
     """Return SHA256 for a model/build artifact."""
     digest = hashlib.sha256()
@@ -357,7 +362,7 @@ def build_engine(
 
     # FP16 — main speedup source on Tensor Core GPUs
     fp16_enabled = False
-    if fp16 and builder.platform_has_fast_fp16:
+    if fp16 and _builder_has_fast_fp16(builder):
         config.set_flag(trt.BuilderFlag.FP16)
         fp16_enabled = True
         print("  FP16: enabled (Tensor Cores)")

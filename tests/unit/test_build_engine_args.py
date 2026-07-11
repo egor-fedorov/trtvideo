@@ -91,3 +91,21 @@ def test_network_creation_flags_support_new_tensorrt_without_explicit_batch(
     monkeypatch.setattr(build_engine, "trt", fake_trt)
 
     assert build_engine._network_creation_flags() == 0
+
+
+def test_builder_has_fast_fp16_uses_legacy_platform_capability_when_available() -> None:
+    fake_builder = SimpleNamespace(platform_has_fast_fp16=True)
+
+    assert build_engine._builder_has_fast_fp16(fake_builder) is True
+
+
+def test_builder_has_fast_fp16_rejects_legacy_platform_without_fast_fp16() -> None:
+    fake_builder = SimpleNamespace(platform_has_fast_fp16=False)
+
+    assert build_engine._builder_has_fast_fp16(fake_builder) is False
+
+
+def test_builder_has_fast_fp16_supports_new_tensorrt_builder_without_platform_capability() -> None:
+    fake_builder = SimpleNamespace()
+
+    assert build_engine._builder_has_fast_fp16(fake_builder) is True
