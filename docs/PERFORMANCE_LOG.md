@@ -9,6 +9,68 @@
 Записи до удаления runtime registry содержат исторические команды с `--model` и
 precision-фильтрами. В актуальном CLI вместо них нужно явно передавать `--engine`.
 
+## 2026-07-12 — NVENC stream synchronization
+
+Что изменено:
+
+* non-profile `nvcodec` path переведён на явный `runtime.stream` для GPU chain:
+  `NV12->RGB -> TensorRT -> RGB->NV12`;
+* `PyNvVideoCodec.CreateEncoder` теперь получает тот же CUDA stream через
+  `cudastream=int(runtime.stream.cuda_stream)`;
+* per-frame `stream.synchronize()` перед `NVENC Encode` удалён, порядок операций
+  должен обеспечиваться общим CUDA stream.
+
+Benchmark / проверка:
+
+* smoke input: 720p video, output: `3840x2160` 60 fps smoke output;
+* benchmark input: `videos/new_york_720p.mp4`, `videos/new_york_1080p.mp4`;
+* benchmark engines:
+  `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_720p_fp16.engine`,
+  `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16.engine`;
+* backend: `nvcodec`;
+* benchmark command:
+  `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`;
+* smoke workload: полный 120s output, 7200 frames;
+* benchmark workload: 20 warmup frames и 1000 measured frames;
+* profiler: `py-spy record` и `perf report` по процессу `upscale`;
+* validation: `ffmpeg -v error -i <output> -f null -` завершился успешно;
+* ffprobe output: `width=3840`, `height=2160`, `avg_frame_rate=60/1`,
+  `duration=120.000000`, `nb_frames=7200`, `has_b_frames=0`.
+
+Результат:
+
+| Метрика | До | После |
+| --- | ---: | ---: |
+| Dominant CPU stack | `cuStreamSynchronize` / `cudaStreamSynchronize` | `NVDecoder::HandlePictureDisplay` / decoder path |
+| `torch.cuda.streams.synchronize` in py-spy | 85.36% после явного sync experiment | не доминирует |
+| Process CPU load | одно горячее ядро | около 2% в среднем |
+| Output decode validation | успешно | успешно |
+
+Benchmark после перевода NVENC на runtime CUDA stream:
+
+| Input | Метрика | `26.06` baseline | После stream fix | Изменение |
+| --- | ---: | ---: | ---: | ---: |
+| 720p | processing FPS | 38.69 | 38.59 | -0.3% |
+| 720p | throughput FPS | 37.94 | 37.76 | -0.5% |
+| 720p | avg frame time | 25.85 ms | 25.91 ms | +0.3% |
+| 720p | `TRT inference` stage | 24.42 ms | 24.36 ms | -0.2% |
+| 1080p | processing FPS | 18.12 | 17.98 | -0.8% |
+| 1080p | throughput FPS | 17.87 | 17.70 | -1.0% |
+| 1080p | avg frame time | 55.17 ms | 55.61 ms | +0.8% |
+| 1080p | `TRT inference` stage | 53.59 ms | 53.66 ms | +0.1% |
+
+Вывод:
+
+* busy-wait на host-side `cuStreamSynchronize` устранён для обычного non-profile
+  `nvcodec` запуска;
+* корректность smoke output подтверждена декодированием и базовым ffprobe contract;
+* на тяжёлой SPAN-модели throughput не ускорился: benchmark находится в пределах
+  single-run noise и местами на 0.3-1.0% ниже baseline;
+* эффект этой правки - снижение CPU busy-wait/нагрузки на host core, а не доказанный
+  FPS speedup для текущего SPAN workload;
+* следующий полезный замер - лёгкая модель, где host-side synchronization overhead
+  должен занимать большую долю кадра.
+
 ## 2026-07-12 — TensorRT base image 26.04 -> 26.06
 
 Что изменено:

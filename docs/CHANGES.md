@@ -47,6 +47,12 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ## Unreleased
 
+### Changed
+
+* `nvcodec` non-profile path теперь передаёт runtime CUDA stream в NVENC и не
+  синхронизирует host thread перед каждым `Encode`, что снижает CPU busy-wait без
+  изменения CLI.
+
 ## 0.3.0 - 2026-07-12
 
 ### Changed
