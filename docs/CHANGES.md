@@ -47,6 +47,8 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-12
+
 ### Changed
 
 * Базовый Docker image обновлён до `nvcr.io/nvidia/tensorrt:26.06-py3`.

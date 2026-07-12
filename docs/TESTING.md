@@ -57,5 +57,6 @@ make build-dev
 make check
 ```
 
-`make check` не пересобирает dev image автоматически. После изменения `pyproject.toml`,
-`uv.lock` или `Dockerfile` сначала выполнить `make build-dev`.
+`make check` не пересобирает dev image автоматически. После изменения зависимостей в
+`pyproject.toml`/`uv.lock` или изменения `Dockerfile` сначала выполнить
+`make build-dev`. Metadata-only изменение версии проекта пересборки image не требует.
