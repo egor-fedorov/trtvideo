@@ -14,11 +14,6 @@ Performance-изменения с цифрами и benchmark-сравнения
 ## Unreleased
 
 ### Added
-
-* Добавлен каталог источников моделей `model_sources.json` и документация
-  `docs/MODELS.md` с upstream links, лицензиями и локальными путями для RealESRGAN
-  и `2xLiveActionV1_SPAN`.
-
 ### Changed
 ### Fixed
 ### Removed
@@ -52,7 +47,6 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ## Unreleased
 
-### Added
 ### Changed
 
 * Базовый Docker image обновлён до `nvcr.io/nvidia/tensorrt:26.06-py3`.

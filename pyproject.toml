@@ -105,8 +105,7 @@ warn_redundant_casts = true
 warn_unreachable = true
 
 disable_error_code = [
-    # Existing pipelines initialize these fields during BasePipeline.run().
-    # Stage 1B should replace this with explicit runtime interfaces.
+    # Pipelines initialize optional lifecycle fields during BasePipeline.run().
     "union-attr",
     # Heavy runtime libraries without stubs often collapse return values to Any.
     "no-any-return",

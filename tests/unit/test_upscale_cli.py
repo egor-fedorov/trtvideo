@@ -22,7 +22,7 @@ def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
     args = build_parser().parse_args(
         [
             "--engine",
-            "models/liveaction-span/engines/model.engine",
+            "models/engines/model.engine",
             "--input",
             "videos/input.mp4",
         ]

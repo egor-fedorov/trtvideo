@@ -5,8 +5,8 @@
 Репозиторий: `ai-media-enhancer`
 
 CLI-инструменты для AI-обработки медиа через TensorRT. Текущий реализованный
-workflow - апскейл видео; поддерживаются модели RealESRGAN и SPAN в форматах
-`.pth` и ONNX.
+workflow - апскейл видео. Подготовка моделей принимает `.pth` checkpoints и
+готовые ONNX-файлы; inference запускается через TensorRT engine.
 
 Разработка ведется локально. Запуски с тяжелыми зависимостями выполняются в Docker,
 обычно на удаленном сервере с GPU.
@@ -22,8 +22,7 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 - Основной workflow - Docker-first. Локально часто нет TensorRT/PyNvVideoCodec/CV-CUDA,
   поэтому GPU/runtime проверки выполняются в контейнере на GPU-хосте.
 - Не коммитить `models/`, `videos/` и большие runtime artefacts без явной команды.
-- Источники моделей фиксировать в `docs/MODELS.md` и `model_sources.json`; веса,
-  ONNX и TensorRT engines не vendored в репозиторий.
+- Веса, ONNX и TensorRT engines не vendored в репозиторий.
 - Перед полным batch-прогоном сначала делать короткий smoke через `--max-frames`.
 - Для изменений в color/encoding path проверять не только запуск, но и `ffprobe`
   output: `pix_fmt`, `color_range`, `color_space`, `color_transfer`,
@@ -46,13 +45,11 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 ├── docs/
 │   ├── ROADMAP.md              # короткий актуальный план
 │   ├── CHANGES.md              # журнал заметных проектных изменений
-│   ├── MODELS.md               # источники моделей, лицензии и локальные пути
 │   ├── TESTING.md              # архитектура тестов и Docker-only workflow
 │   └── PERFORMANCE_LOG.md      # журнал performance-изменений и benchmark results
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
-├── model_sources.json           # машинно-читаемый каталог upstream model sources
 ├── ai_media/
 │   ├── cli/                     # console entrypoints
 │   ├── pipelines/               # ffmpeg и NVDEC/NVENC backends
@@ -63,7 +60,8 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 └── models/                      # данные, игнорируются git
     ├── pretrained/
     ├── onnx/
-    └── engines/
+    ├── engines/
+    └── cache/
 ```
 
 ## Требования для Docker с GPU
@@ -102,11 +100,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 
 ## CLI-команды
 
-Основная команда для видео:
+Основная команда для видео - `upscale`; backend выбирается через
+`--backend ffmpeg|nvcodec`. Для запуска обязательны `--engine` и `--input`.
 
 ```bash
-upscale --backend ffmpeg    # ffmpeg decode/encode + TensorRT
-upscale --backend nvcodec   # NVDEC/NVENC + cvcuda + TensorRT
+upscale
 ```
 
 Команды для подготовки моделей и benchmark:
@@ -123,7 +121,7 @@ benchmark-upscale
 Сборка образа:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build -t ai-media-enhancer:latest .
+make build
 ```
 
 Dockerfile устроен так, чтобы code-only изменения не инвалидировали тяжёлый
@@ -139,7 +137,7 @@ dependency layer:
 Dev-образ с `ruff`/`mypy`:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --build-arg INSTALL_DEV=1 -t ai-media-enhancer:dev .
+make build-dev
 ```
 
 Экспорт `.pth` в ONNX. GPU не нужен:
@@ -186,7 +184,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p.onnx \
-  -o models/liveaction-span/engines/model_720p.engine \
+  -o models/engines/model_720p.engine \
   --timing-cache models/cache/trt.cache
 ```
 
@@ -204,7 +202,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   ai-media-enhancer:latest build-engine \
   models/onnx/model_720p_fp16.onnx \
-  -o models/liveaction-span/engines/model_720p_fp16.engine \
+  -o models/engines/model_720p_fp16.engine \
   --timing-cache models/cache/trt.cache
 ```
 
@@ -272,9 +270,8 @@ make build-dev
 make check
 ```
 
-`mypy` сейчас настроен как инкрементальный gate: проверяет весь текущий код с
-`check_untyped_defs`, игнорирует отсутствующие runtime-only зависимости и временно
-подавляет `union-attr` до выделения явного runtime interface в Stage 1B.
+`mypy` проверяет весь текущий код с `check_untyped_defs` и игнорирует отсутствующие
+runtime-only зависимости, которых может не быть вне production container.
 
 Unit tests описаны в `docs/TESTING.md`. Они не должны импортировать runtime-only
 модули и не должны требовать `--gpus all`.
@@ -418,7 +415,7 @@ NVDEC (GPU) -> NV12 GPU surface -> cvcuda RGB -> TensorRT
 
 ```bash
 benchmark-upscale \
-  --engine models/liveaction-span/engines/model_720p.engine \
+  --engine models/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend ffmpeg,nvcodec \
   --warmup-frames 20 \
