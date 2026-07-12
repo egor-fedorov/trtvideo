@@ -28,14 +28,7 @@ Benchmark:
 * GPU: Quadro RTX 6000;
 * workload: 20 warmup frames и 1000 measured frames;
 * command: `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`;
-* CUDA Graph command дополнительно использует `--cuda-graph`;
-* source artifacts: `artefacts/baseline_2604_span_720p_nvcodec.json`,
-  `artefacts/baseline_2604_span_1080p_nvcodec.json`,
-  `artefacts/baseline_2606_span_720p_nvcodec.json`,
-  `artefacts/baseline_2606_span_1080p_nvcodec.json`,
-  `artefacts/baseline_2606_span_720p_nvcodec_cuda_graph.json`,
-  `artefacts/baseline_2606_span_1080p_nvcodec_cuda_graph.json` (локальные benchmark
-  artifacts, не коммитятся).
+* CUDA Graph command дополнительно использует `--cuda-graph`.
 
 Сравнение `26.04` -> `26.06` без CUDA Graph:
 
@@ -92,11 +85,6 @@ Benchmark:
 * GPU: Quadro RTX 6000;
 * command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`;
 * CUDA Graph command adds: `--cuda-graph`;
-* source artifacts: `artefacts/switzerland_720_2604_fp16io_benchmark.json`,
-  `artefacts/switzerland_720p_2604_fp16io_cuda_graph_benchmark.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_benchmark.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_benchmark_2.json`,
-  `artefacts/switzerland_1080p_2604_fp16io_cuda_graph_benchmark.json`.
 * для `1080p` без CUDA Graph в колонке `26.04` указано среднее двух прогонов.
 
 Сравнение `26.03` stack -> `26.04` stack без CUDA Graph:
@@ -151,7 +139,6 @@ Benchmark:
 * engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_720p.engine`;
 * GPU: Quadro RTX 6000;
 * command: `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
-* source artifact: `switzerland_720p_benchmark.json` (локальный benchmark artifact, не коммитится).
 
 Результат:
 
@@ -187,7 +174,6 @@ Benchmark:
 * GPU: Quadro RTX 6000;
 * command: `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`;
 * FP16 I/O command adds: `--engine-io-precision fp16`;
-* source artifacts: `switzerland_1080p_default_benchmark.json`, `switzerland_1080p_fp16io_benchmark.json` (локальные benchmark artifacts, не коммитятся).
 
 Результат:
 
@@ -212,11 +198,6 @@ Benchmark:
 * для 1080p SPAN inference всё ещё доминирует TensorRT compute;
 * перед production default нужно отдельно проверить визуальные артефакты, banding/clipping и совместимость других моделей.
 
-Замечание по Docker mount:
-
-* команда с `-v "$PWD:/app/artefacts"` и `--json artefacts/name.json` сохраняет файл в host `$PWD/name.json`, потому что внутри контейнера относительный путь `artefacts/name.json` резолвится как `/app/artefacts/name.json`;
-* для сохранения в host `./artefacts/name.json` использовать `-v "$PWD/artefacts:/app/artefacts"` или монтировать весь repo как `-v "$PWD:/app"`.
-
 ## 2026-05-11 — CUDA Graph experiment
 
 Что изменено:
@@ -232,7 +213,6 @@ Benchmark:
 * engine: `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`;
 * GPU: Quadro RTX 6000;
 * command: `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`;
-* source artifacts: `switzerland_1080p_fp16io_benchmark.json`, `switzerland_1080p_fp16io_cuda_graph_benchmark.json` (локальные benchmark artifacts, не коммитятся).
 
 Результат:
 
