@@ -175,6 +175,7 @@ class NvcodecPipeline(BasePipeline):
             bitrate=bitrate,
             preset="P4",
             tuning_info="high_quality",
+            cudastream=int(runtime.stream.cuda_stream),
             fps=encoder_fps,
             gop=gop_size,
             idrperiod=gop_size,
@@ -263,7 +264,6 @@ class NvcodecPipeline(BasePipeline):
                     pool.nv12_out,
                     color_spec=self._color_spec_name,
                 )
-            stream.synchronize()
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
