@@ -240,31 +240,31 @@ class NvcodecPipeline(BasePipeline):
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
         else:
             pool = self._require_buffer_pool()
-            rgb = nv12_to_rgb_into(
-                nv12_tensor,
-                in_h,
-                in_w,
-                pool.rgb_in,
-                pool.nv12_in,
-                color_spec=self._color_spec_name,
-            )
-            upscaled = self._infer_gpu(rgb)
-            nv12_out = rgb_to_nv12_into(
-                upscaled,
-                pool.nv12_out,
-                color_spec=self._color_spec_name,
-            )
+            stream = runtime.stream
+            with torch.cuda.stream(stream):
+                rgb = nv12_to_rgb_into(
+                    nv12_tensor,
+                    in_h,
+                    in_w,
+                    pool.rgb_in,
+                    pool.nv12_in,
+                    color_spec=self._color_spec_name,
+                )
+                upscaled = runtime.infer_rgb_tensor_into(
+                    rgb,
+                    pool.rgb_out,
+                    input_nchw=pool.nchw_in,
+                    output_rgb_float=pool.rgb_out_float,
+                    stream=stream,
+                    synchronize=False,
+                )
+                nv12_out = rgb_to_nv12_into(
+                    upscaled,
+                    pool.nv12_out,
+                    color_spec=self._color_spec_name,
+                )
+            stream.synchronize()
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
-
-    def _infer_gpu(self, rgb_hwc):
-        """TRT inference entirely on GPU."""
-        pool = self._require_buffer_pool()
-        return self.require_runtime().infer_rgb_tensor_into(
-            rgb_hwc,
-            pool.rgb_out,
-            input_nchw=pool.nchw_in,
-            output_rgb_float=pool.rgb_out_float,
-        )
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
         """Inference with CUDA event profiling and explicit TRT stream handoff."""
