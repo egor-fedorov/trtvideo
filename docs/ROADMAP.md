@@ -4,9 +4,9 @@
 
 ## Next
 
-- Добавить media validation checks для будущих smoke/integration тестов:
-  `ffmpeg -f null -`, `ffprobe has_b_frames`, FPS/duration/frame count и
-  монотонность PTS/DTS в packet metadata.
+- Автоматизировать проверку GPU smoke output: полный decode через
+  `ffmpeg -f null -`, FPS, duration, frame count, `has_b_frames`, keyframe
+  interval и монотонность PTS/DTS в packet metadata.
 
 ## Later
 
@@ -15,6 +15,10 @@
   P010, HDR metadata passthrough, tonemap/color management.
 - Проверить CPU bottleneck в `nvcodec` orchestration на лёгких моделях:
   decoder/encoder queue, async write, PyNvVideoCodec options.
+- Исследовать multi-frame async pipeline для `nvcodec`: снять GPU timeline через
+  Nsight Systems, проверить простои между NVDEC, CV-CUDA, TensorRT и NVENC; при
+  подтверждённых простоях прототипировать ring buffer, несколько CUDA streams и
+  event dependencies, затем измерить throughput на тяжёлой и лёгкой моделях.
 - Добавить experimental VapourSynth/vs-mlrt/vstrt backend рядом с текущими
   `ffmpeg` и `nvcodec`, не заменяя native GPU path.
 - Рассмотреть RIFE/frame interpolation отдельным этапом после video metadata

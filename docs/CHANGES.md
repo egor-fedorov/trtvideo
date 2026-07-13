@@ -52,6 +52,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 * `nvcodec` non-profile path теперь передаёт runtime CUDA stream в NVENC и не
   синхронизирует host thread перед каждым `Encode`, что снижает CPU busy-wait без
   изменения CLI.
+* Описание inference, TensorRT runtime и backend'ов перенесено из агентских
+  инструкций в публичный `docs/ARCHITECTURE.md`; `AGENTS.md` теперь содержит только
+  правила работы агента и ссылки на каноническую документацию.
 
 ## 0.3.0 - 2026-07-12
 

@@ -10,6 +10,14 @@ inference, NVDEC/NVENC inference, подготовки ONNX и экспорта 
 Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
 `nvcr.io/nvidia/tensorrt:26.06-py3`.
 
+## Документация
+
+- [Architecture](docs/ARCHITECTURE.md) - устройство inference, TensorRT runtime и backend'ов.
+- [Testing](docs/TESTING.md) - тестовые слои и Docker-only quality gate.
+- [Roadmap](docs/ROADMAP.md) - актуальные направления развития.
+- [Changes](docs/CHANGES.md) - изменения по версиям и правила версионирования.
+- [Performance Log](docs/PERFORMANCE_LOG.md) - измеренные performance-изменения.
+
 ## Требования К Хосту
 
 Для GPU-запусков нужен хост, на котором уже настроены:
