@@ -227,72 +227,62 @@ make benchmark-verify
 
 ### 6. Benchmark
 
-`benchmark-upscale` запускает один или несколько backend'ов на одинаковом input/engine и пишет
-machine-readable JSON. Прогресс и diagnostics выводятся в `stderr`, поэтому `stdout`
-можно безопасно использовать для JSON через `--json -`.
+Benchmark-инструменты и NVML dependency не входят в production image. Сначала
+соберите отдельный image, затем запускайте benchmark после сборки engine на
+выбранной benchmark GPU:
+
+```bash
+make build-benchmark
+```
+
+Каноничный запуск:
+
+```bash
+make benchmark-ai-media \
+  BENCHMARK_VARIANT=1080p \
+  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine
+```
+
+Runner использует отдельный 100-frame warmup process и минимум три measured process
+по 1000 кадров. При разбросе FPS больше 5% выполняются ещё два run. Обычный benchmark
+не включает `--profile` и измеряет wall time от запуска дочернего `upscale` до его
+завершения после encode, flush и mux.
+
+Для короткой проверки инфраструктуры до полного запуска:
+
+```bash
+make benchmark-ai-media \
+  BENCHMARK_VARIANT=720p \
+  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine \
+  BENCHMARK_ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
+```
+
+Артефакты сохраняются в `artefacts/benchmarks/`: suite/run manifests, child logs и
+raw NVML samples. В manifest входят end-to-end FPS, peak VRAM, average/peak power,
+energy и joules/frame, hashes и sanitized environment. После SHA256 и полной
+FFmpeg validation валидные MP4 удаляются; невалидный output сохраняется.
+
+`benchmark-upscale` также можно вызвать напрямую для произвольного video-only
+input. Для `nvcodec` требуется явный bitrate, один backend и отдельный output
+directory:
 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  ai-media-enhancer:latest benchmark-upscale \
-  --engine models/engines/model_720p.engine \
-  --input videos/input.mp4 \
-  --backend ffmpeg,nvcodec \
-  --warmup-frames 20 \
-  --frames 300 \
-  --json artefacts/benchmark.json
-```
-
-JSON содержит backend, engine, GPU, input/output resolution, `processed_frames`,
-количество измеренных кадров, `processing_fps`, `throughput_fps`, `avg_frame_sec`,
-`avg_frame_ms`, `min_frame_ms`, `max_frame_ms`, `cuda_graph_requested`,
-`cuda_graph`, `cuda_graph_error`, `stage_ms` и `gpu_peak_mem_mb`.
-Для benchmark-upscale команда фактически обрабатывает `warmup_frames + frames` кадров, а
-первые warmup-кадры исключает из processing-метрик. `throughput_fps` считается по
-полному wall-clock времени backend run.
-
-Experimental CUDA Graph benchmark:
-
-```bash
-docker run --rm --gpus all \
-  -v "$PWD/models:/app/models" \
-  -v "$PWD/videos:/app/videos" \
-  -v "$PWD/artefacts:/app/artefacts" \
-  ai-media-enhancer:latest benchmark-upscale \
+  ai-media-enhancer:benchmark benchmark-upscale \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend nvcodec \
-  --cuda-graph \
-  --warmup-frames 20 \
-  --frames 1000 \
-  --json artefacts/benchmark_cuda_graph.json
-```
-
-`--cuda-graph` захватывает TensorRT enqueue для static-shape engine. Это opt-in
-режим для benchmark-upscale; если CUDA Graph capture не поддержится конкретным runtime/stream,
-pipeline откатится на обычный TensorRT enqueue.
-
-Если JSON нужен напрямую в shell pipeline:
-
-```bash
-docker run --rm --gpus all \
-  -v "$PWD/models:/app/models" \
-  -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest benchmark-upscale \
-  --engine models/engines/model_720p.engine \
-  --input videos/input.mp4 \
-  --backend nvcodec \
-  --quiet \
+  --bitrate-mbps 35 \
+  --output-dir artefacts/manual-run \
   --json -
 ```
 
-Важно про mount для JSON output: если указать `-v "$PWD:/app/artefacts"` и
-`--json artefacts/result.json`, файл окажется в host `$PWD/result.json`, потому что
-внутри контейнера `artefacts/result.json` резолвится как `/app/artefacts/result.json`.
-Чтобы файл попал в host `./artefacts/result.json`, используйте
-`-v "$PWD/artefacts:/app/artefacts"` или монтируйте весь репозиторий как `-v "$PWD:/app"`.
+Прогресс выводится в `stderr`, поэтому `--json -` оставляет `stdout` пригодным для
+machine-readable JSON. Per-stage timings снимаются отдельно через
+`upscale --profile` или `upscale --profile-json` и не считаются end-to-end benchmark.
 
 ## CLI-Справка
 
@@ -310,7 +300,7 @@ benchmark-upscale
 
 ```bash
 docker run --rm ai-media-enhancer:latest upscale --help
-docker run --rm ai-media-enhancer:latest benchmark-upscale --help
+docker run --rm ai-media-enhancer:benchmark benchmark-upscale --help
 docker run --rm ai-media-enhancer:latest export-onnx --help
 docker run --rm ai-media-enhancer:latest prepare-onnx --help
 docker run --rm ai-media-enhancer:latest build-engine --help

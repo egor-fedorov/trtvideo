@@ -32,6 +32,9 @@ RealESRGAN_x2plus/Sintel workload зафиксированы в `benchmarks/`, a
 
 ## Stage 1. Measurement And Validation
 
+Статус: реализовано, ожидает GPU acceptance smoke. Pure-Python contracts и Docker
+workflow добавлены; performance results до выбора Stage 2 GPU не снимаются.
+
 - Отделить machine-readable end-to-end metrics от per-stage profiling. Обычный
   benchmark не должен включать per-frame `torch.cuda.synchronize()` или другой
   instrumentation overhead.

@@ -1,198 +1,152 @@
 #!/usr/bin/env python3
-"""Benchmark video upscale backends and write machine-readable JSON."""
+"""Run reproducible process-level video upscale benchmark suites."""
+
+from __future__ import annotations
 
 import argparse
-import json
-import os
-import subprocess
 import sys
-import tempfile
-from collections.abc import Iterable
+from pathlib import Path
 
-SUPPORTED_BACKENDS = ("ffmpeg", "nvcodec")
-
-
-def parse_backends(value: str) -> list[str]:
-    """Parse comma-separated backend list."""
-    backends = [item.strip() for item in value.split(",") if item.strip()]
-    if not backends:
-        print("ERROR: --backend must contain at least one backend", file=sys.stderr)
-        sys.exit(1)
-
-    invalid = [backend for backend in backends if backend not in SUPPORTED_BACKENDS]
-    if invalid:
-        print(f"ERROR: Unsupported backend(s): {', '.join(invalid)}", file=sys.stderr)
-        print(f"Supported backends: {', '.join(SUPPORTED_BACKENDS)}", file=sys.stderr)
-        sys.exit(1)
-
-    return backends
+from ai_media.benchmarking.nvml import NvmlError
+from ai_media.benchmarking.runner import (
+    BenchmarkConfig,
+    BenchmarkError,
+    run_suite,
+    write_summary_target,
+)
 
 
-def print_stderr_block(value: str) -> None:
-    """Print captured process output to stderr without adding extra blank lines."""
-    print(value, end="" if value.endswith("\n") else "\n", file=sys.stderr)
-
-
-def build_backend_command(
-    *,
-    backend: str,
-    args: argparse.Namespace,
-    output_path: str,
-    profile_json_path: str,
-) -> list[str]:
-    """Build one backend command invocation."""
-    command = [
-        "upscale",
-        "--backend",
-        backend,
-        "--input",
-        args.input,
-        "--output",
-        output_path,
-        "--gpu-id",
-        str(args.gpu_id),
-        "--warmup-frames",
-        str(args.warmup_frames),
-        "--profile-json",
-        profile_json_path,
-        "--quiet",
-    ]
-    if args.cuda_graph:
-        command += ["--cuda-graph"]
-    if args.bitrate_mbps is not None:
-        command += ["--bitrate-mbps", str(args.bitrate_mbps)]
-
-    if args.frames > 0:
-        command += ["--max-frames", str(args.frames + args.warmup_frames)]
-
-    command += ["--engine", args.engine]
-
-    return command
-
-
-def run_command(command: list[str]) -> None:
-    """Run a benchmark child process and fail with captured output on error."""
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
-    except OSError as exc:
-        print(f"ERROR: failed to run benchmark command: {exc}", file=sys.stderr)
-        print(f"Command: {' '.join(command)}", file=sys.stderr)
-        sys.exit(1)
-
-    if result.returncode == 0:
-        return
-
-    if result.stdout:
-        print_stderr_block(result.stdout)
-    if result.stderr:
-        print_stderr_block(result.stderr)
-    print(f"ERROR: benchmark command failed: {' '.join(command)}", file=sys.stderr)
-    sys.exit(result.returncode)
-
-
-def run_benchmarks(
-    *,
-    backends: Iterable[str],
-    args: argparse.Namespace,
-    output_dir: str,
-) -> list[dict]:
-    """Run selected backends and collect per-backend JSON profiles."""
-    os.makedirs(output_dir, exist_ok=True)
-    results: list[dict] = []
-
-    for backend in backends:
-        profile_json_path = os.path.join(output_dir, f"{backend}.profile.json")
-        output_path = os.path.join(output_dir, f"{backend}.mp4")
-        command = build_backend_command(
-            backend=backend,
-            args=args,
-            output_path=output_path,
-            profile_json_path=profile_json_path,
-        )
-        if not args.quiet:
-            print(f"Benchmarking {backend}: {' '.join(command)}", file=sys.stderr)
-        run_command(command)
-
-        with open(profile_json_path, encoding="utf-8") as f:
-            result = json.load(f)
-        result["command"] = command
-        results.append(result)
-
-    return results
-
-
-def write_report(path: str, report: dict) -> None:
-    """Write final benchmark report."""
-    if path == "-":
-        json.dump(report, sys.stdout, indent=2, sort_keys=True)
-        sys.stdout.write("\n")
-        return
-
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2, sort_keys=True)
-        f.write("\n")
-
-
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Build the end-to-end benchmark CLI parser."""
     parser = argparse.ArgumentParser(
         prog="benchmark-upscale",
-        description="Benchmark TensorRT video upscale backends",
+        description=(
+            "Benchmark unprofiled upscale subprocesses with external wall time, "
+            "NVML sampling and FFmpeg output validation"
+        ),
     )
-    parser.add_argument("--engine", required=True, help="Path to .engine file")
-    parser.add_argument("--input", required=True, help="Input video")
+    parser.add_argument("--engine", required=True, help="Static TensorRT engine path")
+    parser.add_argument("--input", required=True, help="Input video path")
     parser.add_argument(
         "--backend",
-        default="ffmpeg,nvcodec",
-        help="Comma-separated backend list: ffmpeg,nvcodec",
-    )
-    parser.add_argument("--frames", type=int, default=300, help="Measured frames after warmup")
-    parser.add_argument("--warmup-frames", type=int, default=20, help="Warmup frames to skip")
-    parser.add_argument(
-        "--json",
-        required=True,
-        help="Output benchmark JSON path, or '-' for stdout",
+        choices=["ffmpeg", "nvcodec"],
+        default="nvcodec",
+        help="One backend per benchmark suite",
     )
     parser.add_argument(
         "--output-dir",
-        default=None,
-        help="Directory for temporary backend outputs",
+        required=True,
+        help="Directory for run manifests, logs and raw NVML samples",
     )
-    parser.add_argument("--gpu-id", type=int, default=0, help="CUDA GPU index")
-    parser.add_argument("--quiet", action="store_true", help="Suppress benchmark progress output")
+    parser.add_argument(
+        "--json",
+        default=None,
+        help="Optional additional suite JSON path, or '-' for stdout",
+    )
+    parser.add_argument("--frames", type=int, default=1000, help="Measured frames per run")
+    parser.add_argument(
+        "--warmup-frames",
+        type=int,
+        default=100,
+        help="Frames processed by a separate discarded process before each measured run",
+    )
+    parser.add_argument("--runs", type=int, default=3, help="Initial measured run count")
+    parser.add_argument(
+        "--extra-runs",
+        type=int,
+        default=2,
+        help="Runs added when relative FPS spread exceeds the threshold",
+    )
+    parser.add_argument(
+        "--spread-threshold",
+        type=float,
+        default=0.05,
+        help="Maximum stable relative FPS spread (default: 0.05)",
+    )
+    parser.add_argument(
+        "--idle-seconds",
+        type=float,
+        default=10.0,
+        help="Fixed idle interval between measured runs",
+    )
+    parser.add_argument(
+        "--nvml-sample-ms",
+        type=int,
+        default=100,
+        help="External NVML sample interval in milliseconds",
+    )
+    parser.add_argument("--gpu-id", type=int, default=0, help="Visible GPU index")
     parser.add_argument(
         "--bitrate-mbps",
         type=float,
         default=None,
-        help="Explicit NVENC target bitrate in Mbps; forwarded to nvcodec backend",
+        help="Required explicit H.264 NVENC bitrate for nvcodec",
     )
+    parser.add_argument("--crf", type=int, default=18, help="Diagnostic ffmpeg CRF")
     parser.add_argument(
         "--cuda-graph",
         action="store_true",
-        help="Experimental: benchmark TensorRT CUDA Graph capture",
+        help="Enable the experimental TensorRT CUDA Graph path",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--keep-outputs",
+        action="store_true",
+        help="Keep valid warmup and measured MP4 files",
+    )
+    parser.add_argument(
+        "--workload-manifest",
+        default=None,
+        help="Optional canonical workload manifest for asset verification",
+    )
+    parser.add_argument(
+        "--variant",
+        default=None,
+        help="Canonical workload variant used with --workload-manifest",
+    )
+    return parser
 
-    backends = parse_backends(args.backend)
 
-    if args.output_dir:
-        results = run_benchmarks(backends=backends, args=args, output_dir=args.output_dir)
-    else:
-        with tempfile.TemporaryDirectory(prefix="ai-media-benchmark-") as tmp_dir:
-            results = run_benchmarks(backends=backends, args=args, output_dir=tmp_dir)
+def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
+    """Convert CLI values to the immutable runner contract."""
+    return BenchmarkConfig(
+        engine=Path(args.engine),
+        input_path=Path(args.input),
+        output_dir=Path(args.output_dir),
+        backend=args.backend,
+        gpu_id=args.gpu_id,
+        frames=args.frames,
+        warmup_frames=args.warmup_frames,
+        initial_runs=args.runs,
+        extra_runs=args.extra_runs,
+        spread_threshold=args.spread_threshold,
+        idle_seconds=args.idle_seconds,
+        sample_interval_ms=args.nvml_sample_ms,
+        bitrate_mbps=args.bitrate_mbps,
+        crf=args.crf,
+        cuda_graph=args.cuda_graph,
+        keep_outputs=args.keep_outputs,
+        workload_manifest=(
+            Path(args.workload_manifest) if args.workload_manifest is not None else None
+        ),
+        variant=args.variant,
+    )
 
-    report = {
-        "input": args.input,
-        "engine": args.engine,
-        "frames": args.frames,
-        "warmup_frames": args.warmup_frames,
-        "backends": backends,
-        "results": results,
-    }
-    write_report(args.json, report)
-    if not args.quiet:
-        target = "stdout" if args.json == "-" else args.json
-        print(f"Benchmark JSON written: {target}", file=sys.stderr)
+
+def main() -> None:
+    args = build_parser().parse_args()
+    try:
+        summary, returncode = run_suite(config_from_args(args))
+        write_summary_target(args.json, summary)
+    except BenchmarkError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except NvmlError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("ERROR: benchmark interrupted", file=sys.stderr)
+        sys.exit(130)
+    sys.exit(returncode)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,41 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     if not isinstance(manifest.get("id"), str) or not manifest["id"]:
         raise WorkloadError("Manifest field 'id' is required")
     _validate_relative_path(manifest.get("lock_path"), "lock_path")
+    benchmark = _require_dict(manifest, "benchmark")
+    required_benchmark_fields = {
+        "warmup_frames",
+        "measured_frames",
+        "initial_runs",
+        "extra_runs_on_spread",
+        "spread_threshold",
+        "idle_seconds",
+        "nvml_sample_interval_ms",
+    }
+    missing_benchmark = sorted(required_benchmark_fields - benchmark.keys())
+    if missing_benchmark:
+        raise WorkloadError(
+            f"Manifest benchmark fields are missing: {', '.join(missing_benchmark)}"
+        )
+    for field in (
+        "warmup_frames",
+        "measured_frames",
+        "initial_runs",
+        "nvml_sample_interval_ms",
+    ):
+        if not isinstance(benchmark.get(field), int) or benchmark[field] <= 0:
+            raise WorkloadError(f"Manifest field 'benchmark.{field}' must be positive")
+    if not isinstance(benchmark.get("extra_runs_on_spread"), int) or (
+        benchmark["extra_runs_on_spread"] < 0
+    ):
+        raise WorkloadError("Manifest field 'benchmark.extra_runs_on_spread' must be non-negative")
+    if not isinstance(benchmark.get("spread_threshold"), (int, float)) or not (
+        0 <= benchmark["spread_threshold"] < 1
+    ):
+        raise WorkloadError("Manifest field 'benchmark.spread_threshold' must be in [0, 1)")
+    if not isinstance(benchmark.get("idle_seconds"), (int, float)) or (
+        benchmark["idle_seconds"] < 0
+    ):
+        raise WorkloadError("Manifest field 'benchmark.idle_seconds' must be non-negative")
 
     model = _require_dict(manifest, "model")
     _validate_source(_require_dict(model, "source"), "model.source")
@@ -152,6 +187,21 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             if not isinstance(variant.get(dimension), int) or variant[dimension] <= 0:
                 raise WorkloadError(f"Clip variant '{name}' has invalid {dimension}")
         _validate_relative_path(variant.get("path"), f"clip.{name}.path")
+        benchmark_output = _require_dict(variant, "benchmark_output")
+        for dimension in ("width", "height"):
+            if (
+                not isinstance(benchmark_output.get(dimension), int)
+                or benchmark_output[dimension] <= 0
+            ):
+                raise WorkloadError(
+                    f"Clip variant '{name}' has invalid benchmark_output.{dimension}"
+                )
+        if not isinstance(benchmark_output.get("bitrate_mbps"), (int, float)) or (
+            benchmark_output["bitrate_mbps"] <= 0
+        ):
+            raise WorkloadError(
+                f"Clip variant '{name}' has invalid benchmark_output.bitrate_mbps"
+            )
 
     if model_names != clip_names:
         raise WorkloadError("Model and clip variants must use the same names")

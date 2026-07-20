@@ -183,15 +183,20 @@ GPU stages измеряются CUDA events. Profiled path может выпол
 синхронизацию для получения корректных timing values, поэтому его CPU-поведение и
 скорость не следует считать эквивалентными обычному inference path.
 
-Текущий stage profiler начинает измерение после получения кадра от decoder и не
-является полным end-to-end профилем процесса. `throughput_fps` в benchmark
-считается по полному wall-clock времени backend run, а `processing_fps` - по
-измеряемым кадрам без warmup.
+Stage profiler начинает измерение после получения кадра от decoder и не является
+полным end-to-end профилем процесса. Его результаты используются для диагностики
+стадий, а не для межпродуктового сравнения.
 
-`benchmark-upscale` запускает один или несколько backend на одном input/engine.
-Он обрабатывает `warmup_frames + frames`, исключает warmup из processing metrics и
-собирает JSON с FPS, frame timings, stage timings, GPU metadata, peak allocated
-memory и состоянием CUDA Graph.
+`benchmark-upscale` запускает обычный unprofiled `upscale` отдельными процессами:
+discarded warmup, затем measured run. Внешний timer охватывает process startup,
+inference, encode, flush и mux. Параллельный NVML sampler измеряет total GPU memory,
+power, utilization, temperature и throttle state без вызовов в per-frame hot path.
+После timer output полностью декодируется и проверяется через FFmpeg/ffprobe,
+поэтому validation и hashing не влияют на end-to-end FPS.
+
+Benchmark runtime является опциональным Docker target. Production image содержит
+основной CLI, но не устанавливает `nvidia-ml-py` и не копирует benchmark runner
+scripts; воспроизводимые измерения выполняются через `ai-media-enhancer:benchmark`.
 
 ## Static и dynamic shapes
 

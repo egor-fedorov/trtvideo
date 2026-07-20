@@ -29,6 +29,9 @@ docker = [
     "onnxscript>=0.4,<1",
     "spandrel>=0.4,<1",
 ]
+benchmark = [
+    "nvidia-ml-py>=13.610,<14",
+]
 export = [
     "torch>=2.10,<3",
     "onnx>=1.16,<2",

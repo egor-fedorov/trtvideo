@@ -7,8 +7,7 @@
 
 ### Unit
 
-Быстрые pure-Python тесты без GPU/runtime-зависимостей. Это единственный тестовый
-слой, который сейчас реализуется.
+Быстрые pure-Python тесты без GPU/runtime-зависимостей.
 
 ```bash
 make build-dev
@@ -44,9 +43,9 @@ docker run --rm ai-media-enhancer:dev build-engine --help
 
 ### Benchmark
 
-Будущий report-first слой. На первом этапе benchmark пишет JSON artifact без
-жёстких FPS thresholds. Thresholds можно добавлять только после накопления baseline
-для конкретных GPU, TensorRT version, backend, model и resolution.
+Report-first слой пишет suite/run JSON, child logs и raw NVML samples без жёстких
+FPS thresholds. Thresholds можно добавлять только после накопления baseline для
+конкретных GPU, TensorRT version, backend, model и resolution.
 
 Каноничные benchmark assets подготавливаются и проверяются без GPU:
 
@@ -58,6 +57,21 @@ make benchmark-verify
 `benchmark-prepare` скачивает большие ignored assets и поэтому не входит в обычный
 quality gate. Pure-Python контракты workload manifest и команд подготовки входят
 в unit tests.
+
+На GPU-хосте сначала выполняется короткая проверка runner/validation:
+
+```bash
+make build-benchmark
+make benchmark-ai-media \
+  BENCHMARK_VARIANT=720p \
+  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine \
+  BENCHMARK_ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
+```
+
+Полный 3+2 benchmark относится к Stage 2. Валидный run обязан пройти полный decode,
+media/timestamp validation и NVML validity checks. `nvidia-ml-py` устанавливается
+только в опциональный image `ai-media-enhancer:benchmark` и не входит в production
+runtime.
 
 ## Quality Gate
 

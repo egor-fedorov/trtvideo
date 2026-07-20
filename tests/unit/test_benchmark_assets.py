@@ -46,6 +46,14 @@ def test_manifest_rejects_path_outside_repository(manifest: dict) -> None:
         validate_manifest(invalid)
 
 
+def test_manifest_rejects_missing_measurement_contract(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    del invalid["benchmark"]["warmup_frames"]
+
+    with pytest.raises(WorkloadError, match="benchmark fields are missing"):
+        validate_manifest(invalid)
+
+
 def test_load_manifest_rejects_invalid_json(tmp_path: Path) -> None:
     path = tmp_path / "invalid.json"
     path.write_text("{", encoding="utf-8")

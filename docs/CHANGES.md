@@ -52,6 +52,18 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Добавлен воспроизводимый Stage 0 benchmark contract для RealESRGAN_x2plus и
   Sintel, включая Docker-first команды `make benchmark-prepare` и
   `make benchmark-verify`, проверяемые source hashes и media/ONNX validation.
+* `benchmark-upscale` переведён на внешний end-to-end timer, 3+2 run suite, NVML
+  sampling, sanitized run manifests и автоматическую FFmpeg output validation.
+* Добавлена каноничная команда `make benchmark-ai-media` для workload
+  RealESRGAN_x2plus/Sintel.
+* Benchmark runner и `nvidia-ml-py` изолированы в опциональном Docker target
+  `benchmark`; production image не получает benchmark-only dependency и scripts.
+
+### Changed
+
+* Per-stage profiling отделён от benchmark: stage timings доступны только через
+  `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
+  unprofiled pipeline отдельными warmup и measured процессами.
 
 ## 0.3.1 - 2026-07-20
 

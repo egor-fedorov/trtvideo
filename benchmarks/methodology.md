@@ -58,14 +58,14 @@ product-level и не используется для прямого pipeline cl
 
 Output считается валидным только после полного decode через `ffmpeg -f null -` и
 проверки resolution, codec, pixel format, color tags, FPS, duration, frame count,
-B-frames, keyframe interval и монотонности PTS/DTS. Автоматизация этой проверки
-относится к Stage 1.
+B-frames, keyframe interval и монотонности PTS/DTS. Эту проверку автоматически
+выполняет `benchmark-upscale` после завершения внешнего timer.
 
 ## Timing Contract
 
-Per-stage profiling отключается: не использовать `--profile`, `--profile-json`
-или текущий `benchmark-upscale`, пока Stage 1 не отделит machine-readable
-end-to-end metrics от profiling instrumentation.
+Per-stage profiling отключается: `benchmark-upscale` запускает обычный `upscale`
+без `--profile` и `--profile-json`. Stage timings через `upscale --profile` являются
+отдельным diagnostic artifact и не заменяют end-to-end metrics.
 
 Для каждого measured run:
 
@@ -88,6 +88,11 @@ CUDA Graph не включается в основной baseline, пока эт
 режим проекта. На Stage 2 graph enabled/disabled сравниваются попарно с одинаковым
 режимом `trtexec`.
 
+Каждый run сохраняет JSON manifest, stdout/stderr дочерних процессов и raw NVML
+samples. Suite summary содержит исходные значения FPS, median, min/max и spread.
+Валидные MP4 после validation и SHA256 удаляются; невалидный output сохраняется
+для диагностики.
+
 ## Environment Contract
 
 До benchmark необходимо выбрать одну физическую NVIDIA GPU. Все engines и все
@@ -102,7 +107,8 @@ Benchmark host должен:
 - выполнять одинаковый 100-frame warmup перед каждым measured run;
 - выдерживать одинаковый idle interval между run;
 - ротировать порядок продуктов;
-- отклонять run при thermal/power throttling.
+- отклонять run при thermal/hardware slowdown. Достижение неизменного SW power cap
+  фиксируется как часть environment, но само по себе не делает run недействительным.
 
 Публичный environment report строится только по allowlist:
 
@@ -127,7 +133,7 @@ Measured run недействителен, если:
 - output validation завершилась ошибкой;
 - обработано не ровно 1000 кадров;
 - изменился environment, image, command или engine между сравниваемыми run;
-- обнаружены посторонняя GPU-нагрузка или throttling;
+- обнаружены посторонняя GPU-нагрузка, thermal или hardware slowdown;
 - включён per-frame profiler;
 - фактические output settings не соответствуют заявленному классу сравнения.
 

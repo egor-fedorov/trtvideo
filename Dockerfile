@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-FROM nvcr.io/nvidia/tensorrt:26.06-py3
+ARG BASE_IMAGE=nvcr.io/nvidia/tensorrt:26.06-py3
+FROM ${BASE_IMAGE} AS runtime
+
+ARG BASE_IMAGE
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -35,8 +38,27 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+ARG VCS_REF=unknown
+ARG VCS_DIRTY=unknown
+ENV AI_MEDIA_BASE_IMAGE="${BASE_IMAGE}" \
+    AI_MEDIA_BUILD_REVISION="${VCS_REF}" \
+    AI_MEDIA_BUILD_DIRTY="${VCS_DIRTY}"
+LABEL org.opencontainers.image.revision="${VCS_REF}"
+
 COPY ai_media/ ai_media/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 
 ENTRYPOINT []
+
+FROM runtime AS benchmark
+
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv export --frozen --no-emit-project --no-dev --extra benchmark \
+        --output-file /tmp/benchmark-requirements.txt && \
+    uv pip install --python "${VIRTUAL_ENV}" -r /tmp/benchmark-requirements.txt && \
+    rm /tmp/benchmark-requirements.txt
+
+COPY benchmarks/ benchmarks/
+
+FROM runtime AS production
