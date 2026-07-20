@@ -50,20 +50,28 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Added
 
 * Добавлен воспроизводимый Stage 0 benchmark contract для RealESRGAN_x2plus и
-  Sintel, включая Docker-first команды `make benchmark-prepare` и
-  `make benchmark-verify`, проверяемые source hashes и media/ONNX validation.
+  Sintel, включая Docker-first команды `make -C benchmarks prepare` и
+  `make -C benchmarks verify`, проверяемые source hashes и media/ONNX validation.
 * `benchmark-upscale` переведён на внешний end-to-end timer, 3+2 run suite, NVML
   sampling, sanitized run manifests и автоматическую FFmpeg output validation.
-* Добавлена каноничная команда `make benchmark-ai-media` для workload
+* Добавлена каноничная команда `make -C benchmarks run-ai-media` для workload
   RealESRGAN_x2plus/Sintel.
 * Benchmark runner и `nvidia-ml-py` изолированы в опциональном Docker target
   `benchmark`; production image не получает benchmark-only dependency и scripts.
+* Добавлены зафиксированные Docker environments и отдельные runners для
+  `trtexec`, `vs-mlrt/vstrt` и Video2X с общей схемой результатов, NVML sampling,
+  output validation и режимом `--dry-run` без GPU.
+* Добавлен GPU benchmark runbook для будущей acceptance campaign на RTX 3090.
 
 ### Changed
 
 * Per-stage profiling отделён от benchmark: stage timings доступны только через
   `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
   unprofiled pipeline отдельными warmup и measured процессами.
+* Benchmark roadmap разделён на offline-подготовку всех competitor runners и
+  единую GPU acceptance/baseline campaign на GeForce RTX 3090.
+* Benchmark-specific Make targets перенесены в `benchmarks/Makefile`; корневой
+  `Makefile` оставлен для build и quality gate основного проекта.
 
 ## 0.3.1 - 2026-07-20
 

@@ -13,7 +13,7 @@ performance claims для open-source релиза.
 
 Статус: выполнен. Методология и Docker-first подготовка
 RealESRGAN_x2plus/Sintel workload зафиксированы в `benchmarks/`, assets успешно
-прошли `make benchmark-verify` без GPU.
+прошли `make -C benchmarks verify` без GPU.
 
 - Разделить три класса сравнения:
   - `trtexec` - inference ceiling для того же TensorRT engine;
@@ -33,7 +33,7 @@ RealESRGAN_x2plus/Sintel workload зафиксированы в `benchmarks/`, a
 ## Stage 1. Measurement And Validation
 
 Статус: реализовано, ожидает GPU acceptance smoke. Pure-Python contracts и Docker
-workflow добавлены; performance results до выбора Stage 2 GPU не снимаются.
+workflow добавлены; performance results до Stage 3 на выбранной GPU не снимаются.
 
 - Отделить machine-readable end-to-end metrics от per-stage profiling. Обычный
   benchmark не должен включать per-frame `torch.cuda.synchronize()` или другой
@@ -50,42 +50,68 @@ workflow добавлены; performance results до выбора Stage 2 GPU �
 - Добавить manifest одного запуска с environment, command, input/output hashes,
   metrics и результатом output validation.
 - Использовать зафиксированный `benchmarks/methodology.md` как источник истины и
-  добавить отдельные runner scripts. Общий `make benchmark-competitors` добавлять
-  только после стабилизации отдельных runners.
+  добавить отдельные runner scripts. Общую campaign-команду добавлять только после
+  стабилизации отдельных runners.
 
-## Stage 2. Local Baseline And `trtexec`
+## Stage 2. Offline Competitor Tooling
 
-- Перед первым baseline выбрать одну физическую benchmark GPU и зафиксировать
-  environment по Stage 0 contract. До этого результаты не публиковать и не
-  сравнивать с предыдущими GPU.
-- Снять новый baseline `ai-media-enhancer` без per-frame profiling: 1000 кадров
-  после согласованного warmup, минимум три запуска для каждого разрешения.
-- Пересобрать TensorRT engine непосредственно на benchmark GPU и сохранить hashes
-  ONNX, engine и sidecar manifest.
-- Запустить тот же engine через `trtexec` с точным числом iterations. Учитывать,
-  что `--warmUp` задаётся в миллисекундах, а TensorRT 11 включает CUDA Graph,
-  spin wait и отключённые data transfers по умолчанию.
-- Сравнить CUDA Graph enabled/disabled в одинаковых режимах и рассчитать:
+Статус: выполнен offline. Версии и Docker environments зафиксированы, образы
+собираются, unit tests и CLI dry-run проходят. Runtime compatibility и корректность
+результатов остаются обязательным acceptance gate Stage 3.
+
+- Зафиксировать версии, source revisions и отдельные Docker environments для
+  `trtexec`, `vs-mlrt/vstrt` и Video2X, не добавляя их зависимости в production
+  image проекта.
+- Добавить отдельные runners `run_trtexec.py`, `run_vstrt.py` и
+  `run_video2x.py`. Каждый runner должен читать canonical workload, формировать
+  точную команду и сохранять результат в общей machine-readable схеме.
+- Поддержать `--dry-run` и overrides для frames/runs, чтобы до аренды GPU проверить
+  command generation, paths, mounts и manifests.
+- Для `vstrt` подготовить один ONNX/tensor contract с проектом. Загрузку общего
+  serialized engine считать предпочтительной, но не гарантировать до проверки
+  TensorRT/plugin compatibility на GPU.
+- Для Video2X подготовить запуск с теми же Real-ESRGAN x2 weights. Если точное
+  совпадение model/runtime невозможно, заранее маркировать результат как
+  product-level comparison.
+- Переиспользовать единые правила external timing, NVML sampling и output
+  validation, не встраивая profiler конкретного продукта в сравнимый hot path.
+- Добавить unit tests для command generation/result parsing и Docker smoke
+  `--help`/`--dry-run` без обязательного GPU.
+- Добавить единый GPU runbook. Общую автоматизированную campaign-команду добавлять
+  в Stage 3 после GPU smoke: она должна ротировать продукты между раундами, а не
+  последовательно выполнять три независимых сгруппированных suite.
+
+## Stage 3. RTX 3090 Acceptance And Baselines
+
+Целевая карта первой benchmark campaign - одна физическая GeForce RTX 3090 с
+24 GB VRAM. Все engines и сравнимые результаты собираются и снимаются в рамках
+одного зафиксированного environment на этой карте.
+
+- Зафиксировать driver, CUDA/TensorRT, power limit, clocks, thermal state, Docker
+  image IDs и отсутствие display/посторонней GPU-нагрузки.
+- Пересобрать TensorRT engines непосредственно на RTX 3090 и сохранить hashes
+  ONNX, engine и sidecar manifest. Engines с других GPU/runtime не использовать.
+- Сначала выполнить короткий smoke для `ai-media-enhancer`, `trtexec`, `vstrt` и
+  Video2X на 720p, затем на основном `1080p -> 4K` workload. Проверить полный
+  decode и output contract до длинных запусков.
+- Исправлять обнаруженные runtime/ABI/model проблемы в рамках этой campaign, но
+  после изменения кода, image или настроек заново запускать все затронутые
+  сравнимые серии.
+- После успешных smoke снять unprofiled baseline проекта и competitors: 1000
+  кадров после warmup, минимум три запуска, ещё два при spread больше 5%.
+- Ротировать порядок продуктов между раундами и не смешивать результаты до и
+  после изменения environment.
+- Запустить тот же engine через `trtexec` с точным числом iterations и рассчитать:
 
   ```text
   pipeline efficiency = ai-media-enhancer end-to-end FPS / trtexec FPS
   ```
 
-- Не использовать inference ceiling как прямое продуктовое сравнение: `trtexec`
-  не выполняет decode, colorspace conversion, encode и mux.
-
-## Stage 3. Competitor Baselines
-
-- Проверить, может ли `vstrt` загрузить тот же serialized engine при совпадающих
-  TensorRT version и tensor contract. Если нет, собирать engines из одного ONNX
-  отдельно в зафиксированных окружениях.
-- Для `vstrt` измерить inference-only и полный video path. Проверить
-  `num_streams=1` и лучший воспроизводимый tuned вариант.
-- Для Video2X сначала определить общий model/scale workload. Если одинаковая
-  Real-ESRGAN x2 модель недоступна, явно обозначить сравнение как product-level и
-  не приписывать разницу только runtime.
-- Для product-level comparison отдельно проверить фактический bitrate, размер
-  output, color metadata и визуальное качество.
+- Не использовать `trtexec` как прямое продуктовое сравнение: он не выполняет
+  decode, colorspace conversion, encode и mux.
+- Для `vstrt` сравнить inference-only и полный video path; для Video2X отдельно
+  проверить фактический bitrate, размер output, color metadata и визуальное
+  качество.
 - Quality comparison выполнять на лицензированном synthetic degradation dataset
   с lossless/reference outputs. PSNR, SSIM и VMAF дополнять visual crops и не
   смешивать model quality с потерями финального encoder.

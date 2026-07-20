@@ -217,8 +217,8 @@ trailer. Команда скачивает около 3.7 GB исходных д
 его нужно собирать на той GPU, где будет выполняться benchmark.
 
 ```bash
-make benchmark-prepare
-make benchmark-verify
+make -C benchmarks prepare
+make -C benchmarks verify
 ```
 
 Модели и видео остаются в игнорируемых `models/` и `videos/`. Зафиксированные
@@ -232,15 +232,15 @@ Benchmark-инструменты и NVML dependency не входят в product
 выбранной benchmark GPU:
 
 ```bash
-make build-benchmark
+make -C benchmarks build
 ```
 
 Каноничный запуск:
 
 ```bash
-make benchmark-ai-media \
-  BENCHMARK_VARIANT=1080p \
-  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine
+make -C benchmarks run-ai-media \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 ```
 
 Runner использует отдельный 100-frame warmup process и минимум три measured process
@@ -251,10 +251,10 @@ Runner использует отдельный 100-frame warmup process и ми�
 Для короткой проверки инфраструктуры до полного запуска:
 
 ```bash
-make benchmark-ai-media \
-  BENCHMARK_VARIANT=720p \
-  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine \
-  BENCHMARK_ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
+make -C benchmarks run-ai-media \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
 ```
 
 Артефакты сохраняются в `artefacts/benchmarks/`: suite/run manifests, child logs и
@@ -283,6 +283,10 @@ docker run --rm --gpus all \
 Прогресс выводится в `stderr`, поэтому `--json -` оставляет `stdout` пригодным для
 machine-readable JSON. Per-stage timings снимаются отдельно через
 `upscale --profile` или `upscale --profile-json` и не считаются end-to-end benchmark.
+
+Изолированные образы и runners для `trtexec`, `vs-mlrt/vstrt` и Video2X находятся
+в `benchmarks/`. Полная последовательность подготовки GPU-хоста, smoke и запусков
+описана в [GPU Benchmark Runbook](benchmarks/GPU_RUNBOOK.md).
 
 ## CLI-Справка
 

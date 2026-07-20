@@ -85,7 +85,7 @@ spread `(max - min) / median`. При spread больше 5% выполняют�
 пять run остаются нестабильными, результат маркируется как unstable.
 
 CUDA Graph не включается в основной baseline, пока это experimental opt-in
-режим проекта. На Stage 2 graph enabled/disabled сравниваются попарно с одинаковым
+режим проекта. На Stage 3 graph enabled/disabled сравниваются попарно с одинаковым
 режимом `trtexec`.
 
 Каждый run сохраняет JSON manifest, stdout/stderr дочерних процессов и raw NVML
@@ -137,6 +137,6 @@ Measured run недействителен, если:
 - включён per-frame profiler;
 - фактические output settings не соответствуют заявленному классу сравнения.
 
-Stage 0 считается закрытым после успешного `make benchmark-verify` на любом
+Stage 0 считается закрытым после успешного `make -C benchmarks verify` на любом
 хосте. Выбор одной физической benchmark GPU и фиксация её environment являются
-отдельным prerequisite Stage 2 перед снятием performance baseline.
+отдельным prerequisite Stage 3 перед снятием performance baseline.

@@ -50,26 +50,28 @@ FPS thresholds. Thresholds можно добавлять только после
 Каноничные benchmark assets подготавливаются и проверяются без GPU:
 
 ```bash
-make benchmark-prepare
-make benchmark-verify
+make -C benchmarks prepare
+make -C benchmarks verify
 ```
 
-`benchmark-prepare` скачивает большие ignored assets и поэтому не входит в обычный
+`prepare` скачивает большие ignored assets и поэтому не входит в обычный
 quality gate. Pure-Python контракты workload manifest и команд подготовки входят
 в unit tests.
 
 На GPU-хосте сначала выполняется короткая проверка runner/validation:
 
 ```bash
-make build-benchmark
-make benchmark-ai-media \
-  BENCHMARK_VARIANT=720p \
-  BENCHMARK_ENGINE=models/benchmarks/realesrgan-x2plus/engines/model.engine \
-  BENCHMARK_ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
+make -C benchmarks build
+make -C benchmarks run-ai-media \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
 ```
 
-Полный 3+2 benchmark относится к Stage 2. Валидный run обязан пройти полный decode,
-media/timestamp validation и NVML validity checks. `nvidia-ml-py` устанавливается
+Конкурентные Docker images, dry-run и команды GPU acceptance описаны в
+`benchmarks/GPU_RUNBOOK.md`. Полный 3+2 benchmark относится к Stage 3. Валидный run
+обязан пройти полный decode, media/timestamp validation и NVML validity checks.
+`nvidia-ml-py` устанавливается
 только в опциональный image `ai-media-enhancer:benchmark` и не входит в production
 runtime.
 
