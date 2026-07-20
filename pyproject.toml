@@ -1,6 +1,6 @@
 [project]
 name = "ai-media-enhancer"
-version = "0.3.0"
+version = "0.3.1"
 description = "AI media enhancer via TensorRT with video upscale workflows"
 requires-python = ">=3.12,<3.13"
 dependencies = [

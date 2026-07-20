@@ -47,6 +47,8 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ## Unreleased
 
+## 0.3.1 - 2026-07-20
+
 ### Changed
 
 * `nvcodec` non-profile path теперь передаёт runtime CUDA stream в NVENC и не
