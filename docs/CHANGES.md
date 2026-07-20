@@ -47,6 +47,12 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ## Unreleased
 
+### Added
+
+* Добавлен воспроизводимый Stage 0 benchmark contract для RealESRGAN_x2plus и
+  Sintel, включая Docker-first команды `make benchmark-prepare` и
+  `make benchmark-verify`, проверяемые source hashes и media/ONNX validation.
+
 ## 0.3.1 - 2026-07-20
 
 ### Changed

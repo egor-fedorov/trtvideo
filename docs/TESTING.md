@@ -48,6 +48,17 @@ docker run --rm ai-media-enhancer:dev build-engine --help
 жёстких FPS thresholds. Thresholds можно добавлять только после накопления baseline
 для конкретных GPU, TensorRT version, backend, model и resolution.
 
+Каноничные benchmark assets подготавливаются и проверяются без GPU:
+
+```bash
+make benchmark-prepare
+make benchmark-verify
+```
+
+`benchmark-prepare` скачивает большие ignored assets и поэтому не входит в обычный
+quality gate. Pure-Python контракты workload manifest и команд подготовки входят
+в unit tests.
+
 ## Quality Gate
 
 Минимальный Docker gate для Python-изменений:

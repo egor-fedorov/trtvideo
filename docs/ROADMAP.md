@@ -11,12 +11,16 @@ performance claims для open-source релиза.
 
 ## Stage 0. Benchmark Contract
 
+Статус: выполнен. Методология и Docker-first подготовка
+RealESRGAN_x2plus/Sintel workload зафиксированы в `benchmarks/`, assets успешно
+прошли `make benchmark-verify` без GPU.
+
 - Разделить три класса сравнения:
   - `trtexec` - inference ceiling для того же TensorRT engine;
   - `vs-mlrt/vstrt` - прямое сравнение TensorRT integration;
   - Video2X - product-level comparison, если одинаковая модель недоступна.
-- Зафиксировать benchmark GPU, driver, power limit, thermal policy, Docker image,
-  версии конкурентов, model/engine hashes и точные команды.
+- Определить environment allowlist и правила фиксации GPU, driver, power limit,
+  thermal policy, Docker image, версий конкурентов, hashes и точных команд.
 - Определить границы end-to-end wall time, warmup policy и единый output contract:
   resolution, FPS, codec, bitrate/preset, audio и metadata.
 - Основным workload сделать `1080p -> 4K`, дополнительным - `720p -> 1440p`.
@@ -42,12 +46,15 @@ performance claims для open-source релиза.
   interval и монотонность PTS/DTS в packet metadata.
 - Добавить manifest одного запуска с environment, command, input/output hashes,
   metrics и результатом output validation.
-- Создать `benchmarks/methodology.md` и отдельные runner scripts после фиксации
-  измерительного контракта. Общий `make benchmark-competitors` добавлять только
-  после стабилизации отдельных runners.
+- Использовать зафиксированный `benchmarks/methodology.md` как источник истины и
+  добавить отдельные runner scripts. Общий `make benchmark-competitors` добавлять
+  только после стабилизации отдельных runners.
 
 ## Stage 2. Local Baseline And `trtexec`
 
+- Перед первым baseline выбрать одну физическую benchmark GPU и зафиксировать
+  environment по Stage 0 contract. До этого результаты не публиковать и не
+  сравнивать с предыдущими GPU.
 - Снять новый baseline `ai-media-enhancer` без per-frame profiling: 1000 кадров
   после согласованного warmup, минимум три запуска для каждого разрешения.
 - Пересобрать TensorRT engine непосредственно на benchmark GPU и сохранить hashes

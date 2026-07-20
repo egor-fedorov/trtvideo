@@ -17,6 +17,7 @@ Production runtime сейчас привязан к Python 3.12 из базов�
 - [Roadmap](docs/ROADMAP.md) - актуальные направления развития.
 - [Changes](docs/CHANGES.md) - изменения по версиям и правила версионирования.
 - [Performance Log](docs/PERFORMANCE_LOG.md) - измеренные performance-изменения.
+- [Benchmark Methodology](benchmarks/methodology.md) - workload и правила сравнения.
 
 ## Требования К Хосту
 
@@ -208,7 +209,23 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-### 5. Benchmark
+### 5. Подготовка Benchmark Workload
+
+Каноничный workload использует `RealESRGAN_x2plus` и публичный lossless Sintel
+trailer. Команда скачивает около 3.7 GB исходных данных, создаёт H.264 inputs для
+720p/1080p и static mixed-FP16 ONNX. TensorRT engine на этом шаге не строится:
+его нужно собирать на той GPU, где будет выполняться benchmark.
+
+```bash
+make benchmark-prepare
+make benchmark-verify
+```
+
+Модели и видео остаются в игнорируемых `models/` и `videos/`. Зафиксированные
+источники, checksums, license attribution и полный измерительный контракт описаны
+в [Benchmark Methodology](benchmarks/methodology.md).
+
+### 6. Benchmark
 
 `benchmark-upscale` запускает один или несколько backend'ов на одинаковом input/engine и пишет
 machine-readable JSON. Прогресс и diagnostics выводятся в `stderr`, поэтому `stdout`

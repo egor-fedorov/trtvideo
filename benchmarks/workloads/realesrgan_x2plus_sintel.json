@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "realesrgan-x2plus-sintel-v1",
+  "lock_path": "models/benchmarks/realesrgan-x2plus-sintel.assets.json",
+  "model": {
+    "name": "RealESRGAN_x2plus",
+    "source": {
+      "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
+      "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb",
+      "size_bytes": 67061725,
+      "license_reference": "https://github.com/xinntao/Real-ESRGAN/blob/v0.2.1/LICENSE",
+      "attribution": "Real-ESRGAN, Xintao Wang et al."
+    },
+    "weights_path": "models/benchmarks/realesrgan-x2plus/RealESRGAN_x2plus.pth",
+    "onnx_dir": "models/benchmarks/realesrgan-x2plus/onnx",
+    "variants": [
+      {
+        "name": "720p",
+        "input_width": 1280,
+        "input_height": 720,
+        "fp32_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p.onnx",
+        "fp16_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx"
+      },
+      {
+        "name": "1080p",
+        "input_width": 1920,
+        "input_height": 1080,
+        "fp32_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p.onnx",
+        "fp16_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p_fp16.onnx"
+      }
+    ]
+  },
+  "clip": {
+    "name": "Sintel trailer",
+    "source": {
+      "url": "https://media.xiph.org/video/derf/y4m/sintel_trailer_2k_1080p24.y4m",
+      "sha256": "5359b4215c4308839d127f46beba972b7458cb03ea507196d6e93fc51b1d5209",
+      "size_bytes": 3897338763,
+      "license": "CC-BY-3.0",
+      "license_reference": "https://durian.blender.org/sharing/",
+      "attribution": "Copyright Blender Foundation | durian.blender.org"
+    },
+    "source_path": "videos/benchmarks/source/sintel_trailer_2k_1080p24.y4m",
+    "frames": 1000,
+    "fps": "24/1",
+    "encode": {
+      "codec": "libx264",
+      "preset": "medium",
+      "crf": 18,
+      "pixel_format": "yuv420p",
+      "gop_frames": 24,
+      "b_frames": 3,
+      "color_range": "tv",
+      "color_space": "bt709",
+      "color_transfer": "bt709",
+      "color_primaries": "bt709"
+    },
+    "variants": [
+      {
+        "name": "720p",
+        "width": 1280,
+        "height": 720,
+        "path": "videos/benchmarks/sintel_720p24_h264.mp4"
+      },
+      {
+        "name": "1080p",
+        "width": 1920,
+        "height": 1080,
+        "path": "videos/benchmarks/sintel_1080p24_h264.mp4"
+      }
+    ]
+  }
+}
