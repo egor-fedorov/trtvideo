@@ -149,6 +149,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
             "num_streams": args.num_streams,
             "vspipe_requests": args.requests,
             "bitrate_mbps": variant["benchmark_output"]["bitrate_mbps"],
+            "max_compute_processes": 2,
+            "max_graphics_processes": 0,
         }
     )
     plan = plan_document(
@@ -224,6 +226,8 @@ def main() -> None:
             idle_seconds=parameters["idle_seconds"],
             sample_interval_ms=parameters["nvml_sample_interval_ms"],
             gpu_id=args.gpu_id,
+            max_compute_processes=parameters["max_compute_processes"],
+            max_graphics_processes=parameters["max_graphics_processes"],
             output_contract=output_contract(
                 manifest,
                 variant,

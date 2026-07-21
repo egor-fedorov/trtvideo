@@ -35,8 +35,10 @@ static full-frame shape.
 | primary | 1920x1080 | 3840x2160 | 1000 | 24/1 |
 | secondary | 1280x720 | 2560x1440 | 1000 | 24/1 |
 
-Оба input имеют `yuv420p`, limited-range BT.709, SAR 1:1 и не содержат audio,
-subtitles, chapters или пользовательскую metadata.
+Оба input имеют `yuv420p`, limited-range BT.709, SAR 1:1, не используют B-frames
+и не содержат audio, subtitles, chapters или пользовательскую metadata. Такой
+decode contract одинаково исполним stock Video2X 6.4.0, который не flush-ит
+задержанные B-frames при EOF.
 
 ## Output Contract
 
@@ -114,6 +116,11 @@ Benchmark host должен:
 - ротировать порядок продуктов;
 - отклонять run при thermal/hardware slowdown. Достижение неизменного SW power cap
   фиксируется как часть environment, но само по себе не делает run недействительным.
+
+NVML process gate проверяет нулевой compute/graphics baseline до запуска child
+processes и backend-specific максимум во время измерения. Для `vstrt` разрешены
+два compute-процесса (`vspipe` и `ffmpeg`), для Video2X - его собственный Vulkan
+graphics context. Превышение объявленного лимита означает постороннюю GPU-нагрузку.
 
 Публичный environment report строится только по allowlist:
 

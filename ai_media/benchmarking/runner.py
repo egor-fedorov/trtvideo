@@ -486,6 +486,8 @@ def run_one(
         samples,
         wall_time_sec=wall_time_sec,
         frames=config.frames,
+        max_compute_processes=1,
+        max_graphics_processes=0,
     )
     measured_validation = (
         validate(

@@ -14,6 +14,14 @@ make -C benchmarks prepare
 make -C benchmarks verify
 ```
 
+При переходе с workload v1 на `realesrgan-x2plus-sintel-v2` переencode-ьте только
+video clips; исходный Y4M и model assets будут переиспользованы:
+
+```bash
+make -C benchmarks prepare ARGS=--force-clips
+make -C benchmarks verify
+```
+
 `prepare` не использует GPU. TensorRT engines, напротив, нужно собирать именно на
 той RTX 3090 и в том image, где будет выполняться campaign:
 

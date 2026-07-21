@@ -54,6 +54,8 @@ class ExternalVideoSuiteConfig:
     idle_seconds: float
     sample_interval_ms: int
     gpu_id: int
+    max_compute_processes: int
+    max_graphics_processes: int
     output_contract: dict[str, Any]
     benchmark_contract: dict[str, Any]
     assets: dict[str, Path]
@@ -179,6 +181,8 @@ def _run_one(
             "warmup_frames": config.warmup_frames,
             "gpu_id": config.gpu_id,
             "nvml_sample_interval_ms": config.sample_interval_ms,
+            "max_compute_processes": config.max_compute_processes,
+            "max_graphics_processes": config.max_graphics_processes,
         },
         "commands": {
             "warmup": _sanitize_spec(warmup_spec, root),
@@ -237,6 +241,8 @@ def _run_one(
         samples,
         wall_time_sec=wall_time_sec,
         frames=config.frames,
+        max_compute_processes=config.max_compute_processes,
+        max_graphics_processes=config.max_graphics_processes,
     )
     measured_validation = (
         validate_output(measured_output, _contract(config, config.frames, bitrate=True))
@@ -346,6 +352,8 @@ def run_external_video_suite(
         "spread_threshold": config.spread_threshold,
         "idle_seconds": config.idle_seconds,
         "nvml_sample_interval_ms": config.sample_interval_ms,
+        "max_compute_processes": config.max_compute_processes,
+        "max_graphics_processes": config.max_graphics_processes,
     }
     canonical_errors = canonical_suite_errors(
         parameters,

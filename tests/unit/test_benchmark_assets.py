@@ -132,7 +132,7 @@ def test_build_ffmpeg_command_pins_media_contract(manifest: dict, tmp_path: Path
     assert command[command.index("-r") + 1] == "24/1"
     assert command[command.index("-pix_fmt") + 1] == "yuv420p"
     assert command[command.index("-x264-params") + 1] == (
-        "keyint=24:min-keyint=24:scenecut=0:bframes=3:"
+        "keyint=24:min-keyint=24:scenecut=0:bframes=0:"
         "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited"
     )
 
@@ -160,6 +160,7 @@ def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:
                 "avg_frame_rate": "24/1",
                 "nb_frames": "1000",
                 "nb_read_frames": "1000",
+                "has_b_frames": 0,
                 "sample_aspect_ratio": "1:1",
                 "color_range": "tv",
                 "color_space": "bt709",
@@ -171,6 +172,36 @@ def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:
     }
 
     validate_video_probe(probe, variant=variant, clip=clip)
+
+
+def test_validate_video_probe_rejects_old_b_frame_clip(manifest: dict) -> None:
+    clip = manifest["clip"]
+    variant = clip["variants"][0]
+    probe = {
+        "streams": [
+            {
+                "codec_type": "video",
+                "codec_name": "h264",
+                "width": 1280,
+                "height": 720,
+                "pix_fmt": "yuv420p",
+                "r_frame_rate": "24/1",
+                "avg_frame_rate": "24/1",
+                "nb_frames": "1000",
+                "nb_read_frames": "1000",
+                "has_b_frames": 2,
+                "sample_aspect_ratio": "1:1",
+                "color_range": "tv",
+                "color_space": "bt709",
+                "color_transfer": "bt709",
+                "color_primaries": "bt709",
+            }
+        ],
+        "format": {"duration": "41.666667"},
+    }
+
+    with pytest.raises(WorkloadError, match="has_b_frames"):
+        validate_video_probe(probe, variant=variant, clip=clip)
 
 
 def test_validate_video_probe_rejects_extra_stream(manifest: dict) -> None:

@@ -245,6 +245,8 @@ def _run_suite(
                 samples,
                 wall_time_sec=wall_time,
                 frames=parameters["frames"],
+                max_compute_processes=1,
+                max_graphics_processes=0,
             )
             if not nvml.get("valid"):
                 errors.extend(nvml.get("errors", []))

@@ -14,6 +14,7 @@ from benchmarks.scripts.run_trtexec import (
     build_trtexec_command,
     parse_trtexec_output,
 )
+from benchmarks.scripts.run_video2x import build_plan as build_video2x_plan
 from benchmarks.scripts.run_video2x import build_video2x_command
 from benchmarks.scripts.run_vstrt import build_plan as build_vstrt_plan
 
@@ -122,6 +123,8 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert spec[1][0] == "ffmpeg"
     assert spec[1][spec[1].index("-b:v") + 1] == "60M"
     assert "-bf" in spec[1]
+    assert plan["parameters"]["max_compute_processes"] == 2
+    assert plan["parameters"]["max_graphics_processes"] == 0
 
 
 def test_video2x_command_is_explicitly_product_level() -> None:
@@ -140,6 +143,13 @@ def test_video2x_command_is_explicitly_product_level() -> None:
     assert command[command.index("--hwaccel") + 1] == "none"
     assert command[command.index("--bit-rate") + 1] == "60000000"
     assert command[command.index("--max-b-frames") + 1] == "0"
+
+
+def test_video2x_plan_declares_vulkan_process_budget() -> None:
+    plan, _ = build_video2x_plan(common_args())
+
+    assert plan["parameters"]["max_compute_processes"] == 1
+    assert plan["parameters"]["max_graphics_processes"] == 1
 
 
 def test_command_pipeline_executes_without_shell(tmp_path: Path) -> None:

@@ -201,6 +201,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
             "hwaccel": args.hwaccel,
             "bitrate_mbps": variant["benchmark_output"]["bitrate_mbps"],
             "canonical_measured_input": measured_input == canonical_input,
+            "max_compute_processes": 1,
+            "max_graphics_processes": 1,
         }
     )
     setup_commands = [warmup_trim] + ([measured_trim] if measured_trim else [])
@@ -288,6 +290,8 @@ def main() -> None:
             idle_seconds=parameters["idle_seconds"],
             sample_interval_ms=parameters["nvml_sample_interval_ms"],
             gpu_id=args.gpu_id,
+            max_compute_processes=parameters["max_compute_processes"],
+            max_graphics_processes=parameters["max_graphics_processes"],
             output_contract=output_contract(
                 manifest,
                 variant,

@@ -28,11 +28,11 @@ make -C benchmarks verify
 ```
 
 Первый запуск скачивает около 3.7 GB исходных данных Sintel. Результаты остаются
-в игнорируемых каталогах `models/` и `videos/`. Повторная генерация несовместимых
-assets выполняется явно:
+в игнорируемых каталогах `models/` и `videos/`. Только video clips можно
+переencode-ить без дорогой пересборки model assets:
 
 ```bash
-make -C benchmarks prepare ARGS=--force
+make -C benchmarks prepare ARGS=--force-clips
 ```
 
 ## Offline Gate
@@ -60,6 +60,10 @@ make -C benchmarks dry-run \
 результат всегда маркируется как product-level comparison. Software decode для
 него задан явно: stock RealESRGAN preprocessing Video2X 6.4.0 не принимает CUDA
 AVFrames, хотя inference и encode продолжают выполняться на GPU.
+
+Workload `realesrgan-x2plus-sintel-v2` использует одинаковый для всех продуктов
+H.264 input без B-frames. Это исключает потерю задержанных decoder frames в stock
+Video2X 6.4.0 и сохраняет строгую проверку количества output frames.
 
 Параметры `--frames`, `--warmup-frames`, `--runs`, `--extra-runs` и
 `--idle-seconds` можно уменьшать для smoke-проверок. Успешный smoke получает

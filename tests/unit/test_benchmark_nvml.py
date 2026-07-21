@@ -81,7 +81,30 @@ def test_summarize_samples_rejects_foreign_gpu_processes() -> None:
 
     assert result["valid"] is False
     assert any("before" in error for error in result["errors"])
-    assert any("Multiple" in error for error in result["errors"])
+    assert any("declared limit" in error for error in result["errors"])
+
+
+def test_summarize_samples_allows_declared_multiprocess_pipeline() -> None:
+    samples = [
+        sample(0.0, 100, compute_processes=0),
+        sample(0.5, 200, compute_processes=2),
+        sample(1.0, 180, compute_processes=2),
+    ]
+
+    result = summarize_samples(
+        samples,
+        wall_time_sec=1.0,
+        frames=10,
+        max_compute_processes=2,
+    )
+
+    assert result["valid"] is True
+    assert result["processes"] == {
+        "max_compute_count": 2,
+        "max_graphics_count": 0,
+        "compute_count_limit": 2,
+        "graphics_count_limit": 0,
+    }
 
 
 def test_sampler_explains_missing_optional_dependency(monkeypatch: pytest.MonkeyPatch) -> None:

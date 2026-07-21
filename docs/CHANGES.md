@@ -65,6 +65,10 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Changed
 
+* Canonical benchmark workload обновлён до `realesrgan-x2plus-sintel-v2`: общий
+  H.264 input теперь не использует B-frames, чтобы stock Video2X 6.4.0 сохранял
+  точное число кадров; добавлен выборочный `prepare --force-clips` без пересборки
+  ONNX.
 * Per-stage profiling отделён от benchmark: stage timings доступны только через
   `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
   unprofiled pipeline отдельными warmup и measured процессами.
@@ -82,6 +86,9 @@ Performance-изменения с цифрами и benchmark-сравнения
   в stderr перед завершением Make target с кодом 2.
 * Smoke overrides больше не могут ошибочно получить `publishable: true`: suite
   summary проверяет точное соответствие параметрам canonical workload.
+* NVML process gate учитывает объявленную многопроцессную структуру competitor:
+  два compute child process для `vstrt` и Vulkan graphics context Video2X, сохраняя
+  нулевой baseline для обнаружения посторонней GPU-нагрузки.
 
 ## 0.3.1 - 2026-07-20
 

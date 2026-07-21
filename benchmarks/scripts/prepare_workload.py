@@ -163,6 +163,8 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     missing = sorted(required_encode_fields - encode.keys())
     if missing:
         raise WorkloadError(f"Manifest clip.encode fields are missing: {', '.join(missing)}")
+    if not isinstance(encode.get("b_frames"), int) or encode["b_frames"] < 0:
+        raise WorkloadError("Manifest field 'clip.encode.b_frames' must be non-negative")
     clip_variants = _require_list(clip, "variants")
 
     model_names = set()
@@ -405,8 +407,8 @@ def probe_video(path: Path) -> dict[str, Any]:
         "-show_entries",
         (
             "stream=codec_type,codec_name,width,height,pix_fmt,r_frame_rate,"
-            "avg_frame_rate,nb_frames,nb_read_frames,sample_aspect_ratio,color_range,"
-            "color_space,color_transfer,color_primaries:format=duration"
+            "avg_frame_rate,nb_frames,nb_read_frames,has_b_frames,sample_aspect_ratio,"
+            "color_range,color_space,color_transfer,color_primaries:format=duration"
         ),
         "-of",
         "json",
@@ -445,6 +447,7 @@ def validate_video_probe(
         "color_space": clip["encode"]["color_space"],
         "color_transfer": clip["encode"]["color_transfer"],
         "color_primaries": clip["encode"]["color_primaries"],
+        "has_b_frames": clip["encode"]["b_frames"],
         "sample_aspect_ratio": "1:1",
     }
     for key, expected_value in expected.items():
@@ -533,7 +536,9 @@ def prepare_clips(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
             try:
                 validate_video_probe(probe_video(output), variant=variant, clip=clip)
             except WorkloadError as exc:
-                raise WorkloadError(f"Invalid existing clip {output}; rerun with --force") from exc
+                raise WorkloadError(
+                    f"Invalid existing clip {output}; rerun with --force-clips"
+                ) from exc
             print(f"Using verified clip: {output}")
             continue
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -648,6 +653,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Replace invalid/generated assets during prepare",
     )
+    parser.add_argument(
+        "--force-clips",
+        action="store_true",
+        help="Re-encode generated video clips without rebuilding model assets",
+    )
     return parser.parse_args()
 
 
@@ -669,7 +679,7 @@ def main() -> None:
                 repo_path(root, clip["source_path"]),
                 force=args.force,
             )
-            prepare_clips(manifest, root, force=args.force)
+            prepare_clips(manifest, root, force=args.force or args.force_clips)
             prepare_model(manifest, root, force=args.force)
             lock = verify_assets(manifest, root)
             write_lock(repo_path(root, manifest["lock_path"]), lock)

@@ -81,6 +81,8 @@ def summarize_samples(
     *,
     wall_time_sec: float,
     frames: int,
+    max_compute_processes: int = 1,
+    max_graphics_processes: int = 0,
 ) -> dict[str, Any]:
     """Integrate power and summarize external GPU state for one measured process."""
     errors: list[str] = []
@@ -88,6 +90,8 @@ def summarize_samples(
         errors.append("wall_time_sec must be greater than zero")
     if frames <= 0:
         errors.append("frames must be greater than zero")
+    if max_compute_processes < 0 or max_graphics_processes < 0:
+        errors.append("GPU process limits cannot be negative")
     if not samples:
         errors.append("NVML sampler produced no samples")
         return {"valid": False, "errors": errors, "sample_count": 0}
@@ -157,16 +161,28 @@ def summarize_samples(
         for sample in bounded
         if sample.graphics_process_count is not None
     ]
-    max_compute_processes = max(compute_counts, default=None)
-    max_graphics_processes = max(graphics_counts, default=None)
+    observed_max_compute_processes = max(compute_counts, default=None)
+    observed_max_graphics_processes = max(graphics_counts, default=None)
     if not compute_counts:
         errors.append("NVML compute process accounting is unavailable")
     if not graphics_counts:
         errors.append("NVML graphics process accounting is unavailable")
-    if max_compute_processes is not None and max_compute_processes > 1:
-        errors.append("Multiple compute processes were active during the measured process")
-    if max_graphics_processes is not None and max_graphics_processes > 0:
-        errors.append("A graphics process was active during the measured process")
+    if (
+        observed_max_compute_processes is not None
+        and observed_max_compute_processes > max_compute_processes
+    ):
+        errors.append(
+            "Compute process count exceeded declared limit: "
+            f"expected at most {max_compute_processes}, got {observed_max_compute_processes}"
+        )
+    if (
+        observed_max_graphics_processes is not None
+        and observed_max_graphics_processes > max_graphics_processes
+    ):
+        errors.append(
+            "Graphics process count exceeded declared limit: "
+            f"expected at most {max_graphics_processes}, got {observed_max_graphics_processes}"
+        )
     power_limits = sorted(
         {sample.power_limit_w for sample in bounded if sample.power_limit_w is not None}
     )
@@ -235,8 +251,10 @@ def summarize_samples(
             "memory_max_mhz": max(memory_clocks, default=None),
         },
         "processes": {
-            "max_compute_count": max_compute_processes,
-            "max_graphics_count": max_graphics_processes,
+            "max_compute_count": observed_max_compute_processes,
+            "max_graphics_count": observed_max_graphics_processes,
+            "compute_count_limit": max_compute_processes,
+            "graphics_count_limit": max_graphics_processes,
         },
         "throttle_reasons": throttle_reasons,
     }
