@@ -331,13 +331,18 @@ class NvmlSampler:
         }
 
     def _process_count(self, function_name: str) -> int | None:
+        """Count unique process IDs rather than NVML process records."""
         if self._nvml is None:
             return None
         function = getattr(self._nvml, function_name, None)
         if function is None:
             return None
         processes = _safe_call(function, self._handle)
-        return len(processes) if processes is not None else None
+        return (
+            len({int(process.pid) for process in processes})
+            if processes is not None
+            else None
+        )
 
     def _sample(self) -> NvmlSample:
         if self._nvml is None or self._handle is None:

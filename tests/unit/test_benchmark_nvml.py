@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import ModuleType, SimpleNamespace
+
 import pytest
 
 from ai_media.benchmarking import nvml as nvml_module
@@ -105,6 +107,25 @@ def test_summarize_samples_allows_declared_multiprocess_pipeline() -> None:
         "compute_count_limit": 2,
         "graphics_count_limit": 0,
     }
+
+
+def test_sampler_counts_unique_process_ids() -> None:
+    class FakeNvml(ModuleType):
+        def nvmlDeviceGetComputeRunningProcesses(
+            self, _handle: object
+        ) -> list[SimpleNamespace]:
+            return [
+                SimpleNamespace(pid=101),
+                SimpleNamespace(pid=101),
+                SimpleNamespace(pid=202),
+            ]
+
+    nvml = FakeNvml("fake_nvml")
+    sampler = NvmlSampler(gpu_id=0)
+    sampler._nvml = nvml
+    sampler._handle = object()
+
+    assert sampler._process_count("nvmlDeviceGetComputeRunningProcesses") == 2
 
 
 def test_sampler_explains_missing_optional_dependency(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -88,7 +88,8 @@ Performance-изменения с цифрами и benchmark-сравнения
   summary проверяет точное соответствие параметрам canonical workload.
 * NVML process gate учитывает объявленную многопроцессную структуру competitor:
   два compute child process для `vstrt` и Vulkan graphics context Video2X, сохраняя
-  нулевой baseline для обнаружения посторонней GPU-нагрузки.
+  нулевой baseline для обнаружения посторонней GPU-нагрузки; повторяющиеся NVML
+  records одного PID больше не считаются отдельными процессами.
 
 ## 0.3.1 - 2026-07-20
 
