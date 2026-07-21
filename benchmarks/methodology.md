@@ -93,6 +93,11 @@ samples. Suite summary содержит исходные значения FPS, m
 Валидные MP4 после validation и SHA256 удаляются; невалидный output сохраняется
 для диагностики.
 
+Smoke overrides разрешены для acceptance-проверок. Такой suite может иметь
+`status: valid`, если runtime и output корректны, но получает `publishable: false`.
+Публикация разрешена только при точном совпадении параметров suite с `benchmark`
+из workload manifest; причины отказа сохраняются в `publishability.errors`.
+
 ## Environment Contract
 
 До benchmark необходимо выбрать одну физическую NVIDIA GPU. Все engines и все
@@ -127,7 +132,7 @@ Benchmark host должен:
 
 ## Run Validity
 
-Measured run недействителен, если:
+Канонический measured run недействителен, если:
 
 - asset checksum или engine/model contract не совпадает;
 - output validation завершилась ошибкой;

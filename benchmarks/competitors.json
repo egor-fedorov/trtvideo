@@ -28,8 +28,9 @@
       "source_revision": "a96bda9b4d79616cc6b71b94e6945146b5b4d509",
       "model": "realesr-animevideov3",
       "scale": 2,
+      "hwaccel": "none",
       "exact_model_match": false,
-      "notes": "Stock Video2X 6.4.0 uses NCNN/Vulkan and does not bundle RealESRGAN_x2plus. Results compare complete products, not TensorRT integration."
+      "notes": "Stock Video2X 6.4.0 uses software decode plus NCNN/Vulkan inference and does not bundle RealESRGAN_x2plus. Results compare complete products, not TensorRT integration."
     }
   }
 }

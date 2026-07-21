@@ -129,7 +129,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     implementation = competitor_config(competitors, "vstrt")
     parameters = benchmark_parameters(args, manifest)
     variant = find_variant(manifest, args.variant)
-    args.input = variant["path"]
+    args.input = str(Path("/app") / variant["path"])
     output_dir = Path(args.output_dir)
     warmup = build_vstrt_command(
         args,
@@ -230,6 +230,7 @@ def main() -> None:
                 frames=parameters["frames"],
                 enforce_bitrate=True,
             ),
+            benchmark_contract=manifest["benchmark"],
             assets={
                 "input": input_path,
                 "engine": engine,

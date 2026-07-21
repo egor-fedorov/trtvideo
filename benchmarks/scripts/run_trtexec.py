@@ -21,9 +21,12 @@ from ai_media.benchmarking.environment import (
 )
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
 from ai_media.benchmarking.runner import (
+    canonical_suite_errors,
     compute_suite_statistics,
     load_engine_contract,
+    report_invalid_run,
     should_extend_suite,
+    suite_publishability_errors,
     write_summary_target,
 )
 from benchmarks.scripts.competitor_common import (
@@ -284,6 +287,7 @@ def _run_suite(
             write_json(manifest_path, run_manifest)
             runs.append(run_manifest)
             if errors:
+                report_invalid_run(run_manifest)
                 break
             if run_index == parameters["initial_runs"] and parameters["extra_runs_on_spread"]:
                 values = [run["metrics"]["throughput_qps"] for run in runs]
@@ -300,18 +304,32 @@ def _run_suite(
     all_valid = len(valid_runs) == len(runs) == target_runs
     stable = all_valid and spread is not None and spread <= parameters["spread_threshold"]
     status = "valid" if stable else ("unstable" if all_valid else "invalid")
+    canonical_errors = canonical_suite_errors(
+        parameters,
+        manifest["benchmark"],
+        include_warmup_frames=False,
+    )
+    publishability_errors = suite_publishability_errors(
+        status=status,
+        canonical_errors=canonical_errors,
+        runs=runs,
+    )
     summary = {
         "schema_version": 1,
         "document_type": "benchmark-result",
         "status": status,
-        "publishable": stable
-        and all(run["reproducibility"]["publishable"] for run in valid_runs),
+        "publishable": not publishability_errors,
+        "publishability": {
+            "canonical_contract": not canonical_errors,
+            "errors": publishability_errors,
+        },
         "product": "trtexec",
         "backend": "TensorRT",
         "comparison_class": plan["comparison_class"],
         "workload_id": manifest["id"],
         "variant": args.variant,
         "implementation": plan["implementation"],
+        "parameters": parameters,
         "statistics": statistics,
         "runs": [
             {
@@ -324,6 +342,15 @@ def _run_suite(
         ],
     }
     write_json(output_dir / "suite.json", summary)
+    print(
+        f"Benchmark suite {status}: median={statistics['median_fps']!r} qps, "
+        f"spread={spread!r}",
+        file=sys.stderr,
+    )
+    if publishability_errors:
+        print("Benchmark suite is not publishable:", file=sys.stderr)
+        for error in publishability_errors:
+            print(f"  - {error}", file=sys.stderr)
     return summary, 0 if status == "valid" else 2
 
 

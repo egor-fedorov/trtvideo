@@ -57,7 +57,14 @@ make -C benchmarks dry-run \
 `trtexec` измеряет inference ceiling того же TensorRT engine. `vstrt` является
 прямым TensorRT-сравнением и получает тот же engine. Stock Video2X 6.4.0 не
 содержит RealESRGAN_x2plus и запускается с `realesr-animevideov3` x2, поэтому его
-результат всегда маркируется как product-level comparison.
+результат всегда маркируется как product-level comparison. Software decode для
+него задан явно: stock RealESRGAN preprocessing Video2X 6.4.0 не принимает CUDA
+AVFrames, хотя inference и encode продолжают выполняться на GPU.
+
+Параметры `--frames`, `--warmup-frames`, `--runs`, `--extra-runs` и
+`--idle-seconds` можно уменьшать для smoke-проверок. Успешный smoke получает
+`status: valid`, но `publishable: false`: публикуемым считается только suite,
+полностью совпадающий с параметрами workload manifest.
 
 Production image не содержит NVML dependency и competitor tools. Фактическая
 GPU-проверка и полные 3+2 серии описаны в `GPU_RUNBOOK.md`.

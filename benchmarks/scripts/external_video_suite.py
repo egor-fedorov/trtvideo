@@ -21,7 +21,13 @@ from ai_media.benchmarking.environment import (
     write_json,
 )
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
-from ai_media.benchmarking.runner import compute_suite_statistics, should_extend_suite
+from ai_media.benchmarking.runner import (
+    canonical_suite_errors,
+    compute_suite_statistics,
+    report_invalid_run,
+    should_extend_suite,
+    suite_publishability_errors,
+)
 from ai_media.benchmarking.validation import OutputContract, validate_output
 from benchmarks.scripts.competitor_common import CommandSpec, CompetitorError
 
@@ -49,6 +55,7 @@ class ExternalVideoSuiteConfig:
     sample_interval_ms: int
     gpu_id: int
     output_contract: dict[str, Any]
+    benchmark_contract: dict[str, Any]
     assets: dict[str, Path]
     warmup_command: CommandFactory
     measured_command: CommandFactory
@@ -309,6 +316,7 @@ def run_external_video_suite(
             )
             run_manifests.append(result)
             if result.get("status") != "valid":
+                report_invalid_run(result)
                 break
             if run_index == config.initial_runs and config.extra_runs > 0:
                 fps_values = [
@@ -330,18 +338,41 @@ def run_external_video_suite(
     all_valid = len(valid_runs) == len(run_manifests) == target_runs
     stable = all_valid and spread is not None and spread <= config.spread_threshold
     status = "valid" if stable else ("unstable" if all_valid else "invalid")
+    parameters = {
+        "frames": config.frames,
+        "warmup_frames": config.warmup_frames,
+        "initial_runs": config.initial_runs,
+        "extra_runs_on_spread": config.extra_runs,
+        "spread_threshold": config.spread_threshold,
+        "idle_seconds": config.idle_seconds,
+        "nvml_sample_interval_ms": config.sample_interval_ms,
+    }
+    canonical_errors = canonical_suite_errors(
+        parameters,
+        config.benchmark_contract,
+        include_warmup_frames=True,
+    )
+    publishability_errors = suite_publishability_errors(
+        status=status,
+        canonical_errors=canonical_errors,
+        runs=run_manifests,
+    )
     summary = {
         "schema_version": 1,
         "document_type": "benchmark-result",
         "status": status,
-        "publishable": stable
-        and all(run["reproducibility"]["publishable"] for run in valid_runs),
+        "publishable": not publishability_errors,
+        "publishability": {
+            "canonical_contract": not canonical_errors,
+            "errors": publishability_errors,
+        },
         "product": config.product,
         "backend": config.backend,
         "comparison_class": config.comparison_class,
         "workload_id": config.workload_id,
         "variant": config.variant,
         "implementation": config.implementation,
+        "parameters": parameters,
         "statistics": statistics,
         "runs": [
             {
@@ -356,4 +387,13 @@ def run_external_video_suite(
         ],
     }
     write_json(summary_path, summary)
+    print(
+        f"Benchmark suite {status}: median={statistics['median_fps']!r} FPS, "
+        f"spread={spread!r}",
+        file=sys.stderr,
+    )
+    if publishability_errors:
+        print("Benchmark suite is not publishable:", file=sys.stderr)
+        for error in publishability_errors:
+            print(f"  - {error}", file=sys.stderr)
     return summary, 0 if status == "valid" else 2

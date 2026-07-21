@@ -306,6 +306,67 @@ def should_extend_suite(fps_values: list[float], threshold: float) -> bool:
     return spread is not None and spread > threshold
 
 
+def report_invalid_run(run: dict[str, Any]) -> None:
+    """Print manifest errors when a measured run invalidates its suite."""
+    print(f"Benchmark run {run.get('run_index', '?')} invalid:", file=sys.stderr)
+    errors = run.get("errors", [])
+    if not errors:
+        print("  - No detailed error was recorded", file=sys.stderr)
+        return
+    for error in errors:
+        print(f"  - {error}", file=sys.stderr)
+
+
+def canonical_suite_errors(
+    parameters: dict[str, Any],
+    benchmark: dict[str, Any] | None,
+    *,
+    include_warmup_frames: bool,
+) -> list[str]:
+    """Explain why suite parameters do not match the publication contract."""
+    if benchmark is None:
+        return ["No canonical workload benchmark contract was provided"]
+
+    expected_keys = {
+        "frames": "measured_frames",
+        "initial_runs": "initial_runs",
+        "extra_runs_on_spread": "extra_runs_on_spread",
+        "spread_threshold": "spread_threshold",
+        "idle_seconds": "idle_seconds",
+        "nvml_sample_interval_ms": "nvml_sample_interval_ms",
+    }
+    if include_warmup_frames:
+        expected_keys["warmup_frames"] = "warmup_frames"
+
+    errors = []
+    for parameter_key, benchmark_key in expected_keys.items():
+        actual = parameters.get(parameter_key)
+        expected = benchmark.get(benchmark_key)
+        if actual != expected:
+            errors.append(
+                f"{parameter_key} must match canonical {benchmark_key} "
+                f"({actual!r} != {expected!r})"
+            )
+    return errors
+
+
+def suite_publishability_errors(
+    *,
+    status: str,
+    canonical_errors: list[str],
+    runs: list[dict[str, Any]],
+) -> list[str]:
+    """Collect suite-level reasons that prevent publishing a result."""
+    errors = list(canonical_errors)
+    if status != "valid":
+        errors.append(f"Suite status is {status!r}, not 'valid'")
+    for run in runs:
+        run_index = run.get("run_index", "?")
+        for error in run.get("reproducibility", {}).get("errors", []):
+            errors.append(f"Run {run_index} reproducibility: {error}")
+    return list(dict.fromkeys(errors))
+
+
 def _cleanup_valid_output(path: Path, keep_outputs: bool) -> None:
     if not keep_outputs and path.exists():
         path.unlink()
@@ -510,6 +571,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
             )
             run_manifests.append(result)
             if result.get("status") != "valid":
+                report_invalid_run(result)
                 break
             if run_index == config.initial_runs and config.extra_runs > 0:
                 fps_values = [
@@ -543,27 +605,45 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     all_valid = len(valid_runs) == len(run_manifests) == target_runs and not suite_errors
     stable = all_valid and spread is not None and spread <= config.spread_threshold
     status = "valid" if stable else ("unstable" if all_valid else "invalid")
-    publishable = stable and all(
-        run.get("reproducibility", {}).get("publishable", False) for run in valid_runs
+    parameters = {
+        "frames": config.frames,
+        "warmup_frames": config.warmup_frames,
+        "initial_runs": config.initial_runs,
+        "extra_runs_on_spread": config.extra_runs,
+        "spread_threshold": config.spread_threshold,
+        "idle_seconds": config.idle_seconds,
+        "nvml_sample_interval_ms": config.sample_interval_ms,
+        "bitrate_mbps": config.bitrate_mbps,
+        "cuda_graph": config.cuda_graph,
+    }
+    benchmark_contract = (
+        load_json(config.workload_manifest).get("benchmark")
+        if config.workload_manifest is not None
+        else None
+    )
+    canonical_errors = canonical_suite_errors(
+        parameters,
+        benchmark_contract if isinstance(benchmark_contract, dict) else None,
+        include_warmup_frames=True,
+    )
+    publishability_errors = suite_publishability_errors(
+        status=status,
+        canonical_errors=canonical_errors,
+        runs=run_manifests,
     )
     summary = {
         "schema_version": 1,
         "status": status,
-        "publishable": publishable,
+        "publishable": not publishability_errors,
+        "publishability": {
+            "canonical_contract": not canonical_errors,
+            "errors": publishability_errors,
+        },
         "product": "ai-media-enhancer",
         "backend": config.backend,
         "workload_id": workload_id,
         "variant": config.variant,
-        "parameters": {
-            "frames": config.frames,
-            "warmup_frames": config.warmup_frames,
-            "initial_runs": config.initial_runs,
-            "extra_runs_on_spread": config.extra_runs,
-            "spread_threshold": config.spread_threshold,
-            "idle_seconds": config.idle_seconds,
-            "bitrate_mbps": config.bitrate_mbps,
-            "cuda_graph": config.cuda_graph,
-        },
+        "parameters": parameters,
         "statistics": statistics_report,
         "errors": suite_errors,
         "runs": [
@@ -584,6 +664,10 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         f"spread={spread!r}",
         file=sys.stderr,
     )
+    if publishability_errors:
+        print("Benchmark suite is not publishable:", file=sys.stderr)
+        for error in publishability_errors:
+            print(f"  - {error}", file=sys.stderr)
     return summary, 0 if status == "valid" else 2
 
 

@@ -241,7 +241,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Benchmark Video2X RealESRGAN")
     add_common_arguments(parser, engine=False)
     parser.add_argument("--video2x-model", default="realesr-animevideov3")
-    parser.add_argument("--hwaccel", default="cuda")
+    parser.add_argument(
+        "--hwaccel",
+        default="none",
+        help="Video2X decode acceleration (stock RealESRGAN requires software frames)",
+    )
     parser.add_argument("--keep-outputs", action="store_true")
     return parser
 
@@ -290,6 +294,7 @@ def main() -> None:
                 frames=parameters["frames"],
                 enforce_bitrate=True,
             ),
+            benchmark_contract=manifest["benchmark"],
             assets={
                 "input": canonical_input,
                 "workload_manifest": Path(args.manifest),

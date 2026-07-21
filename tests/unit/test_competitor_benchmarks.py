@@ -15,7 +15,7 @@ from benchmarks.scripts.run_trtexec import (
     parse_trtexec_output,
 )
 from benchmarks.scripts.run_video2x import build_video2x_command
-from benchmarks.scripts.run_vstrt import build_vstrt_command
+from benchmarks.scripts.run_vstrt import build_plan as build_vstrt_plan
 
 MANIFEST_PATH = "benchmarks/workloads/realesrgan_x2plus_sintel.json"
 COMPETITORS_PATH = "benchmarks/competitors.json"
@@ -45,7 +45,7 @@ def common_args(**overrides) -> argparse.Namespace:
         "requests": 1,
         "num_streams": 1,
         "video2x_model": "realesr-animevideov3",
-        "hwaccel": "cuda",
+        "hwaccel": "none",
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -109,20 +109,16 @@ def test_parse_trtexec_output() -> None:
     }
 
 
-def test_vstrt_command_is_an_argv_pipeline() -> None:
+def test_vstrt_plan_uses_absolute_container_input() -> None:
     args = common_args()
-    args.input = "videos/benchmarks/sintel_1080p24_h264.mp4"
 
-    spec = build_vstrt_command(
-        args,
-        manifest(),
-        output_path=Path("/app/artefacts/output.mp4"),
-        frames=1000,
-    )
+    plan, _ = build_vstrt_plan(args)
+    spec = plan["commands"]["measured"]
 
     assert len(spec) == 2
     assert spec[0][0] == "vspipe"
     assert spec[0][spec[0].index("--end") + 1] == "999"
+    assert "source=/app/videos/benchmarks/sintel_1080p24_h264.mp4" in spec[0]
     assert spec[1][0] == "ffmpeg"
     assert spec[1][spec[1].index("-b:v") + 1] == "60M"
     assert "-bf" in spec[1]
@@ -141,6 +137,7 @@ def test_video2x_command_is_explicitly_product_level() -> None:
 
     assert command[command.index("--realesrgan-model") + 1] == "realesr-animevideov3"
     assert command[command.index("--scaling-factor") + 1] == "2"
+    assert command[command.index("--hwaccel") + 1] == "none"
     assert command[command.index("--bit-rate") + 1] == "60000000"
     assert command[command.index("--max-b-frames") + 1] == "0"
 

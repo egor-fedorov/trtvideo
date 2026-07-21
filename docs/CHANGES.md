@@ -73,6 +73,16 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Benchmark-specific Make targets перенесены в `benchmarks/Makefile`; корневой
   `Makefile` оставлен для build и quality gate основного проекта.
 
+### Fixed
+
+* `vstrt` runner передаёт абсолютный container path для input, а Video2X runner
+  использует совместимый с его RealESRGAN preprocessing software decode вместо
+  CUDA AVFrames.
+* При невалидном benchmark run конкретные manifest errors теперь сразу выводятся
+  в stderr перед завершением Make target с кодом 2.
+* Smoke overrides больше не могут ошибочно получить `publishable: true`: suite
+  summary проверяет точное соответствие параметрам canonical workload.
+
 ## 0.3.1 - 2026-07-20
 
 ### Changed

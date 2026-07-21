@@ -11,7 +11,9 @@ from ai_media.benchmarking.runner import (
     BenchmarkConfig,
     BenchmarkError,
     build_upscale_command,
+    canonical_suite_errors,
     compute_suite_statistics,
+    report_invalid_run,
     should_extend_suite,
     validate_config,
 )
@@ -60,6 +62,86 @@ def test_suite_statistics_and_automatic_extension() -> None:
     assert report["median_fps"] == 40.0
     assert should_extend_suite(stable, 0.05) is False
     assert should_extend_suite(unstable, 0.05) is True
+
+
+def test_invalid_run_reports_manifest_errors(capsys: pytest.CaptureFixture[str]) -> None:
+    report_invalid_run(
+        {
+            "run_index": 2,
+            "errors": ["Warmup process exited with code 1", "Output was not created"],
+        }
+    )
+
+    assert capsys.readouterr().err == (
+        "Benchmark run 2 invalid:\n"
+        "  - Warmup process exited with code 1\n"
+        "  - Output was not created\n"
+    )
+
+
+def test_smoke_parameters_are_valid_but_not_canonical() -> None:
+    benchmark = {
+        "warmup_frames": 100,
+        "measured_frames": 1000,
+        "initial_runs": 3,
+        "extra_runs_on_spread": 2,
+        "spread_threshold": 0.05,
+        "idle_seconds": 10,
+        "nvml_sample_interval_ms": 100,
+    }
+    parameters = {
+        "warmup_frames": 24,
+        "frames": 120,
+        "initial_runs": 1,
+        "extra_runs_on_spread": 0,
+        "spread_threshold": 0.05,
+        "idle_seconds": 0,
+        "nvml_sample_interval_ms": 100,
+    }
+
+    errors = canonical_suite_errors(
+        parameters,
+        benchmark,
+        include_warmup_frames=True,
+    )
+
+    assert errors == [
+        "frames must match canonical measured_frames (120 != 1000)",
+        "initial_runs must match canonical initial_runs (1 != 3)",
+        "extra_runs_on_spread must match canonical extra_runs_on_spread (0 != 2)",
+        "idle_seconds must match canonical idle_seconds (0 != 10)",
+        "warmup_frames must match canonical warmup_frames (24 != 100)",
+    ]
+
+
+def test_canonical_parameters_are_publishable() -> None:
+    benchmark = {
+        "warmup_frames": 100,
+        "measured_frames": 1000,
+        "initial_runs": 3,
+        "extra_runs_on_spread": 2,
+        "spread_threshold": 0.05,
+        "idle_seconds": 10,
+        "nvml_sample_interval_ms": 100,
+    }
+    parameters = {
+        "warmup_frames": 100,
+        "frames": 1000,
+        "initial_runs": 3,
+        "extra_runs_on_spread": 2,
+        "spread_threshold": 0.05,
+        "idle_seconds": 10,
+        "nvml_sample_interval_ms": 100,
+    }
+
+    assert (
+        canonical_suite_errors(
+            parameters,
+            benchmark,
+            include_warmup_frames=True,
+        )
+        == []
+    )
 
 
 def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -> None:
