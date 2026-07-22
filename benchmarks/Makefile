@@ -62,13 +62,15 @@ build-vsgan:
 build-vsgan-engine:
 	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
 		-v "$(ROOT)/models:/app/models" \
 		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.build_vsgan_engine \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--onnx /app/$(ONNX) \
 			--output /app/$(VSGAN_ENGINE) \
-			--timing-cache /app/models/cache/vsgan-trt10.cache \
+			--timing-cache /app/models/cache/vsgan-trt10.16.0.72.cache \
 			$(ARGS)
 
 prepare:

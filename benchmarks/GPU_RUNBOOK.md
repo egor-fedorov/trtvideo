@@ -89,6 +89,10 @@ make -C benchmarks build-vsgan-engine \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
+VSGAN engines необходимо пересобирать после изменения pinned VSGAN base image:
+TensorRT serialized plans не совместимы между разными runtime builds. Runner
+проверяет сохранённый base-image digest до начала warmup.
+
 Не копируйте serialized engine между TRT10 и TRT11. Оба engine должны быть
 собраны на той же benchmark GPU.
 

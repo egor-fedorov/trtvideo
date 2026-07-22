@@ -91,7 +91,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Stock VSGAN benchmark переведён со сломанного `minimal_no_avx512` image на
   pinned `latest_no_avx512` с нативным `vspipe`; Docker build теперь сразу
   проверяет тип и запуск binary. Benchmark venv больше не активируется глобально
-  и не нарушает инициализацию embedded Python в VSScript.
+  и не нарушает инициализацию embedded Python в VSScript. VSGAN engine sidecar
+  фиксирует base-image digest, чтобы несовместимый TensorRT plan отклонялся до
+  warmup.
 * SPAN ONNX export теперь до `torch.export` один раз сворачивает мутирующие
   Spandrel `Conv3XC` блоки в эквивалентные eval convolutions. Это устраняет
   decomposition failure PyTorch 2.11 без перехода на deprecated legacy exporter.

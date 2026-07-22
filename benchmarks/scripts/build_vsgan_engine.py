@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shlex
 import subprocess
@@ -96,6 +97,7 @@ def write_sidecar(
         "model_sha256": sha256_file(onnx_path),
         "onnx_opset": None,
         "tensorrt_version": _version_from_output(trtexec_output),
+        "builder_base_image": os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown"),
         "precision": "mixed-fp16",
         "io_precision": "fp32",
         "input": {

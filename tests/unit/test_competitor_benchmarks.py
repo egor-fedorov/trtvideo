@@ -25,10 +25,11 @@ from benchmarks.scripts.run_trtexec import (
     parse_trtexec_output,
 )
 from benchmarks.scripts.run_vsgan import (
-    build_plan as build_vsgan_plan,
+    _validate_parity_engine,
+    build_vsgan_command,
 )
 from benchmarks.scripts.run_vsgan import (
-    build_vsgan_command,
+    build_plan as build_vsgan_plan,
 )
 from benchmarks.scripts.run_vstrt import build_plan as build_vstrt_plan
 
@@ -209,6 +210,33 @@ def test_vsgan_engine_build_is_static_strongly_typed() -> None:
     assert "--memPoolSize=workspace:8192MiB" in command
     assert "--skipInference" in command
     assert "--timingCacheFile=/app/models/cache/trt10.cache" in command
+
+
+def test_vsgan_engine_rejects_different_base_image(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    onnx_path = tmp_path / "model.onnx"
+    onnx_path.write_bytes(b"canonical onnx")
+    sidecar = {
+        "model_sha256": hashlib.sha256(b"canonical onnx").hexdigest(),
+        "io_precision": "fp32",
+        "input_profile": None,
+        "input": {"shape": [1, 3, 1080, 1920]},
+        "output": {"shape": [1, 3, 2160, 3840]},
+        "builder_flags": ["stronglyTyped"],
+        "tensorrt_version": "101600",
+        "builder_base_image": "old-image@sha256:old",
+    }
+    monkeypatch.setenv("AI_MEDIA_BASE_IMAGE", "new-image@sha256:new")
+
+    with pytest.raises(CompetitorError, match="different base image"):
+        _validate_parity_engine(
+            sidecar,
+            manifest(),
+            "1080p",
+            onnx_path,
+            "new-image@sha256:new",
+        )
 
 
 def test_command_pipeline_executes_without_shell(tmp_path: Path) -> None:

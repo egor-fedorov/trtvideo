@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -130,6 +131,7 @@ def _validate_parity_engine(
     manifest: dict[str, Any],
     variant_name: str,
     onnx_path: Path,
+    expected_base_image: str,
 ) -> None:
     validate_static_engine_contract(sidecar, manifest, variant_name, onnx_path)
     if "stronglyTyped" not in sidecar.get("builder_flags", []):
@@ -137,6 +139,18 @@ def _validate_parity_engine(
     version = str(sidecar.get("tensorrt_version", "")).replace(".", "")
     if not version.startswith("1016"):
         raise CompetitorError("Stock VSGAN engine must be built by TensorRT 10.16")
+    builder_base_image = sidecar.get("builder_base_image")
+    runtime_base_image = os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown")
+    if runtime_base_image != expected_base_image:
+        raise CompetitorError(
+            "VSGAN runtime does not match the pinned implementation "
+            f"({runtime_base_image!r} != {expected_base_image!r}); rebuild the image"
+        )
+    if builder_base_image != runtime_base_image:
+        raise CompetitorError(
+            "VSGAN engine was built with a different base image "
+            f"({builder_base_image!r} != {runtime_base_image!r}); rebuild the engine"
+        )
 
 
 def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -237,7 +251,13 @@ def main() -> None:
         variant = find_variant(manifest, args.variant)
         input_path = Path(args.input)
         onnx_path = Path(find_model_variant(manifest, args.variant)["fp16_path"])
-        _validate_parity_engine(sidecar, manifest, args.variant, onnx_path)
+        _validate_parity_engine(
+            sidecar,
+            manifest,
+            args.variant,
+            onnx_path,
+            str(plan["implementation"]["upstream_image"]),
+        )
         lock_path = Path(manifest["lock_path"])
         build_log = Path(str(sidecar.get("build_log", "")))
         if not build_log.is_file():
