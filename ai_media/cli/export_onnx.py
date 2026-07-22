@@ -36,6 +36,40 @@ def load_model(model_path: str) -> Any:
     return model
 
 
+def freeze_reparameterized_convs(model: Any) -> int:
+    """Replace mutable Spandrel Conv3XC blocks with their fused eval convolutions."""
+    import torch
+    from torch import nn
+
+    replaced = 0
+
+    def freeze_children(module: nn.Module) -> None:
+        nonlocal replaced
+        for name, child in list(module.named_children()):
+            update_params = getattr(child, "update_params", None)
+            eval_conv = getattr(child, "eval_conv", None)
+            if (
+                type(child).__name__ != "Conv3XC"
+                or not callable(update_params)
+                or not isinstance(eval_conv, nn.Module)
+            ):
+                freeze_children(child)
+                continue
+
+            # Conv3XC normally rewrites fused weights in every eval forward. Capture
+            # that equivalent graph once so torch.export sees no module mutations.
+            with torch.no_grad():
+                update_params()
+            layers: list[nn.Module] = [eval_conv]
+            if bool(getattr(child, "has_relu", False)):
+                layers.append(nn.LeakyReLU(negative_slope=0.05))
+            setattr(module, name, nn.Sequential(*layers))
+            replaced += 1
+
+    freeze_children(model)
+    return replaced
+
+
 def export_onnx(
     model: Any,
     input_h: int,
@@ -53,6 +87,9 @@ def export_onnx(
     import onnx
     import torch
 
+    replaced = freeze_reparameterized_convs(model)
+    if replaced:
+        print(f"  Reparameterized {replaced} mutable convolution blocks")
     dummy_input = torch.randn(1, 3, input_h, input_w, dtype=torch.float32)
 
     print(f"  Export: input {input_w}x{input_h} -> output {input_w*2}x{input_h*2}")
@@ -65,6 +102,7 @@ def export_onnx(
         opset_version=18,
         input_names=["input"],
         output_names=["output"],
+        dynamo=True,
         # Fixed dimensions — no dynamic_axes
         # This gives TensorRT maximum optimization freedom
     )

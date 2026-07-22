@@ -88,6 +88,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Fixed
 
+* SPAN ONNX export теперь до `torch.export` один раз сворачивает мутирующие
+  Spandrel `Conv3XC` блоки в эквивалентные eval convolutions. Это устраняет
+  decomposition failure PyTorch 2.11 без перехода на deprecated legacy exporter.
 * `vstrt` runner передаёт абсолютный container path для input.
 * При невалидном benchmark run конкретные manifest errors теперь сразу выводятся
   в stderr перед завершением Make target с кодом 2.
