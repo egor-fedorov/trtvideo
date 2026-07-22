@@ -27,11 +27,21 @@ make -C benchmarks verify \
 
 ## 2. TensorRT Engines
 
-TRT11 engines проекта собираются production image на benchmark GPU. Пример для
-RealESRGAN 1080p:
+TRT11 engines проекта собираются production image на benchmark GPU. Соберите
+варианты 720p и 1080p для обеих моделей:
 
 ```bash
-mkdir -p models/benchmarks/realesrgan-x2plus/engines models/cache
+mkdir -p \
+  models/benchmarks/realesrgan-x2plus/engines \
+  models/benchmarks/liveaction-span/engines \
+  models/cache
+
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  ai-media-enhancer:latest build-engine \
+  models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx \
+  -o models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  --timing-cache models/cache/benchmark-trt11.cache
 
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
@@ -39,15 +49,34 @@ docker run --rm --gpus all \
   models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p_fp16.onnx \
   -o models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
   --timing-cache models/cache/benchmark-trt11.cache
-```
 
-Повторите для 720p и для ONNX/engine paths из SPAN manifest.
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  ai-media-enhancer:latest build-engine \
+  models/benchmarks/liveaction-span/onnx/liveaction_span_720p_fp16.onnx \
+  -o models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine \
+  --timing-cache models/cache/benchmark-trt11.cache
+
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  ai-media-enhancer:latest build-engine \
+  models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx \
+  -o models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine \
+  --timing-cache models/cache/benchmark-trt11.cache
+```
 
 Stock VSGAN использует TensorRT 10.16, поэтому получает отдельный engine из того
 же ONNX. Builder сохраняет log и sidecar:
 
 ```bash
+make -C benchmarks build-vsgan-engine VARIANT=720p
 make -C benchmarks build-vsgan-engine VARIANT=1080p
+
+make -C benchmarks build-vsgan-engine \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=720p \
+  ONNX=models/benchmarks/liveaction-span/onnx/liveaction_span_720p_fp16.onnx \
+  VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_720p.engine
 
 make -C benchmarks build-vsgan-engine \
   MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
