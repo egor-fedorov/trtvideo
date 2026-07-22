@@ -12,9 +12,23 @@ ARG VCS_DIRTY=unknown
 ARG NVIDIA_ML_PY_VERSION=13.610.43
 ARG PYTHON_VERSION=3.12.3
 ARG BENCHMARK_VENV=/opt/vsgan-benchmark
+ARG FFMPEG_VERSION=7:6.1.1-3ubuntu5
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends "ffmpeg=${FFMPEG_VERSION}"
+
+# Use the normalized encoder instead of upstream FFmpeg built for NVENC API 13.1.
+ENV PATH="/usr/bin:${PATH}"
 
 RUN test "$(od -An -tx1 -N4 /usr/local/bin/vspipe | tr -d ' \n')" = "7f454c46" && \
-    vspipe --version
+    test "$(command -v ffmpeg)" = "/usr/bin/ffmpeg" && \
+    test "$(command -v ffprobe)" = "/usr/bin/ffprobe" && \
+    test "$(dpkg-query -W -f='${Version}' ffmpeg)" = "${FFMPEG_VERSION}" && \
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'h264_nvenc' && \
+    vspipe --version && \
+    ffprobe -version
 
 COPY --from=uv /uv /uvx /usr/local/bin/
 
@@ -36,6 +50,7 @@ COPY benchmarks/ benchmarks/
 
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
     AI_MEDIA_BASE_IMAGE=${BASE_IMAGE} \
+    AI_MEDIA_VSGAN_FFMPEG_PACKAGE=${FFMPEG_VERSION} \
     AI_MEDIA_BUILD_REVISION=${VCS_REF} \
     AI_MEDIA_BUILD_DIRTY=${VCS_DIRTY}
 

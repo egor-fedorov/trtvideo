@@ -27,7 +27,9 @@ make -C benchmarks verify \
 
 `build-vsgan` скачивает pinned full `latest_no_avx512` image размером около
 13 GB. Он выбран вместо сломанного `minimal_no_avx512`, в котором отсутствует
-рабочий нативный `vspipe`.
+рабочий нативный `vspipe`. Wrapper устанавливает pinned Ubuntu FFmpeg 6.1.1 для
+совместимого NVENC encode и output validation: upstream FFmpeg требует driver
+610+.
 
 ## 2. TensorRT Engines
 

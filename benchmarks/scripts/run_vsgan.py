@@ -132,6 +132,7 @@ def _validate_parity_engine(
     variant_name: str,
     onnx_path: Path,
     expected_base_image: str,
+    expected_ffmpeg_package: str,
 ) -> None:
     validate_static_engine_contract(sidecar, manifest, variant_name, onnx_path)
     if "stronglyTyped" not in sidecar.get("builder_flags", []):
@@ -145,6 +146,15 @@ def _validate_parity_engine(
         raise CompetitorError(
             "VSGAN runtime does not match the pinned implementation "
             f"({runtime_base_image!r} != {expected_base_image!r}); rebuild the image"
+        )
+    runtime_ffmpeg_package = os.environ.get(
+        "AI_MEDIA_VSGAN_FFMPEG_PACKAGE", "unknown"
+    )
+    if runtime_ffmpeg_package != expected_ffmpeg_package:
+        raise CompetitorError(
+            "VSGAN FFmpeg does not match the pinned implementation "
+            f"({runtime_ffmpeg_package!r} != {expected_ffmpeg_package!r}); "
+            "rebuild the image"
         )
     if builder_base_image != runtime_base_image:
         raise CompetitorError(
@@ -257,6 +267,7 @@ def main() -> None:
             args.variant,
             onnx_path,
             str(plan["implementation"]["upstream_image"]),
+            str(plan["implementation"]["encoder_ffmpeg_package"]),
         )
         lock_path = Path(manifest["lock_path"])
         build_log = Path(str(sidecar.get("build_log", "")))

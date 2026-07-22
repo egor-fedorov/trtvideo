@@ -73,6 +73,10 @@ entrypoint. Benchmark runner запускается из отдельного ve
 не активируя его для embedded Python внутри VSScript. Docker build проверяет оба
 Python environment и запуск нативного binary.
 
+Upstream FFmpeg требует NVENC API 13.1 и driver 610+. Benchmark wrapper использует
+pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5` как внешний encoder adapter и источник
+`ffprobe`; stock VSGAN inference stack при этом не изменяется.
+
 Проверка command generation не требует GPU. Для VSGAN plan нужен путь будущего
 TRT10 engine, но сам файл в dry-run не обязателен:
 

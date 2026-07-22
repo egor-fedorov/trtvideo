@@ -93,7 +93,8 @@ Performance-изменения с цифрами и benchmark-сравнения
   проверяет тип и запуск binary. Benchmark venv больше не активируется глобально
   и не нарушает инициализацию embedded Python в VSScript. VSGAN engine sidecar
   фиксирует base-image digest, чтобы несовместимый TensorRT plan отклонялся до
-  warmup.
+  warmup. Внешний encoder нормализован к pinned Ubuntu FFmpeg 6.1.1 с `ffprobe`,
+  поскольку upstream FFmpeg требует NVENC API 13.1 и driver 610+.
 * SPAN ONNX export теперь до `torch.export` один раз сворачивает мутирующие
   Spandrel `Conv3XC` блоки в эквивалентные eval convolutions. Это устраняет
   decomposition failure PyTorch 2.11 без перехода на deprecated legacy exporter.

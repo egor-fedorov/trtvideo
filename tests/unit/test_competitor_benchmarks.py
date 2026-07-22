@@ -192,6 +192,7 @@ def test_vsgan_plan_is_pinned_product_parity() -> None:
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
     assert plan["implementation"]["upstream_tag"] == "latest_no_avx512"
+    assert plan["implementation"]["encoder_ffmpeg_package"] == "7:6.1.1-3ubuntu5"
     assert plan["parameters"]["mode"] == "parity"
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["max_compute_processes"] == 2
@@ -228,6 +229,7 @@ def test_vsgan_engine_rejects_different_base_image(
         "builder_base_image": "old-image@sha256:old",
     }
     monkeypatch.setenv("AI_MEDIA_BASE_IMAGE", "new-image@sha256:new")
+    monkeypatch.setenv("AI_MEDIA_VSGAN_FFMPEG_PACKAGE", "ffmpeg-version")
 
     with pytest.raises(CompetitorError, match="different base image"):
         _validate_parity_engine(
@@ -236,6 +238,7 @@ def test_vsgan_engine_rejects_different_base_image(
             "1080p",
             onnx_path,
             "new-image@sha256:new",
+            "ffmpeg-version",
         )
 
 

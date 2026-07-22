@@ -68,8 +68,11 @@ Stock VSGAN не может загрузить TRT11 engine. Для product comp
 строятся из одного canonical ONNX на одной GPU с одинаковыми shape, dtype, batch
 и builder intent. Engine hash и TensorRT runtime будут различаться и должны быть
 показаны явно. VSGAN фиксируется immutable image digest и source revision;
-разрешены только `.vpy` configuration, model/engine mount и encoder parameters.
-Изменение его внутреннего кода считается fork benchmark.
+разрешены только `.vpy` configuration, model/engine mount и encoder adapter.
+Stock inference stack не изменяется. Внешний `vspipe | ffmpeg` encode нормализован
+к pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5`: upstream binary требует NVENC API 13.1
+и driver 610+, отсутствующий на benchmark host. Эта адаптация показывается в
+implementation metadata; изменение внутреннего кода VSGAN считается fork.
 
 CUDA Graph не включается в parity baseline. Текущая реализация проекта захватывает
 только TensorRT call и остаётся experimental. Graph-enabled режим исследуется

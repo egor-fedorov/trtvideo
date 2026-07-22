@@ -32,9 +32,10 @@
       "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
       "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
       "tensorrt_version": "10.16",
+      "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
       "exact_model_match": true,
       "exact_engine_match": false,
-      "notes": "Pinned stock VSGAN environment with the native vspipe binary and no AVX-512 requirement. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+      "notes": "Pinned stock VSGAN inference environment with the native vspipe binary and no AVX-512 requirement. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
     }
   }
 }
