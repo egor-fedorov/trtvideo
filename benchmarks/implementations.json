@@ -27,14 +27,14 @@
       "version": "2026-06-22",
       "comparison_class": "product",
       "image": "ai-media-enhancer:benchmark-vsgan",
-      "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4",
-      "upstream_tag": "minimal_no_avx512",
+      "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
+      "upstream_tag": "latest_no_avx512",
       "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
       "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
       "tensorrt_version": "10.16",
       "exact_model_match": true,
       "exact_engine_match": false,
-      "notes": "Pinned stock VSGAN environment. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+      "notes": "Pinned stock VSGAN environment with the native vspipe binary and no AVX-512 requirement. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
     }
   }
 }

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG UV_IMAGE=ghcr.io/astral-sh/uv@sha256:a5727064a0de127bdb7c9d3c1383f3a9ac307d9f2d8a391edc7896c54289ced0
-ARG BASE_IMAGE=docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4
+ARG BASE_IMAGE=docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef
 FROM ${UV_IMAGE} AS uv
 
 FROM ${BASE_IMAGE}
@@ -11,6 +11,9 @@ ARG VCS_REF=unknown
 ARG VCS_DIRTY=unknown
 ARG NVIDIA_ML_PY_VERSION=13.610.43
 ARG PYTHON_VERSION=3.12.3
+
+RUN test "$(od -An -tx1 -N4 /usr/local/bin/vspipe | tr -d ' \n')" = "7f454c46" && \
+    vspipe --version
 
 COPY --from=uv /uv /uvx /usr/local/bin/
 

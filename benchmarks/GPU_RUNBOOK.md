@@ -25,6 +25,10 @@ make -C benchmarks verify \
 `prepare` не использует GPU. RealESRGAN и SPAN переиспользуют один Sintel source
 и clips, но имеют отдельные ONNX directories.
 
+`build-vsgan` скачивает pinned full `latest_no_avx512` image размером около
+13 GB. Он выбран вместо сломанного `minimal_no_avx512`, в котором отсутствует
+рабочий нативный `vspipe`.
+
 ## 2. TensorRT Engines
 
 TRT11 engines проекта собираются production image на benchmark GPU. Соберите

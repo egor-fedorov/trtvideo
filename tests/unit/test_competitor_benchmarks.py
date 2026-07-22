@@ -190,6 +190,7 @@ def test_vsgan_plan_is_pinned_product_parity() -> None:
     assert plan["comparison_class"] == "product"
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
+    assert plan["implementation"]["upstream_tag"] == "latest_no_avx512"
     assert plan["parameters"]["mode"] == "parity"
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["max_compute_processes"] == 2

@@ -4,7 +4,7 @@ IMAGE ?= ai-media-enhancer:latest
 BENCHMARK_IMAGE ?= ai-media-enhancer:benchmark
 VSTRT_IMAGE ?= ai-media-enhancer:benchmark-vstrt
 VSGAN_IMAGE ?= ai-media-enhancer:benchmark-vsgan
-VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4
+VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef
 
 MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_sintel.json
 IMPLEMENTATIONS ?= benchmarks/implementations.json

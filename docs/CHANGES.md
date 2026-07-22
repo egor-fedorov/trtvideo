@@ -88,6 +88,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Fixed
 
+* Stock VSGAN benchmark переведён со сломанного `minimal_no_avx512` image на
+  pinned `latest_no_avx512` с нативным `vspipe`; Docker build теперь сразу
+  проверяет тип и запуск binary.
 * SPAN ONNX export теперь до `torch.export` один раз сворачивает мутирующие
   Spandrel `Conv3XC` блоки в эквивалентные eval convolutions. Это устраняет
   decomposition failure PyTorch 2.11 без перехода на deprecated legacy exporter.
