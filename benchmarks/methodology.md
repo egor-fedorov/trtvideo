@@ -94,8 +94,9 @@ MP4 container, no audio/subtitles/chapters
 ```
 
 Canonical target: H.264 `yuv420p`, P4/HQ, B-frames 0, GOP в одну секунду,
-35 Mbps для 1440p и 60 Mbps для 4K. Exact rate-control parity является
-обязательным gate до публикации product comparison.
+35 Mbps для 1440p и 60 Mbps для 4K. Rate control явно зафиксирован как single-pass
+CBR: target/min/max равны, VBV buffer равен двум секундам bitrate, initial
+occupancy - одной секунде, lookahead и spatial/temporal AQ выключены.
 
 Output валиден только после полного decode и проверки resolution, codec,
 pixel format, color tags, FPS, duration, frame count, B-frames, keyframe interval,
@@ -188,6 +189,7 @@ Run недействителен при mismatch assets/contracts, output valida
 - в пределах +/-5% - паритет; сравниваются CPU, energy/frame, VRAM и UX;
 - больше 5% проигрыша на обоих workload - profiling и оптимизация до claim.
 
-До реализации CPU accounting, timing scopes, quality parity, exact encoder
-contract и rotated campaign runner individual suite считаются acceptance data,
-а не финальным публичным benchmark.
+Individual suite всегда считается acceptance data, даже если использует
+canonical frames/runs. Сравнительный результат формируется только rotated
+campaign runner. До реализации CPU accounting, timing scopes и quality parity
+даже валидная campaign получает `publishable: false`.

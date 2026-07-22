@@ -70,6 +70,9 @@ Performance-изменения с цифрами и benchmark-сравнения
   переиспользуется между несовместимыми runtime versions.
 * `export-onnx` получил явный `--name`, чтобы воспроизводимо экспортировать
   разные поддерживаемые Spandrel x2-модели без hardcoded RealESRGAN filename.
+* Добавлен `make -C benchmarks run-campaign`: реализации чередуются по раундам,
+  автоматически получают два дополнительных run при spread выше 5%, а raw
+  manifests агрегируются в `campaign.json` и sanitized `results.md`.
 
 ### Changed
 
@@ -81,10 +84,16 @@ Performance-изменения с цифрами и benchmark-сравнения
   `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
   unprofiled pipeline отдельными warmup и measured процессами.
 * Benchmark roadmap разделён на technical parity, stock product comparison и
-  diagnostics. До публикационной campaign отдельно закрываются exact encoder
-  contract, CPU/timing scopes, quality parity и чередование реализаций по run.
+  diagnostics. До публикационного результата отдельно закрываются CPU/timing
+  scopes и quality parity.
 * Benchmark-specific Make targets перенесены в `benchmarks/Makefile`; корневой
   `Makefile` оставлен для build и quality gate основного проекта.
+* NVENC output contract проекта, vstrt и VSGAN выровнен явно: single-pass CBR,
+  target/min/max bitrate, двухсекундный VBV с 50% initial occupancy, P4/HQ,
+  отключённые lookahead/AQ, GOP одна секунда и B-frames 0.
+* Individual benchmark suite теперь всегда имеет `scope: acceptance` и
+  `publishable: false`; сравнительный статус формирует только rotated campaign,
+  которая также остаётся непубликационной до CPU/timing/quality gates.
 
 ### Fixed
 

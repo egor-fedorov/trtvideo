@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_media.benchmarking.runner import load_engine_contract, write_summary_target
+from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.competitor_common import (
     CommandSpec,
     CompetitorError,
@@ -47,6 +48,10 @@ def build_vsgan_command(
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     fps_num, fps_den = (int(part) for part in manifest["clip"]["fps"].split("/", 1))
     gop = max(1, round(fps_num / fps_den))
+    encoder = NvencCbrContract(
+        bitrate_bps=int(bitrate_mbps * 1_000_000),
+        gop_frames=gop,
+    )
     vspipe = [
         "vspipe",
         "--container",
@@ -87,28 +92,7 @@ def build_vsgan_command(
         "-an",
         "-sn",
         "-dn",
-        "-c:v",
-        "h264_nvenc",
-        "-preset",
-        "p4",
-        "-tune",
-        "hq",
-        "-rc",
-        "cbr",
-        "-b:v",
-        f"{bitrate_mbps}M",
-        "-minrate",
-        f"{bitrate_mbps}M",
-        "-maxrate",
-        f"{bitrate_mbps}M",
-        "-bufsize",
-        f"{2 * bitrate_mbps}M",
-        "-bf",
-        "0",
-        "-g",
-        str(gop),
-        "-forced-idr",
-        "1",
+        *encoder.ffmpeg_options(),
         "-pix_fmt",
         "yuv420p",
         "-color_range",
@@ -184,6 +168,11 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
         output_path=output_dir / "dry-run-output.mp4",
         frames=parameters["frames"],
     )
+    fps_num, fps_den = (int(part) for part in manifest["clip"]["fps"].split("/", 1))
+    encoder = NvencCbrContract(
+        bitrate_bps=int(variant["benchmark_output"]["bitrate_mbps"] * 1_000_000),
+        gop_frames=max(1, round(fps_num / fps_den)),
+    )
     parameters.update(
         {
             "mode": args.mode,
@@ -195,6 +184,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
             "full_frame": True,
             "tiling": False,
             "bitrate_mbps": variant["benchmark_output"]["bitrate_mbps"],
+            "encoder": encoder.as_dict(),
             "max_compute_processes": 2,
             "max_graphics_processes": 0,
         }
@@ -317,6 +307,7 @@ def main() -> None:
                 "batch_size": 1,
                 "full_frame": True,
                 "tiling": False,
+                "encoder": parameters["encoder"],
             },
             warmup_command=lambda path, frames: build_vsgan_command(
                 args, manifest, output_path=path, frames=frames

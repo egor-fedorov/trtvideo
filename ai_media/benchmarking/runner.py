@@ -25,6 +25,7 @@ from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_sam
 from ai_media.benchmarking.validation import OutputContract, validate_output
 from ai_media.video.fps import gop_size_for_one_second
 from ai_media.video.info import get_video_info
+from ai_media.video.nvenc import NvencCbrContract
 
 
 class BenchmarkError(RuntimeError):
@@ -355,9 +356,14 @@ def suite_publishability_errors(
     status: str,
     canonical_errors: list[str],
     runs: list[dict[str, Any]],
+    acceptance_only: bool = False,
 ) -> list[str]:
     """Collect suite-level reasons that prevent publishing a result."""
     errors = list(canonical_errors)
+    if acceptance_only:
+        errors.append(
+            "Individual suites are acceptance-only; use a rotated campaign result"
+        )
     if status != "valid":
         errors.append(f"Suite status is {status!r}, not 'valid'")
     for run in runs:
@@ -384,6 +390,7 @@ def run_one(
     assets: dict[str, Any],
     workload_id: str | None,
     environment: dict[str, Any],
+    encoder_parameters: dict[str, Any] | None,
     sampler: NvmlSampler,
     root: Path,
     validate: Callable[[Path, OutputContract], dict[str, Any]] = validate_output,
@@ -427,6 +434,7 @@ def run_one(
             "crf": config.crf if config.backend == "ffmpeg" else None,
             "cuda_graph": config.cuda_graph,
             "nvml_sample_interval_ms": config.sample_interval_ms,
+            "encoder": encoder_parameters,
         },
         "commands": {
             "warmup": sanitize_command(warmup_command, root),
@@ -547,6 +555,14 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     sampler = NvmlSampler(config.gpu_id, config.sample_interval_ms)
     gpu = sampler.initialize()
     environment = collect_environment(gpu)
+    encoder_parameters = None
+    if config.backend == "nvcodec":
+        assert config.bitrate_mbps is not None
+        info = get_video_info(str(config.input_path))
+        encoder_parameters = NvencCbrContract(
+            bitrate_bps=int(config.bitrate_mbps * 1_000_000),
+            gop_frames=gop_size_for_one_second(info.fps_str),
+        ).as_dict()
     summary_path = config.output_dir / "suite.json"
     run_manifests: list[dict[str, Any]] = []
     target_runs = config.initial_runs
@@ -568,6 +584,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
                 assets=assets,
                 workload_id=workload_id,
                 environment=environment,
+                encoder_parameters=encoder_parameters,
                 sampler=sampler,
                 root=root,
             )
@@ -617,6 +634,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         "nvml_sample_interval_ms": config.sample_interval_ms,
         "bitrate_mbps": config.bitrate_mbps,
         "cuda_graph": config.cuda_graph,
+        "encoder": encoder_parameters,
     }
     benchmark_contract = (
         load_json(config.workload_manifest).get("benchmark")
@@ -632,10 +650,12 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         status=status,
         canonical_errors=canonical_errors,
         runs=run_manifests,
+        acceptance_only=True,
     )
     summary = {
         "schema_version": 1,
         "status": status,
+        "scope": "acceptance",
         "publishable": not publishability_errors,
         "publishability": {
             "canonical_contract": not canonical_errors,

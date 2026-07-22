@@ -62,20 +62,21 @@ image, TensorRT engines и runtime smoke относятся к GPU acceptance St
 
 ## Stage 2. Measurement Gaps
 
-До публикационной campaign необходимо реализовать:
+Статус: частично реализовано. Exact NVENC contract, rotated campaign runner и
+sanitized acceptance-таблица готовы; остаются CPU/timing и quality gates.
 
-- явный одинаковый NVENC rate-control contract для проекта и VSGAN: codec,
+- [x] Явный одинаковый NVENC rate-control contract для проекта и VSGAN: codec,
   preset, tuning, RC mode, target/min/max bitrate, VBV, GOP и B-frames;
-- CPU utilization с определённой семантикой и единицами;
-- раздельные `startup`, steady-state frame loop и `finalize + mux` timing scopes;
-- model-space parity на RGB/float кадрах до YUV/encode;
-- product-output PSNR/SSIM и visual crops после декодирования MP4;
-- campaign runner, который чередует продукты по раундам, а не запускает
+- [ ] CPU utilization с определённой семантикой и единицами;
+- [ ] Раздельные `startup`, steady-state frame loop и `finalize + mux` timing scopes;
+- [ ] Model-space parity на RGB/float кадрах до YUV/encode;
+- [ ] Product-output PSNR/SSIM и visual crops после декодирования MP4;
+- [x] Campaign runner, который чередует продукты по раундам, а не запускает
   сгруппированные suite;
-- генерацию sanitized итоговой таблицы из raw manifests.
+- [x] Генерация sanitized итоговой acceptance-таблицы из raw manifests.
 
-После этого текущие individual runner’ы становятся основой публикационной
-campaign. До закрытия Stage 2 их результаты являются acceptance/baseline data.
+Individual runner’ы остаются acceptance/baseline data. Campaign также не
+публикуется до закрытия оставшихся Stage 2 gates.
 
 ## Stage 3. Parity Campaign
 

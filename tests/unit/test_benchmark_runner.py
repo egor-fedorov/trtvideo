@@ -15,6 +15,7 @@ from ai_media.benchmarking.runner import (
     compute_suite_statistics,
     report_invalid_run,
     should_extend_suite,
+    suite_publishability_errors,
     validate_config,
 )
 from benchmarks.scripts.run_ai_media import build_command
@@ -142,6 +143,19 @@ def test_canonical_parameters_are_publishable() -> None:
         )
         == []
     )
+
+
+def test_individual_suite_is_acceptance_only() -> None:
+    errors = suite_publishability_errors(
+        status="valid",
+        canonical_errors=[],
+        runs=[],
+        acceptance_only=True,
+    )
+
+    assert errors == [
+        "Individual suites are acceptance-only; use a rotated campaign result"
+    ]
 
 
 def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -> None:

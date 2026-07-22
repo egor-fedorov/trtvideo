@@ -16,6 +16,7 @@ from ai_media.pipelines.base import BasePipeline
 from ai_media.video.bitrate import auto_bitrate_from_source
 from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 from ai_media.video.fps import format_nvenc_fps, gop_size_for_one_second
+from ai_media.video.nvenc import NvencCbrContract
 
 
 @dataclass
@@ -160,6 +161,11 @@ class NvcodecPipeline(BasePipeline):
             f"Initializing NVENC ({self.args.codec}, {bitrate / 1e6:.1f} Mbps, "
             f"{self._color_spec_name}, fps={encoder_fps}, gop={gop_size}, bframes=0)..."
         )
+        encoder_contract = NvencCbrContract(
+            bitrate_bps=bitrate,
+            gop_frames=gop_size,
+            codec=self.args.codec,
+        )
 
         raw_ext = ".h264" if self.args.codec == "h264" else ".hevc"
         tmp_fd, self._tmp_raw_path = tempfile.mkstemp(suffix=raw_ext)
@@ -171,16 +177,9 @@ class NvcodecPipeline(BasePipeline):
             "NV12",
             False,
             gpu_id=self.args.gpu_id,
-            codec=self.args.codec,
-            bitrate=bitrate,
-            preset="P4",
-            tuning_info="high_quality",
             cudastream=int(runtime.stream.cuda_stream),
             fps=encoder_fps,
-            gop=gop_size,
-            idrperiod=gop_size,
-            bf=0,
-            repeatspspps=1,
+            **encoder_contract.pynvcodec_options(),
         )
         self._raw_file = open(self._tmp_raw_path, "wb")
 

@@ -23,6 +23,8 @@ make -C benchmarks help
 - `run-vsgan` - stock product comparison на том же ONNX, но отдельном TRT10.16
   engine из-за несовместимости serialized engines между runtime versions.
 - `run-trtexec` - diagnostic inference ceiling, не конкурент.
+- `run-campaign` - canonical чередование project/vstrt/VSGAN по раундам и
+  генерация общей acceptance-таблицы.
 
 Video2X исключён: он не выполнял canonical `RealESRGAN_x2plus`, поэтому его FPS
 не отвечал на вопрос о производительности одинаковой модели.
@@ -105,5 +107,24 @@ make -C benchmarks dry-run \
 ```
 
 Параметры frames/runs можно уменьшать только для smoke. Такой suite может быть
-валидным, но получает `publishable: false`. Production image не содержит NVML и
-внешние benchmark tools. GPU acceptance описан в `GPU_RUNBOOK.md`.
+валидным, но получает `scope: acceptance` и `publishable: false`. Это относится
+и к canonical individual suite: публиковать сравнение можно только из общей
+rotated campaign.
+
+Все video runners используют один явный NVENC contract: H.264 P4/HQ, CBR,
+target=min=max bitrate, VBV buffer на две секунды с начальным заполнением 50%,
+single-pass, lookahead/AQ disabled, GOP одна секунда и B-frames 0.
+
+Canonical campaign запускается после smoke:
+
+```bash
+make -C benchmarks run-campaign \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+Результаты появляются в
+`artefacts/benchmarks/campaigns/realesrgan_x2plus_sintel-1080p/`: raw manifests,
+`campaign.json` и `results.md`. Production image не содержит NVML и внешние
+benchmark tools. Полный GPU workflow описан в `GPU_RUNBOOK.md`.

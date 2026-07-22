@@ -1,9 +1,9 @@
 # GPU Benchmark Runbook
 
 Runbook предназначен для acceptance runner’ов на одной физической RTX 3090.
-Финальная публикационная campaign требует закрыть measurement gaps из
-`methodology.md`: exact rate control, CPU/timing scopes, quality parity и
-чередование продуктов. Все команды выполняются из корня репозитория.
+Rotated campaign и exact rate control реализованы, но публикационный результат
+по-прежнему требует CPU/timing scopes и quality parity из `methodology.md`. Все
+команды выполняются из корня репозитория.
 
 ## 1. Build And Assets
 
@@ -137,19 +137,43 @@ make -C benchmarks run-trtexec VARIANT=720p ENGINE="$ENGINE" \
 и проверить media/timestamp contract. `trtexec` проверяется отдельно как
 diagnostic ceiling.
 
-## 5. Acceptance Results
+## 5. Rotated Acceptance Campaign
 
-Canonical defaults: 100 warmup frames, 1000 measured frames, три run и ещё два
-при spread больше 5%. Individual suite можно снять так:
+Перед campaign закоммитьте изменения и заново соберите все три benchmark image.
+Preflight отклоняет dirty worktree и image, собранные не из текущего commit.
+
+Canonical defaults: 100 warmup frames, 1000 measured frames, три чередующихся
+раунда и ещё два при spread хотя бы одной реализации больше 5%:
 
 ```bash
-make -C benchmarks run-ai-media VARIANT=1080p \
-  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
+make -C benchmarks run-campaign \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-Аналогично доступны `run-vstrt`, `run-vsgan` и diagnostic `run-trtexec`.
+Для SPAN:
 
-Не публикуйте последовательный запуск этих независимых suite как финальное
-сравнение: canonical campaign должна чередовать реализации по раундам и включать
-недостающие CPU/timing/quality checks. Raw manifests, logs и NVML samples
-сохраняются в `artefacts/benchmarks/` и не коммитятся до sanitization/review.
+```bash
+make -C benchmarks run-campaign \
+  CAMPAIGN_NAME=liveaction-span-sintel-1080p \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
+```
+
+Повторите обе команды с 720p paths. После безопасного прерывания продолжить ту
+же campaign можно с `RESUME=1`. Resume допустим только при неизменных commit,
+images, workload assets и engines; partial/invalid round сохраняется для
+диагностики и требует ручного удаления только своей директории.
+
+Campaign сохраняет raw manifests и общие `campaign.json`/`results.md` в
+`artefacts/benchmarks/campaigns/<name>/`. Пока CPU/timing/quality gates не
+закрыты, агрегатор выставляет `publishable: false` даже для валидной campaign.
+
+Individual `run-ai-media`, `run-vstrt` и `run-vsgan` остаются для smoke и
+диагностики. `run-trtexec` остаётся отдельным inference ceiling.
+
+Не публикуйте последовательный запуск независимых suite как финальное сравнение.
+Raw manifests, logs и NVML samples не коммитятся до sanitization/review.

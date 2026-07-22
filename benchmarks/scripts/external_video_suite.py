@@ -367,11 +367,13 @@ def run_external_video_suite(
         status=status,
         canonical_errors=canonical_errors,
         runs=run_manifests,
+        acceptance_only=True,
     )
     summary = {
         "schema_version": 1,
         "document_type": "benchmark-result",
         "status": status,
+        "scope": "acceptance",
         "publishable": not publishability_errors,
         "publishability": {
             "canonical_contract": not canonical_errors,

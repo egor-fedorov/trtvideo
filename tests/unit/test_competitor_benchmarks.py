@@ -155,7 +155,9 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert spec[0][spec[0].index("--end") + 1] == "999"
     assert "source=/app/videos/benchmarks/sintel_1080p24_h264.mp4" in spec[0]
     assert spec[1][0] == "ffmpeg"
-    assert spec[1][spec[1].index("-b:v") + 1] == "60M"
+    assert spec[1][spec[1].index("-b:v") + 1] == "60000000"
+    assert spec[1][spec[1].index("-rc_init_occupancy") + 1] == "60000000"
+    assert spec[1][spec[1].index("-multipass") + 1] == "disabled"
     assert "-bf" in spec[1]
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
@@ -181,7 +183,9 @@ def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:
     assert "cuda_graph=0" in vspipe
     assert vspipe[-2] == "/app/benchmarks/vsgan/upscale.vpy"
     assert ffmpeg[ffmpeg.index("-rc") + 1] == "cbr"
-    assert ffmpeg[ffmpeg.index("-b:v") + 1] == "60M"
+    assert ffmpeg[ffmpeg.index("-b:v") + 1] == "60000000"
+    assert ffmpeg[ffmpeg.index("-bufsize") + 1] == "120000000"
+    assert ffmpeg[ffmpeg.index("-rc_init_occupancy") + 1] == "60000000"
     assert ffmpeg[ffmpeg.index("-bf") + 1] == "0"
 
 
