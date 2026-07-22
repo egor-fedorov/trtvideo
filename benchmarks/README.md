@@ -126,5 +126,7 @@ make -C benchmarks run-campaign \
 
 Результаты появляются в
 `artefacts/benchmarks/campaigns/realesrgan_x2plus_sintel-1080p/`: raw manifests,
-`campaign.json` и `results.md`. Production image не содержит NVML и внешние
-benchmark tools. Полный GPU workflow описан в `GPU_RUNBOOK.md`.
+`campaign.events.jsonl`, `campaign.json` и `results.md`. Event log фиксирует
+фактический порядок, время начала/завершения и выдержанную паузу каждого запуска;
+агрегатор отклоняет результаты без полного журнала. Production image не содержит
+NVML и внешние benchmark tools. Полный GPU workflow описан в `GPU_RUNBOOK.md`.

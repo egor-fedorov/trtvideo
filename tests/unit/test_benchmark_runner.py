@@ -11,12 +11,16 @@ from ai_media.benchmarking.runner import (
     BenchmarkConfig,
     BenchmarkError,
     build_upscale_command,
+    validate_config,
+)
+from ai_media.benchmarking.suite import (
+    SuitePolicy,
+    SuiteRunner,
     canonical_suite_errors,
     compute_suite_statistics,
     report_invalid_run,
     should_extend_suite,
     suite_publishability_errors,
-    validate_config,
 )
 from benchmarks.scripts.run_ai_media import build_command
 
@@ -63,6 +67,56 @@ def test_suite_statistics_and_automatic_extension() -> None:
     assert report["median_fps"] == 40.0
     assert should_extend_suite(stable, 0.05) is False
     assert should_extend_suite(unstable, 0.05) is True
+
+
+def test_suite_runner_applies_extension_idle_and_power_limit_invariant() -> None:
+    values = [10.0, 12.0, 8.0, 10.0, 10.0]
+    sleeps: list[float] = []
+
+    def run(index: int) -> dict:
+        return {
+            "status": "valid",
+            "run_index": index,
+            "metric": values[index - 1],
+            "power_limit": 250.0,
+        }
+
+    runner = SuiteRunner(
+        SuitePolicy(3, 2, 0.05, 10),
+        label="test",
+        frames=1000,
+        metric_reader=lambda manifest: manifest["metric"],
+        power_limit_reader=lambda manifest: manifest["power_limit"],
+        sleep=sleeps.append,
+    )
+
+    result = runner.execute(run)
+
+    assert result.status == "unstable"
+    assert result.target_runs == 5
+    assert len(result.runs) == 5
+    assert sleeps == [10, 10, 10, 10]
+
+
+def test_suite_runner_rejects_power_limit_drift() -> None:
+    def run(index: int) -> dict:
+        return {
+            "status": "valid",
+            "run_index": index,
+            "metric": 10.0,
+            "power_limit": 250.0 if index < 3 else 300.0,
+        }
+
+    result = SuiteRunner(
+        SuitePolicy(3, 0, 0.05, 0),
+        label="test",
+        frames=1000,
+        metric_reader=lambda manifest: manifest["metric"],
+        power_limit_reader=lambda manifest: manifest["power_limit"],
+    ).execute(run)
+
+    assert result.status == "invalid"
+    assert result.errors == ("GPU power limit changed between measured runs",)
 
 
 def test_invalid_run_reports_manifest_errors(capsys: pytest.CaptureFixture[str]) -> None:
@@ -201,3 +255,32 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
     assert command[command.index("--warmup-frames") + 1] == "100"
     assert command[command.index("--frames") + 1] == "1000"
     assert command[command.index("--runs") + 1] == "3"
+
+
+def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() -> None:
+    manifest = json.loads(
+        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    args = argparse.Namespace(
+        manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
+        variant="1080p",
+        engine="models/model.engine",
+        output_dir="artefacts/results",
+        json=None,
+        gpu_id=0,
+        frames=0,
+        warmup_frames=0,
+        runs=0,
+        extra_runs=None,
+        idle_seconds=None,
+        cuda_graph=False,
+        keep_outputs=False,
+    )
+
+    command = build_command(args, manifest)
+
+    assert command[command.index("--warmup-frames") + 1] == "0"
+    assert command[command.index("--frames") + 1] == "0"
+    assert command[command.index("--runs") + 1] == "0"

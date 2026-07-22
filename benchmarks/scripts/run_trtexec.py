@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,13 +22,14 @@ from ai_media.benchmarking.environment import (
 )
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
 from ai_media.benchmarking.runner import (
-    canonical_suite_errors,
-    compute_suite_statistics,
     load_engine_contract,
-    report_invalid_run,
-    should_extend_suite,
-    suite_publishability_errors,
     write_summary_target,
+)
+from ai_media.benchmarking.suite import (
+    SuitePolicy,
+    SuiteRunner,
+    canonical_suite_errors,
+    suite_publishability_errors,
 )
 from benchmarks.scripts.competitor_common import (
     CompetitorError,
@@ -163,6 +165,133 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     return plan, manifest
 
 
+@dataclass(frozen=True)
+class TrtexecRunContext:
+    """Immutable dependencies required to execute one diagnostic run."""
+
+    args: argparse.Namespace
+    plan: dict[str, Any]
+    workload: dict[str, Any]
+    parameters: dict[str, Any]
+    output_dir: Path
+    sampler: NvmlSampler
+    environment: dict[str, Any]
+    assets: dict[str, Any]
+    root: Path
+
+
+def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
+    parameters = context.parameters
+    run_dir = context.output_dir / f"run-{run_index:02d}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    stdout_path = run_dir / "trtexec.stdout.log"
+    stderr_path = run_dir / "trtexec.stderr.log"
+    times_path = run_dir / "trtexec.times.json"
+    samples_path = run_dir / "nvml.samples.jsonl"
+    manifest_path = run_dir / "manifest.json"
+    command = build_trtexec_command(
+        context.args,
+        export_times=times_path,
+        iterations=parameters["frames"],
+    )
+    context.sampler.start(time.perf_counter())
+    sample_origin = time.perf_counter()
+    try:
+        returncode, wall_time = _run_trtexec(
+            command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+        )
+    finally:
+        samples = context.sampler.samples_relative_to(
+            context.sampler.stop(), sample_origin
+        )
+    write_samples(samples_path, samples)
+    combined_output = "\n".join(
+        (
+            stdout_path.read_text(encoding="utf-8", errors="replace"),
+            stderr_path.read_text(encoding="utf-8", errors="replace"),
+        )
+    )
+    errors = []
+    parsed: dict[str, float] = {}
+    if returncode != 0:
+        errors.append(f"trtexec exited with code {returncode}")
+    else:
+        try:
+            parsed = parse_trtexec_output(combined_output)
+        except CompetitorError as exc:
+            errors.append(str(exc))
+    nvml = summarize_samples(
+        samples,
+        wall_time_sec=wall_time,
+        frames=parameters["frames"],
+        max_compute_processes=1,
+        max_graphics_processes=0,
+    )
+    if not nvml.get("valid"):
+        errors.extend(nvml.get("errors", []))
+    reproducibility_errors = environment_errors(context.environment)
+    errors.extend(reproducibility_errors)
+    run_manifest = {
+        "schema_version": 1,
+        "status": "valid" if not errors else "invalid",
+        "run_index": run_index,
+        "product": "trtexec",
+        "backend": "TensorRT",
+        "comparison_class": context.plan["comparison_class"],
+        "workload_id": context.workload["id"],
+        "variant": context.args.variant,
+        "implementation": context.plan["implementation"],
+        "parameters": parameters,
+        "command": command,
+        "assets": context.assets,
+        "environment": context.environment,
+        "metrics": {
+            **parsed,
+            "process_wall_time_sec": wall_time,
+            "processed_iterations": parameters["frames"],
+            "nvml": nvml,
+            "nvml_scope": "process-including-setup-and-warmup",
+        },
+        "reproducibility": {
+            "publishable": not reproducibility_errors,
+            "errors": reproducibility_errors,
+        },
+        "artifacts": {
+            "manifest": relative_artifact_path(manifest_path, context.root),
+            "stdout": relative_artifact_path(stdout_path, context.root),
+            "stderr": relative_artifact_path(stderr_path, context.root),
+            "times": relative_artifact_path(times_path, context.root),
+            "nvml_samples": relative_artifact_path(samples_path, context.root),
+        },
+        "errors": errors,
+    }
+    write_json(manifest_path, run_manifest)
+    return run_manifest
+
+
+def _throughput_qps(manifest: dict[str, Any]) -> float:
+    value = manifest.get("metrics", {}).get("throughput_qps")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise CompetitorError("Valid trtexec run has no throughput_qps metric")
+    return float(value)
+
+
+def _power_limit(manifest: dict[str, Any]) -> float | None:
+    value = (
+        manifest.get("metrics", {})
+        .get("nvml", {})
+        .get("power", {})
+        .get("limit_w")
+    )
+    if value is None:
+        return None
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise CompetitorError("trtexec run has an invalid GPU power limit")
+    return float(value)
+
+
 def _run_suite(
     args: argparse.Namespace,
     plan: dict[str, Any],
@@ -196,116 +325,34 @@ def _run_suite(
             "size_bytes": sidecar_path.stat().st_size,
         },
     }
-    runs: list[dict[str, Any]] = []
-    target_runs = parameters["initial_runs"]
+    root = Path.cwd()
+    context = TrtexecRunContext(
+        args=args,
+        plan=plan,
+        workload=manifest,
+        parameters=parameters,
+        output_dir=output_dir,
+        sampler=sampler,
+        environment=environment,
+        assets=assets,
+        root=root,
+    )
+    suite_runner = SuiteRunner(
+        SuitePolicy.from_parameters(parameters),
+        label="trtexec",
+        frames=parameters["frames"],
+        metric_reader=_throughput_qps,
+        power_limit_reader=_power_limit,
+    )
     try:
-        run_index = 1
-        while run_index <= target_runs:
-            if run_index > 1 and parameters["idle_seconds"] > 0:
-                time.sleep(parameters["idle_seconds"])
-            run_dir = output_dir / f"run-{run_index:02d}"
-            run_dir.mkdir(parents=True, exist_ok=True)
-            stdout_path = run_dir / "trtexec.stdout.log"
-            stderr_path = run_dir / "trtexec.stderr.log"
-            times_path = run_dir / "trtexec.times.json"
-            samples_path = run_dir / "nvml.samples.jsonl"
-            manifest_path = run_dir / "manifest.json"
-            command = build_trtexec_command(
-                args,
-                export_times=times_path,
-                iterations=parameters["frames"],
-            )
-            sampler.start(time.perf_counter())
-            sample_origin = time.perf_counter()
-            try:
-                returncode, wall_time = _run_trtexec(
-                    command,
-                    stdout_path=stdout_path,
-                    stderr_path=stderr_path,
-                )
-            finally:
-                samples = sampler.samples_relative_to(sampler.stop(), sample_origin)
-            write_samples(samples_path, samples)
-            combined_output = "\n".join(
-                (
-                    stdout_path.read_text(encoding="utf-8", errors="replace"),
-                    stderr_path.read_text(encoding="utf-8", errors="replace"),
-                )
-            )
-            errors = []
-            parsed: dict[str, float] = {}
-            if returncode != 0:
-                errors.append(f"trtexec exited with code {returncode}")
-            else:
-                try:
-                    parsed = parse_trtexec_output(combined_output)
-                except CompetitorError as exc:
-                    errors.append(str(exc))
-            nvml = summarize_samples(
-                samples,
-                wall_time_sec=wall_time,
-                frames=parameters["frames"],
-                max_compute_processes=1,
-                max_graphics_processes=0,
-            )
-            if not nvml.get("valid"):
-                errors.extend(nvml.get("errors", []))
-            reproducibility_errors = environment_errors(environment)
-            errors.extend(reproducibility_errors)
-            run_manifest = {
-                "schema_version": 1,
-                "status": "valid" if not errors else "invalid",
-                "run_index": run_index,
-                "product": "trtexec",
-                "backend": "TensorRT",
-                "comparison_class": plan["comparison_class"],
-                "workload_id": manifest["id"],
-                "variant": args.variant,
-                "implementation": plan["implementation"],
-                "parameters": parameters,
-                "command": command,
-                "assets": assets,
-                "environment": environment,
-                "metrics": {
-                    **parsed,
-                    "process_wall_time_sec": wall_time,
-                    "processed_iterations": parameters["frames"],
-                    "nvml": nvml,
-                    "nvml_scope": "process-including-setup-and-warmup",
-                },
-                "reproducibility": {
-                    "publishable": not reproducibility_errors,
-                    "errors": reproducibility_errors,
-                },
-                "artifacts": {
-                    "manifest": relative_artifact_path(manifest_path, Path.cwd()),
-                    "stdout": relative_artifact_path(stdout_path, Path.cwd()),
-                    "stderr": relative_artifact_path(stderr_path, Path.cwd()),
-                    "times": relative_artifact_path(times_path, Path.cwd()),
-                    "nvml_samples": relative_artifact_path(samples_path, Path.cwd()),
-                },
-                "errors": errors,
-            }
-            write_json(manifest_path, run_manifest)
-            runs.append(run_manifest)
-            if errors:
-                report_invalid_run(run_manifest)
-                break
-            if run_index == parameters["initial_runs"] and parameters["extra_runs_on_spread"]:
-                values = [run["metrics"]["throughput_qps"] for run in runs]
-                if should_extend_suite(values, parameters["spread_threshold"]):
-                    target_runs += parameters["extra_runs_on_spread"]
-            run_index += 1
+        suite_result = suite_runner.execute(lambda index: _run_one(context, index))
     finally:
         sampler.shutdown()
 
-    valid_runs = [run for run in runs if run["status"] == "valid"]
-    throughput = [run["metrics"]["throughput_qps"] for run in valid_runs]
-    statistics = compute_suite_statistics(throughput)
+    runs = list(suite_result.runs)
+    statistics = suite_result.statistics
     spread = statistics["relative_spread"]
-    all_valid = len(valid_runs) == len(runs) == target_runs
-    stable = all_valid and spread is not None and spread <= parameters["spread_threshold"]
-    status = "valid" if stable else ("unstable" if all_valid else "invalid")
+    status = suite_result.status
     canonical_errors = canonical_suite_errors(
         parameters,
         manifest["benchmark"],
@@ -333,6 +380,7 @@ def _run_suite(
         "implementation": plan["implementation"],
         "parameters": parameters,
         "statistics": statistics,
+        "errors": list(suite_result.errors),
         "runs": [
             {
                 "index": run["run_index"],

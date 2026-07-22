@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_media.benchmarking.runner import load_engine_contract, write_summary_target
+from ai_media.benchmarking.suite import SuitePolicy
 from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.competitor_common import (
     CommandSpec,
@@ -17,7 +18,6 @@ from benchmarks.scripts.competitor_common import (
     add_common_arguments,
     asset_requirement,
     benchmark_parameters,
-    command_spec,
     display_command,
     find_model_variant,
     find_variant,
@@ -29,9 +29,12 @@ from benchmarks.scripts.competitor_common import (
     write_json_target,
 )
 from benchmarks.scripts.external_video_suite import (
+    ExternalImplementation,
     ExternalVideoSuiteConfig,
+    ExternalVideoWorkload,
     run_external_video_suite,
 )
+from benchmarks.scripts.vspipe_nvenc import VspipeNvencConfig
 
 VSGAN_SCRIPT = "/app/benchmarks/vsgan/upscale.vpy"
 
@@ -42,6 +45,7 @@ def build_vsgan_command(
     *,
     output_path: Path,
     frames: int,
+    source: str | None = None,
 ) -> CommandSpec:
     """Build the stock VSGAN vspipe-to-NVENC command pipeline."""
     variant = find_variant(manifest, args.variant)
@@ -52,62 +56,17 @@ def build_vsgan_command(
         bitrate_bps=int(bitrate_mbps * 1_000_000),
         gop_frames=gop,
     )
-    vspipe = [
-        "vspipe",
-        "--container",
-        "y4m",
-        "--start",
-        "0",
-        "--end",
-        str(frames - 1),
-        "--requests",
-        str(args.requests),
-        "--arg",
-        f"source={args.input}",
-        "--arg",
-        f"engine={args.engine}",
-        "--arg",
-        f"gpu_id={args.gpu_id}",
-        "--arg",
-        f"cuda_graph={int(args.cuda_graph)}",
-        "--arg",
-        f"num_streams={args.num_streams}",
-        "--arg",
-        f"vs_threads={args.vs_threads}",
-        VSGAN_SCRIPT,
-        "-",
-    ]
-    ffmpeg = [
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-y",
-        "-f",
-        "yuv4mpegpipe",
-        "-i",
-        "pipe:0",
-        "-frames:v",
-        str(frames),
-        "-an",
-        "-sn",
-        "-dn",
-        *encoder.ffmpeg_options(),
-        "-pix_fmt",
-        "yuv420p",
-        "-color_range",
-        "tv",
-        "-colorspace",
-        "bt709",
-        "-color_trc",
-        "bt709",
-        "-color_primaries",
-        "bt709",
-        "-movflags",
-        "+faststart",
-        str(output_path),
-    ]
-    return command_spec(vspipe, ffmpeg)
+    return VspipeNvencConfig(
+        script=VSGAN_SCRIPT,
+        source=source or args.input,
+        engine=args.engine,
+        gpu_id=args.gpu_id,
+        requests=args.requests,
+        cuda_graph=args.cuda_graph,
+        num_streams=args.num_streams,
+        encoder=encoder,
+        script_arguments=(("vs_threads", str(args.vs_threads)),),
+    ).build(output_path=output_path, frames=frames)
 
 
 def _validate_parity_engine(
@@ -154,19 +113,21 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     implementation = implementation_config(implementations, "vsgan")
     parameters = benchmark_parameters(args, manifest)
     variant = find_variant(manifest, args.variant)
-    args.input = str(Path("/app") / variant["path"])
+    input_path = str(Path("/app") / variant["path"])
     output_dir = Path(args.output_dir)
     warmup = build_vsgan_command(
         args,
         manifest,
         output_path=output_dir / "dry-run-warmup.mp4",
         frames=parameters["warmup_frames"],
+        source=input_path,
     )
     measured = build_vsgan_command(
         args,
         manifest,
         output_path=output_dir / "dry-run-output.mp4",
         frames=parameters["frames"],
+        source=input_path,
     )
     fps_num, fps_den = (int(part) for part in manifest["clip"]["fps"].split("/", 1))
     encoder = NvencCbrContract(
@@ -204,7 +165,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
             "measured_display": display_command(measured),
         },
         assets=[
-            asset_requirement(args.input, "input"),
+            asset_requirement(input_path, "input"),
             asset_requirement(args.engine, "engine"),
             asset_requirement(args.manifest, "workload_manifest"),
         ],
@@ -249,7 +210,7 @@ def main() -> None:
         sidecar, sidecar_path = load_engine_contract(engine)
         parameters = plan["parameters"]
         variant = find_variant(manifest, args.variant)
-        input_path = Path(args.input)
+        input_path = Path("/app") / variant["path"]
         onnx_path = Path(find_model_variant(manifest, args.variant)["fp16_path"])
         _validate_parity_engine(
             sidecar,
@@ -264,40 +225,40 @@ def main() -> None:
         if not build_log.is_file():
             raise CompetitorError(f"VSGAN engine build log not found: {build_log}")
         config = ExternalVideoSuiteConfig(
-            product="VSGAN-tensorrt-docker",
-            backend="VapourSynth/vstrt",
-            comparison_class=plan["comparison_class"],
-            implementation=plan["implementation"],
-            workload_id=manifest["id"],
-            variant=args.variant,
-            input_path=input_path,
-            output_dir=Path(args.output_dir),
-            frames=parameters["frames"],
-            warmup_frames=parameters["warmup_frames"],
-            initial_runs=parameters["initial_runs"],
-            extra_runs=parameters["extra_runs_on_spread"],
-            spread_threshold=parameters["spread_threshold"],
-            idle_seconds=parameters["idle_seconds"],
+            implementation=ExternalImplementation(
+                product="VSGAN-tensorrt-docker",
+                backend="VapourSynth/vstrt",
+                comparison_class=plan["comparison_class"],
+                metadata=plan["implementation"],
+                max_compute_processes=parameters["max_compute_processes"],
+                max_graphics_processes=parameters["max_graphics_processes"],
+            ),
+            workload=ExternalVideoWorkload(
+                workload_id=manifest["id"],
+                variant=args.variant,
+                output_dir=Path(args.output_dir),
+                frames=parameters["frames"],
+                warmup_frames=parameters["warmup_frames"],
+                output_contract=output_contract(
+                    manifest,
+                    variant,
+                    frames=parameters["frames"],
+                    enforce_bitrate=True,
+                ),
+                benchmark_contract=manifest["benchmark"],
+                assets={
+                    "input": input_path,
+                    "onnx": onnx_path,
+                    "engine": engine,
+                    "engine_manifest": sidecar_path,
+                    "engine_build_log": build_log,
+                    "asset_lock": lock_path,
+                    "workload_manifest": Path(args.manifest),
+                },
+            ),
+            policy=SuitePolicy.from_parameters(parameters),
             sample_interval_ms=parameters["nvml_sample_interval_ms"],
             gpu_id=args.gpu_id,
-            max_compute_processes=parameters["max_compute_processes"],
-            max_graphics_processes=parameters["max_graphics_processes"],
-            output_contract=output_contract(
-                manifest,
-                variant,
-                frames=parameters["frames"],
-                enforce_bitrate=True,
-            ),
-            benchmark_contract=manifest["benchmark"],
-            assets={
-                "input": input_path,
-                "onnx": onnx_path,
-                "engine": engine,
-                "engine_manifest": sidecar_path,
-                "engine_build_log": build_log,
-                "asset_lock": lock_path,
-                "workload_manifest": Path(args.manifest),
-            },
             implementation_parameters={
                 "mode": args.mode,
                 "requests": args.requests,
@@ -310,10 +271,18 @@ def main() -> None:
                 "encoder": parameters["encoder"],
             },
             warmup_command=lambda path, frames: build_vsgan_command(
-                args, manifest, output_path=path, frames=frames
+                args,
+                manifest,
+                output_path=path,
+                frames=frames,
+                source=str(input_path),
             ),
             measured_command=lambda path, frames: build_vsgan_command(
-                args, manifest, output_path=path, frames=frames
+                args,
+                manifest,
+                output_path=path,
+                frames=frames,
+                source=str(input_path),
             ),
             keep_outputs=args.keep_outputs,
         )

@@ -166,11 +166,15 @@ make -C benchmarks run-campaign \
 Повторите обе команды с 720p paths. После безопасного прерывания продолжить ту
 же campaign можно с `RESUME=1`. Resume допустим только при неизменных commit,
 images, workload assets и engines; partial/invalid round сохраняется для
-диагностики и требует ручного удаления только своей директории.
+диагностики и требует ручного удаления только своей директории. Если процесс был
+прерван между завершением run и записью события, manifest считается untracked и
+его директорию также нужно удалить перед resume.
 
-Campaign сохраняет raw manifests и общие `campaign.json`/`results.md` в
-`artefacts/benchmarks/campaigns/<name>/`. Пока CPU/timing/quality gates не
-закрыты, агрегатор выставляет `publishable: false` даже для валидной campaign.
+Campaign сохраняет raw manifests, append-only `campaign.events.jsonl` и общие
+`campaign.json`/`results.md` в `artefacts/benchmarks/campaigns/<name>/`. Event
+log является обязательным доказательством фактической ротации и пауз. Пока
+CPU/timing/quality gates не закрыты, агрегатор выставляет `publishable: false`
+даже для валидной campaign.
 
 Individual `run-ai-media`, `run-vstrt` и `run-vsgan` остаются для smoke и
 диагностики. `run-trtexec` остаётся отдельным inference ceiling.

@@ -191,5 +191,8 @@ Run недействителен при mismatch assets/contracts, output valida
 
 Individual suite всегда считается acceptance data, даже если использует
 canonical frames/runs. Сравнительный результат формируется только rotated
-campaign runner. До реализации CPU accounting, timing scopes и quality parity
-даже валидная campaign получает `publishable: false`.
+campaign runner. Runner сохраняет append-only event log с фактическим порядком,
+UTC timestamps и выдержанными idle intervals; агрегатор проверяет этот журнал,
+а не восстанавливает порядок по именам директорий. До реализации CPU accounting,
+timing scopes и quality parity даже валидная campaign получает
+`publishable: false`.

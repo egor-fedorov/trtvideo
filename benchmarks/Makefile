@@ -294,44 +294,9 @@ aggregate-campaign:
 			$(ARGS)
 
 run-campaign: campaign-preflight
-	@set -eu; \
-	first=1; \
-	run_sequence() { \
-		for entry in "$$@"; do \
-			if test "$$first" = "0"; then sleep "$(CAMPAIGN_IDLE_SECONDS)"; fi; \
-			round="$${entry%%:*}"; implementation="$${entry#*:}"; \
-			$(MAKE) "campaign-$$implementation" ROUND="$$round"; \
-			first=0; \
-		done; \
-	}; \
-	run_extra_sequence() { \
-		run_sequence \
-			04:vsgan 04:vstrt 04:ai-media \
-			05:ai-media 05:vsgan 05:vstrt; \
-	}; \
-	aggregate() { \
-		docker run --rm --user "$$(id -u):$$(id -g)" \
-			-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
-			-v "$(ROOT)/artefacts:/app/artefacts" \
-			$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.aggregate_campaign \
-				--campaign-dir /app/$(CAMPAIGN_DIR) \
-				--root /app \
-				--idle-seconds $(CAMPAIGN_IDLE_SECONDS) "$$@"; \
-	}; \
-	run_sequence \
-		01:ai-media 01:vstrt 01:vsgan \
-		02:vstrt 02:vsgan 02:ai-media \
-		03:vsgan 03:ai-media 03:vstrt; \
-	if test -d "$(ROOT)/$(CAMPAIGN_DIR)/vsgan/round-04" || \
-		test -d "$(ROOT)/$(CAMPAIGN_DIR)/ai-media/round-05"; then \
-		run_extra_sequence; \
-		aggregate; \
-		exit 0; \
-	fi; \
-	status=0; aggregate --request-extra-exit-code || status=$$?; \
-	if test "$$status" = "3"; then \
-		run_extra_sequence; \
-		aggregate; \
-	elif test "$$status" != "0"; then \
-		exit "$$status"; \
-	fi
+	cd "$(ROOT)" && python3 -m benchmarks.scripts.run_campaign \
+		--campaign-dir "$(ROOT)/$(CAMPAIGN_DIR)" \
+		--make-campaign-dir "$(CAMPAIGN_DIR)" \
+		--benchmarks-dir "$(ROOT)/benchmarks" \
+		--idle-seconds "$(CAMPAIGN_IDLE_SECONDS)" \
+		$(if $(filter 1,$(RESUME)),--resume,)

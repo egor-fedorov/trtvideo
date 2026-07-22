@@ -1,0 +1,203 @@
+"""Validation and safe path resolution for benchmark workload manifests."""
+
+from __future__ import annotations
+
+import json
+import re
+from fractions import Fraction
+from pathlib import Path
+from typing import Any
+
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class WorkloadError(RuntimeError):
+    """Raised when workload preparation or validation fails."""
+
+
+def load_manifest(path: Path) -> dict[str, Any]:
+    """Load and validate a workload manifest."""
+    try:
+        with path.open(encoding="utf-8") as source:
+            manifest = json.load(source)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WorkloadError(f"Cannot read workload manifest {path}: {exc}") from exc
+    if not isinstance(manifest, dict):
+        raise WorkloadError("Workload manifest root must be an object")
+    validate_manifest(manifest)
+    return manifest
+
+
+def _require_dict(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    value = parent.get(key)
+    if not isinstance(value, dict):
+        raise WorkloadError(f"Manifest field '{key}' must be an object")
+    return value
+
+
+def _require_list(parent: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    value = parent.get(key)
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(item, dict) for item in value)
+    ):
+        raise WorkloadError(f"Manifest field '{key}' must be a non-empty object array")
+    return value
+
+
+def _validate_relative_path(value: Any, field: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise WorkloadError(f"Manifest field '{field}' must be a relative path")
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        raise WorkloadError(f"Manifest field '{field}' must stay inside the repository")
+
+
+def _validate_source(source: dict[str, Any], field: str) -> None:
+    url = source.get("url")
+    if not isinstance(url, str) or not url.startswith("https://"):
+        raise WorkloadError(f"Manifest field '{field}.url' must be an HTTPS URL")
+    checksum = source.get("sha256")
+    if not isinstance(checksum, str) or not SHA256_RE.fullmatch(checksum):
+        raise WorkloadError(f"Manifest field '{field}.sha256' must be a lowercase SHA256")
+    if not isinstance(source.get("size_bytes"), int) or source["size_bytes"] <= 0:
+        raise WorkloadError(f"Manifest field '{field}.size_bytes' must be positive")
+    for metadata_key in ("license_reference", "attribution"):
+        if not isinstance(source.get(metadata_key), str) or not source[metadata_key]:
+            raise WorkloadError(f"Manifest field '{field}.{metadata_key}' is required")
+
+
+def validate_manifest(manifest: dict[str, Any]) -> None:
+    """Validate the canonical workload schema and path boundaries."""
+    if manifest.get("schema_version") != 1:
+        raise WorkloadError("Unsupported workload schema_version")
+    if not isinstance(manifest.get("id"), str) or not manifest["id"]:
+        raise WorkloadError("Manifest field 'id' is required")
+    _validate_relative_path(manifest.get("lock_path"), "lock_path")
+    benchmark = _require_dict(manifest, "benchmark")
+    required_benchmark_fields = {
+        "warmup_frames",
+        "measured_frames",
+        "initial_runs",
+        "extra_runs_on_spread",
+        "spread_threshold",
+        "idle_seconds",
+        "nvml_sample_interval_ms",
+    }
+    missing_benchmark = sorted(required_benchmark_fields - benchmark.keys())
+    if missing_benchmark:
+        raise WorkloadError(
+            f"Manifest benchmark fields are missing: {', '.join(missing_benchmark)}"
+        )
+    for field in (
+        "warmup_frames",
+        "measured_frames",
+        "initial_runs",
+        "nvml_sample_interval_ms",
+    ):
+        if not isinstance(benchmark.get(field), int) or benchmark[field] <= 0:
+            raise WorkloadError(f"Manifest field 'benchmark.{field}' must be positive")
+    if not isinstance(benchmark.get("extra_runs_on_spread"), int) or (
+        benchmark["extra_runs_on_spread"] < 0
+    ):
+        raise WorkloadError(
+            "Manifest field 'benchmark.extra_runs_on_spread' must be non-negative"
+        )
+    if not isinstance(benchmark.get("spread_threshold"), (int, float)) or not (
+        0 <= benchmark["spread_threshold"] < 1
+    ):
+        raise WorkloadError("Manifest field 'benchmark.spread_threshold' must be in [0, 1)")
+    if not isinstance(benchmark.get("idle_seconds"), (int, float)) or (
+        benchmark["idle_seconds"] < 0
+    ):
+        raise WorkloadError("Manifest field 'benchmark.idle_seconds' must be non-negative")
+
+    model = _require_dict(manifest, "model")
+    _validate_source(_require_dict(model, "source"), "model.source")
+    if not isinstance(model.get("export_name"), str) or not model["export_name"]:
+        raise WorkloadError("Manifest field 'model.export_name' is required")
+    _validate_relative_path(model.get("weights_path"), "model.weights_path")
+    _validate_relative_path(model.get("onnx_dir"), "model.onnx_dir")
+    model_variants = _require_list(model, "variants")
+
+    clip = _require_dict(manifest, "clip")
+    _validate_source(_require_dict(clip, "source"), "clip.source")
+    _validate_relative_path(clip.get("source_path"), "clip.source_path")
+    if clip.get("frames") != 1000:
+        raise WorkloadError("Canonical workload must contain exactly 1000 frames")
+    try:
+        fps = Fraction(str(clip.get("fps")))
+    except (ValueError, ZeroDivisionError) as exc:
+        raise WorkloadError("Manifest field 'clip.fps' must be a rational FPS") from exc
+    if fps <= 0:
+        raise WorkloadError("Manifest field 'clip.fps' must be positive")
+    encode = _require_dict(clip, "encode")
+    required_encode_fields = {
+        "codec",
+        "preset",
+        "crf",
+        "pixel_format",
+        "gop_frames",
+        "b_frames",
+        "color_range",
+        "color_space",
+        "color_transfer",
+        "color_primaries",
+    }
+    missing = sorted(required_encode_fields - encode.keys())
+    if missing:
+        raise WorkloadError(f"Manifest clip.encode fields are missing: {', '.join(missing)}")
+    if not isinstance(encode.get("b_frames"), int) or encode["b_frames"] < 0:
+        raise WorkloadError("Manifest field 'clip.encode.b_frames' must be non-negative")
+    clip_variants = _require_list(clip, "variants")
+
+    model_names = set()
+    for variant in model_variants:
+        name = variant.get("name")
+        if not isinstance(name, str) or not name or name in model_names:
+            raise WorkloadError("Model variant names must be unique non-empty strings")
+        model_names.add(name)
+        for dimension in ("input_width", "input_height"):
+            if not isinstance(variant.get(dimension), int) or variant[dimension] <= 0:
+                raise WorkloadError(f"Model variant '{name}' has invalid {dimension}")
+        _validate_relative_path(variant.get("fp32_path"), f"model.{name}.fp32_path")
+        _validate_relative_path(variant.get("fp16_path"), f"model.{name}.fp16_path")
+
+    clip_names = set()
+    for variant in clip_variants:
+        name = variant.get("name")
+        if not isinstance(name, str) or not name or name in clip_names:
+            raise WorkloadError("Clip variant names must be unique non-empty strings")
+        clip_names.add(name)
+        for dimension in ("width", "height"):
+            if not isinstance(variant.get(dimension), int) or variant[dimension] <= 0:
+                raise WorkloadError(f"Clip variant '{name}' has invalid {dimension}")
+        _validate_relative_path(variant.get("path"), f"clip.{name}.path")
+        benchmark_output = _require_dict(variant, "benchmark_output")
+        for dimension in ("width", "height"):
+            if (
+                not isinstance(benchmark_output.get(dimension), int)
+                or benchmark_output[dimension] <= 0
+            ):
+                raise WorkloadError(
+                    f"Clip variant '{name}' has invalid benchmark_output.{dimension}"
+                )
+        if not isinstance(benchmark_output.get("bitrate_mbps"), (int, float)) or (
+            benchmark_output["bitrate_mbps"] <= 0
+        ):
+            raise WorkloadError(
+                f"Clip variant '{name}' has invalid benchmark_output.bitrate_mbps"
+            )
+
+    if model_names != clip_names:
+        raise WorkloadError("Model and clip variants must use the same names")
+
+
+def repo_path(root: Path, relative_path: str) -> Path:
+    """Resolve a validated repository-relative path."""
+    root = root.resolve()
+    resolved = (root / relative_path).resolve()
+    if resolved != root and root not in resolved.parents:
+        raise WorkloadError(f"Path escapes repository root: {relative_path}")
+    return resolved

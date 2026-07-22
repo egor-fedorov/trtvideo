@@ -98,7 +98,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["ai_media"]
+files = ["ai_media", "benchmarks"]
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true

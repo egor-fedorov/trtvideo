@@ -94,6 +94,10 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Individual benchmark suite теперь всегда имеет `scope: acceptance` и
   `publishable: false`; сравнительный статус формирует только rotated campaign,
   которая также остаётся непубликационной до CPU/timing/quality gates.
+* Rotated campaign теперь выполняется Python-координатором и сохраняет
+  append-only `campaign.events.jsonl` с фактическим порядком и паузами.
+  Агрегатор отклоняет untracked manifests и кампании без полного event log;
+  общий 3+2 lifecycle и power-limit invariant используются всеми runners.
 
 ### Fixed
 

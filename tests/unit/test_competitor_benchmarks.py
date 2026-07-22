@@ -146,6 +146,7 @@ def test_parse_trtexec_output() -> None:
 
 def test_vstrt_plan_uses_absolute_container_input() -> None:
     args = common_args()
+    original_input = args.input
 
     plan, _ = build_vstrt_plan(args)
     spec = plan["commands"]["measured"]
@@ -165,6 +166,7 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["batch_size"] == 1
     assert plan["parameters"]["tiling"] is False
+    assert args.input == original_input
 
 
 def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:

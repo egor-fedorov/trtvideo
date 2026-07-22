@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import statistics
 import subprocess
 import sys
 import time
@@ -22,6 +21,12 @@ from ai_media.benchmarking.environment import (
     write_json,
 )
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
+from ai_media.benchmarking.suite import (
+    SuitePolicy,
+    SuiteRunner,
+    canonical_suite_errors,
+    suite_publishability_errors,
+)
 from ai_media.benchmarking.validation import OutputContract, validate_output
 from ai_media.video.fps import gop_size_for_one_second
 from ai_media.video.info import get_video_info
@@ -279,100 +284,6 @@ def run_child(command: list[str], stdout_path: Path, stderr_path: Path) -> int:
         return 127
 
 
-def compute_suite_statistics(fps_values: list[float]) -> dict[str, Any]:
-    """Aggregate repeat measurements without hiding raw values."""
-    if not fps_values:
-        return {
-            "values_fps": [],
-            "median_fps": None,
-            "min_fps": None,
-            "max_fps": None,
-            "relative_spread": None,
-        }
-    median = statistics.median(fps_values)
-    minimum = min(fps_values)
-    maximum = max(fps_values)
-    return {
-        "values_fps": fps_values,
-        "median_fps": median,
-        "min_fps": minimum,
-        "max_fps": maximum,
-        "relative_spread": (maximum - minimum) / median if median > 0 else None,
-    }
-
-
-def should_extend_suite(fps_values: list[float], threshold: float) -> bool:
-    """Return whether the initial suite is too noisy for the fixed 3-run contract."""
-    spread = compute_suite_statistics(fps_values)["relative_spread"]
-    return spread is not None and spread > threshold
-
-
-def report_invalid_run(run: dict[str, Any]) -> None:
-    """Print manifest errors when a measured run invalidates its suite."""
-    print(f"Benchmark run {run.get('run_index', '?')} invalid:", file=sys.stderr)
-    errors = run.get("errors", [])
-    if not errors:
-        print("  - No detailed error was recorded", file=sys.stderr)
-        return
-    for error in errors:
-        print(f"  - {error}", file=sys.stderr)
-
-
-def canonical_suite_errors(
-    parameters: dict[str, Any],
-    benchmark: dict[str, Any] | None,
-    *,
-    include_warmup_frames: bool,
-) -> list[str]:
-    """Explain why suite parameters do not match the publication contract."""
-    if benchmark is None:
-        return ["No canonical workload benchmark contract was provided"]
-
-    expected_keys = {
-        "frames": "measured_frames",
-        "initial_runs": "initial_runs",
-        "extra_runs_on_spread": "extra_runs_on_spread",
-        "spread_threshold": "spread_threshold",
-        "idle_seconds": "idle_seconds",
-        "nvml_sample_interval_ms": "nvml_sample_interval_ms",
-    }
-    if include_warmup_frames:
-        expected_keys["warmup_frames"] = "warmup_frames"
-
-    errors = []
-    for parameter_key, benchmark_key in expected_keys.items():
-        actual = parameters.get(parameter_key)
-        expected = benchmark.get(benchmark_key)
-        if actual != expected:
-            errors.append(
-                f"{parameter_key} must match canonical {benchmark_key} "
-                f"({actual!r} != {expected!r})"
-            )
-    return errors
-
-
-def suite_publishability_errors(
-    *,
-    status: str,
-    canonical_errors: list[str],
-    runs: list[dict[str, Any]],
-    acceptance_only: bool = False,
-) -> list[str]:
-    """Collect suite-level reasons that prevent publishing a result."""
-    errors = list(canonical_errors)
-    if acceptance_only:
-        errors.append(
-            "Individual suites are acceptance-only; use a rotated campaign result"
-        )
-    if status != "valid":
-        errors.append(f"Suite status is {status!r}, not 'valid'")
-    for run in runs:
-        run_index = run.get("run_index", "?")
-        for error in run.get("reproducibility", {}).get("errors", []):
-            errors.append(f"Run {run_index} reproducibility: {error}")
-    return list(dict.fromkeys(errors))
-
-
 def _cleanup_valid_output(path: Path, keep_outputs: bool) -> None:
     if not keep_outputs and path.exists():
         path.unlink()
@@ -545,6 +456,28 @@ def run_one(
     return manifest
 
 
+def _end_to_end_fps(manifest: dict[str, Any]) -> float:
+    value = manifest.get("measured", {}).get("metrics", {}).get("end_to_end_fps")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise BenchmarkError("Valid run manifest has no end_to_end_fps metric")
+    return float(value)
+
+
+def _video_power_limit(manifest: dict[str, Any]) -> float | None:
+    value = (
+        manifest.get("measured", {})
+        .get("metrics", {})
+        .get("nvml", {})
+        .get("power", {})
+        .get("limit_w")
+    )
+    if value is None:
+        return None
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise BenchmarkError("Run manifest has an invalid GPU power limit")
+    return float(value)
+
+
 def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[str, Any], int]:
     """Run a complete 3+2 suite and return its machine-readable summary."""
     validate_config(config)
@@ -564,66 +497,43 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
             gop_frames=gop_size_for_one_second(info.fps_str),
         ).as_dict()
     summary_path = config.output_dir / "suite.json"
-    run_manifests: list[dict[str, Any]] = []
-    target_runs = config.initial_runs
+    policy = SuitePolicy(
+        initial_runs=config.initial_runs,
+        extra_runs=config.extra_runs,
+        spread_threshold=config.spread_threshold,
+        idle_seconds=config.idle_seconds,
+    )
+    suite_runner = SuiteRunner(
+        policy,
+        label=config.backend,
+        frames=config.frames,
+        metric_reader=_end_to_end_fps,
+        power_limit_reader=_video_power_limit,
+    )
+
+    def execute_run(run_index: int) -> dict[str, Any]:
+        return run_one(
+            config,
+            run_index=run_index,
+            sidecar=sidecar,
+            assets=assets,
+            workload_id=workload_id,
+            environment=environment,
+            encoder_parameters=encoder_parameters,
+            sampler=sampler,
+            root=root,
+        )
 
     try:
-        run_index = 1
-        while run_index <= target_runs:
-            if run_index > 1 and config.idle_seconds > 0:
-                time.sleep(config.idle_seconds)
-            print(
-                f"Benchmark run {run_index}/{target_runs}: {config.backend}, "
-                f"{config.frames} frames",
-                file=sys.stderr,
-            )
-            result = run_one(
-                config,
-                run_index=run_index,
-                sidecar=sidecar,
-                assets=assets,
-                workload_id=workload_id,
-                environment=environment,
-                encoder_parameters=encoder_parameters,
-                sampler=sampler,
-                root=root,
-            )
-            run_manifests.append(result)
-            if result.get("status") != "valid":
-                report_invalid_run(result)
-                break
-            if run_index == config.initial_runs and config.extra_runs > 0:
-                fps_values = [
-                    run["measured"]["metrics"]["end_to_end_fps"] for run in run_manifests
-                ]
-                stats = compute_suite_statistics(fps_values)
-                spread = stats["relative_spread"]
-                if should_extend_suite(fps_values, config.spread_threshold):
-                    target_runs += config.extra_runs
-                    print(
-                        f"Relative spread {spread:.2%} exceeds "
-                        f"{config.spread_threshold:.2%}; extending suite to {target_runs} runs",
-                        file=sys.stderr,
-                    )
-            run_index += 1
+        suite_result = suite_runner.execute(execute_run)
     finally:
         sampler.shutdown()
 
-    valid_runs = [run for run in run_manifests if run.get("status") == "valid"]
-    fps_values = [run["measured"]["metrics"]["end_to_end_fps"] for run in valid_runs]
-    statistics_report = compute_suite_statistics(fps_values)
+    run_manifests = list(suite_result.runs)
+    statistics_report = suite_result.statistics
     spread = statistics_report["relative_spread"]
-    suite_errors: list[str] = []
-    power_limits = {
-        run["measured"]["metrics"]["nvml"]["power"].get("limit_w")
-        for run in valid_runs
-        if run["measured"]["metrics"]["nvml"]["power"].get("limit_w") is not None
-    }
-    if len(power_limits) > 1:
-        suite_errors.append("GPU power limit changed between measured runs")
-    all_valid = len(valid_runs) == len(run_manifests) == target_runs and not suite_errors
-    stable = all_valid and spread is not None and spread <= config.spread_threshold
-    status = "valid" if stable else ("unstable" if all_valid else "invalid")
+    suite_errors = list(suite_result.errors)
+    status = suite_result.status
     parameters = {
         "frames": config.frames,
         "warmup_frames": config.warmup_frames,

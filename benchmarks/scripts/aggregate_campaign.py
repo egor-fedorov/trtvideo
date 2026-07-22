@@ -12,20 +12,16 @@ from pathlib import Path
 from typing import Any
 
 from ai_media.benchmarking.environment import relative_artifact_path, sha256_file, write_json
-from ai_media.benchmarking.runner import compute_suite_statistics
+from ai_media.benchmarking.suite import compute_suite_statistics
+from benchmarks.scripts.campaign import (
+    EVENT_LOG_NAME,
+    IMPLEMENTATIONS,
+    ROUND_ORDERS,
+    CampaignEventError,
+    load_events,
+    validate_complete_event_log,
+)
 
-IMPLEMENTATIONS = {
-    "ai-media": "ai-media-enhancer",
-    "vstrt": "vs-mlrt",
-    "vsgan": "VSGAN-tensorrt-docker",
-}
-ROUND_ORDERS = {
-    1: ["ai-media", "vstrt", "vsgan"],
-    2: ["vstrt", "vsgan", "ai-media"],
-    3: ["vsgan", "ai-media", "vstrt"],
-    4: ["vsgan", "vstrt", "ai-media"],
-    5: ["ai-media", "vsgan", "vstrt"],
-}
 PUBLICATION_GAPS = [
     "Average CPU utilization is not collected yet",
     "Startup, steady-state and finalize/mux timing scopes are not collected yet",
@@ -342,6 +338,15 @@ def aggregate_campaign(
 ) -> dict[str, Any]:
     """Validate and aggregate all completed rounds in one campaign directory."""
     rounds = _load_rounds(campaign_dir)
+    events_path = campaign_dir / EVENT_LOG_NAME
+    try:
+        events = validate_complete_event_log(
+            load_events(events_path),
+            rounds=len(rounds),
+            idle_seconds=idle_seconds,
+        )
+    except CampaignEventError as exc:
+        raise CampaignError(f"Invalid campaign execution log: {exc}") from exc
     workload, contract = _validate_common_contract(
         rounds,
         root=root,
@@ -398,10 +403,18 @@ def aggregate_campaign(
             "input_sha256": contract["input_sha256"],
             "onnx_sha256": contract["onnx_sha256"],
         },
+        "execution": {
+            "event_log": relative_artifact_path(events_path, root),
+            "event_log_sha256": sha256_file(events_path),
+        },
         "rounds": [
             {
                 "index": index,
-                "order": ROUND_ORDERS[index],
+                "order": [
+                    event.implementation
+                    for event in events
+                    if event.round_index == index
+                ],
                 "manifests": {
                     name: relative_artifact_path(
                         _manifest_path(campaign_dir, name, index), root

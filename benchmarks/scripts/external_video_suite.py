@@ -21,11 +21,10 @@ from ai_media.benchmarking.environment import (
     write_json,
 )
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
-from ai_media.benchmarking.runner import (
+from ai_media.benchmarking.suite import (
+    SuitePolicy,
+    SuiteRunner,
     canonical_suite_errors,
-    compute_suite_statistics,
-    report_invalid_run,
-    should_extend_suite,
     suite_publishability_errors,
 )
 from ai_media.benchmarking.validation import OutputContract, validate_output
@@ -35,30 +34,40 @@ CommandFactory = Callable[[Path, int], CommandSpec]
 
 
 @dataclass(frozen=True)
-class ExternalVideoSuiteConfig:
-    """Configuration for one external implementation's full video path."""
+class ExternalImplementation:
+    """Identity and process constraints of one external product."""
 
     product: str
     backend: str
     comparison_class: str
-    implementation: dict[str, Any]
+    metadata: dict[str, Any]
+    max_compute_processes: int
+    max_graphics_processes: int
+
+
+@dataclass(frozen=True)
+class ExternalVideoWorkload:
+    """Canonical assets and output contract for one video workload."""
+
     workload_id: str
     variant: str
-    input_path: Path
     output_dir: Path
     frames: int
     warmup_frames: int
-    initial_runs: int
-    extra_runs: int
-    spread_threshold: float
-    idle_seconds: float
-    sample_interval_ms: int
-    gpu_id: int
-    max_compute_processes: int
-    max_graphics_processes: int
     output_contract: dict[str, Any]
     benchmark_contract: dict[str, Any]
     assets: dict[str, Path]
+
+
+@dataclass(frozen=True)
+class ExternalVideoSuiteConfig:
+    """Composition root for one external full-video benchmark."""
+
+    implementation: ExternalImplementation
+    workload: ExternalVideoWorkload
+    policy: SuitePolicy
+    sample_interval_ms: int
+    gpu_id: int
     implementation_parameters: dict[str, Any]
     warmup_command: CommandFactory
     measured_command: CommandFactory
@@ -121,18 +130,20 @@ def run_command_spec(
 def _environment(config: ExternalVideoSuiteConfig, gpu: dict[str, Any]) -> dict[str, Any]:
     environment = collect_environment(gpu)
     environment["image"] = {
-        "reference": os.environ.get("AI_MEDIA_IMAGE_REF", config.implementation["image"]),
+        "reference": os.environ.get(
+            "AI_MEDIA_IMAGE_REF", config.implementation.metadata["image"]
+        ),
         "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
         "base_reference": os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown"),
         "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
         "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
     }
-    environment["implementation"] = config.implementation
+    environment["implementation"] = config.implementation.metadata
     return environment
 
 
 def _contract(config: ExternalVideoSuiteConfig, frames: int, *, bitrate: bool) -> OutputContract:
-    values = dict(config.output_contract)
+    values = dict(config.workload.output_contract)
     values["frames"] = frames
     if not bitrate:
         values["target_bitrate_mbps"] = None
@@ -153,7 +164,9 @@ def _run_one(
     assets: dict[str, dict[str, Any]],
     root: Path,
 ) -> dict[str, Any]:
-    run_dir = config.output_dir / f"run-{run_index:02d}"
+    workload = config.workload
+    implementation = config.implementation
+    run_dir = workload.output_dir / f"run-{run_index:02d}"
     run_dir.mkdir(parents=True, exist_ok=True)
     warmup_output = run_dir / "warmup.mp4"
     measured_output = run_dir / "output.mp4"
@@ -163,27 +176,27 @@ def _run_one(
     measured_stderr = run_dir / "measured.stderr.log"
     samples_path = run_dir / "nvml.samples.jsonl"
     manifest_path = run_dir / "manifest.json"
-    warmup_spec = config.warmup_command(warmup_output, config.warmup_frames)
-    measured_spec = config.measured_command(measured_output, config.frames)
+    warmup_spec = config.warmup_command(warmup_output, workload.warmup_frames)
+    measured_spec = config.measured_command(measured_output, workload.frames)
 
     manifest: dict[str, Any] = {
         "schema_version": 1,
         "status": "running",
         "run_index": run_index,
-        "product": config.product,
-        "backend": config.backend,
-        "comparison_class": config.comparison_class,
-        "workload_id": config.workload_id,
-        "variant": config.variant,
-        "implementation": config.implementation,
+        "product": implementation.product,
+        "backend": implementation.backend,
+        "comparison_class": implementation.comparison_class,
+        "workload_id": workload.workload_id,
+        "variant": workload.variant,
+        "implementation": implementation.metadata,
         "started_at_utc": datetime.now(UTC).isoformat(),
         "parameters": {
-            "frames": config.frames,
-            "warmup_frames": config.warmup_frames,
+            "frames": workload.frames,
+            "warmup_frames": workload.warmup_frames,
             "gpu_id": config.gpu_id,
             "nvml_sample_interval_ms": config.sample_interval_ms,
-            "max_compute_processes": config.max_compute_processes,
-            "max_graphics_processes": config.max_graphics_processes,
+            "max_compute_processes": implementation.max_compute_processes,
+            "max_graphics_processes": implementation.max_graphics_processes,
             **config.implementation_parameters,
         },
         "commands": {
@@ -207,7 +220,7 @@ def _run_one(
     warmup_validation = (
         validate_output(
             warmup_output,
-            _contract(config, config.warmup_frames, bitrate=False),
+            _contract(config, workload.warmup_frames, bitrate=False),
         )
         if warmup_output.is_file()
         else {"valid": False, "errors": ["Warmup output was not created"]}
@@ -242,12 +255,12 @@ def _run_one(
     nvml_summary = summarize_samples(
         samples,
         wall_time_sec=wall_time_sec,
-        frames=config.frames,
-        max_compute_processes=config.max_compute_processes,
-        max_graphics_processes=config.max_graphics_processes,
+        frames=workload.frames,
+        max_compute_processes=implementation.max_compute_processes,
+        max_graphics_processes=implementation.max_graphics_processes,
     )
     measured_validation = (
-        validate_output(measured_output, _contract(config, config.frames, bitrate=True))
+        validate_output(measured_output, _contract(config, workload.frames, bitrate=True))
         if measured_output.is_file()
         else {"valid": False, "errors": ["Measured output was not created"]}
     )
@@ -258,8 +271,8 @@ def _run_one(
         "returncode": measured_returncode,
         "metrics": {
             "wall_time_sec": wall_time_sec,
-            "end_to_end_fps": config.frames / wall_time_sec if wall_time_sec > 0 else None,
-            "processed_frames": config.frames,
+            "end_to_end_fps": workload.frames / wall_time_sec if wall_time_sec > 0 else None,
+            "processed_frames": workload.frames,
             "nvml": nvml_summary,
         },
         "validation": measured_validation,
@@ -286,6 +299,28 @@ def _run_one(
     return manifest
 
 
+def _end_to_end_fps(manifest: dict[str, Any]) -> float:
+    value = manifest.get("measured", {}).get("metrics", {}).get("end_to_end_fps")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise CompetitorError("Valid external run has no end_to_end_fps metric")
+    return float(value)
+
+
+def _power_limit(manifest: dict[str, Any]) -> float | None:
+    value = (
+        manifest.get("measured", {})
+        .get("metrics", {})
+        .get("nvml", {})
+        .get("power", {})
+        .get("limit_w")
+    )
+    if value is None:
+        return None
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise CompetitorError("External run has an invalid GPU power limit")
+    return float(value)
+
+
 def run_external_video_suite(
     config: ExternalVideoSuiteConfig,
     *,
@@ -293,74 +328,58 @@ def run_external_video_suite(
 ) -> tuple[dict[str, Any], int]:
     """Run an external full pipeline with the common 3+2 contract."""
     root = (root or Path.cwd()).resolve()
-    config.output_dir.mkdir(parents=True, exist_ok=True)
+    workload = config.workload
+    implementation = config.implementation
+    workload.output_dir.mkdir(parents=True, exist_ok=True)
     assets = {
-        name: _asset_record(name, path, root) for name, path in config.assets.items()
+        name: _asset_record(name, path, root) for name, path in workload.assets.items()
     }
     sampler = NvmlSampler(config.gpu_id, config.sample_interval_ms)
     gpu = sampler.initialize()
     environment = _environment(config, gpu)
-    run_manifests: list[dict[str, Any]] = []
-    target_runs = config.initial_runs
-    summary_path = config.output_dir / "suite.json"
+    summary_path = workload.output_dir / "suite.json"
+    suite_runner = SuiteRunner(
+        config.policy,
+        label=implementation.product,
+        frames=workload.frames,
+        metric_reader=_end_to_end_fps,
+        power_limit_reader=_power_limit,
+    )
+
+    def execute_run(run_index: int) -> dict[str, Any]:
+        return _run_one(
+            config,
+            run_index=run_index,
+            sampler=sampler,
+            environment=environment,
+            assets=assets,
+            root=root,
+        )
 
     try:
-        run_index = 1
-        while run_index <= target_runs:
-            if run_index > 1 and config.idle_seconds > 0:
-                time.sleep(config.idle_seconds)
-            print(
-                f"Benchmark run {run_index}/{target_runs}: {config.product}, "
-                f"{config.frames} frames",
-                file=sys.stderr,
-            )
-            result = _run_one(
-                config,
-                run_index=run_index,
-                sampler=sampler,
-                environment=environment,
-                assets=assets,
-                root=root,
-            )
-            run_manifests.append(result)
-            if result.get("status") != "valid":
-                report_invalid_run(result)
-                break
-            if run_index == config.initial_runs and config.extra_runs > 0:
-                fps_values = [
-                    run["measured"]["metrics"]["end_to_end_fps"]
-                    for run in run_manifests
-                ]
-                if should_extend_suite(fps_values, config.spread_threshold):
-                    target_runs += config.extra_runs
-            run_index += 1
+        suite_result = suite_runner.execute(execute_run)
     finally:
         sampler.shutdown()
 
-    valid_runs = [run for run in run_manifests if run.get("status") == "valid"]
-    fps_values = [
-        run["measured"]["metrics"]["end_to_end_fps"] for run in valid_runs
-    ]
-    statistics = compute_suite_statistics(fps_values)
+    run_manifests = list(suite_result.runs)
+    statistics = suite_result.statistics
     spread = statistics["relative_spread"]
-    all_valid = len(valid_runs) == len(run_manifests) == target_runs
-    stable = all_valid and spread is not None and spread <= config.spread_threshold
-    status = "valid" if stable else ("unstable" if all_valid else "invalid")
+    status = suite_result.status
     parameters = {
-        "frames": config.frames,
-        "warmup_frames": config.warmup_frames,
-        "initial_runs": config.initial_runs,
-        "extra_runs_on_spread": config.extra_runs,
-        "spread_threshold": config.spread_threshold,
-        "idle_seconds": config.idle_seconds,
+        "frames": workload.frames,
+        "warmup_frames": workload.warmup_frames,
+        "initial_runs": config.policy.initial_runs,
+        "extra_runs_on_spread": config.policy.extra_runs,
+        "spread_threshold": config.policy.spread_threshold,
+        "idle_seconds": config.policy.idle_seconds,
         "nvml_sample_interval_ms": config.sample_interval_ms,
-        "max_compute_processes": config.max_compute_processes,
-        "max_graphics_processes": config.max_graphics_processes,
+        "max_compute_processes": implementation.max_compute_processes,
+        "max_graphics_processes": implementation.max_graphics_processes,
         **config.implementation_parameters,
     }
     canonical_errors = canonical_suite_errors(
         parameters,
-        config.benchmark_contract,
+        workload.benchmark_contract,
         include_warmup_frames=True,
     )
     publishability_errors = suite_publishability_errors(
@@ -379,14 +398,15 @@ def run_external_video_suite(
             "canonical_contract": not canonical_errors,
             "errors": publishability_errors,
         },
-        "product": config.product,
-        "backend": config.backend,
-        "comparison_class": config.comparison_class,
-        "workload_id": config.workload_id,
-        "variant": config.variant,
-        "implementation": config.implementation,
+        "product": implementation.product,
+        "backend": implementation.backend,
+        "comparison_class": implementation.comparison_class,
+        "workload_id": workload.workload_id,
+        "variant": workload.variant,
+        "implementation": implementation.metadata,
         "parameters": parameters,
         "statistics": statistics,
+        "errors": list(suite_result.errors),
         "runs": [
             {
                 "index": run["run_index"],
