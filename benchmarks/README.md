@@ -69,7 +69,9 @@ make -C benchmarks build-vsgan
 
 VSGAN wrapper использует pinned `latest_no_avx512`: в соответствующем
 `minimal_no_avx512` release нативный `vspipe` был заменён несовместимым Python
-entrypoint. Docker build отдельно проверяет, что запускается нативный binary.
+entrypoint. Benchmark runner запускается из отдельного venv по абсолютному пути,
+не активируя его для embedded Python внутри VSScript. Docker build проверяет оба
+Python environment и запуск нативного binary.
 
 Проверка command generation не требует GPU. Для VSGAN plan нужен путь будущего
 TRT10 engine, но сам файл в dry-run не обязателен:

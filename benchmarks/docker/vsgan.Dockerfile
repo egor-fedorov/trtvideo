@@ -11,29 +11,30 @@ ARG VCS_REF=unknown
 ARG VCS_DIRTY=unknown
 ARG NVIDIA_ML_PY_VERSION=13.610.43
 ARG PYTHON_VERSION=3.12.3
+ARG BENCHMARK_VENV=/opt/vsgan-benchmark
 
 RUN test "$(od -An -tx1 -N4 /usr/local/bin/vspipe | tr -d ' \n')" = "7f454c46" && \
     vspipe --version
 
 COPY --from=uv /uv /uvx /usr/local/bin/
 
-ENV VIRTUAL_ENV=/opt/vsgan-benchmark \
-    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     UV_PYTHON_PREFERENCE=only-managed
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
+# Keep the runner isolated without activating its venv for embedded VSScript.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv python install "${PYTHON_VERSION}" && \
-    uv venv "${VIRTUAL_ENV}" --python "${PYTHON_VERSION}" && \
-    uv pip install --python "${VIRTUAL_ENV}" \
-        "nvidia-ml-py==${NVIDIA_ML_PY_VERSION}"
+    uv venv "${BENCHMARK_VENV}" --python "${PYTHON_VERSION}" && \
+    uv pip install --python "${BENCHMARK_VENV}" \
+        "nvidia-ml-py==${NVIDIA_ML_PY_VERSION}" && \
+    "${BENCHMARK_VENV}/bin/python3" -c "import pynvml" && \
+    vspipe --version
 
 WORKDIR /app
 COPY ai_media/ ai_media/
 COPY benchmarks/ benchmarks/
 
-ENV PYTHONPATH=/app \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
     AI_MEDIA_BASE_IMAGE=${BASE_IMAGE} \
     AI_MEDIA_BUILD_REVISION=${VCS_REF} \
     AI_MEDIA_BUILD_DIRTY=${VCS_DIRTY}

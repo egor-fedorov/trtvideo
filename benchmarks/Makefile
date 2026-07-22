@@ -63,7 +63,7 @@ build-vsgan-engine:
 	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/models:/app/models" \
-		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.build_vsgan_engine \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.build_vsgan_engine \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--onnx /app/$(ONNX) \
@@ -143,7 +143,7 @@ plan-vsgan:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.run_vsgan \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.run_vsgan \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -198,7 +198,7 @@ run-vsgan:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.run_vsgan \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.run_vsgan \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
