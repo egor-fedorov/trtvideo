@@ -1,25 +1,35 @@
 # Benchmarks
 
-Каталог содержит воспроизводимый benchmark contract, изолированные competitor
-images и runners. Модели, ONNX, TensorRT engines, исходные видео и raw results в
-Git не добавляются.
+Каталог содержит воспроизводимые workload manifests, pinned implementation
+metadata, изолированные Docker environments и runners. Модели, ONNX, TensorRT
+engines, исходные видео и raw results в Git не добавляются.
 
-- `methodology.md` - правила измерения и сравнения.
-- `workloads/` - manifests каноничных workload.
-- `competitors.json` - зафиксированные версии и классы сравнения.
-- `docker/` - отдельные environments для `vs-mlrt/vstrt` и Video2X.
-- `scripts/` - подготовка assets и runners.
-- `GPU_RUNBOOK.md` - последовательность запуска на benchmark GPU.
+- `methodology.md` - классы сравнения и критерии валидности.
+- `workloads/` - RealESRGAN и SPAN workload manifests.
+- `implementations.json` - pinned diagnostic/parity/product implementations.
+- `docker/` - TensorRT 11 vstrt parity и stock VSGAN environments.
+- `scripts/` - подготовка assets, engine builder и runners.
+- `GPU_RUNBOOK.md` - последовательность acceptance на benchmark GPU.
 
-Benchmark workflow отделён от основного `Makefile`:
+Benchmark workflow отделён от корневого `Makefile`:
 
 ```bash
 make -C benchmarks help
 ```
 
+## Матрица
+
+- `run-vstrt` - technical parity на том же TensorRT 11 engine.
+- `run-vsgan` - stock product comparison на том же ONNX, но отдельном TRT10.16
+  engine из-за несовместимости serialized engines между runtime versions.
+- `run-trtexec` - diagnostic inference ceiling, не конкурент.
+
+Video2X исключён: он не выполнял canonical `RealESRGAN_x2plus`, поэтому его FPS
+не отвечал на вопрос о производительности одинаковой модели.
+
 ## Assets
 
-Сначала соберите production image, затем подготовьте и проверьте workload:
+RealESRGAN является workload по умолчанию:
 
 ```bash
 make build
@@ -27,48 +37,63 @@ make -C benchmarks prepare
 make -C benchmarks verify
 ```
 
-Первый запуск скачивает около 3.7 GB исходных данных Sintel. Результаты остаются
-в игнорируемых каталогах `models/` и `videos/`. Только video clips можно
-переencode-ить без дорогой пересборки model assets:
+Для SPAN:
+
+```bash
+make -C benchmarks prepare \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+make -C benchmarks verify \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+```
+
+Первый запуск скачивает около 3.7 GB lossless Sintel source. Оба workload
+переиспользуют этот source и подготовленные clips. Model weights, generated ONNX
+и clips остаются в игнорируемых `models/` и `videos/`.
+
+Только clips можно пересоздать без повторного model export:
 
 ```bash
 make -C benchmarks prepare ARGS=--force-clips
 ```
 
-## Offline Gate
+SPAN weights имеют лицензию `CC-BY-NC-SA-4.0`; benchmark tooling не распространяет
+веса и сохраняет license/attribution в asset lock.
 
-Соберите опциональный benchmark image и образы конкурентов:
+## Images And Plans
 
 ```bash
+make -C benchmarks build
 make -C benchmarks build-vstrt
-make -C benchmarks build-video2x
+make -C benchmarks build-vsgan
 ```
 
-Проверить command generation без GPU и без готового engine:
+Проверка command generation не требует GPU. Для VSGAN plan нужен путь будущего
+TRT10 engine, но сам файл в dry-run не обязателен:
 
 ```bash
 make -C benchmarks dry-run \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine \
+  VARIANT=720p \
   ARGS="--frames 120 --runs 1 --extra-runs 0 --idle-seconds 0" \
   TRTEXEC_ARGS="--warmup-ms 250" \
   VSTRT_ARGS="--warmup-frames 24" \
-  VIDEO2X_ARGS="--warmup-frames 24"
+  VSGAN_ARGS="--warmup-frames 24"
 ```
 
-`trtexec` измеряет inference ceiling того же TensorRT engine. `vstrt` является
-прямым TensorRT-сравнением и получает тот же engine. Stock Video2X 6.4.0 не
-содержит RealESRGAN_x2plus и запускается с `realesr-animevideov3` x2, поэтому его
-результат всегда маркируется как product-level comparison. Software decode для
-него задан явно: stock RealESRGAN preprocessing Video2X 6.4.0 не принимает CUDA
-AVFrames, хотя inference и encode продолжают выполняться на GPU.
+Для SPAN вместе с `MANIFEST` переопределяются model paths:
 
-Workload `realesrgan-x2plus-sintel-v2` использует одинаковый для всех продуктов
-H.264 input без B-frames. Это исключает потерю задержанных decoder frames в stock
-Video2X 6.4.0 и сохраняет строгую проверку количества output frames.
+```bash
+MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+ONNX=models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx
+ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 
-Параметры `--frames`, `--warmup-frames`, `--runs`, `--extra-runs` и
-`--idle-seconds` можно уменьшать для smoke-проверок. Успешный smoke получает
-`status: valid`, но `publishable: false`: публикуемым считается только suite,
-полностью совпадающий с параметрами workload manifest.
+make -C benchmarks dry-run \
+  MANIFEST="$MANIFEST" ONNX="$ONNX" ENGINE="$ENGINE" \
+  VSGAN_ENGINE="$VSGAN_ENGINE"
+```
 
-Production image не содержит NVML dependency и competitor tools. Фактическая
-GPU-проверка и полные 3+2 серии описаны в `GPU_RUNBOOK.md`.
+Параметры frames/runs можно уменьшать только для smoke. Такой suite может быть
+валидным, но получает `publishable: false`. Production image не содержит NVML и
+внешние benchmark tools. GPU acceptance описан в `GPU_RUNBOOK.md`.

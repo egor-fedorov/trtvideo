@@ -33,8 +33,8 @@ from benchmarks.scripts.competitor_common import (
     CompetitorError,
     asset_requirement,
     benchmark_parameters,
-    competitor_config,
     find_variant,
+    implementation_config,
     load_json,
     plan_document,
     write_json_target,
@@ -98,7 +98,7 @@ def _implementation_environment(
         "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
         "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
     }
-    environment["competitor"] = implementation
+    environment["implementation"] = implementation
     return environment
 
 
@@ -124,8 +124,8 @@ def _run_trtexec(
 def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build a machine-readable trtexec plan and return the workload manifest."""
     manifest = load_json(Path(args.manifest))
-    competitors = load_json(Path(args.competitors))
-    implementation = competitor_config(competitors, "trtexec")
+    implementations = load_json(Path(args.implementations))
+    implementation = implementation_config(implementations, "trtexec")
     args.warmup_frames = manifest["benchmark"]["warmup_frames"]
     parameters = benchmark_parameters(args, manifest)
     parameters.pop("warmup_frames")
@@ -359,7 +359,10 @@ def _run_suite(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Benchmark a TensorRT engine with trtexec")
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--competitors", default="/app/benchmarks/competitors.json")
+    parser.add_argument(
+        "--implementations",
+        default="/app/benchmarks/implementations.json",
+    )
     parser.add_argument("--variant", choices=["720p", "1080p"], default="1080p")
     parser.add_argument("--engine", required=True)
     parser.add_argument("--output-dir", required=True)

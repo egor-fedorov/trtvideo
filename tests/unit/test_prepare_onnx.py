@@ -2,7 +2,12 @@ import os
 
 import pytest
 
+from ai_media.cli.export_onnx import export_filename
 from ai_media.cli.prepare_onnx import ONNXPrecision, is_dynamic, output_path_for_variant, parse_size
+
+
+def test_export_filename_uses_explicit_model_name() -> None:
+    assert export_filename("liveaction_span", 1080) == "liveaction_span_1080p.onnx"
 
 
 @pytest.mark.parametrize(

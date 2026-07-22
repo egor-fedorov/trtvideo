@@ -284,8 +284,9 @@ docker run --rm --gpus all \
 machine-readable JSON. Per-stage timings снимаются отдельно через
 `upscale --profile` или `upscale --profile-json` и не считаются end-to-end benchmark.
 
-Изолированные образы и runners для `trtexec`, `vs-mlrt/vstrt` и Video2X находятся
-в `benchmarks/`. Полная последовательность подготовки GPU-хоста, smoke и запусков
+Изолированные runners в `benchmarks/` разделяют technical parity с TensorRT 11
+`vs-mlrt/vstrt`, stock product comparison с `VSGAN-tensorrt-docker` и diagnostic
+ceiling через `trtexec`. Полная последовательность подготовки GPU-хоста и smoke
 описана в [GPU Benchmark Runbook](benchmarks/GPU_RUNBOOK.md).
 
 ## CLI-Справка

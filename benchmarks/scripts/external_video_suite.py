@@ -1,4 +1,4 @@
-"""External process benchmark suite for full-video competitor pipelines."""
+"""External process benchmark suite for full-video implementations."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ CommandFactory = Callable[[Path, int], CommandSpec]
 
 @dataclass(frozen=True)
 class ExternalVideoSuiteConfig:
-    """Configuration for one competitor's full video path."""
+    """Configuration for one external implementation's full video path."""
 
     product: str
     backend: str
@@ -59,6 +59,7 @@ class ExternalVideoSuiteConfig:
     output_contract: dict[str, Any]
     benchmark_contract: dict[str, Any]
     assets: dict[str, Path]
+    implementation_parameters: dict[str, Any]
     warmup_command: CommandFactory
     measured_command: CommandFactory
     keep_outputs: bool = False
@@ -126,7 +127,7 @@ def _environment(config: ExternalVideoSuiteConfig, gpu: dict[str, Any]) -> dict[
         "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
         "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
     }
-    environment["competitor"] = config.implementation
+    environment["implementation"] = config.implementation
     return environment
 
 
@@ -183,6 +184,7 @@ def _run_one(
             "nvml_sample_interval_ms": config.sample_interval_ms,
             "max_compute_processes": config.max_compute_processes,
             "max_graphics_processes": config.max_graphics_processes,
+            **config.implementation_parameters,
         },
         "commands": {
             "warmup": _sanitize_spec(warmup_spec, root),
@@ -289,7 +291,7 @@ def run_external_video_suite(
     *,
     root: Path | None = None,
 ) -> tuple[dict[str, Any], int]:
-    """Run a competitor's full pipeline with the common 3+2 contract."""
+    """Run an external full pipeline with the common 3+2 contract."""
     root = (root or Path.cwd()).resolve()
     config.output_dir.mkdir(parents=True, exist_ok=True)
     assets = {
@@ -354,6 +356,7 @@ def run_external_video_suite(
         "nvml_sample_interval_ms": config.sample_interval_ms,
         "max_compute_processes": config.max_compute_processes,
         "max_graphics_processes": config.max_graphics_processes,
+        **config.implementation_parameters,
     }
     canonical_errors = canonical_suite_errors(
         parameters,

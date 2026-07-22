@@ -132,6 +132,8 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
 
     model = _require_dict(manifest, "model")
     _validate_source(_require_dict(model, "source"), "model.source")
+    if not isinstance(model.get("export_name"), str) or not model["export_name"]:
+        raise WorkloadError("Manifest field 'model.export_name' is required")
     _validate_relative_path(model.get("weights_path"), "model.weights_path")
     _validate_relative_path(model.get("onnx_dir"), "model.onnx_dir")
     model_variants = _require_list(model, "variants")
@@ -370,6 +372,8 @@ def build_model_commands(manifest: dict[str, Any], root: Path) -> list[list[str]
             str(weights),
             "--output_dir",
             str(onnx_dir),
+            "--name",
+            model["export_name"],
             "--quiet",
         ]
     ]
@@ -621,6 +625,7 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
             "model": {
                 "sha256": weight_hash,
                 "size_bytes": weight_path.stat().st_size,
+                "license": model["source"].get("license"),
                 "attribution": model["source"]["attribution"],
             },
             "clip": {

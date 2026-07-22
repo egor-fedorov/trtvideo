@@ -2,153 +2,189 @@
 
 ## Назначение
 
-Benchmark проверяет тезис, что GPU-resident pipeline
-`NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC` обеспечивает высокий
-end-to-end throughput без выгрузки несжатых кадров на CPU.
+Benchmark проверяет, сохраняет ли GPU-resident pipeline
+`NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC` преимущество на полном пути от
+compressed input до валидного MP4 output.
 
-Результаты делятся на три класса и не смешиваются:
+Результаты не смешиваются:
 
-1. `trtexec` показывает inference ceiling того же TensorRT engine без video I/O.
-2. `vs-mlrt/vstrt` сравнивает TensorRT integration при одинаковой модели и
-   максимально близком video/encoding contract.
-3. Video2X является product-level comparison, если одинаковая модель или
-   encoder contract недоступны.
+1. `vstrt parity` - проект и локально собранный VapourSynth/vstrt используют один
+   TensorRT 11 engine. Это сравнение integration и video pipeline.
+2. `VSGAN product` - проект сравнивается с pinned stock
+   VSGAN-tensorrt-docker. Используется один ONNX, но отдельные native engines:
+   stock VSGAN работает на TensorRT 10.16, проект - на TensorRT 11.
+3. `trtexec diagnostic` - inference ceiling без decode, colorspace, encode и mux.
 
-`ffmpeg` backend проекта используется только как diagnostic baseline. Основной
-публичный результат `ai-media-enhancer` снимается с `--backend nvcodec`.
+Video2X не входит в матрицу: доступная версия не поддерживает canonical
+`RealESRGAN_x2plus` и выполняет другую anime-модель. Его FPS нельзя использовать
+для same-model performance claim.
 
-## Workload
+Основной backend проекта - `nvcodec`. `ffmpeg` backend остаётся diagnostic
+baseline и не заменяет GPU-resident результат.
 
-Основная модель - `RealESRGAN_x2plus` из официального release `v0.2.1`.
-Для `ai-media-enhancer`, `vstrt` и `trtexec` используется один исходный ONNX
-tensor contract: batch 1, RGB NCHW, FP32 input/output, mixed-FP16 internal graph,
-static full-frame shape.
+## Workloads
 
-Основной input создаётся из lossless Sintel trailer 1080p24 Y4M. Исходник и
-подготовленные assets не коммитятся; URL, SHA256 и attribution зафиксированы в
-`workloads/realesrgan_x2plus_sintel.json`.
+Обязательны две x2-модели:
 
-Подготавливаются два video-only H.264 input:
+- `RealESRGAN_x2plus` - тяжёлый model-bound workload;
+- `2xLiveActionV1_SPAN` - лёгкий workload для измерения pipeline overhead.
 
-| Workload | Input | Output | Frames | FPS |
+Обе модели экспортируются через Spandrel в static full-frame ONNX. Canonical
+tensor contract: batch 1, RGB NCHW, FP32 input/output bindings, mixed-FP16 graph,
+tiling disabled.
+
+Основной input создаётся из lossless Sintel trailer 1080p24 Y4M. Подготавливаются
+два video-only H.264 input:
+
+| Режим | Input | Output | Frames | FPS |
 |---|---:|---:|---:|---:|
 | primary | 1920x1080 | 3840x2160 | 1000 | 24/1 |
-| secondary | 1280x720 | 2560x1440 | 1000 | 24/1 |
+| confirmation | 1280x720 | 2560x1440 | 1000 | 24/1 |
 
-Оба input имеют `yuv420p`, limited-range BT.709, SAR 1:1, не используют B-frames
-и не содержат audio, subtitles, chapters или пользовательскую metadata. Такой
-decode contract одинаково исполним stock Video2X 6.4.0, который не flush-ит
-задержанные B-frames при EOF.
+Input использует `yuv420p`, limited BT.709, SAR 1:1, B-frames 0 и GOP 24. Audio,
+subtitles, chapters и пользовательская metadata отсутствуют. URLs, hashes,
+licenses и attribution находятся в `workloads/`.
+
+После canonical campaign headline workload повторяется на коротком live-action
+clip с большим движением. Его результаты публикуются отдельно от Sintel.
+
+## Inference Contract
+
+Technical parity требует:
+
+```text
+engine SHA256 identical
+input/output dtype identical
+static input/output shape identical
+batch size = 1
+full-frame processing
+tiling disabled
+requests = 1
+TensorRT streams = 1
+CUDA Graph disabled
+```
+
+Stock VSGAN не может загрузить TRT11 engine. Для product comparison оба engine
+строятся из одного canonical ONNX на одной GPU с одинаковыми shape, dtype, batch
+и builder intent. Engine hash и TensorRT runtime будут различаться и должны быть
+показаны явно. VSGAN фиксируется immutable image digest и source revision;
+разрешены только `.vpy` configuration, model/engine mount и encoder parameters.
+Изменение его внутреннего кода считается fork benchmark.
+
+CUDA Graph не включается в parity baseline. Текущая реализация проекта захватывает
+только TensorRT call и остаётся experimental. Graph-enabled режим исследуется
+отдельно в best-tuned campaign.
 
 ## Output Contract
 
-Для полного межпродуктового сравнения используется одинаковый NVENC contract:
+Для прямого сравнения должны совпадать:
 
-- H.264/NV12;
-- preset P4, high-quality tuning;
-- 60 Mbps для 4K и 35 Mbps для 1440p;
-- B-frames отключены;
-- GOP и IDR interval около одной секунды;
-- FPS input сохраняется;
-- limited-range BT.709 tags задаются явно;
-- audio, subtitles и chapters отсутствуют.
+```text
+codec and pixel format
+NVENC preset and tuning
+rate-control mode
+target/min/max bitrate and VBV buffer
+GOP and B-frames
+FPS and frame count
+limited BT.709 color metadata
+MP4 container, no audio/subtitles/chapters
+```
 
-Перед timed suite выполняется untimed output smoke. Если конкурент не позволяет
-воспроизвести contract или фактический video bitrate отличается от target либо
-других сравниваемых outputs более чем на 10%, результат помечается как
-product-level и не используется для прямого pipeline claim.
+Canonical target: H.264 `yuv420p`, P4/HQ, B-frames 0, GOP в одну секунду,
+35 Mbps для 1440p и 60 Mbps для 4K. Exact rate-control parity является
+обязательным gate до публикации product comparison.
 
-Output считается валидным только после полного decode через `ffmpeg -f null -` и
-проверки resolution, codec, pixel format, color tags, FPS, duration, frame count,
-B-frames, keyframe interval и монотонности PTS/DTS. Эту проверку автоматически
-выполняет `benchmark-upscale` после завершения внешнего timer.
+Output валиден только после полного decode и проверки resolution, codec,
+pixel format, color tags, FPS, duration, frame count, B-frames, keyframe interval,
+фактического bitrate и монотонных PTS/DTS. Валидный MP4 после SHA256 может быть
+удалён; невалидный сохраняется для диагностики.
+
+## Quality Contract
+
+Качество проверяется в двух точках:
+
+1. Model-space parity: несколько RGB/float кадров до YUV conversion и encode.
+2. Product-output parity: PSNR/SSIM и visual crops декодированных MP4.
+
+Pixel diff только готовых MP4 недостаточен: он смешивает model output,
+colorspace conversion и lossy encoder. VMAF/quality claims требуют отдельного
+reference degradation dataset и не выводятся из throughput workload.
 
 ## Timing Contract
 
-Per-stage profiling отключается: `benchmark-upscale` запускает обычный `upscale`
-без `--profile` и `--profile-json`. Stage timings через `upscale --profile` являются
-отдельным diagnostic artifact и не заменяют end-to-end metrics.
+Основная метрика - full-process end-to-end FPS. Внешний monotonic timer включает
+startup, decode, colorspace, inference, encode, flush и mux.
 
-Для каждого measured run:
+Для canonical run:
 
-1. Отдельный discarded процесс обрабатывает первые 100 кадров.
-2. Сразу после него новый процесс обрабатывает ровно 1000 кадров.
-3. Внешний monotonic timer запускается перед созданием процесса и останавливается
-   после успешного process exit, когда encode, flush и mux завершены.
-4. stdout/stderr не выводятся в интерактивный terminal, кроме сохранённого лога.
-5. Input и output находятся на одном локальном filesystem для всех продуктов.
+1. Отдельный discarded process обрабатывает 100 warmup frames.
+2. Новый process обрабатывает ровно 1000 measured frames.
+3. Выполняются минимум три run; при relative spread больше 5% - ещё два.
+4. Порядок продуктов чередуется между раундами.
+5. Между run выдерживается одинаковый idle interval.
 
-Основные метрики - полный wall time и `1000 / wall_time` end-to-end FPS.
-Inference-only и stage timings публикуются отдельно и не заменяют end-to-end FPS.
+Публикуются raw values, median, min/max и spread `(max - min) / median`.
+Дополнительно фиксируются startup/context initialization, steady-state frame loop
+и finalize/mux; эти scopes не заменяют full-process wall time. Cold-start и
+warm-cache результаты не смешиваются.
 
-Для каждой комбинации выполняются минимум три measured run. Порядок продуктов
-ротируется между раундами. Публикуются все raw values, median, min/max и relative
-spread `(max - min) / median`. При spread больше 5% выполняются ещё два run. Если
-пять run остаются нестабильными, результат маркируется как unstable.
+Per-stage profiling и CUDA events являются diagnostics и выключены в измеряемом
+hot path. Успешный smoke с уменьшенными параметрами получает `status: valid`, но
+`publishable: false`.
 
-CUDA Graph не включается в основной baseline, пока это experimental opt-in
-режим проекта. На Stage 3 graph enabled/disabled сравниваются попарно с одинаковым
-режимом `trtexec`.
+## Metrics
 
-Каждый run сохраняет JSON manifest, stdout/stderr дочерних процессов и raw NVML
-samples. Suite summary содержит исходные значения FPS, median, min/max и spread.
-Валидные MP4 после validation и SHA256 удаляются; невалидный output сохраняется
-для диагностики.
+Product/parity таблица содержит:
 
-Smoke overrides разрешены для acceptance-проверок. Такой suite может иметь
-`status: valid`, если runtime и output корректны, но получает `publishable: false`.
-Публикация разрешена только при точном совпадении параметров suite с `benchmark`
-из workload manifest; причины отказа сохраняются в `publishability.errors`.
+- median end-to-end FPS и wall time;
+- average CPU utilization;
+- average power и joules/frame;
+- peak VRAM;
+- output size и фактический bitrate.
+
+`trtexec` публикуется отдельно. Диагностическая метрика:
+
+```text
+pipeline efficiency = ai-media-enhancer end-to-end FPS / trtexec QPS
+```
+
+Один representative run сопровождается Nsight Systems trace для проверки
+H2D/D2H copies, stream gaps, CPU waits, PCIe traffic и overlap
+NVDEC/TensorRT/NVENC. Trace не снимается внутри каждого measured run.
 
 ## Environment Contract
 
-До benchmark необходимо выбрать одну физическую NVIDIA GPU. Все engines и все
-сравниваемые результаты строятся и снимаются на этой карте. Результаты разных GPU
-не объединяются в одну таблицу.
+Все engines и сравнимые результаты строятся и измеряются на одной физической
+GPU. Между сериями фиксируются driver, power limit, clocks, thermal policy,
+Docker image digest и отсутствие display/посторонней GPU-нагрузки.
 
-Benchmark host должен:
+Runner сохраняет allowlisted environment:
 
-- не обслуживать display workload на benchmark GPU;
-- не иметь других compute/video процессов во время run;
-- использовать неизменные driver, power limit и clock policy;
-- выполнять одинаковый 100-frame warmup перед каждым measured run;
-- выдерживать одинаковый idle interval между run;
-- ротировать порядок продуктов;
-- отклонять run при thermal/hardware slowdown. Достижение неизменного SW power cap
-  фиксируется как часть environment, но само по себе не делает run недействительным.
-
-NVML process gate проверяет нулевой compute/graphics baseline до запуска child
-processes и backend-specific максимум во время измерения. Для `vstrt` разрешены
-два compute-процесса (`vspipe` и `ffmpeg`), для Video2X - его собственный Vulkan
-graphics context. Превышение объявленного лимита означает постороннюю GPU-нагрузку.
-
-Публичный environment report строится только по allowlist:
-
-- GPU model, compute capability и total VRAM;
+- GPU model, compute capability, VRAM;
 - CPU model и logical core count;
 - driver, CUDA, TensorRT, CV-CUDA, PyNvVideoCodec, FFmpeg и Python versions;
-- Docker image references и immutable digests;
-- commit/version конкурентов;
-- power limit, clock policy, temperature и throttle state;
+- immutable image references и source revisions;
+- power limit, clocks, temperature и throttle reasons;
 - repository commit;
-- SHA256 input, weights, ONNX, engine и sidecar manifest;
-- точные команды и benchmark parameters.
+- SHA256 input, weights, ONNX, engine и sidecar;
+- sanitized commands и benchmark parameters.
 
 Не сохраняются hostname, username, IP, GPU UUID/serial, container IDs,
-абсолютные host paths и произвольный environment dump.
+абсолютные host paths и полный environment dump.
 
-## Run Validity
+## Validity And Success
 
-Канонический measured run недействителен, если:
+Run недействителен при mismatch assets/contracts, output validation error,
+посторонней GPU-нагрузке, thermal/hardware slowdown, изменении environment или
+включённом per-frame profiler. Достижение заранее заданного SW power limit
+фиксируется, но само по себе не инвалидирует run.
 
-- asset checksum или engine/model contract не совпадает;
-- output validation завершилась ошибкой;
-- обработано не ровно 1000 кадров;
-- изменился environment, image, command или engine между сравниваемыми run;
-- обнаружены посторонняя GPU-нагрузка, thermal или hardware slowdown;
-- включён per-frame profiler;
-- фактические output settings не соответствуют заявленному классу сравнения.
+Критерий задаётся до получения результатов:
 
-Stage 0 считается закрытым после успешного `make -C benchmarks verify` на любом
-хосте. Выбор одной физической benchmark GPU и фиксация её environment являются
-отдельным prerequisite Stage 3 перед снятием performance baseline.
+- больше 5% преимущества median FPS - подтверждённое преимущество;
+- в пределах +/-5% - паритет; сравниваются CPU, energy/frame, VRAM и UX;
+- больше 5% проигрыша на обоих workload - profiling и оптимизация до claim.
+
+До реализации CPU accounting, timing scopes, quality parity, exact encoder
+contract и rotated campaign runner individual suite считаются acceptance data,
+а не финальным публичным benchmark.

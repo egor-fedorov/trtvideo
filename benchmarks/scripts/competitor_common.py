@@ -1,4 +1,4 @@
-"""Shared workload and command-plan helpers for competitor benchmarks."""
+"""Shared workload and command-plan helpers for external benchmarks."""
 
 from __future__ import annotations
 
@@ -9,9 +9,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from ai_media.benchmarking.environment import sha256_file
+
 
 class CompetitorError(RuntimeError):
-    """Raised when a competitor benchmark contract is invalid."""
+    """Raised when an external benchmark contract is invalid."""
 
 
 CommandSpec = list[list[str]]
@@ -47,14 +49,45 @@ def find_model_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
     raise CompetitorError(f"Workload has no model variant {name!r}")
 
 
-def competitor_config(config: dict[str, Any], name: str) -> dict[str, Any]:
-    """Return one pinned competitor definition."""
+def implementation_config(config: dict[str, Any], name: str) -> dict[str, Any]:
+    """Return one pinned benchmark implementation definition."""
     if config.get("schema_version") != 1:
-        raise CompetitorError("Unsupported competitor config schema_version")
-    value = config.get("competitors", {}).get(name)
+        raise CompetitorError("Unsupported implementation config schema_version")
+    value = config.get("implementations", {}).get(name)
     if not isinstance(value, dict):
-        raise CompetitorError(f"Competitor config has no {name!r} entry")
+        raise CompetitorError(f"Implementation config has no {name!r} entry")
     return value
+
+
+def validate_static_engine_contract(
+    sidecar: dict[str, Any],
+    manifest: dict[str, Any],
+    variant_name: str,
+    onnx_path: Path,
+) -> None:
+    """Verify the common tensor contract required by parity benchmarks."""
+    model_variant = find_model_variant(manifest, variant_name)
+    clip_variant = find_variant(manifest, variant_name)
+    output = clip_variant["benchmark_output"]
+    expected_input = [
+        1,
+        3,
+        model_variant["input_height"],
+        model_variant["input_width"],
+    ]
+    expected_output = [1, 3, output["height"], output["width"]]
+    if sidecar.get("input", {}).get("shape") != expected_input:
+        raise CompetitorError("Engine input shape does not match workload")
+    if sidecar.get("output", {}).get("shape") != expected_output:
+        raise CompetitorError("Engine output shape does not match workload")
+    if sidecar.get("io_precision") != "fp32":
+        raise CompetitorError("Parity engine must keep FP32 input/output bindings")
+    if sidecar.get("input_profile") is not None:
+        raise CompetitorError("Parity engine must use a static full-frame shape")
+    if not onnx_path.is_file():
+        raise CompetitorError(f"Canonical ONNX not found: {onnx_path}")
+    if sidecar.get("model_sha256") != sha256_file(onnx_path):
+        raise CompetitorError("Engine was not built from the canonical ONNX")
 
 
 def benchmark_value(
@@ -110,7 +143,7 @@ def output_contract(
     frames: int,
     enforce_bitrate: bool,
 ) -> dict[str, Any]:
-    """Build the common video output contract used by full-pipeline competitors."""
+    """Build the common video output contract for external implementations."""
     output = variant["benchmark_output"]
     return {
         "width": output["width"],
@@ -175,9 +208,9 @@ def add_common_arguments(parser: argparse.ArgumentParser, *, engine: bool) -> No
     """Add canonical workload, suite and dry-run arguments."""
     parser.add_argument("--manifest", required=True, help="Canonical workload manifest")
     parser.add_argument(
-        "--competitors",
-        default="/app/benchmarks/competitors.json",
-        help="Pinned competitor definitions",
+        "--implementations",
+        default="/app/benchmarks/implementations.json",
+        help="Pinned benchmark implementation definitions",
     )
     parser.add_argument("--variant", choices=["720p", "1080p"], default="1080p")
     if engine:

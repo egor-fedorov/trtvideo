@@ -19,6 +19,7 @@ from benchmarks.scripts.prepare_workload import (
 )
 
 MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_sintel.json")
+SPAN_MANIFEST_PATH = Path("benchmarks/workloads/liveaction_span_sintel.json")
 
 
 @pytest.fixture
@@ -28,6 +29,10 @@ def manifest() -> dict:
 
 def test_manifest_is_valid(manifest: dict) -> None:
     validate_manifest(manifest)
+
+
+def test_span_manifest_is_valid() -> None:
+    validate_manifest(json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8")))
 
 
 def test_manifest_rejects_non_sha256(manifest: dict) -> None:
@@ -141,6 +146,7 @@ def test_build_model_commands_use_static_variants(manifest: dict, tmp_path: Path
     commands = build_model_commands(manifest, tmp_path)
 
     assert commands[0][0] == "export-onnx"
+    assert commands[0][commands[0].index("--name") + 1] == "realesrgan_x2plus"
     assert [command[0] for command in commands[1:]] == ["prepare-onnx", "prepare-onnx"]
     assert all("fp16" in command for command in commands[1:])
 

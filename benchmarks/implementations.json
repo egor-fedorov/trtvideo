@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "implementations": {
+    "trtexec": {
+      "role": "diagnostic",
+      "version": "TensorRT 11.0.0",
+      "comparison_class": "diagnostic",
+      "image": "ai-media-enhancer:benchmark",
+      "source": "nvcr.io/nvidia/tensorrt:26.06-py3",
+      "notes": "Inference ceiling for the project engine; not a product competitor."
+    },
+    "vstrt": {
+      "role": "parity",
+      "version": "v15.16",
+      "comparison_class": "parity",
+      "image": "ai-media-enhancer:benchmark-vstrt",
+      "source": "https://github.com/AmusementClub/vs-mlrt",
+      "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
+      "vapoursynth_version": "77",
+      "vapoursynth_headers_revision": "325756ed04588b31840fdb74479537cddcba4bf7",
+      "bestsource_version": "19.0",
+      "tensorrt_version": "11.0.0",
+      "notes": "Technical parity target built against the same TensorRT 11 base as the project."
+    },
+    "vsgan": {
+      "role": "product",
+      "version": "2026-06-22",
+      "comparison_class": "product",
+      "image": "ai-media-enhancer:benchmark-vsgan",
+      "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4",
+      "upstream_tag": "minimal_no_avx512",
+      "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
+      "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
+      "tensorrt_version": "10.16",
+      "exact_model_match": true,
+      "exact_engine_match": false,
+      "notes": "Pinned stock VSGAN environment. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+    }
+  }
+}

@@ -59,37 +59,49 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Benchmark runner и `nvidia-ml-py` изолированы в опциональном Docker target
   `benchmark`; production image не получает benchmark-only dependency и scripts.
 * Добавлены зафиксированные Docker environments и отдельные runners для
-  `trtexec`, `vs-mlrt/vstrt` и Video2X с общей схемой результатов, NVML sampling,
-  output validation и режимом `--dry-run` без GPU.
+  diagnostic `trtexec`, TensorRT 11 `vs-mlrt/vstrt` parity и stock
+  `VSGAN-tensorrt-docker` product comparison с общей схемой результатов, NVML
+  sampling, output validation и режимом `--dry-run` без GPU.
 * Добавлен GPU benchmark runbook для будущей acceptance campaign на RTX 3090.
+* Добавлен второй canonical workload на лёгкой `2xLiveActionV1_SPAN`: source
+  hash, license/attribution, static ONNX variants и общие Sintel clips.
+* Для stock VSGAN добавлена отдельная сборка TensorRT 10.16 engine из canonical
+  ONNX с build log, sidecar contract и hashes. TRT11 engine проекта не
+  переиспользуется между несовместимыми runtime versions.
+* `export-onnx` получил явный `--name`, чтобы воспроизводимо экспортировать
+  разные поддерживаемые Spandrel x2-модели без hardcoded RealESRGAN filename.
 
 ### Changed
 
 * Canonical benchmark workload обновлён до `realesrgan-x2plus-sintel-v2`: общий
-  H.264 input теперь не использует B-frames, чтобы stock Video2X 6.4.0 сохранял
-  точное число кадров; добавлен выборочный `prepare --force-clips` без пересборки
-  ONNX.
+  H.264 input теперь не использует B-frames, что упрощает строгую проверку числа
+  кадров и временной разметки; добавлен выборочный `prepare --force-clips` без
+  пересборки ONNX.
 * Per-stage profiling отделён от benchmark: stage timings доступны только через
   `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
   unprofiled pipeline отдельными warmup и measured процессами.
-* Benchmark roadmap разделён на offline-подготовку всех competitor runners и
-  единую GPU acceptance/baseline campaign на GeForce RTX 3090.
+* Benchmark roadmap разделён на technical parity, stock product comparison и
+  diagnostics. До публикационной campaign отдельно закрываются exact encoder
+  contract, CPU/timing scopes, quality parity и чередование реализаций по run.
 * Benchmark-specific Make targets перенесены в `benchmarks/Makefile`; корневой
   `Makefile` оставлен для build и quality gate основного проекта.
 
 ### Fixed
 
-* `vstrt` runner передаёт абсолютный container path для input, а Video2X runner
-  использует совместимый с его RealESRGAN preprocessing software decode вместо
-  CUDA AVFrames.
+* `vstrt` runner передаёт абсолютный container path для input.
 * При невалидном benchmark run конкретные manifest errors теперь сразу выводятся
   в stderr перед завершением Make target с кодом 2.
 * Smoke overrides больше не могут ошибочно получить `publishable: true`: suite
   summary проверяет точное соответствие параметрам canonical workload.
-* NVML process gate учитывает объявленную многопроцессную структуру competitor:
-  два compute child process для `vstrt` и Vulkan graphics context Video2X, сохраняя
-  нулевой baseline для обнаружения посторонней GPU-нагрузки; повторяющиеся NVML
-  records одного PID больше не считаются отдельными процессами.
+* NVML process gate учитывает объявленную многопроцессную структуру внешних
+  pipeline, сохраняя нулевой baseline для обнаружения посторонней GPU-нагрузки;
+  повторяющиеся NVML records одного PID больше не считаются отдельными процессами.
+
+### Removed
+
+* Video2X удалён из canonical benchmark tooling: версия 6.4.0 выполняла
+  `realesr-animevideov3`, а не используемую `RealESRGAN_x2plus`, поэтому её FPS
+  нельзя использовать для same-model performance claim.
 
 ## 0.3.1 - 2026-07-20
 

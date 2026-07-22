@@ -1,0 +1,43 @@
+"""Stock VSGAN configuration script for full-frame x2 parity runs."""
+
+import vapoursynth as vs
+
+core = vs.core
+core.num_threads = int(vs_threads)
+core.std.LoadPlugin(path="/usr/local/lib/libvstrt.so")
+
+source_clip = core.bs.VideoSource(
+    source=source,
+    cachemode=0,
+    showprogress=False,
+)
+rgb = core.resize.Bicubic(
+    source_clip,
+    format=vs.RGBS,
+    matrix_in_s="709",
+    range_in_s="limited",
+)
+upscaled = core.trt.Model(
+    rgb,
+    engine_path=engine,
+    device_id=int(gpu_id),
+    use_cuda_graph=cuda_graph == "1",
+    num_streams=int(num_streams),
+    overlap=[0, 0],
+    verbosity=2,
+)
+output = core.resize.Bicubic(
+    upscaled,
+    format=vs.YUV420P8,
+    matrix_s="709",
+    range_s="limited",
+    dither_type="error_diffusion",
+)
+output = core.std.SetFrameProps(
+    output,
+    _ColorRange=1,
+    _Matrix=1,
+    _Transfer=1,
+    _Primaries=1,
+)
+output.set_output()

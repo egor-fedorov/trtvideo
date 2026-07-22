@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "id": "realesrgan-x2plus-sintel-v2",
-  "lock_path": "models/benchmarks/realesrgan-x2plus-sintel-v2.assets.json",
+  "id": "liveaction-span-sintel-v1",
+  "lock_path": "models/benchmarks/liveaction-span-sintel-v1.assets.json",
   "benchmark": {
     "warmup_frames": 100,
     "measured_frames": 1000,
@@ -12,31 +12,32 @@
     "nvml_sample_interval_ms": 100
   },
   "model": {
-    "name": "RealESRGAN_x2plus",
-    "export_name": "realesrgan_x2plus",
+    "name": "2xLiveActionV1_SPAN",
+    "export_name": "liveaction_span",
     "source": {
-      "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
-      "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb",
-      "size_bytes": 67061725,
-      "license_reference": "https://github.com/xinntao/Real-ESRGAN/blob/v0.2.1/LICENSE",
-      "attribution": "Real-ESRGAN, Xintao Wang et al."
+      "url": "https://raw.githubusercontent.com/jcj83429/upscaling/f73a3a02874360ec6ced18f8bdd8e43b5d7bba57/2xLiveActionV1_SPAN/2xLiveActionV1_SPAN_490000.pth",
+      "sha256": "8b166c75831ea7f694d9058ee9c8df8148af8cc1d2b57e69e6581b15cab572f7",
+      "size_bytes": 8947821,
+      "license": "CC-BY-NC-SA-4.0",
+      "license_reference": "https://openmodeldb.info/models/2x-LiveActionV1-SPAN",
+      "attribution": "2xLiveActionV1_SPAN by jcj83429"
     },
-    "weights_path": "models/benchmarks/realesrgan-x2plus/RealESRGAN_x2plus.pth",
-    "onnx_dir": "models/benchmarks/realesrgan-x2plus/onnx",
+    "weights_path": "models/benchmarks/liveaction-span/2xLiveActionV1_SPAN_490000.pth",
+    "onnx_dir": "models/benchmarks/liveaction-span/onnx",
     "variants": [
       {
         "name": "720p",
         "input_width": 1280,
         "input_height": 720,
-        "fp32_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p.onnx",
-        "fp16_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx"
+        "fp32_path": "models/benchmarks/liveaction-span/onnx/liveaction_span_720p.onnx",
+        "fp16_path": "models/benchmarks/liveaction-span/onnx/liveaction_span_720p_fp16.onnx"
       },
       {
         "name": "1080p",
         "input_width": 1920,
         "input_height": 1080,
-        "fp32_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p.onnx",
-        "fp16_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p_fp16.onnx"
+        "fp32_path": "models/benchmarks/liveaction-span/onnx/liveaction_span_1080p.onnx",
+        "fp16_path": "models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx"
       }
     ]
   },

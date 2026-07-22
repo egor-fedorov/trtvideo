@@ -3,37 +3,40 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 IMAGE ?= ai-media-enhancer:latest
 BENCHMARK_IMAGE ?= ai-media-enhancer:benchmark
 VSTRT_IMAGE ?= ai-media-enhancer:benchmark-vstrt
-VIDEO2X_IMAGE ?= ai-media-enhancer:benchmark-video2x
-VIDEO2X_UPSTREAM_IMAGE ?= ghcr.io/k4yt3x/video2x@sha256:e21b6893269b4cb6f5603802726fd7537be241f6b39217b73530478861acbca1
+VSGAN_IMAGE ?= ai-media-enhancer:benchmark-vsgan
+VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4
 
 MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_sintel.json
-COMPETITORS ?= benchmarks/competitors.json
+IMPLEMENTATIONS ?= benchmarks/implementations.json
 VARIANT ?= 1080p
 ENGINE ?=
 PLAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_$(VARIANT).engine
+VSGAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_$(VARIANT).engine
+ONNX ?= models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_$(VARIANT)_fp16.onnx
 OUTPUT_DIR ?= artefacts/benchmarks/ai-media-$(VARIANT)
 GPU_ID ?= 0
 ARGS ?=
 TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
-VIDEO2X_ARGS ?=
+VSGAN_ARGS ?=
 
-.PHONY: help build build-vstrt build-video2x prepare verify run-ai-media
-.PHONY: plan-trtexec plan-vstrt plan-video2x dry-run
-.PHONY: run-trtexec run-vstrt run-video2x
+.PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
+.PHONY: run-ai-media plan-trtexec plan-vstrt plan-vsgan dry-run
+.PHONY: run-trtexec run-vstrt run-vsgan
 
 help:
 	@printf '%s\n' \
-		'build          Build the project benchmark image' \
-		'build-vstrt    Build the pinned vs-mlrt/vstrt image' \
-		'build-video2x  Build the pinned Video2X image' \
-		'prepare        Download and prepare canonical workload assets' \
-		'verify         Verify canonical workload assets' \
-		'dry-run        Print plans for trtexec, vstrt and Video2X' \
-		'run-ai-media   Run the project benchmark suite (ENGINE required)' \
-		'run-trtexec    Run the TensorRT ceiling suite (ENGINE required)' \
-		'run-vstrt      Run the vs-mlrt/vstrt suite (ENGINE required)' \
-		'run-video2x    Run the Video2X product-level suite'
+		'build               Build the project benchmark image' \
+		'build-vstrt         Build the TensorRT 11 VapourSynth parity image' \
+		'build-vsgan         Build the pinned stock VSGAN benchmark wrapper' \
+		'build-vsgan-engine  Build a stock TensorRT 10.16 engine (ONNX/VSGAN_ENGINE)' \
+		'prepare             Download and prepare the selected workload assets' \
+		'verify              Verify the selected workload assets' \
+		'dry-run             Print diagnostic, parity and VSGAN product plans' \
+		'run-ai-media        Run the project benchmark suite (ENGINE required)' \
+		'run-vstrt           Run strict TensorRT 11 parity (ENGINE required)' \
+		'run-vsgan           Run stock VSGAN (VSGAN_ENGINE required)' \
+		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)'
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -48,13 +51,25 @@ build-vstrt: build
 		-f "$(ROOT)/benchmarks/docker/vstrt.Dockerfile" \
 		-t $(VSTRT_IMAGE) "$(ROOT)"
 
-build-video2x:
+build-vsgan:
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BASE_IMAGE="$(VIDEO2X_UPSTREAM_IMAGE)" \
+		--build-arg BASE_IMAGE="$(VSGAN_UPSTREAM_IMAGE)" \
 		--build-arg VCS_REF="$$(git -C "$(ROOT)" rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git -C "$(ROOT)" status --porcelain)"; then echo 0; else echo 1; fi)" \
-		-f "$(ROOT)/benchmarks/docker/video2x.Dockerfile" \
-		-t $(VIDEO2X_IMAGE) "$(ROOT)"
+		-f "$(ROOT)/benchmarks/docker/vsgan.Dockerfile" \
+		-t $(VSGAN_IMAGE) "$(ROOT)"
+
+build-vsgan-engine:
+	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/models:/app/models" \
+		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.build_vsgan_engine \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--onnx /app/$(ONNX) \
+			--output /app/$(VSGAN_ENGINE) \
+			--timing-cache /app/models/cache/vsgan-trt10.cache \
+			$(ARGS)
 
 prepare:
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos"
@@ -99,11 +114,11 @@ plan-trtexec:
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.run_trtexec \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/trtexec-$(VARIANT) \
+			--output-dir /app/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT) \
 			--dry-run $(ARGS) $(TRTEXEC_ARGS)
 
 plan-vstrt:
@@ -115,32 +130,33 @@ plan-vstrt:
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.run_vstrt \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/vstrt-$(VARIANT) \
+			--output-dir /app/artefacts/benchmarks/parity-vstrt-$(VARIANT) \
 			--dry-run $(ARGS) $(VSTRT_ARGS)
 
-plan-video2x:
+plan-vsgan:
 	mkdir -p "$(ROOT)/artefacts/benchmarks"
 	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
-		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VIDEO2X_IMAGE) python3 -m benchmarks.scripts.run_video2x \
+		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.run_vsgan \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
+			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/video2x-$(VARIANT) \
-			--dry-run $(ARGS) $(VIDEO2X_ARGS)
+			--output-dir /app/artefacts/benchmarks/product-vsgan-$(VARIANT) \
+			--dry-run $(ARGS) $(VSGAN_ARGS)
 
-dry-run: plan-trtexec plan-vstrt plan-video2x
+dry-run: plan-trtexec plan-vstrt plan-vsgan
 
 run-trtexec:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/artefacts/benchmarks/trtexec-$(VARIANT)"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
@@ -148,16 +164,16 @@ run-trtexec:
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.run_trtexec \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/trtexec-$(VARIANT) \
+			--output-dir /app/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT) \
 			$(ARGS) $(TRTEXEC_ARGS)
 
 run-vstrt:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/artefacts/benchmarks/vstrt-$(VARIANT)"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/artefacts/benchmarks/parity-vstrt-$(VARIANT)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e AI_MEDIA_IMAGE_REF="$(VSTRT_IMAGE)" \
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
@@ -166,24 +182,27 @@ run-vstrt:
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.run_vstrt \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/vstrt-$(VARIANT) \
+			--output-dir /app/artefacts/benchmarks/parity-vstrt-$(VARIANT) \
 			$(ARGS) $(VSTRT_ARGS)
 
-run-video2x:
-	mkdir -p "$(ROOT)/videos" "$(ROOT)/artefacts/benchmarks/video2x-$(VARIANT)"
+run-vsgan:
+	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/artefacts/benchmarks/product-vsgan-$(VARIANT)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VIDEO2X_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VIDEO2X_IMAGE))" \
+		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VIDEO2X_IMAGE) python3 -m benchmarks.scripts.run_video2x \
+		$(VSGAN_IMAGE) python3 -m benchmarks.scripts.run_vsgan \
 			--manifest /app/$(MANIFEST) \
-			--competitors /app/$(COMPETITORS) \
+			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
+			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/video2x-$(VARIANT) \
-			$(ARGS) $(VIDEO2X_ARGS)
+			--output-dir /app/artefacts/benchmarks/product-vsgan-$(VARIANT) \
+			$(ARGS) $(VSGAN_ARGS)

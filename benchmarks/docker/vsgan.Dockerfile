@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG UV_IMAGE=ghcr.io/astral-sh/uv@sha256:a5727064a0de127bdb7c9d3c1383f3a9ac307d9f2d8a391edc7896c54289ced0
-ARG BASE_IMAGE=ghcr.io/k4yt3x/video2x@sha256:e21b6893269b4cb6f5603802726fd7537be241f6b39217b73530478861acbca1
+ARG BASE_IMAGE=docker.io/styler00dollar/vsgan_tensorrt@sha256:4a8e61ea119d65ab5fc632cc3762d94bd2038064620dbd89ce0388d7640736b4
 FROM ${UV_IMAGE} AS uv
 
 FROM ${BASE_IMAGE}
@@ -14,7 +14,7 @@ ARG PYTHON_VERSION=3.12.3
 
 COPY --from=uv /uv /uvx /usr/local/bin/
 
-ENV VIRTUAL_ENV=/opt/video2x-benchmark \
+ENV VIRTUAL_ENV=/opt/vsgan-benchmark \
     UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     UV_PYTHON_PREFERENCE=only-managed
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
@@ -35,7 +35,7 @@ ENV PYTHONPATH=/app \
     AI_MEDIA_BUILD_REVISION=${VCS_REF} \
     AI_MEDIA_BUILD_DIRTY=${VCS_DIRTY}
 
-LABEL org.opencontainers.image.source="https://github.com/k4yt3x/video2x" \
-      org.opencontainers.image.revision="a96bda9b4d79616cc6b71b94e6945146b5b4d509"
+LABEL org.opencontainers.image.source="https://github.com/styler00dollar/VSGAN-tensorrt-docker" \
+      org.opencontainers.image.revision="f4c06ed08e0d09952cf8671ec453f53c029c2158"
 
 ENTRYPOINT []

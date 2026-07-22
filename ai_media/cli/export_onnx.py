@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Export RealESRGAN (.pth) to ONNX with fixed input dimensions.
+"""Export a Spandrel-supported x2 image model to static ONNX variants.
 
 Creates ONNX files for 720p and 1080p resolutions.
 
 Usage:
-    export-onnx --model_path models/pretrained/RealESRGAN_x2plus.pth
+    export-onnx --model_path models/pretrained/model.pth --name model
 """
 
 import argparse
@@ -14,7 +14,7 @@ from typing import Any
 
 
 def load_model(model_path: str) -> Any:
-    """Load the RealESRGAN_x2plus model.
+    """Load an image-to-image model supported by Spandrel.
 
     Args:
         model_path: Path to .pth weights file.
@@ -45,7 +45,7 @@ def export_onnx(
     """Export model to ONNX with fixed input size.
 
     Args:
-        model: Loaded RRDBNet model.
+        model: Loaded x2 image model.
         input_h: Input height in pixels.
         input_w: Input width in pixels.
         output_path: Path to save .onnx file.
@@ -82,8 +82,15 @@ def export_onnx(
     print(f"  Done: {size_mb:.1f} MB")
 
 
+def export_filename(model_name: str, height: int) -> str:
+    """Return a deterministic static ONNX filename."""
+    return f"{model_name}_{height}p.onnx"
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Export RealESRGAN_x2plus to ONNX")
+    parser = argparse.ArgumentParser(
+        description="Export a Spandrel-supported x2 image model to static ONNX"
+    )
     parser.add_argument(
         "--model_path",
         type=str,
@@ -95,6 +102,11 @@ def main():
         type=str,
         default="./models/onnx",
         help="Output directory for ONNX files",
+    )
+    parser.add_argument(
+        "--name",
+        default="realesrgan_x2plus",
+        help="Output model basename (default: realesrgan_x2plus)",
     )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
@@ -114,12 +126,12 @@ def main():
     # Load model
     log("Loading model...")
     model = load_model(args.model_path)
-    log("  Model loaded: RRDBNet x2plus (64 feat, 23 blocks)")
+    log(f"  Model loaded: {type(model).__name__}")
 
     # Export for both resolutions
     configs = [
-        (720, 1280, "realesrgan_x2plus_720p.onnx"),  # 720p -> 1440p
-        (1080, 1920, "realesrgan_x2plus_1080p.onnx"),  # FHD -> 4K
+        (720, 1280, export_filename(args.name, 720)),
+        (1080, 1920, export_filename(args.name, 1080)),
     ]
 
     for input_h, input_w, filename in configs:
