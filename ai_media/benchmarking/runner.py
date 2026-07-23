@@ -21,6 +21,11 @@ from ai_media.benchmarking.environment import (
     sha256_file,
     write_json,
 )
+from ai_media.benchmarking.lifecycle import (
+    LifecycleTimingError,
+    load_frame_markers,
+    summarize_lifecycle,
+)
 from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
 from ai_media.benchmarking.suite import (
     SuitePolicy,
@@ -210,6 +215,7 @@ def build_upscale_command(
     *,
     output_path: Path,
     frame_count: int,
+    lifecycle_path: Path | None = None,
 ) -> list[str]:
     """Build an unprofiled child command for warmup or measurement."""
     command = [
@@ -234,6 +240,8 @@ def build_upscale_command(
         command.extend(["--crf", str(config.crf)])
     if config.cuda_graph:
         command.append("--cuda-graph")
+    if lifecycle_path is not None:
+        command.extend(["--benchmark-lifecycle-json", str(lifecycle_path)])
     return command
 
 
@@ -317,6 +325,7 @@ def run_one(
     measured_stdout = run_dir / "measured.stdout.log"
     measured_stderr = run_dir / "measured.stderr.log"
     samples_path = run_dir / "nvml.samples.jsonl"
+    lifecycle_path = run_dir / "lifecycle.json"
     manifest_path = run_dir / "manifest.json"
 
     warmup_command = build_upscale_command(
@@ -328,7 +337,9 @@ def run_one(
         config,
         output_path=measured_output,
         frame_count=config.frames,
+        lifecycle_path=lifecycle_path,
     )
+    lifecycle_path.unlink(missing_ok=True)
     manifest: dict[str, Any] = {
         "schema_version": 1,
         "status": "running",
@@ -361,6 +372,7 @@ def run_one(
             "measured_stdout": relative_artifact_path(measured_stdout, root),
             "measured_stderr": relative_artifact_path(measured_stderr, root),
             "nvml_samples": relative_artifact_path(samples_path, root),
+            "lifecycle": relative_artifact_path(lifecycle_path, root),
         },
         "errors": [],
     }
@@ -395,14 +407,17 @@ def run_one(
 
     cpu_before = snapshot_child_cpu()
     sampler.start(time.perf_counter())
-    start_time = time.perf_counter()
+    start_time_ns = time.perf_counter_ns()
     try:
         measured_returncode = run_child(measured_command, measured_stdout, measured_stderr)
     finally:
-        end_time = time.perf_counter()
+        end_time_ns = time.perf_counter_ns()
         cpu_after = snapshot_child_cpu()
-        samples = sampler.samples_relative_to(sampler.stop(), start_time)
-    wall_time_sec = end_time - start_time
+        samples = sampler.samples_relative_to(
+            sampler.stop(),
+            start_time_ns / 1_000_000_000,
+        )
+    wall_time_sec = (end_time_ns - start_time_ns) / 1_000_000_000
     cpu_summary = summarize_child_cpu(
         cpu_before,
         cpu_after,
@@ -430,11 +445,23 @@ def run_one(
         else {"valid": False, "errors": ["Measured output was not created"]}
     )
     output_asset = _hash_if_present(measured_output, "output", root)
+    lifecycle_summary = None
+    lifecycle_error = None
+    try:
+        lifecycle_summary = summarize_lifecycle(
+            process_started_ns=start_time_ns,
+            process_finished_ns=end_time_ns,
+            markers=load_frame_markers(lifecycle_path),
+            expected_frames=config.frames,
+        )
+    except LifecycleTimingError as exc:
+        lifecycle_error = str(exc)
     metrics = {
         "wall_time_sec": wall_time_sec,
         "end_to_end_fps": config.frames / wall_time_sec if wall_time_sec > 0 else None,
         "processed_frames": config.frames,
         "cpu": cpu_summary,
+        "lifecycle": lifecycle_summary,
         "nvml": nvml_summary,
     }
     manifest["measured"] = {
@@ -447,6 +474,8 @@ def run_one(
         manifest["errors"].append(
             f"Measured process exited with code {measured_returncode}"
         )
+    if lifecycle_error is not None:
+        manifest["errors"].append(f"Lifecycle timing: {lifecycle_error}")
     if not measured_validation.get("valid"):
         manifest["errors"].extend(measured_validation.get("errors", []))
     if not nvml_summary.get("valid"):

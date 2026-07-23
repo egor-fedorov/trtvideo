@@ -59,6 +59,7 @@ def _campaign(
     for implementation, product in IMPLEMENTATIONS.items():
         for round_index, value in enumerate(fps[implementation], start=1):
             engine_sha = "shared-engine" if implementation != "vsgan" else "vsgan-engine"
+            wall_time_sec = 1000 / value
             manifest = {
                 "status": "valid",
                 "run_index": 1,
@@ -92,7 +93,7 @@ def _campaign(
                 "measured": {
                     "metrics": {
                         "end_to_end_fps": value,
-                        "wall_time_sec": 1000 / value,
+                        "wall_time_sec": wall_time_sec,
                         "cpu": {
                             "accounting": "getrusage(RUSAGE_CHILDREN)",
                             "scope": "measured-child-process-tree",
@@ -102,6 +103,20 @@ def _campaign(
                             "average_cores": 1.0,
                             "available_logical_cpus": 16,
                             "capacity_percent": 6.25,
+                        },
+                        "lifecycle": {
+                            "clock": "time.perf_counter_ns",
+                            "boundary_contract": (
+                                "process_start -> first_frame_completed -> "
+                                "last_frame_completed -> process_exit"
+                            ),
+                            "instrumentation": f"{implementation}-instrumentation",
+                            "startup_sec": wall_time_sec * 0.02,
+                            "steady_state_frame_loop_sec": wall_time_sec * 0.95,
+                            "finalize_mux_sec": wall_time_sec * 0.03,
+                            "total_sec": wall_time_sec,
+                            "processed_frames": 1000,
+                            "steady_state_frames": 999,
                         },
                         "nvml": {
                             "utilization": {"average_gpu_percent": 90.0},
@@ -176,6 +191,10 @@ def test_aggregate_campaign_builds_acceptance_table(
     assert summary["parameters"]["rounds"] == 3
     assert summary["implementations"]["ai-media"]["statistics"]["median_fps"] == 10.0
     assert summary["implementations"]["ai-media"]["statistics"]["median_cpu_cores"] == 1.0
+    assert (
+        summary["implementations"]["ai-media"]["statistics"]["median_startup_sec"]
+        == 2.0
+    )
     assert summary["implementations"]["vstrt"][
         "relative_to_ai_media_percent"
     ] == pytest.approx(-10.0)

@@ -63,13 +63,14 @@ image, TensorRT engines и runtime smoke относятся к GPU acceptance St
 ## Stage 2. Measurement Gaps
 
 Статус: частично реализовано. Exact NVENC contract, rotated campaign runner и
-sanitized acceptance-таблица готовы; остаются CPU/timing и quality gates.
+sanitized acceptance-таблица готовы; остаются quality gates.
 
 - [x] Явный одинаковый NVENC rate-control contract для проекта и VSGAN: codec,
   preset, tuning, RC mode, target/min/max bitrate, VBV, GOP и B-frames;
 - [x] CPU utilization measured subprocess tree через `RUSAGE_CHILDREN`:
   user/system CPU seconds, average cores и affinity-normalized capacity;
-- [ ] Раздельные `startup`, steady-state frame loop и `finalize + mux` timing scopes;
+- [x] Раздельные `startup`, steady-state frame loop и `finalize + mux` timing
+  scopes с единым process/frame boundary contract;
 - [ ] Model-space parity на RGB/float кадрах до YUV/encode;
 - [ ] Product-output PSNR/SSIM и visual crops после декодирования MP4;
 - [x] Campaign runner, который чередует продукты по раундам, а не запускает

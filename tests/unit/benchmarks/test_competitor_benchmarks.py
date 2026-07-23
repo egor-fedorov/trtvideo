@@ -181,6 +181,7 @@ def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:
     vspipe, ffmpeg = spec
 
     assert vspipe[vspipe.index("--requests") + 1] == "1"
+    assert "--progress" in vspipe
     assert "num_streams=1" in vspipe
     assert "cuda_graph=0" in vspipe
     assert vspipe[-2] == "/app/benchmarks/vsgan/upscale.vpy"
@@ -256,8 +257,40 @@ def test_command_pipeline_executes_without_shell(tmp_path: Path) -> None:
         [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read().upper())"],
     ]
 
-    returncode = run_command_spec(spec, stdout, stderr)
+    result = run_command_spec(spec, stdout, stderr)
 
-    assert returncode == 0
+    assert result.returncode == 0
     assert stdout.read_text(encoding="utf-8") == "ABC"
     assert stderr.read_text(encoding="utf-8") == ""
+
+
+def test_command_pipeline_observes_vspipe_progress(tmp_path: Path) -> None:
+    stdout = tmp_path / "stdout.log"
+    stderr = tmp_path / "stderr.log"
+    spec = [
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys, time; "
+                "sys.stderr.write('Frame: 1/2\\r'); sys.stderr.flush(); "
+                "time.sleep(0.05); "
+                "sys.stdout.write('abc')"
+            ),
+        ],
+        [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read())"],
+    ]
+
+    result = run_command_spec(
+        spec,
+        stdout,
+        stderr,
+        observe_vspipe_progress=True,
+    )
+
+    assert result.returncode == 0
+    assert result.first_frame_completed_ns is not None
+    assert result.producer_finished_ns is not None
+    assert result.process_started_ns <= result.first_frame_completed_ns
+    assert result.first_frame_completed_ns <= result.producer_finished_ns
+    assert result.producer_finished_ns <= result.process_finished_ns

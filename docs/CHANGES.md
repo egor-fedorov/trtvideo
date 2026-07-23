@@ -49,6 +49,9 @@ Performance-изменения с цифрами и benchmark-сравнения
 
 ### Added
 
+* Benchmark manifests и campaign summary теперь содержат раздельные lifecycle
+  scopes: startup до первого завершённого кадра, steady-state до последнего кадра
+  и finalize/encoder flush/mux до выхода process.
 * Добавлен воспроизводимый Stage 0 benchmark contract для RealESRGAN_x2plus и
   Sintel, включая Docker-first команды `make -C benchmarks prepare` и
   `make -C benchmarks verify`, проверяемые source hashes и media/ONNX validation.

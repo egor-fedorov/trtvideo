@@ -6,9 +6,11 @@ import os
 import sys
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import torch
 
+from ai_media.benchmarking.lifecycle import FrameLifecycleMarkers, write_frame_markers
 from ai_media.profiling import ProfileCollector
 from ai_media.runtime import RuntimeEngine
 from ai_media.runtime.tensorrt import TensorRTRuntime
@@ -44,6 +46,8 @@ class BasePipeline(ABC):
         self.engine_path: str = ""
         self.total_frames: int = 0
         self.profiler: ProfileCollector | None = None
+        self._first_frame_completed_ns: int | None = None
+        self._last_frame_completed_ns: int | None = None
 
     # --- Logging helpers ---
 
@@ -233,6 +237,7 @@ class BasePipeline(ABC):
             self.cleanup()
 
         wall_total = time.perf_counter() - wall_start
+        self._write_benchmark_lifecycle_markers(len(frame_times))
 
         # Profile table
         if args.profile and self.profiler and self.profiler.committed_count > 0:
@@ -248,6 +253,35 @@ class BasePipeline(ABC):
 
         # Stats
         self._print_stats(frame_times, wall_total)
+
+    def _record_frame_completed(self) -> None:
+        """Capture benchmark lifecycle boundaries without enabling stage profiling."""
+        if not getattr(self.args, "benchmark_lifecycle_json", None):
+            return
+        completed_ns = time.perf_counter_ns()
+        if self._first_frame_completed_ns is None:
+            self._first_frame_completed_ns = completed_ns
+        self._last_frame_completed_ns = completed_ns
+
+    def _write_benchmark_lifecycle_markers(self, processed_frames: int) -> None:
+        path = getattr(self.args, "benchmark_lifecycle_json", None)
+        if path is None:
+            return
+        if (
+            self._first_frame_completed_ns is None
+            or self._last_frame_completed_ns is None
+            or processed_frames <= 0
+        ):
+            return
+        write_frame_markers(
+            Path(path),
+            FrameLifecycleMarkers(
+                first_frame_completed_ns=self._first_frame_completed_ns,
+                last_frame_completed_ns=self._last_frame_completed_ns,
+                processed_frames=processed_frames,
+                instrumentation="ai-media-frame-loop",
+            ),
+        )
 
     def _write_profile_json(
         self,
@@ -312,6 +346,7 @@ class BasePipeline(ABC):
             self.process_frame(raw_frame)
             t1 = time.perf_counter()
             self.after_frame()
+            self._record_frame_completed()
 
             frame_time = t1 - t0
             frame_times.append(frame_time)

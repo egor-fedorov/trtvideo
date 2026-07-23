@@ -30,6 +30,7 @@ class VspipeNvencConfig:
             "vspipe",
             "--container",
             "y4m",
+            "--progress",
             "--start",
             "0",
             "--end",

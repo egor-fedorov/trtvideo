@@ -145,6 +145,7 @@ class FfmpegPipeline(BasePipeline):
             t1 = time.perf_counter()
 
             pipe_write(upscaled.tobytes())
+            self._record_frame_completed()
 
             frame_time = t1 - t0
             frame_times.append(frame_time)
@@ -193,6 +194,7 @@ class FfmpegPipeline(BasePipeline):
 
             tw0 = time.perf_counter()
             pipe_write(upscaled.tobytes())
+            self._record_frame_completed()
             profiler.record_wall_time("ffmpeg encode (pipe write)", time.perf_counter() - tw0)
             profiler.commit((e0, e1, e2, e3))
 

@@ -28,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", action="store_true", help="Per-stage profiling")
     parser.add_argument("--profile-json", default=None, help="Write profiling JSON summary")
     parser.add_argument(
+        "--benchmark-lifecycle-json",
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
         "--cuda-graph",
         action="store_true",
         help="Experimental: capture TensorRT enqueue with CUDA Graph",

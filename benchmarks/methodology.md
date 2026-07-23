@@ -132,6 +132,26 @@ startup, decode, colorspace, inference, encode, flush и mux.
 и finalize/mux; эти scopes не заменяют full-process wall time. Cold-start и
 warm-cache результаты не смешиваются.
 
+Lifecycle scopes используют единый boundary contract:
+
+```text
+process start -> first completed frame -> last completed frame -> process exit
+```
+
+- `startup` включает запуск process, imports, model/context и video I/O setup, а
+  также latency первого кадра;
+- `steady-state frame loop` измеряет интервал между завершением первого и
+  последнего кадра;
+- `finalize + mux` включает encoder drain, flush, container finalization и выход
+  process.
+
+Проект записывает frame boundaries непосредственно из своего loop через
+`time.perf_counter_ns`. Для `vspipe | ffmpeg` runner наблюдает штатный
+`vspipe --progress` для первого кадра и завершение producer process для последней
+границы; raw Y4M stream не проксируется через Python. Три scope исчерпывающе
+суммируются в тот же внешний wall time. Метод instrumentation сохраняется в
+каждом raw manifest.
+
 Per-stage profiling и CUDA events являются diagnostics и выключены в измеряемом
 hot path. Успешный smoke с уменьшенными параметрами получает `status: valid`, но
 `publishable: false`.
@@ -216,6 +236,5 @@ Individual suite всегда считается acceptance data, даже ес�
 canonical frames/runs. Сравнительный результат формируется только rotated
 campaign runner. Runner сохраняет append-only event log с фактическим порядком,
 UTC timestamps и выдержанными idle intervals; агрегатор проверяет этот журнал,
-а не восстанавливает порядок по именам директорий. До реализации CPU accounting,
-timing scopes и quality parity даже валидная campaign получает
-`publishable: false`.
+а не восстанавливает порядок по именам директорий. До реализации quality parity
+даже валидная campaign получает `publishable: false`.

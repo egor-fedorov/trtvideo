@@ -130,5 +130,7 @@ make -C benchmarks run-campaign \
 фактический порядок, время начала/завершения и выдержанную паузу каждого запуска;
 агрегатор отклоняет результаты без полного журнала. Итоговая таблица содержит
 median FPS, wall time, CPU cores, GPU utilization, power, VRAM, bitrate и размер.
+Отдельная lifecycle-таблица показывает median startup, steady-state frame loop и
+finalize/mux; эти значения в сумме покрывают тот же full-process wall time.
 Production image не содержит NVML и внешние benchmark tools. Полный GPU workflow
 описан в `GPU_RUNBOOK.md`.

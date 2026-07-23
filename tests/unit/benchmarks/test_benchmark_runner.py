@@ -45,12 +45,16 @@ def test_build_upscale_command_has_no_profiling_flags(tmp_path: Path) -> None:
         benchmark,
         output_path=tmp_path / "output.mp4",
         frame_count=1000,
+        lifecycle_path=tmp_path / "lifecycle.json",
     )
 
     assert "--profile" not in command
     assert "--profile-json" not in command
     assert command[command.index("--max-frames") + 1] == "1000"
     assert command[command.index("--bitrate-mbps") + 1] == "35.0"
+    assert command[command.index("--benchmark-lifecycle-json") + 1].endswith(
+        "lifecycle.json"
+    )
 
 
 def test_validate_config_requires_explicit_nvenc_bitrate(tmp_path: Path) -> None:

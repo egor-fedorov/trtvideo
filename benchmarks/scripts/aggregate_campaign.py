@@ -23,7 +23,6 @@ from benchmarks.scripts.campaign import (
 )
 
 PUBLICATION_GAPS = [
-    "Startup, steady-state and finalize/mux timing scopes are not collected yet",
     "Model-space RGB/float parity is not verified yet",
     "Product-output PSNR/SSIM and visual crops are not generated yet",
 ]
@@ -128,6 +127,39 @@ def _cpu_contract(manifest: dict[str, Any]) -> dict[str, Any]:
     return contract
 
 
+def _lifecycle_contract(manifest: dict[str, Any]) -> dict[str, str]:
+    value = manifest.get("measured", {}).get("metrics", {}).get("lifecycle")
+    if not isinstance(value, dict):
+        raise CampaignError("Manifest has no lifecycle timing scopes")
+    clock = value.get("clock")
+    boundary_contract = value.get("boundary_contract")
+    if (
+        not isinstance(clock, str)
+        or not clock
+        or not isinstance(boundary_contract, str)
+        or not boundary_contract
+    ):
+        raise CampaignError("Manifest has an invalid lifecycle timing contract")
+    wall_time_sec = _metric(manifest, "wall_time_sec")
+    total_sec = _metric(manifest, "lifecycle", "total_sec")
+    if abs(total_sec - wall_time_sec) > 0.001:
+        raise CampaignError("Lifecycle scopes do not cover measured wall time")
+    scope_total = sum(
+        _metric(manifest, "lifecycle", key)
+        for key in (
+            "startup_sec",
+            "steady_state_frame_loop_sec",
+            "finalize_mux_sec",
+        )
+    )
+    if abs(scope_total - total_sec) > 0.001:
+        raise CampaignError("Lifecycle scope durations do not sum to total time")
+    return {
+        "clock": clock,
+        "boundary_contract": boundary_contract,
+    }
+
+
 def _median(values: list[float]) -> float:
     return float(statistics.median(values))
 
@@ -172,6 +204,7 @@ def _validate_common_contract(
     frames = first.get("parameters", {}).get("frames")
     warmup_frames = first.get("parameters", {}).get("warmup_frames")
     cpu_contract = _cpu_contract(first)
+    lifecycle_contract = _lifecycle_contract(first)
     if not isinstance(encoder, dict):
         raise CampaignError("Campaign manifests have no exact encoder contract")
     expected_revision = os.environ.get("AI_MEDIA_BUILD_REVISION")
@@ -199,6 +232,10 @@ def _validate_common_contract(
                 "GPU": (environment.get("gpu"), gpu),
                 "CPU": (environment.get("cpu"), cpu),
                 "CPU accounting": (_cpu_contract(manifest), cpu_contract),
+                "lifecycle timing": (
+                    _lifecycle_contract(manifest),
+                    lifecycle_contract,
+                ),
                 "frame count": (manifest.get("parameters", {}).get("frames"), frames),
                 "warmup frame count": (
                     manifest.get("parameters", {}).get("warmup_frames"),
@@ -260,6 +297,7 @@ def _validate_common_contract(
         "frames": frames,
         "warmup_frames": warmup_frames,
         "cpu_accounting": cpu_contract,
+        "lifecycle_timing": lifecycle_contract,
         "image_ids": image_ids,
         "engine_hashes": engine_hashes,
     }
@@ -285,6 +323,28 @@ def _implementation_statistics(
             "median_cpu_capacity_percent": _median(
                 [
                     _metric(manifest, "cpu", "capacity_percent")
+                    for manifest in manifests
+                ]
+            ),
+            "median_startup_sec": _median(
+                [
+                    _metric(manifest, "lifecycle", "startup_sec")
+                    for manifest in manifests
+                ]
+            ),
+            "median_steady_state_frame_loop_sec": _median(
+                [
+                    _metric(
+                        manifest,
+                        "lifecycle",
+                        "steady_state_frame_loop_sec",
+                    )
+                    for manifest in manifests
+                ]
+            ),
+            "median_finalize_mux_sec": _median(
+                [
+                    _metric(manifest, "lifecycle", "finalize_mux_sec")
                     for manifest in manifests
                 ]
             ),
@@ -361,6 +421,22 @@ def _markdown(summary: dict[str, Any]) -> str:
             f"{stats['median_peak_vram_mib']:.1f} | "
             f"{stats['median_output_bitrate_mbps']:.3f} | "
             f"{stats['median_output_size_mib']:.1f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "| Implementation | Startup, s | Steady-state frame loop, s | "
+            "Finalize + mux, s |",
+            "|---|---:|---:|---:|",
+        ]
+    )
+    for name in IMPLEMENTATIONS:
+        result = summary["implementations"][name]
+        stats = result["statistics"]
+        lines.append(
+            f"| {result['product']} | {stats['median_startup_sec']:.3f} | "
+            f"{stats['median_steady_state_frame_loop_sec']:.3f} | "
+            f"{stats['median_finalize_mux_sec']:.3f} |"
         )
     lines.extend(["", "Publication gaps:"])
     lines.extend(f"- {gap}" for gap in summary["publication"]["errors"])
