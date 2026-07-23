@@ -23,7 +23,7 @@ lint:
 	$(DOCKER_RUN) $(DEV_IMAGE) ruff check .
 
 typecheck:
-	$(DOCKER_RUN) $(DEV_IMAGE) mypy .
+	$(DOCKER_RUN) $(DEV_IMAGE) mypy
 
 compile:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q ai_media benchmarks tests/unit

@@ -16,6 +16,16 @@ make test-unit
 
 Unit tests не должны импортировать TensorRT, CV-CUDA или PyNvVideoCodec.
 
+Тесты сгруппированы по проверяемой подсистеме:
+
+```text
+tests/unit/ai_media/    # CLI, video helpers, model and engine tooling
+tests/unit/benchmarks/  # benchmark runners, manifests, validation and campaigns
+```
+
+Обе группы остаются unit-тестами. Реальные GPU/performance-прогоны находятся в
+`benchmarks/`, а не в `tests/`.
+
 ### CLI/Docker Smoke
 
 Будущий слой без GPU для проверки Docker image entrypoints:
