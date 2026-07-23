@@ -86,13 +86,26 @@ Before `1.0.0`, use pragmatic semantic versioning:
   user/system CPU seconds, average CPU cores, and affinity-normalized capacity.
   The rotated campaign publishes median CPU use and checks identical accounting
   semantics between products.
+- Added a separate model-space parity gate for canonical frames `0`, `499`, and
+  `999`. It captures normalized FP32 CHW RGB tensors before and after TensorRT
+  from the project, TRT11 vstrt, and stock VSGAN, then produces a hashed JSON
+  report using thresholds fixed before the GPU run.
+- Added a separate product-output parity gate. It retains one canonical MP4 per
+  implementation, compares all 1000 decoded frames with PSNR/SSIM, generates a
+  fixed visual crop matrix, and hashes every report input. Stable campaigns
+  become publishable only after both quality reports match their measured asset
+  and engine contracts. Quality evidence also records immutable Docker image
+  IDs and clean repository revision; aggregation reloads referenced run
+  manifests and rejects evidence from another build.
 
 ### Changed
 
-- Updated the canonical benchmark workload to
-  `realesrgan-x2plus-sintel-v2`. The shared H.264 input no longer uses B-frames,
-  simplifying strict frame-count and timestamp validation. Added selective
-  `prepare --force-clips` without rebuilding ONNX.
+- Updated the canonical benchmark workloads to
+  `realesrgan-x2plus-sintel-v3` and `liveaction-span-sintel-v2`. The manifests
+  now include immutable model-space frame selection and acceptance thresholds.
+  The shared H.264 input no longer uses B-frames, simplifying strict frame-count
+  and timestamp validation. Added selective `prepare --force-clips` without
+  rebuilding ONNX.
 - Separated per-stage profiling from benchmarking. Stage timings are available
   only through `upscale --profile/--profile-json`; `benchmark-upscale` launches
   the normal unprofiled pipeline in separate warmup and measured processes.

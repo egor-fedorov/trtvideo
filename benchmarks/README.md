@@ -25,6 +25,11 @@ make -C benchmarks help
   TRT10.16 engine because serialized engines are incompatible across runtime
   versions.
 - `run-trtexec` - diagnostic inference ceiling, not a competitor.
+- `model-space-parity` - compare FP32 RGB tensors immediately before and after
+  TensorRT, outside the timed benchmark path.
+- `product-output-parity` - retain one canonical MP4 per product, run complete
+  PSNR/SSIM decode comparisons, and generate visual crops.
+- `quality-gates` - run both quality jobs.
 - `run-campaign` - canonical rotation of project/vstrt/VSGAN by round and
   generation of a shared acceptance table.
 
@@ -119,6 +124,45 @@ published only from the shared rotated campaign.
 All video runners use one explicit NVENC contract: H.264 P4/HQ, CBR,
 target=min=max bitrate, a two-second VBV buffer with 50% initial occupancy,
 single pass, lookahead/AQ disabled, a one-second GOP, and zero B-frames.
+
+Run the independent model-space quality gate after the GPU smoke tests:
+
+```bash
+make -C benchmarks model-space-parity \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+The command captures canonical frames `0`, `499`, and `999` from the project,
+TRT11 vstrt, and stock VSGAN. It compares normalized FP32 CHW RGB tensors before
+and after TensorRT using thresholds fixed in the workload manifest. Raw tensors
+and `model-space-parity.json` are written under
+`artefacts/benchmarks/quality/model-space-<workload>-<variant>/`. Repeat for
+720p and for SPAN with the same manifest/engine overrides used by the campaign.
+This gate is not included in FPS timing. When the report exists at the canonical
+path, `aggregate-campaign` verifies its workload, input, ONNX, and engine hashes
+plus the exact image IDs and clean repository revision, then removes the
+model-space publication gap.
+
+Run both quality gates together:
+
+```bash
+make -C benchmarks quality-gates \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+The product-output job performs one separate canonical retained-output run per
+implementation. It does not contribute FPS values to the rotated campaign.
+`product-output-parity.json`, FFmpeg metric logs, retained MP4s, and visual PNG
+crops are written under
+`artefacts/benchmarks/quality/product-output-<workload>-<variant>/`. The fixed
+gate requires 1000 compared frames, average PSNR of at least 35 dB, and overall
+SSIM of at least 0.95. Repeat `quality-gates` for 720p and both SPAN variants.
+The aggregator reloads the retained-output run manifests and requires the same
+images, revision, encoder, assets, and engines as the measured campaign.
 
 Run the canonical campaign after smoke tests:
 

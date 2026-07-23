@@ -22,10 +22,8 @@ from benchmarks.scripts.campaign import (
     validate_complete_event_log,
 )
 
-PUBLICATION_GAPS = [
-    "Model-space RGB/float parity is not verified yet",
-    "Product-output PSNR/SSIM and visual crops are not generated yet",
-]
+MODEL_SPACE_GAP = "Model-space RGB/float parity is not verified yet"
+PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generated yet"
 
 
 class CampaignError(RuntimeError):
@@ -164,6 +162,358 @@ def _median(values: list[float]) -> float:
     return float(statistics.median(values))
 
 
+def _validate_model_space_report(
+    path: Path,
+    *,
+    contract: dict[str, Any],
+    root: Path,
+) -> dict[str, Any]:
+    report = _load_json(path)
+    checks = {
+        "document type": (report.get("document_type"), "model-space-parity"),
+        "status": (report.get("status"), "valid"),
+        "publishable": (report.get("publishable"), True),
+        "workload": (report.get("workload_id"), contract["workload_id"]),
+        "variant": (report.get("variant"), contract["variant"]),
+        "input SHA256": (
+            report.get("assets", {}).get("input_sha256"),
+            contract["input_sha256"],
+        ),
+        "ONNX SHA256": (
+            report.get("assets", {}).get("onnx_sha256"),
+            contract["onnx_sha256"],
+        ),
+        "frame indices": (
+            report.get("frame_indices"),
+            contract["model_space_frame_indices"],
+        ),
+        "reference engine": (
+            report.get("reference", {}).get("engine_sha256"),
+            contract["engine_hashes"]["ai-media"],
+        ),
+        "reference image": (
+            report.get("reference", {}).get("image", {}).get("id"),
+            contract["image_ids"]["ai-media"],
+        ),
+        "reference revision": (
+            report.get("reference", {})
+            .get("image", {})
+            .get("repository_revision"),
+            contract["repository_revision"],
+        ),
+        "reference source state": (
+            str(
+                report.get("reference", {})
+                .get("image", {})
+                .get("source_dirty")
+            ),
+            "0",
+        ),
+    }
+    for label, (actual, expected) in checks.items():
+        if actual != expected:
+            raise CampaignError(f"Model-space report changed {label}")
+
+    comparisons = report.get("comparisons")
+    if not isinstance(comparisons, list):
+        raise CampaignError("Model-space report has no comparisons")
+    by_implementation = {
+        comparison.get("implementation"): comparison
+        for comparison in comparisons
+        if isinstance(comparison, dict)
+    }
+    expected_contracts = {
+        "vs-mlrt": (
+            contract["engine_hashes"]["vstrt"],
+            contract["image_ids"]["vstrt"],
+        ),
+        "VSGAN-tensorrt-docker": (
+            contract["engine_hashes"]["vsgan"],
+            contract["image_ids"]["vsgan"],
+        ),
+    }
+    for implementation, (engine_sha256, image_id) in expected_contracts.items():
+        comparison = by_implementation.get(implementation)
+        if not isinstance(comparison, dict):
+            raise CampaignError(
+                f"Model-space report has no {implementation} comparison"
+            )
+        if comparison.get("status") != "valid":
+            raise CampaignError(
+                f"Model-space report marks {implementation} as invalid"
+            )
+        if comparison.get("engine_sha256") != engine_sha256:
+            raise CampaignError(
+                f"Model-space report changed {implementation} engine"
+            )
+        image = comparison.get("image", {})
+        if not isinstance(image, dict):
+            raise CampaignError(
+                f"Model-space report has no {implementation} image identity"
+            )
+        image_checks = {
+            "image": (image.get("id"), image_id),
+            "revision": (
+                image.get("repository_revision"),
+                contract["repository_revision"],
+            ),
+            "source state": (str(image.get("source_dirty")), "0"),
+        }
+        for label, (actual, expected) in image_checks.items():
+            if actual != expected:
+                raise CampaignError(
+                    f"Model-space report changed {implementation} {label}"
+                )
+    return {
+        "status": "valid",
+        "report": relative_artifact_path(path, root),
+        "sha256": sha256_file(path),
+    }
+
+
+def _validate_report_artifact(
+    value: dict[str, Any],
+    *,
+    root: Path,
+    path_key: str,
+    hash_key: str,
+    label: str,
+) -> Path:
+    relative_path = value.get(path_key)
+    checksum = value.get(hash_key)
+    if not isinstance(relative_path, str) or not relative_path:
+        raise CampaignError(f"{label} has no artifact path")
+    path = (root / relative_path).resolve()
+    if path != root and root not in path.parents:
+        raise CampaignError(f"{label} artifact path escapes the repository")
+    if not path.is_file():
+        raise CampaignError(f"{label} artifact is missing: {path}")
+    if checksum != sha256_file(path):
+        raise CampaignError(f"{label} artifact SHA256 changed")
+    return path
+
+
+def _validate_quality_run_manifest(
+    path: Path,
+    *,
+    implementation: str,
+    product: str,
+    contract: dict[str, Any],
+) -> None:
+    manifest = _load_json(path)
+    image = manifest.get("environment", {}).get("image", {})
+    checks = {
+        "status": (manifest.get("status"), "valid"),
+        "product": (manifest.get("product"), product),
+        "workload": (manifest.get("workload_id"), contract["workload_id"]),
+        "variant": (manifest.get("variant"), contract["variant"]),
+        "frame count": (
+            manifest.get("parameters", {}).get("frames"),
+            contract["frames"],
+        ),
+        "encoder contract": (
+            manifest.get("parameters", {}).get("encoder"),
+            contract["encoder"],
+        ),
+        "input SHA256": (_asset_sha(manifest, "input"), contract["input_sha256"]),
+        "ONNX SHA256": (_asset_sha(manifest, "onnx"), contract["onnx_sha256"]),
+        "engine SHA256": (
+            _asset_sha(manifest, "engine"),
+            contract["engine_hashes"][implementation],
+        ),
+        "image": (image.get("id"), contract["image_ids"][implementation]),
+        "revision": (
+            image.get("repository_revision"),
+            contract["repository_revision"],
+        ),
+        "source state": (str(image.get("source_dirty")), "0"),
+        "reproducibility": (
+            manifest.get("reproducibility", {}).get("publishable"),
+            True,
+        ),
+        "output validation": (
+            manifest.get("measured", {}).get("validation", {}).get("valid"),
+            True,
+        ),
+    }
+    for label, (actual, expected) in checks.items():
+        if actual != expected:
+            raise CampaignError(
+                f"Product-output {product} run changed {label}"
+            )
+
+
+def _validate_product_output_report(
+    path: Path,
+    *,
+    contract: dict[str, Any],
+    root: Path,
+) -> dict[str, Any]:
+    report = _load_json(path)
+    checks = {
+        "document type": (report.get("document_type"), "product-output-parity"),
+        "status": (report.get("status"), "valid"),
+        "publishable": (report.get("publishable"), True),
+        "workload": (report.get("workload_id"), contract["workload_id"]),
+        "variant": (report.get("variant"), contract["variant"]),
+        "input SHA256": (
+            report.get("assets", {}).get("input_sha256"),
+            contract["input_sha256"],
+        ),
+        "ONNX SHA256": (
+            report.get("assets", {}).get("onnx_sha256"),
+            contract["onnx_sha256"],
+        ),
+        "frame indices": (
+            report.get("frame_indices"),
+            contract["product_output_frame_indices"],
+        ),
+        "thresholds": (
+            report.get("thresholds"),
+            contract["product_output_thresholds"],
+        ),
+        "reference engine": (
+            report.get("reference", {}).get("engine_sha256"),
+            contract["engine_hashes"]["ai-media"],
+        ),
+    }
+    for label, (actual, expected) in checks.items():
+        if actual != expected:
+            raise CampaignError(f"Product-output report changed {label}")
+
+    reference = report.get("reference")
+    if not isinstance(reference, dict):
+        raise CampaignError("Product-output report has no reference")
+    reference_manifest = _validate_report_artifact(
+        reference,
+        root=root,
+        path_key="run_manifest",
+        hash_key="run_manifest_sha256",
+        label="Product-output reference",
+    )
+    _validate_quality_run_manifest(
+        reference_manifest,
+        implementation="ai-media",
+        product="ai-media-enhancer",
+        contract=contract,
+    )
+
+    comparisons = report.get("comparisons")
+    if not isinstance(comparisons, list):
+        raise CampaignError("Product-output report has no comparisons")
+    by_implementation = {
+        comparison.get("implementation"): comparison
+        for comparison in comparisons
+        if isinstance(comparison, dict)
+    }
+    expected_contracts = {
+        "vs-mlrt": ("vstrt", contract["engine_hashes"]["vstrt"]),
+        "VSGAN-tensorrt-docker": ("vsgan", contract["engine_hashes"]["vsgan"]),
+    }
+    for implementation, (
+        campaign_implementation,
+        engine_sha256,
+    ) in expected_contracts.items():
+        comparison = by_implementation.get(implementation)
+        if not isinstance(comparison, dict):
+            raise CampaignError(
+                f"Product-output report has no {implementation} comparison"
+            )
+        if comparison.get("status") != "valid":
+            raise CampaignError(
+                f"Product-output report marks {implementation} as invalid"
+            )
+        if comparison.get("engine_sha256") != engine_sha256:
+            raise CampaignError(
+                f"Product-output report changed {implementation} engine"
+            )
+        run_manifest = _validate_report_artifact(
+            comparison,
+            root=root,
+            path_key="run_manifest",
+            hash_key="run_manifest_sha256",
+            label=f"Product-output {implementation}",
+        )
+        _validate_quality_run_manifest(
+            run_manifest,
+            implementation=campaign_implementation,
+            product=implementation,
+            contract=contract,
+        )
+        metrics = comparison.get("metrics")
+        if not isinstance(metrics, dict):
+            raise CampaignError(
+                f"Product-output report has no {implementation} metrics"
+            )
+        for metric_name in ("psnr", "ssim"):
+            metric = metrics.get(metric_name)
+            if not isinstance(metric, dict):
+                raise CampaignError(
+                    f"Product-output report has no {implementation} {metric_name}"
+                )
+            _validate_report_artifact(
+                metric,
+                root=root,
+                path_key="stats_path",
+                hash_key="stats_sha256",
+                label=f"Product-output {implementation} {metric_name} stats",
+            )
+            _validate_report_artifact(
+                metric,
+                root=root,
+                path_key="ffmpeg_log",
+                hash_key="ffmpeg_log_sha256",
+                label=f"Product-output {implementation} {metric_name} log",
+            )
+
+    visual_crops = report.get("visual_crops")
+    if not isinstance(visual_crops, dict):
+        raise CampaignError("Product-output report has no visual crops")
+    expected_products = {
+        "ai-media-enhancer",
+        "vs-mlrt",
+        "VSGAN-tensorrt-docker",
+    }
+    if set(visual_crops) != expected_products:
+        raise CampaignError("Product-output visual crop implementations differ")
+    expected_crop_count = len(contract["product_output_frame_indices"]) * len(
+        contract["product_output_crop_names"]
+    )
+    for implementation, crops in visual_crops.items():
+        if not isinstance(crops, list) or len(crops) != expected_crop_count:
+            raise CampaignError(
+                f"Product-output {implementation} visual crop set is incomplete"
+            )
+        actual_keys = {
+            (crop.get("frame_index"), crop.get("crop"))
+            for crop in crops
+            if isinstance(crop, dict)
+        }
+        expected_keys = {
+            (frame_index, crop_name)
+            for frame_index in contract["product_output_frame_indices"]
+            for crop_name in contract["product_output_crop_names"]
+        }
+        if actual_keys != expected_keys:
+            raise CampaignError(
+                f"Product-output {implementation} visual crop contract changed"
+            )
+        for crop in crops:
+            _validate_report_artifact(
+                crop,
+                root=root,
+                path_key="path",
+                hash_key="sha256",
+                label=f"Product-output {implementation} visual crop",
+            )
+
+    return {
+        "status": "valid",
+        "report": relative_artifact_path(path, root),
+        "sha256": sha256_file(path),
+    }
+
+
 def _validate_manifest(
     manifest: dict[str, Any],
     *,
@@ -296,6 +646,22 @@ def _validate_common_contract(
         "cpu": cpu,
         "frames": frames,
         "warmup_frames": warmup_frames,
+        "model_space_frame_indices": workload.get("quality", {})
+        .get("model_space", {})
+        .get("frame_indices"),
+        "product_output_frame_indices": workload.get("quality", {})
+        .get("product_output", {})
+        .get("frame_indices"),
+        "product_output_thresholds": workload.get("quality", {})
+        .get("product_output", {})
+        .get("thresholds"),
+        "product_output_crop_names": [
+            crop.get("name")
+            for crop in workload.get("quality", {})
+            .get("product_output", {})
+            .get("crops", [])
+            if isinstance(crop, dict)
+        ],
         "cpu_accounting": cpu_contract,
         "lifecycle_timing": lifecycle_contract,
         "image_ids": image_ids,
@@ -399,7 +765,8 @@ def _markdown(summary: dict[str, Any]) -> str:
     lines = [
         "# Rotated Benchmark Campaign",
         "",
-        f"Status: `{summary['status']}`. Publication ready: `no`.",
+        f"Status: `{summary['status']}`. Publication ready: "
+        f"`{'yes' if summary['publication']['ready'] else 'no'}`.",
         "",
         "| Implementation | Runs | Median FPS | vs ai-media | Median wall, s | "
         "CPU cores | CPU capacity, % | GPU util, % | Power, W | J/frame | "
@@ -449,6 +816,8 @@ def aggregate_campaign(
     *,
     root: Path,
     idle_seconds: float,
+    model_space_report: Path | None = None,
+    product_output_report: Path | None = None,
 ) -> dict[str, Any]:
     """Validate and aggregate all completed rounds in one campaign directory."""
     rounds = _load_rounds(campaign_dir)
@@ -466,6 +835,22 @@ def aggregate_campaign(
         root=root,
         idle_seconds=idle_seconds,
     )
+    quality: dict[str, Any] = {}
+    publication_errors = [MODEL_SPACE_GAP, PRODUCT_OUTPUT_GAP]
+    if model_space_report is not None:
+        quality["model_space"] = _validate_model_space_report(
+            model_space_report,
+            contract=contract,
+            root=root,
+        )
+        publication_errors.remove(MODEL_SPACE_GAP)
+    if product_output_report is not None:
+        quality["product_output"] = _validate_product_output_report(
+            product_output_report,
+            contract=contract,
+            root=root,
+        )
+        publication_errors.remove(PRODUCT_OUTPUT_GAP)
     implementation_results: dict[str, Any] = {}
     for name, product in IMPLEMENTATIONS.items():
         implementation_results[name] = {
@@ -488,15 +873,16 @@ def aggregate_campaign(
     ]
     needs_extra = len(rounds) == 3 and bool(unstable)
     status = "needs-extra-runs" if needs_extra else ("unstable" if unstable else "valid")
+    publication_ready = status == "valid" and not publication_errors
     summary = {
         "schema_version": 1,
         "document_type": "benchmark-campaign",
         "status": status,
         "scope": "rotated-campaign",
-        "publishable": False,
+        "publishable": publication_ready,
         "publication": {
-            "ready": False,
-            "errors": PUBLICATION_GAPS,
+            "ready": publication_ready,
+            "errors": publication_errors,
         },
         "workload_id": contract["workload_id"],
         "variant": contract["variant"],
@@ -522,6 +908,7 @@ def aggregate_campaign(
             "event_log": relative_artifact_path(events_path, root),
             "event_log_sha256": sha256_file(events_path),
         },
+        "quality": quality,
         "rounds": [
             {
                 "index": index,
@@ -554,6 +941,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", default=None)
     parser.add_argument("--markdown", default=None)
     parser.add_argument(
+        "--model-space-report",
+        default=None,
+        help="Optional valid model-space parity report for this exact campaign",
+    )
+    parser.add_argument(
+        "--product-output-report",
+        default=None,
+        help="Optional valid product-output parity report for this exact campaign",
+    )
+    parser.add_argument(
         "--request-extra-exit-code",
         action="store_true",
         help="Exit with code 3 when two extra rotated rounds are required",
@@ -573,6 +970,14 @@ def main() -> None:
             campaign_dir,
             root=Path(args.root),
             idle_seconds=args.idle_seconds,
+            model_space_report=(
+                Path(args.model_space_report) if args.model_space_report else None
+            ),
+            product_output_report=(
+                Path(args.product_output_report)
+                if args.product_output_report
+                else None
+            ),
         )
         write_json(json_path, summary)
         markdown_path.write_text(_markdown(summary), encoding="utf-8")

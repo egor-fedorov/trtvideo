@@ -12,6 +12,8 @@ from ai_media.benchmarking.environment import sha256_file
 from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.aggregate_campaign import (
     IMPLEMENTATIONS,
+    MODEL_SPACE_GAP,
+    PRODUCT_OUTPUT_GAP,
     CampaignError,
     aggregate_campaign,
 )
@@ -47,7 +49,20 @@ def _campaign(
                 "extra_runs_on_spread": 2,
                 "spread_threshold": 0.05,
                 "idle_seconds": 10,
-            }
+            },
+            "quality": {
+                "model_space": {
+                    "frame_indices": [0, 499, 999],
+                },
+                "product_output": {
+                    "frame_indices": [0, 499, 999],
+                    "thresholds": {
+                        "psnr_min_db": 35.0,
+                        "ssim_min": 0.95,
+                    },
+                    "crops": [{"name": "center"}],
+                }
+            },
         },
     )
     workload_sha = sha256_file(workload_path)
@@ -169,6 +184,206 @@ def _campaign(
     return campaign_dir
 
 
+def _model_space_report(root: Path) -> Path:
+    path = root / "artefacts/benchmarks/quality/model-space-parity.json"
+    _write_json(
+        path,
+        {
+            "document_type": "model-space-parity",
+            "status": "valid",
+            "publishable": True,
+            "workload_id": "workload-v1",
+            "variant": "1080p",
+            "frame_indices": [0, 499, 999],
+            "assets": {
+                "input_sha256": "input-sha",
+                "onnx_sha256": "onnx-sha",
+            },
+            "reference": {
+                "implementation": "ai-media-enhancer",
+                "engine_sha256": "shared-engine",
+                "image": {
+                    "id": "ai-media-image",
+                    "repository_revision": "revision-1",
+                    "source_dirty": "0",
+                },
+            },
+            "comparisons": [
+                {
+                    "implementation": "vs-mlrt",
+                    "status": "valid",
+                    "engine_sha256": "shared-engine",
+                    "image": {
+                        "id": "vstrt-image",
+                        "repository_revision": "revision-1",
+                        "source_dirty": "0",
+                    },
+                },
+                {
+                    "implementation": "VSGAN-tensorrt-docker",
+                    "status": "valid",
+                    "engine_sha256": "vsgan-engine",
+                    "image": {
+                        "id": "vsgan-image",
+                        "repository_revision": "revision-1",
+                        "source_dirty": "0",
+                    },
+                },
+            ],
+        },
+    )
+    return path
+
+
+def _product_output_report(root: Path) -> Path:
+    report_dir = root / "artefacts/benchmarks/quality/product-output"
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    def artifact(name: str, content: bytes) -> tuple[str, str]:
+        path = report_dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path.relative_to(root).as_posix(), sha256_file(path)
+
+    encoder = NvencCbrContract(
+        bitrate_bps=60_000_000,
+        gop_frames=24,
+    ).as_dict()
+
+    def run_manifest(
+        name: str,
+        *,
+        product: str,
+        implementation: str,
+        engine_sha256: str,
+    ) -> tuple[str, str]:
+        path = report_dir / name
+        _write_json(
+            path,
+            {
+                "status": "valid",
+                "product": product,
+                "workload_id": "workload-v1",
+                "variant": "1080p",
+                "parameters": {
+                    "frames": 1000,
+                    "encoder": encoder,
+                },
+                "assets": {
+                    "input": {"sha256": "input-sha"},
+                    "onnx": {"sha256": "onnx-sha"},
+                    "engine": {"sha256": engine_sha256},
+                },
+                "environment": {
+                    "image": {
+                        "id": f"{implementation}-image",
+                        "repository_revision": "revision-1",
+                        "source_dirty": "0",
+                    }
+                },
+                "reproducibility": {"publishable": True},
+                "measured": {"validation": {"valid": True}},
+            },
+        )
+        return path.relative_to(root).as_posix(), sha256_file(path)
+
+    reference_manifest, reference_manifest_sha = run_manifest(
+        "ai-media/run-01/manifest.json",
+        product="ai-media-enhancer",
+        implementation="ai-media",
+        engine_sha256="shared-engine",
+    )
+    comparisons = []
+    for product, implementation, engine in (
+        ("vs-mlrt", "vstrt", "shared-engine"),
+        ("VSGAN-tensorrt-docker", "vsgan", "vsgan-engine"),
+    ):
+        manifest_path, run_manifest_sha = run_manifest(
+            f"{implementation}/run-01/manifest.json",
+            product=product,
+            implementation=implementation,
+            engine_sha256=engine,
+        )
+        metrics = {}
+        for metric in ("psnr", "ssim"):
+            stats_path, stats_sha = artifact(
+                f"{implementation}/{metric}.stats.log",
+                f"{metric} stats".encode(),
+            )
+            log_path, log_sha = artifact(
+                f"{implementation}/{metric}.ffmpeg.log",
+                f"{metric} log".encode(),
+            )
+            metrics[metric] = {
+                "stats_path": stats_path,
+                "stats_sha256": stats_sha,
+                "ffmpeg_log": log_path,
+                "ffmpeg_log_sha256": log_sha,
+            }
+        comparisons.append(
+            {
+                "implementation": product,
+                "status": "valid",
+                "engine_sha256": engine,
+                "run_manifest": manifest_path,
+                "run_manifest_sha256": run_manifest_sha,
+                "metrics": metrics,
+            }
+        )
+
+    visual_crops = {}
+    for implementation, directory in (
+        ("ai-media-enhancer", "ai-media"),
+        ("vs-mlrt", "vstrt"),
+        ("VSGAN-tensorrt-docker", "vsgan"),
+    ):
+        crops = []
+        for frame_index in (0, 499, 999):
+            path, checksum = artifact(
+                f"crops/{directory}/frame-{frame_index:06d}.center.png",
+                f"{implementation} {frame_index}".encode(),
+            )
+            crops.append(
+                {
+                    "frame_index": frame_index,
+                    "crop": "center",
+                    "path": path,
+                    "sha256": checksum,
+                }
+            )
+        visual_crops[implementation] = crops
+
+    path = report_dir / "product-output-parity.json"
+    _write_json(
+        path,
+        {
+            "document_type": "product-output-parity",
+            "status": "valid",
+            "publishable": True,
+            "workload_id": "workload-v1",
+            "variant": "1080p",
+            "frame_indices": [0, 499, 999],
+            "thresholds": {
+                "psnr_min_db": 35.0,
+                "ssim_min": 0.95,
+            },
+            "assets": {
+                "input_sha256": "input-sha",
+                "onnx_sha256": "onnx-sha",
+            },
+            "reference": {
+                "implementation": "ai-media-enhancer",
+                "engine_sha256": "shared-engine",
+                "run_manifest": reference_manifest,
+                "run_manifest_sha256": reference_manifest_sha,
+            },
+            "comparisons": comparisons,
+            "visual_crops": visual_crops,
+        },
+    )
+    return path
+
+
 def test_aggregate_campaign_builds_acceptance_table(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -187,6 +402,10 @@ def test_aggregate_campaign_builds_acceptance_table(
 
     assert summary["status"] == "valid"
     assert summary["publishable"] is False
+    assert summary["publication"]["errors"] == [
+        MODEL_SPACE_GAP,
+        PRODUCT_OUTPUT_GAP,
+    ]
     assert summary["needs_extra_runs"] is False
     assert summary["parameters"]["rounds"] == 3
     assert summary["implementations"]["ai-media"]["statistics"]["median_fps"] == 10.0
@@ -198,6 +417,143 @@ def test_aggregate_campaign_builds_acceptance_table(
     assert summary["implementations"]["vstrt"][
         "relative_to_ai_media_percent"
     ] == pytest.approx(-10.0)
+
+
+def test_aggregate_campaign_accepts_matching_model_space_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+
+    summary = aggregate_campaign(
+        campaign_dir,
+        root=tmp_path,
+        idle_seconds=10,
+        model_space_report=_model_space_report(tmp_path),
+    )
+
+    assert summary["publication"]["errors"] == [PRODUCT_OUTPUT_GAP]
+    assert summary["quality"]["model_space"]["status"] == "valid"
+
+
+def test_aggregate_campaign_is_publishable_with_both_quality_reports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+
+    summary = aggregate_campaign(
+        campaign_dir,
+        root=tmp_path,
+        idle_seconds=10,
+        model_space_report=_model_space_report(tmp_path),
+        product_output_report=_product_output_report(tmp_path),
+    )
+
+    assert summary["publishable"] is True
+    assert summary["publication"] == {"ready": True, "errors": []}
+    assert summary["quality"]["product_output"]["status"] == "valid"
+
+
+def test_aggregate_campaign_rejects_model_space_engine_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    report_path = _model_space_report(tmp_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["comparisons"][1]["engine_sha256"] = "other-engine"
+    _write_json(report_path, report)
+
+    with pytest.raises(CampaignError, match="VSGAN-tensorrt-docker engine"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            model_space_report=report_path,
+        )
+
+
+def test_aggregate_campaign_rejects_model_space_image_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    report_path = _model_space_report(tmp_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["comparisons"][0]["image"]["id"] = "other-image"
+    _write_json(report_path, report)
+
+    with pytest.raises(CampaignError, match="vs-mlrt image"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            model_space_report=report_path,
+        )
+
+
+def test_aggregate_campaign_rejects_product_output_image_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    report_path = _product_output_report(tmp_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    manifest_path = tmp_path / report["comparisons"][0]["run_manifest"]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["environment"]["image"]["id"] = "other-image"
+    _write_json(manifest_path, manifest)
+    report["comparisons"][0]["run_manifest_sha256"] = sha256_file(manifest_path)
+    _write_json(report_path, report)
+
+    with pytest.raises(CampaignError, match="vs-mlrt run changed image"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            product_output_report=report_path,
+        )
 
 
 def test_aggregate_campaign_requests_two_extra_rounds(

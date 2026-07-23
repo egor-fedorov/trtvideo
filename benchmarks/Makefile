@@ -26,11 +26,19 @@ CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/campaigns/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
 CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
+MODEL_SPACE_DIR ?= artefacts/benchmarks/quality/model-space-$(WORKLOAD_NAME)-$(VARIANT)
+MODEL_SPACE_ARGS ?=
+PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/quality/product-output-$(WORKLOAD_NAME)-$(VARIANT)
+QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
 .PHONY: run-ai-media plan-trtexec plan-vstrt plan-vsgan dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
+.PHONY: capture-model-ai-media capture-model-vstrt capture-model-vsgan
+.PHONY: compare-model-space model-space-parity
+.PHONY: capture-output-ai-media capture-output-vstrt capture-output-vsgan
+.PHONY: compare-product-output product-output-parity quality-gates
 .PHONY: campaign-preflight campaign-ai-media campaign-vstrt campaign-vsgan
 .PHONY: aggregate-campaign run-campaign
 
@@ -47,6 +55,9 @@ help:
 		'run-vstrt           Run strict TensorRT 11 parity (ENGINE required)' \
 		'run-vsgan           Run stock VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
+		'model-space-parity  Compare pre/post-TensorRT RGB float tensors' \
+		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
+		'quality-gates       Run model-space and product-output parity gates' \
 		'run-campaign        Run/resume the canonical rotated parity campaign' \
 		'aggregate-campaign  Rebuild campaign.json and results.md from raw runs'
 
@@ -221,6 +232,116 @@ run-vsgan:
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
 			$(ARGS) $(VSGAN_ARGS)
 
+capture-model-ai-media:
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/ai-media"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.capture_ai_media_model_space \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--engine /app/$(ENGINE) \
+			--gpu-id $(GPU_ID) \
+			--output-dir /app/$(MODEL_SPACE_DIR)/ai-media \
+			$(MODEL_SPACE_ARGS)
+
+capture-model-vstrt:
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vstrt"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(VSTRT_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.capture_vspipe_model_space \
+			--implementation vstrt \
+			--manifest /app/$(MANIFEST) \
+			--implementations /app/$(IMPLEMENTATIONS) \
+			--variant $(VARIANT) \
+			--engine /app/$(ENGINE) \
+			--script /app/benchmarks/vstrt/upscale.vpy \
+			--gpu-id $(GPU_ID) \
+			--output-dir /app/$(MODEL_SPACE_DIR)/vstrt \
+			$(MODEL_SPACE_ARGS)
+
+capture-model-vsgan:
+	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vsgan"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 \
+			-m benchmarks.scripts.capture_vspipe_model_space \
+			--implementation vsgan \
+			--manifest /app/$(MANIFEST) \
+			--implementations /app/$(IMPLEMENTATIONS) \
+			--variant $(VARIANT) \
+			--engine /app/$(VSGAN_ENGINE) \
+			--script /app/benchmarks/vsgan/upscale.vpy \
+			--gpu-id $(GPU_ID) \
+			--output-dir /app/$(MODEL_SPACE_DIR)/vsgan \
+			$(MODEL_SPACE_ARGS)
+
+compare-model-space:
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.compare_model_space \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--reference /app/$(MODEL_SPACE_DIR)/ai-media/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/vstrt/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/vsgan/manifest.json \
+			--output /app/$(MODEL_SPACE_DIR)/model-space-parity.json
+
+model-space-parity:
+	$(MAKE) capture-model-ai-media
+	$(MAKE) capture-model-vstrt
+	$(MAKE) capture-model-vsgan
+	$(MAKE) compare-model-space
+
+capture-output-ai-media:
+	$(MAKE) run-ai-media \
+		OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/ai-media" \
+		ARGS="$(QUALITY_RUN_ARGS)"
+
+capture-output-vstrt:
+	$(MAKE) run-vstrt \
+		VSTRT_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/vstrt" \
+		ARGS="$(QUALITY_RUN_ARGS)"
+
+capture-output-vsgan:
+	$(MAKE) run-vsgan \
+		VSGAN_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/vsgan" \
+		ARGS="$(QUALITY_RUN_ARGS)"
+
+compare-product-output:
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.compare_product_output \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--reference /app/$(PRODUCT_OUTPUT_DIR)/ai-media/run-01/manifest.json \
+			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vstrt/run-01/manifest.json \
+			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vsgan/run-01/manifest.json \
+			--output /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json \
+			--root /app
+
+product-output-parity:
+	$(MAKE) capture-output-ai-media
+	$(MAKE) capture-output-vstrt
+	$(MAKE) capture-output-vsgan
+	$(MAKE) compare-product-output
+
+quality-gates: model-space-parity product-output-parity
+
 campaign-preflight:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
@@ -291,6 +412,8 @@ aggregate-campaign:
 			--campaign-dir /app/$(CAMPAIGN_DIR) \
 			--root /app \
 			--idle-seconds $(CAMPAIGN_IDLE_SECONDS) \
+			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/model-space-parity.json),--model-space-report /app/$(MODEL_SPACE_DIR)/model-space-parity.json) \
+			$(if $(wildcard $(ROOT)/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json),--product-output-report /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json) \
 			$(ARGS)
 
 run-campaign: campaign-preflight

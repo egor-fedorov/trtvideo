@@ -68,6 +68,118 @@ def _validate_source(source: dict[str, Any], field: str) -> None:
             raise WorkloadError(f"Manifest field '{field}.{metadata_key}' is required")
 
 
+def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int) -> None:
+    quality = _require_dict(manifest, "quality")
+    model_space = _require_dict(quality, "model_space")
+    frame_indices = model_space.get("frame_indices")
+    if (
+        not isinstance(frame_indices, list)
+        or not frame_indices
+        or not all(isinstance(value, int) for value in frame_indices)
+    ):
+        raise WorkloadError(
+            "Manifest field 'quality.model_space.frame_indices' "
+            "must be a non-empty integer array"
+        )
+    if frame_indices != sorted(set(frame_indices)):
+        raise WorkloadError(
+            "Manifest field 'quality.model_space.frame_indices' "
+            "must be sorted and unique"
+        )
+    if frame_indices[0] < 0 or frame_indices[-1] >= clip_frames:
+        raise WorkloadError(
+            "Manifest model-space frame indices must stay inside the canonical clip"
+        )
+
+    thresholds = _require_dict(model_space, "thresholds")
+    for stage in ("input", "output"):
+        stage_thresholds = _require_dict(thresholds, stage)
+        for name in ("max_abs", "p99_abs", "rmse", "min_psnr_db"):
+            value = stage_thresholds.get(name)
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or value <= 0
+            ):
+                raise WorkloadError(
+                    "Manifest field "
+                    f"'quality.model_space.thresholds.{stage}.{name}' "
+                    "must be positive"
+                )
+
+
+def _validate_product_output_quality(
+    manifest: dict[str, Any],
+    *,
+    clip_frames: int,
+) -> None:
+    quality = _require_dict(manifest, "quality")
+    product_output = _require_dict(quality, "product_output")
+    frame_indices = product_output.get("frame_indices")
+    if (
+        not isinstance(frame_indices, list)
+        or not frame_indices
+        or not all(isinstance(value, int) for value in frame_indices)
+        or frame_indices != sorted(set(frame_indices))
+    ):
+        raise WorkloadError(
+            "Manifest field 'quality.product_output.frame_indices' "
+            "must be a sorted unique integer array"
+        )
+    if frame_indices[0] < 0 or frame_indices[-1] >= clip_frames:
+        raise WorkloadError(
+            "Manifest product-output frame indices must stay inside the canonical clip"
+        )
+
+    thresholds = _require_dict(product_output, "thresholds")
+    psnr_min_db = thresholds.get("psnr_min_db")
+    ssim_min = thresholds.get("ssim_min")
+    if (
+        not isinstance(psnr_min_db, (int, float))
+        or isinstance(psnr_min_db, bool)
+        or psnr_min_db <= 0
+    ):
+        raise WorkloadError(
+            "Manifest field 'quality.product_output.thresholds.psnr_min_db' "
+            "must be positive"
+        )
+    if (
+        not isinstance(ssim_min, (int, float))
+        or isinstance(ssim_min, bool)
+        or not 0 < ssim_min <= 1
+    ):
+        raise WorkloadError(
+            "Manifest field 'quality.product_output.thresholds.ssim_min' "
+            "must be in (0, 1]"
+        )
+
+    crops = _require_list(product_output, "crops")
+    names: set[str] = set()
+    for crop in crops:
+        name = crop.get("name")
+        if not isinstance(name, str) or not name or name in names:
+            raise WorkloadError(
+                "Manifest product-output crop names must be unique non-empty strings"
+            )
+        names.add(name)
+        for field in ("x", "y", "width", "height"):
+            value = crop.get(field)
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or value < 0
+                or (field in {"width", "height"} and value <= 0)
+                or value > 1
+            ):
+                raise WorkloadError(
+                    f"Manifest product-output crop '{name}' has invalid {field}"
+                )
+        if crop["x"] + crop["width"] > 1 or crop["y"] + crop["height"] > 1:
+            raise WorkloadError(
+                f"Manifest product-output crop '{name}' exceeds the output frame"
+            )
+
+
 def validate_manifest(manifest: dict[str, Any]) -> None:
     """Validate the canonical workload schema and path boundaries."""
     if manifest.get("schema_version") != 1:
@@ -126,6 +238,8 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     _validate_relative_path(clip.get("source_path"), "clip.source_path")
     if clip.get("frames") != 1000:
         raise WorkloadError("Canonical workload must contain exactly 1000 frames")
+    _validate_model_space_quality(manifest, clip_frames=clip["frames"])
+    _validate_product_output_quality(manifest, clip_frames=clip["frames"])
     try:
         fps = Fraction(str(clip.get("fps")))
     except (ValueError, ZeroDivisionError) as exc:

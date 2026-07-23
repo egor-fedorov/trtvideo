@@ -137,7 +137,44 @@ Repeat for 1080p, then for SPAN with overridden `MANIFEST`, `ENGINE`, `ONNX`, an
 media/timestamp contract. `trtexec` is checked separately as a diagnostic
 ceiling.
 
-## 5. Rotated Acceptance Campaign
+## 5. Quality Gates
+
+Run both independent quality jobs. The first compares model input/output FP32
+RGB tensors. The second retains one canonical MP4 per product, performs complete
+PSNR/SSIM decode comparisons, and generates visual crops:
+
+```bash
+make -C benchmarks quality-gates \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+Repeat at 720p. Then run both resolutions for SPAN:
+
+```bash
+make -C benchmarks quality-gates \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
+```
+
+Use the corresponding 720p engine paths for the final run. Each command must
+finish with both `Model-space parity valid` and `Product-output parity valid`.
+Inspect
+`artefacts/benchmarks/quality/model-space-<workload>-<variant>/model-space-parity.json`
+and
+`artefacts/benchmarks/quality/product-output-<workload>-<variant>/product-output-parity.json`
+before deleting raw tensors or retained MP4s. Review the PNG crop matrix
+manually. Any threshold failure is a quality-contract failure, not benchmark
+noise, and must be investigated before the campaign can be published. The
+campaign aggregator automatically consumes valid reports at these canonical
+paths and verifies that their evidence, asset, and engine hashes match the
+measured campaign. It also rejects quality evidence produced by different
+Docker image IDs, a different repository revision, or a dirty build.
+
+## 6. Rotated Acceptance Campaign
 
 Commit all changes and rebuild all three benchmark images before the campaign.
 Preflight rejects a dirty worktree or an image not built from the current

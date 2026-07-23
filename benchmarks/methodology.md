@@ -121,6 +121,68 @@ A pixel diff of only the final MP4 conflates model output, colorspace conversion
 and lossy encoding. VMAF or quality claims require a separate reference
 degradation dataset and are not inferred from the throughput workload.
 
+Model-space capture is a separate GPU acceptance job and never runs inside a
+timed benchmark process. The canonical frames are zero-based indices `0`, `499`,
+and `999`. Each implementation stores raw little-endian FP32 planar RGB tensors
+with CHW layout at two boundaries:
+
+```text
+input:  normalized RGB immediately before TensorRT
+output: RGB immediately after TensorRT, before clipping, YUV conversion, or encode
+```
+
+The project reference uses its production `NVDEC -> CV-CUDA -> TensorRT` path.
+The vstrt and VSGAN captures use `RGBS` immediately before and after
+`core.trt.Model`. VapourSynth's physical `G,B,R` plane serialization is
+normalized to logical RGB CHW after capture. Every raw tensor is size-checked
+and hashed. The report also requires identical input-video and ONNX hashes;
+technical vstrt parity requires the exact same serialized engine as the
+project. Stock VSGAN uses its native TRT10.16 engine built from the same ONNX.
+Each capture records its immutable Docker image ID, clean repository revision,
+and source state. Captures from different revisions cannot form a valid report.
+
+Acceptance limits are fixed in each workload manifest:
+
+| Stage | RMSE | p99 absolute error | Maximum absolute error | Minimum PSNR |
+|---|---:|---:|---:|---:|
+| model input | `0.003922` | `0.007843` | `0.031373` | `48 dB` |
+| model output | `0.007843` | `0.015686` | `0.062745` | `42 dB` |
+
+All values use normalized RGB where `1.0` is the PSNR data range. These limits
+allow small decoder/colorspace and TensorRT-version differences but reject a
+materially different preprocessing or model result. They must not be changed
+after observing GPU results without invalidating and explaining the campaign.
+
+Run the gate with `make -C benchmarks model-space-parity`. It writes capture
+manifests, raw tensors, logs, and `model-space-parity.json` under the ignored
+`artefacts/benchmarks/quality/` tree. A valid report is required in addition to
+the product-output quality report before campaign results can be published.
+
+Product-output parity uses one separate canonical retained-output run per
+implementation. These runs use 100 warmup and 1000 output frames but are not
+included in the rotated performance statistics. Each candidate MP4 is compared
+with the project MP4 through complete FFmpeg decode passes:
+
+```text
+average PSNR >= 35 dB
+overall SSIM >= 0.95
+exactly 1000 compared frames
+```
+
+The same zero-based frames `0`, `499`, and `999` are extracted for manual
+inspection. Two normalized crop rectangles are fixed in the workload manifest:
+the center quarter and an upper-left quarter. FFmpeg decodes each product once
+to generate its complete crop matrix. Run manifests, metric logs/statistics,
+MP4 hashes, and every PNG crop are hashed in `product-output-parity.json`.
+
+`make -C benchmarks quality-gates` runs both quality jobs. The campaign
+aggregator verifies both reports against the measured workload, input, ONNX, and
+engine hashes, as well as the exact Docker image IDs and clean repository
+revision. For product-output evidence it reloads the original run manifests
+rather than trusting only report metadata. A stable campaign becomes
+publishable only when both reports are valid and their referenced evidence is
+still present.
+
 ## Timing Contract
 
 The primary metric is full-process end-to-end FPS. An external monotonic timer

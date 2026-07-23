@@ -86,6 +86,20 @@ def _torch_cuda_version() -> str | None:
     return torch.version.cuda
 
 
+def collect_image_identity(*, default_reference: str = "unknown") -> dict[str, str]:
+    """Collect the immutable build identity shared by benchmark evidence."""
+    return {
+        "reference": os.environ.get("AI_MEDIA_IMAGE_REF", default_reference),
+        "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
+        "base_reference": os.environ.get(
+            "AI_MEDIA_BASE_IMAGE",
+            "nvcr.io/nvidia/tensorrt:26.06-py3",
+        ),
+        "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
+        "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
+    }
+
+
 def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
     """Collect only fields allowed by the public benchmark methodology."""
     return {
@@ -105,16 +119,7 @@ def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
             "nvidia_ml_py": _package_version("nvidia-ml-py"),
             "ffmpeg": _command_version(["ffmpeg", "-version"]),
         },
-        "image": {
-            "reference": os.environ.get("AI_MEDIA_IMAGE_REF", "unknown"),
-            "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
-            "base_reference": os.environ.get(
-                "AI_MEDIA_BASE_IMAGE",
-                "nvcr.io/nvidia/tensorrt:26.06-py3",
-            ),
-            "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
-            "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
-        },
+        "image": collect_image_identity(),
     }
 
 

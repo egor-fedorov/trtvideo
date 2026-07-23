@@ -27,6 +27,8 @@ typecheck:
 
 compile:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q ai_media benchmarks tests/unit
+	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m py_compile \
+		benchmarks/vstrt/upscale.vpy benchmarks/vsgan/upscale.vpy
 
 test-unit:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q tests/unit
