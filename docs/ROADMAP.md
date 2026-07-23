@@ -1,136 +1,144 @@
 # Roadmap
 
-Цель ближайшего цикла - проверить, имеет ли `ai-media-enhancer` измеримое
-преимущество как NVIDIA/TensorRT video upscaler, и подготовить доказуемые
-performance claims для open-source релиза.
+The goal of the next cycle is to determine whether `ai-media-enhancer` has a
+measurable advantage as an NVIDIA/TensorRT video upscaler and to prepare
+defensible performance claims for an open-source release.
 
-Проверяемый архитектурный тезис:
+The architectural claim under test is:
 
-> GPU-resident pipeline `NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC`
-> обеспечивает высокий end-to-end throughput без выгрузки несжатых кадров на CPU.
+> The GPU-resident `NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC` pipeline
+> provides high end-to-end throughput without transferring uncompressed frames
+> to the CPU.
 
 ## Benchmark Matrix
 
-Результаты делятся на независимые классы:
+Results are divided into independent classes:
 
-1. Technical parity: `ai-media-enhancer` против локально собранного
-   `VapourSynth/vstrt` на TensorRT 11 с одним serialized engine.
-2. Stock product: `ai-media-enhancer` против pinned stock
-   `VSGAN-tensorrt-docker` с одним ONNX, но отдельными native engines. Stock VSGAN
-   использует TensorRT 10.16 и не может загрузить engine TensorRT 11.
-3. Diagnostics: `trtexec`, stage profile и Nsight. Это не конкуренты и не строки
-   продуктовой таблицы.
+1. Technical parity: `ai-media-enhancer` against locally built
+   `VapourSynth/vstrt` on TensorRT 11 with the same serialized engine.
+2. Stock product: `ai-media-enhancer` against pinned stock
+   `VSGAN-tensorrt-docker` with the same ONNX but separate native engines. Stock
+   VSGAN uses TensorRT 10.16 and cannot load a TensorRT 11 engine.
+3. Diagnostics: `trtexec`, stage profiling, and Nsight. These are not
+   competitors and do not appear as rows in the product table.
 
-Video2X исключён: версия 6.4.0 не поддерживает используемую универсальную
-`RealESRGAN_x2plus` и запускает другую anime-модель. Сравнение такого FPS не
-проверяет эффективность pipeline.
+Video2X is excluded: version 6.4.0 does not support the universal
+`RealESRGAN_x2plus` used here and runs a different anime model. Comparing its FPS
+would not test pipeline efficiency.
 
-Обязательные workload:
+Mandatory workloads:
 
-- `RealESRGAN_x2plus` - тяжёлый model-bound сценарий;
-- `2xLiveActionV1_SPAN` - лёгкий сценарий, показывающий video pipeline overhead.
+- `RealESRGAN_x2plus` - a heavy, model-bound scenario;
+- `2xLiveActionV1_SPAN` - a light scenario that exposes video-pipeline overhead.
 
 ## Stage 0. Rebaseline Tooling
 
-Статус: реализовано offline. `make check`, сборка benchmark/TRT11 vstrt images,
-runner dry-run и static VSGAN Dockerfile check проходят. Полная сборка stock VSGAN
-image, TensorRT engines и runtime smoke относятся к GPU acceptance Stage 1.
+Status: implemented offline. `make check`, benchmark/TRT11 vstrt image builds,
+runner dry runs, and the static VSGAN Dockerfile check pass. The complete stock
+VSGAN image build, TensorRT engines, and runtime smoke tests belong to GPU
+acceptance in Stage 1.
 
-- Удалить Video2X из canonical tooling и документации.
-- Перенести `trtexec` в diagnostic/reference класс.
-- Добавить pinned stock VSGAN image без изменений его внутреннего кода.
-- Сохранить строгий TRT11 `vstrt` runner для technical parity.
-- Добавить SPAN workload с проверяемыми source hash, attribution и license.
-- Для VSGAN собирать TRT10.16 engine из canonical mixed-FP16 ONNX на benchmark
-  GPU и сохранять build log, engine sidecar и hashes.
-- Зафиксировать критерии успеха и полный inference/output contract в
+- Remove Video2X from canonical tooling and documentation.
+- Move `trtexec` to the diagnostic/reference class.
+- Add a pinned stock VSGAN image without changing its internal code.
+- Keep a strict TRT11 `vstrt` runner for technical parity.
+- Add a SPAN workload with verifiable source hash, attribution, and license.
+- Build a TRT10.16 VSGAN engine from the canonical mixed-FP16 ONNX on the
+  benchmark GPU and retain the build log, engine sidecar, and hashes.
+- Define success criteria and the complete inference/output contract in
   `benchmarks/methodology.md`.
 
 ## Stage 1. GPU Acceptance
 
-Целевая карта первой campaign - одна физическая GeForce RTX 3090 с 24 GB VRAM.
+The target card for the first campaign is one physical GeForce RTX 3090 with
+24 GB of VRAM.
 
-- Зафиксировать driver, power limit, clocks, thermal state и immutable image IDs.
-- На этой GPU собрать TRT11 engines проекта и TRT10.16 engines stock VSGAN для
-  RealESRGAN и SPAN. Engines из разных TensorRT runtime не переиспользовать.
-- Проверить 720p smoke каждого runner: project, TRT11 `vstrt`, stock VSGAN и
-  diagnostic `trtexec`. Затем повторить для 1080p.
-- Для каждого video output проверить полный decode, frame count, timestamps,
-  color tags, GOP/B-frames, bitrate и размер.
-- Любое изменение image, engine, model или настроек инвалидирует затронутую
-  серию и требует повторного smoke.
+- Record driver, power limit, clocks, thermal state, and immutable image IDs.
+- Build project TRT11 engines and stock VSGAN TRT10.16 engines for RealESRGAN and
+  SPAN on this GPU. Never reuse engines across TensorRT runtimes.
+- Run a 720p smoke test for every runner: project, TRT11 `vstrt`, stock VSGAN,
+  and diagnostic `trtexec`. Repeat at 1080p.
+- For each video output, validate complete decode, frame count, timestamps, color
+  tags, GOP/B-frames, bitrate, and size.
+- Any image, engine, model, or setting change invalidates the affected series
+  and requires another smoke test.
 
 ## Stage 2. Measurement Gaps
 
-Статус: частично реализовано. Exact NVENC contract, rotated campaign runner и
-sanitized acceptance-таблица готовы; остаются quality gates.
+Status: partially implemented. The exact NVENC contract, rotated campaign
+runner, sanitized acceptance table, CPU accounting, and lifecycle timings are
+complete. Quality gates remain.
 
-- [x] Явный одинаковый NVENC rate-control contract для проекта и VSGAN: codec,
-  preset, tuning, RC mode, target/min/max bitrate, VBV, GOP и B-frames;
-- [x] CPU utilization measured subprocess tree через `RUSAGE_CHILDREN`:
-  user/system CPU seconds, average cores и affinity-normalized capacity;
-- [x] Раздельные `startup`, steady-state frame loop и `finalize + mux` timing
-  scopes с единым process/frame boundary contract;
-- [ ] Model-space parity на RGB/float кадрах до YUV/encode;
-- [ ] Product-output PSNR/SSIM и visual crops после декодирования MP4;
-- [x] Campaign runner, который чередует продукты по раундам, а не запускает
-  сгруппированные suite;
-- [x] Генерация sanitized итоговой acceptance-таблицы из raw manifests.
+- [x] Explicit, identical NVENC rate-control contract for the project and VSGAN:
+  codec, preset, tuning, RC mode, target/min/max bitrate, VBV, GOP, and B-frames.
+- [x] CPU utilization for the measured subprocess tree through
+  `RUSAGE_CHILDREN`: user/system CPU seconds, average cores, and
+  affinity-normalized capacity.
+- [x] Separate `startup`, steady-state frame loop, and `finalize + mux` timing
+  scopes with one process/frame boundary contract.
+- [ ] Model-space parity on RGB/float frames before YUV conversion and encode.
+- [ ] Product-output PSNR/SSIM and visual crops after decoding MP4.
+- [x] Campaign runner that rotates products by round instead of running grouped
+  suites.
+- [x] Sanitized final acceptance-table generation from raw manifests.
 
-Individual runner’ы остаются acceptance/baseline data. Campaign также не
-публикуется до закрытия оставшихся Stage 2 gates.
+Individual runners remain acceptance/baseline data. A campaign is not
+publishable until the remaining Stage 2 gates are complete.
 
 ## Stage 3. Parity Campaign
 
-- Выполнить 100 warmup и 1000 measured frames, минимум три run и ещё два при
-  spread больше 5%.
-- Чередовать порядок project/vstrt/VSGAN между раундами.
-- Сначала провести `1080p -> 4K`, затем confirmation `720p -> 1440p`.
-- Повторить оба разрешения на RealESRGAN и SPAN.
-- Публиковать median end-to-end FPS, wall time, CPU, average power,
-  joules/frame, peak VRAM, output bitrate и размер.
-- Сохранить команды, environment, raw values и hashes; не смешивать результаты
-  разных commits, images или thermal/power state.
+- Run 100 warmup and 1000 measured frames, at least three runs, and two
+  additional runs when spread exceeds 5%.
+- Rotate project/vstrt/VSGAN order between rounds.
+- Run `1080p -> 4K` first, followed by confirmation at `720p -> 1440p`.
+- Repeat both resolutions for RealESRGAN and SPAN.
+- Publish median end-to-end FPS, wall time, CPU, average power, joules/frame,
+  peak VRAM, output bitrate, and size.
+- Retain commands, environment, raw values, and hashes. Do not mix results from
+  different commits, images, or thermal/power states.
 
-Критерий результата задаётся до измерений:
+The success criterion is fixed before measurement:
 
-- преимущество больше 5% по median end-to-end FPS - подтверждённое преимущество;
-- разница в пределах +/-5% - паритет, сравниваются CPU, energy/frame, VRAM и UX;
-- проигрыш больше 5% на обоих workload - profiling и оптимизация до performance
-  claim.
+- more than a 5% median end-to-end FPS advantage is a confirmed speed advantage;
+- a difference within +/-5% is parity, followed by comparison of CPU,
+  energy/frame, VRAM, and UX;
+- losing by more than 5% on both workloads requires profiling and optimization
+  before making a performance claim.
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-- Рассчитать `pipeline efficiency = end-to-end FPS / trtexec QPS` отдельно от
-  продуктовой таблицы.
-- Снять один representative Nsight Systems trace и проверить H2D/D2H copies,
-  PCIe traffic, stream gaps, CPU waits и overlap NVDEC/TensorRT/NVENC.
-- Выполнить отдельный best-tuned benchmark: VSGAN с рекомендованными requests,
-  streams и CUDA Graph; проект - с лучшими подтверждёнными настройками.
-- Оставить CUDA Graph experimental, пока захватывается только TensorRT call и
-  нет измеримого выигрыша на текущих тяжёлых моделях.
-- Повторить headline workload на коротком live-action clip с большим движением и
-  мелкими деталями.
-- Если timeline подтверждает простои, исследовать double buffering, несколько
-  execution contexts и overlap `decode N+1`, `inference N`, `encode N-1`.
-- После каждого изменения повторять один фиксированный benchmark и заносить в
-  `docs/PERFORMANCE_LOG.md` только измеренный эффект.
+- Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
+  from the product table.
+- Collect one representative Nsight Systems trace and inspect H2D/D2H copies,
+  PCIe traffic, stream gaps, CPU waits, and NVDEC/TensorRT/NVENC overlap.
+- Run a separate best-tuned benchmark: VSGAN with recommended requests, streams,
+  and CUDA Graph; the project with its best verified settings.
+- Keep CUDA Graph experimental while it captures only the TensorRT call and
+  provides no measured benefit on current heavy models.
+- Repeat the headline workload on a short live-action clip with substantial
+  motion and fine detail.
+- If the timeline confirms idle periods, investigate double buffering, multiple
+  execution contexts, and overlap of `decode N+1`, `inference N`, and
+  `encode N-1`.
+- After each change, repeat one fixed benchmark and add only measured effects to
+  `docs/PERFORMANCE_LOG.md`.
 
 ## Stage 5. Open-Source Release
 
-- Добавить `LICENSE` и выполнить dependency/model/media license audit.
-- Сделать английский README основным и добавить one-command demo.
-- Добавить CI для Ruff, mypy, pytest и Docker build без обязательного GPU.
-- Добавить `CONTRIBUTING.md`, `SECURITY.md` и issue templates.
-- Провести privacy/history audit репозитория.
-- Исправить сохранение нескольких audio streams, subtitles, chapters и metadata
-  либо явно задокументировать ограничения первого релиза.
-- Опубликовать methodology, sanitized raw results и итоговые таблицы.
-- Выпустить versioned GitHub Release.
+- Add `LICENSE` and audit dependency, model, and media licenses.
+- Keep the English README as the primary README and add a one-command demo.
+- Add CI for Ruff, mypy, pytest, and Docker build without requiring a GPU.
+- Add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates.
+- Perform a repository privacy and history audit.
+- Preserve multiple audio streams, subtitles, chapters, and metadata, or
+  document the first-release limitations explicitly.
+- Publish the methodology, sanitized raw results, and final tables.
+- Publish a versioned GitHub Release.
 
 ## Later
 
-- Улучшить media contract: VFR, rotation, SAR/DAR, duration и missing `nb_frames`.
-- Добавить P010/HDR metadata passthrough, tonemap и color management.
-- Рассмотреть VapourSynth backend как продуктовую возможность.
-- Рассмотреть RIFE/frame interpolation после стабилизации video contract.
+- Improve the media contract: VFR, rotation, SAR/DAR, duration, and missing
+  `nb_frames`.
+- Add P010/HDR metadata passthrough, tonemap, and color management.
+- Consider a VapourSynth backend as a product feature.
+- Consider RIFE/frame interpolation after stabilizing the video contract.

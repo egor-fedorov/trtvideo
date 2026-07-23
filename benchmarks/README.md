@@ -1,37 +1,40 @@
 # Benchmarks
 
-Каталог содержит воспроизводимые workload manifests, pinned implementation
-metadata, изолированные Docker environments и runners. Модели, ONNX, TensorRT
-engines, исходные видео и raw results в Git не добавляются.
+This directory contains reproducible workload manifests, pinned implementation
+metadata, isolated Docker environments, and runners. Models, ONNX files,
+TensorRT engines, source videos, and raw results are not added to Git.
 
-- `methodology.md` - классы сравнения и критерии валидности.
-- `workloads/` - RealESRGAN и SPAN workload manifests.
-- `implementations.json` - pinned diagnostic/parity/product implementations.
-- `docker/` - TensorRT 11 vstrt parity и stock VSGAN environments.
-- `scripts/` - подготовка assets, engine builder и runners.
-- `GPU_RUNBOOK.md` - последовательность acceptance на benchmark GPU.
+- `methodology.md` - comparison classes and validity criteria.
+- `workloads/` - RealESRGAN and SPAN workload manifests.
+- `implementations.json` - pinned diagnostic, parity, and product
+  implementations.
+- `docker/` - TensorRT 11 vstrt parity and stock VSGAN environments.
+- `scripts/` - asset preparation, engine builders, and runners.
+- `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
 
-Benchmark workflow отделён от корневого `Makefile`:
+The benchmark workflow is separated from the root `Makefile`:
 
 ```bash
 make -C benchmarks help
 ```
 
-## Матрица
+## Matrix
 
-- `run-vstrt` - technical parity на том же TensorRT 11 engine.
-- `run-vsgan` - stock product comparison на том же ONNX, но отдельном TRT10.16
-  engine из-за несовместимости serialized engines между runtime versions.
-- `run-trtexec` - diagnostic inference ceiling, не конкурент.
-- `run-campaign` - canonical чередование project/vstrt/VSGAN по раундам и
-  генерация общей acceptance-таблицы.
+- `run-vstrt` - technical parity with the same TensorRT 11 engine.
+- `run-vsgan` - stock product comparison from the same ONNX but with a separate
+  TRT10.16 engine because serialized engines are incompatible across runtime
+  versions.
+- `run-trtexec` - diagnostic inference ceiling, not a competitor.
+- `run-campaign` - canonical rotation of project/vstrt/VSGAN by round and
+  generation of a shared acceptance table.
 
-Video2X исключён: он не выполнял canonical `RealESRGAN_x2plus`, поэтому его FPS
-не отвечал на вопрос о производительности одинаковой модели.
+Video2X is excluded because it did not run the canonical
+`RealESRGAN_x2plus`; its FPS therefore did not answer the same-model performance
+question.
 
 ## Assets
 
-RealESRGAN является workload по умолчанию:
+RealESRGAN is the default workload:
 
 ```bash
 make build
@@ -39,7 +42,7 @@ make -C benchmarks prepare
 make -C benchmarks verify
 ```
 
-Для SPAN:
+For SPAN:
 
 ```bash
 make -C benchmarks prepare \
@@ -48,18 +51,19 @@ make -C benchmarks verify \
   MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
 ```
 
-Первый запуск скачивает около 3.7 GB lossless Sintel source. Оба workload
-переиспользуют этот source и подготовленные clips. Model weights, generated ONNX
-и clips остаются в игнорируемых `models/` и `videos/`.
+The first run downloads approximately 3.7 GB of lossless Sintel source data.
+Both workloads reuse this source and the prepared clips. Model weights,
+generated ONNX files, and clips remain in ignored `models/` and `videos/`
+directories.
 
-Только clips можно пересоздать без повторного model export:
+Recreate only the clips without exporting the models again:
 
 ```bash
 make -C benchmarks prepare ARGS=--force-clips
 ```
 
-SPAN weights имеют лицензию `CC-BY-NC-SA-4.0`; benchmark tooling не распространяет
-веса и сохраняет license/attribution в asset lock.
+SPAN weights use the `CC-BY-NC-SA-4.0` license. The benchmark tooling does not
+redistribute them and records license/attribution data in the asset lock.
 
 ## Images And Plans
 
@@ -69,18 +73,19 @@ make -C benchmarks build-vstrt
 make -C benchmarks build-vsgan
 ```
 
-VSGAN wrapper использует pinned `latest_no_avx512`: в соответствующем
-`minimal_no_avx512` release нативный `vspipe` был заменён несовместимым Python
-entrypoint. Benchmark runner запускается из отдельного venv по абсолютному пути,
-не активируя его для embedded Python внутри VSScript. Docker build проверяет оба
-Python environment и запуск нативного binary.
+The VSGAN wrapper uses the pinned `latest_no_avx512` image. In the corresponding
+`minimal_no_avx512` release, the native `vspipe` binary was replaced by an
+incompatible Python entrypoint. The benchmark runner starts from a separate
+virtual environment by absolute path without activating it for the embedded
+Python inside VSScript. The Docker build validates both Python environments and
+the native binary.
 
-Upstream FFmpeg требует NVENC API 13.1 и driver 610+. Benchmark wrapper использует
-pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5` как внешний encoder adapter и источник
-`ffprobe`; stock VSGAN inference stack при этом не изменяется.
+Upstream FFmpeg requires NVENC API 13.1 and driver 610+. The benchmark wrapper
+uses pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5` as an external encoder adapter and
+the source of `ffprobe`; the stock VSGAN inference stack remains unchanged.
 
-Проверка command generation не требует GPU. Для VSGAN plan нужен путь будущего
-TRT10 engine, но сам файл в dry-run не обязателен:
+Command-generation checks do not require a GPU. A VSGAN plan needs the path of
+the future TRT10 engine, but the file itself is optional in dry-run mode:
 
 ```bash
 make -C benchmarks dry-run \
@@ -93,7 +98,7 @@ make -C benchmarks dry-run \
   VSGAN_ARGS="--warmup-frames 24"
 ```
 
-Для SPAN вместе с `MANIFEST` переопределяются model paths:
+For SPAN, override the model paths together with `MANIFEST`:
 
 ```bash
 MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
@@ -106,16 +111,16 @@ make -C benchmarks dry-run \
   VSGAN_ENGINE="$VSGAN_ENGINE"
 ```
 
-Параметры frames/runs можно уменьшать только для smoke. Такой suite может быть
-валидным, но получает `scope: acceptance` и `publishable: false`. Это относится
-и к canonical individual suite: публиковать сравнение можно только из общей
-rotated campaign.
+Frame/run parameters may be reduced only for smoke tests. Such a suite can be
+valid, but it receives `scope: acceptance` and `publishable: false`. The same
+restriction applies to a canonical individual suite: comparisons may be
+published only from the shared rotated campaign.
 
-Все video runners используют один явный NVENC contract: H.264 P4/HQ, CBR,
-target=min=max bitrate, VBV buffer на две секунды с начальным заполнением 50%,
-single-pass, lookahead/AQ disabled, GOP одна секунда и B-frames 0.
+All video runners use one explicit NVENC contract: H.264 P4/HQ, CBR,
+target=min=max bitrate, a two-second VBV buffer with 50% initial occupancy,
+single pass, lookahead/AQ disabled, a one-second GOP, and zero B-frames.
 
-Canonical campaign запускается после smoke:
+Run the canonical campaign after smoke tests:
 
 ```bash
 make -C benchmarks run-campaign \
@@ -124,13 +129,14 @@ make -C benchmarks run-campaign \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-Результаты появляются в
+Results are written to
 `artefacts/benchmarks/campaigns/realesrgan_x2plus_sintel-1080p/`: raw manifests,
-`campaign.events.jsonl`, `campaign.json` и `results.md`. Event log фиксирует
-фактический порядок, время начала/завершения и выдержанную паузу каждого запуска;
-агрегатор отклоняет результаты без полного журнала. Итоговая таблица содержит
-median FPS, wall time, CPU cores, GPU utilization, power, VRAM, bitrate и размер.
-Отдельная lifecycle-таблица показывает median startup, steady-state frame loop и
-finalize/mux; эти значения в сумме покрывают тот же full-process wall time.
-Production image не содержит NVML и внешние benchmark tools. Полный GPU workflow
-описан в `GPU_RUNBOOK.md`.
+`campaign.events.jsonl`, `campaign.json`, and `results.md`. The event log records
+the actual order, start/end time, and observed pause for each run; the aggregator
+rejects results without a complete log. The main table contains median FPS, wall
+time, CPU cores, GPU utilization, power, VRAM, bitrate, and size. A separate
+lifecycle table contains median startup, steady-state frame loop, and
+finalize/mux durations, which sum to the same full-process wall time.
+
+The production image contains neither NVML nor external benchmark tools. The
+complete GPU workflow is documented in `GPU_RUNBOOK.md`.

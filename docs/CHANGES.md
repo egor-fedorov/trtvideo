@@ -1,14 +1,14 @@
 # Changes
 
-Versioned changelog для заметных пользовательских и эксплуатационных изменений.
-Это не замена `git log` и не список каждого patch/refactor commit.
+This versioned changelog records notable user-facing and operational changes. It
+is not a replacement for `git log` and does not list every patch or refactor.
 
-Performance-изменения с цифрами и benchmark-сравнениями фиксируются отдельно в
-`docs/PERFORMANCE_LOG.md`.
+Measured performance changes and benchmark comparisons are recorded separately
+in `docs/PERFORMANCE_LOG.md`.
 
-## Как Вести
+## Maintenance Rules
 
-Новые заметные изменения добавлять в `Unreleased`, группируя по смыслу:
+Add notable new changes to `Unreleased`, grouped by purpose:
 
 ```text
 ## Unreleased
@@ -19,198 +19,214 @@ Performance-изменения с цифрами и benchmark-сравнения
 ### Removed
 ```
 
-Версии располагать в обратном хронологическом порядке.
+List released versions in reverse chronological order.
 
-В `CHANGES.md` попадают:
+Include the following in `CHANGES.md`:
 
-* изменения CLI, Docker workflow, engine metadata и runtime defaults;
-* изменения поведения output, encoding, color metadata, benchmark или manifest;
-* миграции структуры проекта, влияющие на работу агента или разработчика;
-* breaking changes и manual migration steps.
+- CLI, Docker workflow, engine metadata, and runtime-default changes;
+- output, encoding, color metadata, benchmark, or manifest behavior changes;
+- project-structure migrations that affect agents or developers;
+- breaking changes and manual migration steps.
 
-В `CHANGES.md` не попадают:
+Do not include:
 
-* мелкие refactor-only изменения без изменения поведения;
-* вынесение magic numbers в константы;
-* typo/docs cleanup без влияния на workflow;
-* локальные runbook уточнения, если они не меняют интерфейс и runtime behavior.
+- small refactor-only changes without behavioral impact;
+- extraction of magic numbers into constants;
+- typo or documentation cleanup that does not affect workflow;
+- local runbook clarifications that do not change an interface or runtime
+  behavior.
 
-## Версионирование
+## Versioning
 
-Версия в `pyproject.toml` поднимается на release, а не на каждый commit.
+The version in `pyproject.toml` is increased for a release, not for every commit.
 
-До `1.0.0` используем pragmatic semver:
+Before `1.0.0`, use pragmatic semantic versioning:
 
-* `0.1.PATCH` - bugfix, runbook/docs fix, совместимая эксплуатационная правка;
-* `0.MINOR.0` - новая возможность, новый CLI/workflow, изменение default behavior;
-* `1.0.0` - когда CLI и Docker/runtime workflow считаются стабильными.
+- `0.1.PATCH` - bug fixes, runbook/documentation fixes, and compatible
+  operational changes;
+- `0.MINOR.0` - a new feature, new CLI/workflow, or changed default behavior;
+- `1.0.0` - when the CLI and Docker/runtime workflow are considered stable.
 
 ## Unreleased
 
 ### Added
 
-* Benchmark manifests и campaign summary теперь содержат раздельные lifecycle
-  scopes: startup до первого завершённого кадра, steady-state до последнего кадра
-  и finalize/encoder flush/mux до выхода process.
-* Добавлен воспроизводимый Stage 0 benchmark contract для RealESRGAN_x2plus и
-  Sintel, включая Docker-first команды `make -C benchmarks prepare` и
-  `make -C benchmarks verify`, проверяемые source hashes и media/ONNX validation.
-* `benchmark-upscale` переведён на внешний end-to-end timer, 3+2 run suite, NVML
-  sampling, sanitized run manifests и автоматическую FFmpeg output validation.
-* Добавлена каноничная команда `make -C benchmarks run-ai-media` для workload
-  RealESRGAN_x2plus/Sintel.
-* Benchmark runner и `nvidia-ml-py` изолированы в опциональном Docker target
-  `benchmark`; production image не получает benchmark-only dependency и scripts.
-* Добавлены зафиксированные Docker environments и отдельные runners для
-  diagnostic `trtexec`, TensorRT 11 `vs-mlrt/vstrt` parity и stock
-  `VSGAN-tensorrt-docker` product comparison с общей схемой результатов, NVML
-  sampling, output validation и режимом `--dry-run` без GPU.
-* Добавлен GPU benchmark runbook для будущей acceptance campaign на RTX 3090.
-* Добавлен второй canonical workload на лёгкой `2xLiveActionV1_SPAN`: source
-  hash, license/attribution, static ONNX variants и общие Sintel clips.
-* Для stock VSGAN добавлена отдельная сборка TensorRT 10.16 engine из canonical
-  ONNX с build log, sidecar contract и hashes. TRT11 engine проекта не
-  переиспользуется между несовместимыми runtime versions.
-* `export-onnx` получил явный `--name`, чтобы воспроизводимо экспортировать
-  разные поддерживаемые Spandrel x2-модели без hardcoded RealESRGAN filename.
-* Добавлен `make -C benchmarks run-campaign`: реализации чередуются по раундам,
-  автоматически получают два дополнительных run при spread выше 5%, а raw
-  manifests агрегируются в `campaign.json` и sanitized `results.md`.
-* Benchmark runners получили process-attributed CPU accounting для measured
-  subprocess tree: user/system CPU seconds, average CPU cores и
-  affinity-normalized capacity. Rotated campaign публикует median CPU usage и
-  проверяет одинаковую accounting semantics между продуктами.
+- Benchmark manifests and campaign summaries now contain separate lifecycle
+  scopes: startup through the first completed frame, steady state through the
+  last frame, and finalize/encoder flush/mux through process exit.
+- Added a reproducible Stage 0 benchmark contract for RealESRGAN_x2plus and
+  Sintel, including Docker-first `make -C benchmarks prepare` and
+  `make -C benchmarks verify` commands, verifiable source hashes, and media/ONNX
+  validation.
+- Moved `benchmark-upscale` to an external end-to-end timer, a 3+2 run suite,
+  NVML sampling, sanitized run manifests, and automatic FFmpeg output
+  validation.
+- Added the canonical `make -C benchmarks run-ai-media` command for the
+  RealESRGAN_x2plus/Sintel workload.
+- Isolated the benchmark runner and `nvidia-ml-py` in the optional `benchmark`
+  Docker target. The production image does not receive benchmark-only
+  dependencies or scripts.
+- Added pinned Docker environments and separate runners for diagnostic
+  `trtexec`, TensorRT 11 `vs-mlrt/vstrt` parity, and stock
+  `VSGAN-tensorrt-docker` product comparison with a shared result schema, NVML
+  sampling, output validation, and GPU-free `--dry-run`.
+- Added a GPU benchmark runbook for a future acceptance campaign on RTX 3090.
+- Added a second canonical workload using lightweight
+  `2xLiveActionV1_SPAN`, including source hash, license/attribution, static ONNX
+  variants, and shared Sintel clips.
+- Added a separate TensorRT 10.16 engine build for stock VSGAN from the
+  canonical ONNX, including build log, sidecar contract, and hashes. The
+  project's TRT11 engine is not reused across incompatible runtime versions.
+- Added an explicit `--name` to `export-onnx` so different supported Spandrel x2
+  models can be exported reproducibly without a hard-coded RealESRGAN filename.
+- Added `make -C benchmarks run-campaign`: implementations rotate by round,
+  receive two additional runs automatically when spread exceeds 5%, and
+  aggregate raw manifests into `campaign.json` plus sanitized `results.md`.
+- Added process-attributed CPU accounting for the measured subprocess tree:
+  user/system CPU seconds, average CPU cores, and affinity-normalized capacity.
+  The rotated campaign publishes median CPU use and checks identical accounting
+  semantics between products.
 
 ### Changed
 
-* Canonical benchmark workload обновлён до `realesrgan-x2plus-sintel-v2`: общий
-  H.264 input теперь не использует B-frames, что упрощает строгую проверку числа
-  кадров и временной разметки; добавлен выборочный `prepare --force-clips` без
-  пересборки ONNX.
-* Per-stage profiling отделён от benchmark: stage timings доступны только через
-  `upscale --profile/--profile-json`, а `benchmark-upscale` запускает обычный
-  unprofiled pipeline отдельными warmup и measured процессами.
-* Benchmark roadmap разделён на technical parity, stock product comparison и
-  diagnostics. До публикационного результата отдельно закрываются CPU/timing
-  scopes и quality parity.
-* Benchmark-specific Make targets перенесены в `benchmarks/Makefile`; корневой
-  `Makefile` оставлен для build и quality gate основного проекта.
-* NVENC output contract проекта, vstrt и VSGAN выровнен явно: single-pass CBR,
-  target/min/max bitrate, двухсекундный VBV с 50% initial occupancy, P4/HQ,
-  отключённые lookahead/AQ, GOP одна секунда и B-frames 0.
-* Individual benchmark suite теперь всегда имеет `scope: acceptance` и
-  `publishable: false`; сравнительный статус формирует только rotated campaign,
-  которая также остаётся непубликационной до CPU/timing/quality gates.
-* Rotated campaign теперь выполняется Python-координатором и сохраняет
-  append-only `campaign.events.jsonl` с фактическим порядком и паузами.
-  Агрегатор отклоняет untracked manifests и кампании без полного event log;
-  общий 3+2 lifecycle и power-limit invariant используются всеми runners.
+- Updated the canonical benchmark workload to
+  `realesrgan-x2plus-sintel-v2`. The shared H.264 input no longer uses B-frames,
+  simplifying strict frame-count and timestamp validation. Added selective
+  `prepare --force-clips` without rebuilding ONNX.
+- Separated per-stage profiling from benchmarking. Stage timings are available
+  only through `upscale --profile/--profile-json`; `benchmark-upscale` launches
+  the normal unprofiled pipeline in separate warmup and measured processes.
+- Divided the benchmark roadmap into technical parity, stock product
+  comparison, and diagnostics. Quality parity remains a separate gate before a
+  publishable result.
+- Moved benchmark-specific Make targets to `benchmarks/Makefile`. The root
+  `Makefile` now contains only project build and quality-gate targets.
+- Explicitly aligned the NVENC output contract for the project, vstrt, and
+  VSGAN: single-pass CBR, equal target/min/max bitrate, a two-second VBV with
+  50% initial occupancy, P4/HQ, disabled lookahead/AQ, one-second GOP, and zero
+  B-frames.
+- An individual benchmark suite now always has `scope: acceptance` and
+  `publishable: false`. Only the rotated campaign determines comparative status,
+  and it remains non-publishable until quality gates are complete.
+- The rotated campaign now uses a Python coordinator and stores append-only
+  `campaign.events.jsonl` with the actual order and pauses. The aggregator
+  rejects untracked manifests and campaigns without a complete event log; all
+  runners use the same 3+2 lifecycle and power-limit invariant.
 
 ### Fixed
 
-* Stock VSGAN benchmark переведён со сломанного `minimal_no_avx512` image на
-  pinned `latest_no_avx512` с нативным `vspipe`; Docker build теперь сразу
-  проверяет тип и запуск binary. Benchmark venv больше не активируется глобально
-  и не нарушает инициализацию embedded Python в VSScript. VSGAN engine sidecar
-  фиксирует base-image digest, чтобы несовместимый TensorRT plan отклонялся до
-  warmup. Внешний encoder нормализован к pinned Ubuntu FFmpeg 6.1.1 с `ffprobe`,
-  поскольку upstream FFmpeg требует NVENC API 13.1 и driver 610+.
-* SPAN ONNX export теперь до `torch.export` один раз сворачивает мутирующие
-  Spandrel `Conv3XC` блоки в эквивалентные eval convolutions. Это устраняет
-  decomposition failure PyTorch 2.11 без перехода на deprecated legacy exporter.
-* `vstrt` runner передаёт абсолютный container path для input.
-* При невалидном benchmark run конкретные manifest errors теперь сразу выводятся
-  в stderr перед завершением Make target с кодом 2.
-* Smoke overrides больше не могут ошибочно получить `publishable: true`: suite
-  summary проверяет точное соответствие параметрам canonical workload.
-* NVML process gate учитывает объявленную многопроцессную структуру внешних
-  pipeline, сохраняя нулевой baseline для обнаружения посторонней GPU-нагрузки;
-  повторяющиеся NVML records одного PID больше не считаются отдельными процессами.
+- Moved the stock VSGAN benchmark from the broken `minimal_no_avx512` image to
+  pinned `latest_no_avx512` with native `vspipe`. The Docker build now checks
+  the binary type and execution immediately. The benchmark virtual environment
+  is no longer activated globally and no longer breaks embedded Python
+  initialization in VSScript. The VSGAN engine sidecar records the base-image
+  digest so an incompatible TensorRT plan is rejected before warmup. The
+  external encoder is normalized to pinned Ubuntu FFmpeg 6.1.1 with `ffprobe`
+  because upstream FFmpeg requires NVENC API 13.1 and driver 610+.
+- SPAN ONNX export now folds mutating Spandrel `Conv3XC` blocks into equivalent
+  evaluation convolutions once before `torch.export`. This resolves the PyTorch
+  2.11 decomposition failure without switching to the deprecated legacy
+  exporter.
+- The `vstrt` runner now passes an absolute container path for input.
+- Invalid benchmark runs now print concrete manifest errors to `stderr` before
+  the Make target exits with code 2.
+- Smoke overrides can no longer receive `publishable: true` accidentally. The
+  suite summary checks exact equality with canonical workload parameters.
+- The NVML process gate now accounts for the declared multi-process structure of
+  external pipelines while retaining a zero baseline for detecting unrelated
+  GPU load. Repeated NVML records for one PID no longer count as separate
+  processes.
 
 ### Removed
 
-* Video2X удалён из canonical benchmark tooling: версия 6.4.0 выполняла
-  `realesr-animevideov3`, а не используемую `RealESRGAN_x2plus`, поэтому её FPS
-  нельзя использовать для same-model performance claim.
+- Removed Video2X from canonical benchmark tooling. Version 6.4.0 ran
+  `realesr-animevideov3` instead of the required `RealESRGAN_x2plus`, so its FPS
+  could not support a same-model performance claim.
 
 ## 0.3.1 - 2026-07-20
 
 ### Changed
 
-* `nvcodec` non-profile path теперь передаёт runtime CUDA stream в NVENC и не
-  синхронизирует host thread перед каждым `Encode`, что снижает CPU busy-wait без
-  изменения CLI.
-* Описание inference, TensorRT runtime и backend'ов перенесено из агентских
-  инструкций в публичный `docs/ARCHITECTURE.md`; `AGENTS.md` теперь содержит только
-  правила работы агента и ссылки на каноническую документацию.
+- The non-profile `nvcodec` path now passes the runtime CUDA stream to NVENC and
+  no longer synchronizes the host thread before every `Encode`, reducing CPU
+  busy-wait without changing the CLI.
+- Moved inference, TensorRT runtime, and backend documentation from agent
+  instructions to public `docs/ARCHITECTURE.md`. `AGENTS.md` now contains only
+  agent working rules and links to canonical documentation.
 
 ## 0.3.0 - 2026-07-12
 
 ### Changed
 
-* Базовый Docker image обновлён до `nvcr.io/nvidia/tensorrt:26.06-py3`.
-* TensorRT build workflow переведён на TensorRT 11 strong typing: FP16 теперь
-  задаётся через `prepare-onnx --precision fp16`, а `build-engine` компилирует
-  уже типизированный ONNX без precision builder flags.
-* В runtime/export dependencies добавлен `onnxconverter-common` для lightweight
-  mixed-precision ONNX graph rewrite.
+- Updated the base Docker image to `nvcr.io/nvidia/tensorrt:26.06-py3`.
+- Migrated the TensorRT build workflow to TensorRT 11 strong typing. FP16 is now
+  selected through `prepare-onnx --precision fp16`, and `build-engine` compiles
+  the already typed ONNX without precision builder flags.
+- Added `onnxconverter-common` to runtime/export dependencies for lightweight
+  mixed-precision ONNX graph rewriting.
 
 ### Fixed
 
-* `nvcodec` backend теперь явно задаёт `gop` и `idrperiod` примерно в один
-  ключевой кадр в секунду, чтобы output не получал один IDR/key frame на весь файл.
-* `prepare-onnx --precision fp16` больше не запускает ModelOpt/ONNX Runtime reference
-  pass на полном кадре и не требует 15+ GB памяти для 1080p conversion.
+- The `nvcodec` backend now sets `gop` and `idrperiod` explicitly to
+  approximately one keyframe per second, preventing one IDR/keyframe for the
+  entire output.
+- `prepare-onnx --precision fp16` no longer runs a ModelOpt/ONNX Runtime
+  reference pass on a full frame and no longer requires more than 15 GB of
+  memory for 1080p conversion.
 
 ### Removed
 
-* Удалены runtime model registry и automatic engine discovery. `upscale` и
-  `benchmark-upscale` теперь требуют явный `--engine`; из `build-engine` удалён
-  `--registry`. Sidecar `<engine>.json` остаётся метаданными конкретного engine.
-* Удалён устаревший `RUNBOOK_REALESRGAN_SPAN.md`.
-* Удалён устаревший архивный план `docs/archive/TASKS.md`.
-* Из `build-engine` удалены weak-typing флаги `--fp16`, `--no-fp16` и
-  experimental `--fp16-io`; для TensorRT 11 используйте FP16 ONNX.
+- Removed the runtime model registry and automatic engine discovery. `upscale`
+  and `benchmark-upscale` now require explicit `--engine`; `--registry` was
+  removed from `build-engine`. The `<engine>.json` sidecar remains metadata for
+  one specific engine.
+- Removed the obsolete `RUNBOOK_REALESRGAN_SPAN.md`.
+- Removed the obsolete archived plan `docs/archive/TASKS.md`.
+- Removed weak-typing `--fp16`, `--no-fp16`, and experimental `--fp16-io` flags
+  from `build-engine`. Use an FP16 ONNX with TensorRT 11.
 
 ## 0.2.0 - 2026-05-31
 
 ### Added
 
-* Добавлен `Makefile` с Docker-only командами `build-dev`, `check`, `test-unit`,
-  `lint`, `typecheck` и `compile`.
-* Добавлена Docker-only unit test architecture на `pytest` для pure-Python контрактов.
-* `nvcodec` backend теперь по умолчанию оценивает target bitrate от source video bitrate.
-* Формула auto bitrate: `source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`.
+- Added a `Makefile` with Docker-only `build-dev`, `check`, `test-unit`, `lint`,
+  `typecheck`, and `compile` commands.
+- Added a Docker-only pytest unit-test architecture for pure-Python contracts.
+- The `nvcodec` backend now estimates target bitrate from source video bitrate
+  by default.
+- Automatic bitrate formula:
+  `source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`.
 
 ### Changed
 
-* `--bitrate-mbps` остаётся явным override для воспроизводимых прогонов.
-* `--crf` больше не поддерживается в `nvcodec`; backend использует auto bitrate от
-  source metadata или явный `--bitrate-mbps`. Если source bitrate недоступен,
-  нужно явно передать `--bitrate-mbps`.
+- `--bitrate-mbps` remains an explicit override for reproducible runs.
+- `--crf` is no longer supported by `nvcodec`. The backend uses automatic
+  bitrate from source metadata or explicit `--bitrate-mbps`. If source bitrate
+  is unavailable, `--bitrate-mbps` must be provided.
 
 ### Fixed
 
-* `nvcodec` backend отключает B-frames в NVENC (`bf=0`), чтобы избежать reorder
-  timestamps и ошибок вида `non monotonically increasing dts` при проверке MP4
-  через ffmpeg.
-* `nvcodec` backend больше не округляет дробный FPS до целого перед передачей в
-  PyNvVideoCodec encoder; mux по-прежнему использует точный `ffprobe r_frame_rate`.
+- The `nvcodec` backend disables B-frames in NVENC (`bf=0`) to avoid reordered
+  timestamps and `non monotonically increasing dts` errors during FFmpeg MP4
+  validation.
+- The `nvcodec` backend no longer rounds fractional FPS to an integer before
+  passing it to the PyNvVideoCodec encoder. Mux still uses the exact
+  `ffprobe r_frame_rate`.
 
 ## 0.1.0 - 2026-05-27
 
 ### Changed
 
-* Проект переименован в `ai-media-enhancer`.
-* Python package переименован с `upscaler` на `ai_media`.
-* Выбран root package layout без дополнительного слоя `src/`.
-* Docker venv переименован в `/opt/ai-media-enhancer`.
-* Docker image examples обновлены на `ai-media-enhancer:latest`.
+- Renamed the project to `ai-media-enhancer`.
+- Renamed the Python package from `upscaler` to `ai_media`.
+- Selected a root package layout without an additional `src/` layer.
+- Renamed the Docker virtual environment to `/opt/ai-media-enhancer`.
+- Updated Docker image examples to `ai-media-enhancer:latest`.
 
 ### Docs
 
-* `CLAUDE.md` заменён на `AGENTS.md`.
-* `OPTIMIZATIONS.md` перенесён в `docs/PERFORMANCE_LOG.md`.
-* `TASKS.md` перенесён в `docs/archive/TASKS.md`.
-* Добавлен `docs/ROADMAP.md` как короткий актуальный план.
-* Удалён устаревший `scripts/run_batch.sh`.
+- Replaced `CLAUDE.md` with `AGENTS.md`.
+- Moved `OPTIMIZATIONS.md` to `docs/PERFORMANCE_LOG.md`.
+- Moved `TASKS.md` to `docs/archive/TASKS.md`.
+- Added `docs/ROADMAP.md` as the concise current plan.
+- Removed the obsolete `scripts/run_batch.sh`.

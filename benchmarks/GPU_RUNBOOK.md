@@ -1,9 +1,9 @@
 # GPU Benchmark Runbook
 
-Runbook предназначен для acceptance runner’ов на одной физической RTX 3090.
-Rotated campaign и exact rate control реализованы, но публикационный результат
-по-прежнему требует CPU/timing scopes и quality parity из `methodology.md`. Все
-команды выполняются из корня репозитория.
+This runbook is intended for acceptance runners on one physical RTX 3090.
+Rotated campaigns, exact rate control, CPU accounting, and lifecycle timing are
+implemented. A publishable result still requires the quality-parity gates from
+`methodology.md`. Run all commands from the repository root.
 
 ## 1. Build And Assets
 
@@ -22,19 +22,19 @@ make -C benchmarks verify \
   MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
 ```
 
-`prepare` не использует GPU. RealESRGAN и SPAN переиспользуют один Sintel source
-и clips, но имеют отдельные ONNX directories.
+`prepare` does not use a GPU. RealESRGAN and SPAN reuse the same Sintel source
+and clips but have separate ONNX directories.
 
-`build-vsgan` скачивает pinned full `latest_no_avx512` image размером около
-13 GB. Он выбран вместо сломанного `minimal_no_avx512`, в котором отсутствует
-рабочий нативный `vspipe`. Wrapper устанавливает pinned Ubuntu FFmpeg 6.1.1 для
-совместимого NVENC encode и output validation: upstream FFmpeg требует driver
-610+.
+`build-vsgan` downloads the pinned full `latest_no_avx512` image, which is
+approximately 13 GB. It is used instead of the broken `minimal_no_avx512` image,
+which lacks a working native `vspipe`. The wrapper installs pinned Ubuntu FFmpeg
+6.1.1 for compatible NVENC encoding and output validation because upstream
+FFmpeg requires driver 610+.
 
 ## 2. TensorRT Engines
 
-TRT11 engines проекта собираются production image на benchmark GPU. Соберите
-варианты 720p и 1080p для обеих моделей:
+Build the project's TRT11 engines with the production image on the benchmark
+GPU. Build 720p and 1080p variants for both models:
 
 ```bash
 mkdir -p \
@@ -71,8 +71,8 @@ docker run --rm --gpus all \
   --timing-cache models/cache/benchmark-trt11.cache
 ```
 
-Stock VSGAN использует TensorRT 10.16, поэтому получает отдельный engine из того
-же ONNX. Builder сохраняет log и sidecar:
+Stock VSGAN uses TensorRT 10.16 and therefore receives a separate engine built
+from the same ONNX. The builder stores a log and sidecar:
 
 ```bash
 make -C benchmarks build-vsgan-engine VARIANT=720p
@@ -91,12 +91,12 @@ make -C benchmarks build-vsgan-engine \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
-VSGAN engines необходимо пересобирать после изменения pinned VSGAN base image:
-TensorRT serialized plans не совместимы между разными runtime builds. Runner
-проверяет сохранённый base-image digest до начала warmup.
+Rebuild VSGAN engines after changing the pinned VSGAN base image. TensorRT
+serialized plans are not compatible across different runtime builds. The runner
+checks the recorded base-image digest before warmup begins.
 
-Не копируйте serialized engine между TRT10 и TRT11. Оба engine должны быть
-собраны на той же benchmark GPU.
+Do not copy a serialized engine between TRT10 and TRT11. Both engines must be
+built on the same benchmark GPU.
 
 ## 3. Offline Plans
 
@@ -111,12 +111,12 @@ make -C benchmarks dry-run \
   VSGAN_ARGS="--warmup-frames 24"
 ```
 
-Проверьте generated commands, mounted paths и pinned implementation metadata.
+Review the generated commands, mounted paths, and pinned implementation metadata.
 
 ## 4. GPU Smoke
 
-Зафиксируйте power limit, driver и отсутствие посторонней GPU-нагрузки. Затем
-запустите каждый runner отдельно:
+Record the power limit and driver, and verify that no unrelated GPU load is
+present. Then run each runner independently:
 
 ```bash
 ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine
@@ -132,18 +132,20 @@ make -C benchmarks run-trtexec VARIANT=720p ENGINE="$ENGINE" \
   TRTEXEC_ARGS="--warmup-ms 250"
 ```
 
-Повторите для 1080p, затем для SPAN с переопределёнными `MANIFEST`, `ENGINE`,
-`ONNX` и `VSGAN_ENGINE`. Каждый video runner должен полностью декодировать output
-и проверить media/timestamp contract. `trtexec` проверяется отдельно как
-diagnostic ceiling.
+Repeat for 1080p, then for SPAN with overridden `MANIFEST`, `ENGINE`, `ONNX`, and
+`VSGAN_ENGINE`. Each video runner must fully decode the output and validate the
+media/timestamp contract. `trtexec` is checked separately as a diagnostic
+ceiling.
 
 ## 5. Rotated Acceptance Campaign
 
-Перед campaign закоммитьте изменения и заново соберите все три benchmark image.
-Preflight отклоняет dirty worktree и image, собранные не из текущего commit.
+Commit all changes and rebuild all three benchmark images before the campaign.
+Preflight rejects a dirty worktree or an image not built from the current
+commit.
 
-Canonical defaults: 100 warmup frames, 1000 measured frames, три чередующихся
-раунда и ещё два при spread хотя бы одной реализации больше 5%:
+Canonical defaults are 100 warmup frames, 1000 measured frames, three rotated
+rounds, and two additional rounds when the spread of any implementation exceeds
+5%:
 
 ```bash
 make -C benchmarks run-campaign \
@@ -152,7 +154,7 @@ make -C benchmarks run-campaign \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-Для SPAN:
+For SPAN:
 
 ```bash
 make -C benchmarks run-campaign \
@@ -163,21 +165,24 @@ make -C benchmarks run-campaign \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
-Повторите обе команды с 720p paths. После безопасного прерывания продолжить ту
-же campaign можно с `RESUME=1`. Resume допустим только при неизменных commit,
-images, workload assets и engines; partial/invalid round сохраняется для
-диагностики и требует ручного удаления только своей директории. Если процесс был
-прерван между завершением run и записью события, manifest считается untracked и
-его директорию также нужно удалить перед resume.
+Repeat both commands with 720p paths. After a safe interruption, continue the
+same campaign with `RESUME=1`. Resume is valid only when the commit, images,
+workload assets, and engines are unchanged. A partial or invalid round is
+retained for diagnosis and requires manual removal of only its own directory. If
+the process was interrupted after a run completed but before its event was
+recorded, its manifest is considered untracked and its directory must also be
+removed before resuming.
 
-Campaign сохраняет raw manifests, append-only `campaign.events.jsonl` и общие
-`campaign.json`/`results.md` в `artefacts/benchmarks/campaigns/<name>/`. Event
-log является обязательным доказательством фактической ротации и пауз. Пока
-CPU/timing/quality gates не закрыты, агрегатор выставляет `publishable: false`
-даже для валидной campaign.
+The campaign stores raw manifests, append-only `campaign.events.jsonl`, and
+shared `campaign.json`/`results.md` files in
+`artefacts/benchmarks/campaigns/<name>/`. The event log is mandatory evidence of
+actual rotation and idle intervals. Until the quality gates are complete, the
+aggregator sets `publishable: false` even for a valid campaign.
 
-Individual `run-ai-media`, `run-vstrt` и `run-vsgan` остаются для smoke и
-диагностики. `run-trtexec` остаётся отдельным inference ceiling.
+Individual `run-ai-media`, `run-vstrt`, and `run-vsgan` targets remain available
+for smoke tests and diagnosis. `run-trtexec` remains a separate inference
+ceiling.
 
-Не публикуйте последовательный запуск независимых suite как финальное сравнение.
-Raw manifests, logs и NVML samples не коммитятся до sanitization/review.
+Do not publish sequential execution of independent suites as the final
+comparison. Raw manifests, logs, and NVML samples are not committed before
+sanitization and review.

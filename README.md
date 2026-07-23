@@ -1,74 +1,80 @@
 # AI Media Enhancer
 
-CLI-инструменты для AI-обработки медиа через TensorRT. Текущий реализованный
-workflow - апскейл видео. Подготовка моделей поддерживает `.pth` checkpoints и
-готовые ONNX-файлы; inference запускается через явно указанный TensorRT engine.
+CLI tools for TensorRT-based AI media processing. Video upscaling is the
+currently implemented workflow. Model preparation supports `.pth` checkpoints
+and existing ONNX files; inference runs with an explicitly selected TensorRT
+engine.
 
-Рекомендуемый workflow — Docker. Образ содержит runtime-зависимости для TensorRT
-inference, NVDEC/NVENC inference, подготовки ONNX и экспорта моделей.
+Docker is the recommended workflow. The image contains runtime dependencies for
+TensorRT inference, NVDEC/NVENC inference, ONNX preparation, and model export.
 
-Production runtime сейчас привязан к Python 3.12 из базового TensorRT Docker image
-`nvcr.io/nvidia/tensorrt:26.06-py3`.
+The production runtime currently uses Python 3.12 from the
+`nvcr.io/nvidia/tensorrt:26.06-py3` base TensorRT Docker image.
 
-## Документация
+## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) - устройство inference, TensorRT runtime и backend'ов.
-- [Testing](docs/TESTING.md) - тестовые слои и Docker-only quality gate.
-- [Roadmap](docs/ROADMAP.md) - актуальные направления развития.
-- [Changes](docs/CHANGES.md) - изменения по версиям и правила версионирования.
-- [Performance Log](docs/PERFORMANCE_LOG.md) - измеренные performance-изменения.
-- [Benchmark Methodology](benchmarks/methodology.md) - workload и правила сравнения.
+- [Architecture](docs/ARCHITECTURE.md) - inference, TensorRT runtime, and backend
+  architecture.
+- [Testing](docs/TESTING.md) - test layers and the Docker-only quality gate.
+- [Roadmap](docs/ROADMAP.md) - current development directions.
+- [Changes](docs/CHANGES.md) - versioned changes and versioning rules.
+- [Performance Log](docs/PERFORMANCE_LOG.md) - measured performance changes.
+- [Benchmark Methodology](benchmarks/methodology.md) - workloads and comparison
+  rules.
 
-## Требования К Хосту
+## Host Requirements
 
-Для GPU-запусков нужен хост, на котором уже настроены:
+GPU runs require a host with the following components already configured:
 
-- NVIDIA driver;
+- an NVIDIA driver;
 - Docker;
-- GPU passthrough в Docker для `docker run --gpus all`.
+- GPU passthrough for `docker run --gpus all`.
 
-## Сборка Образа
+## Build The Image
 
 ```bash
 make build
 ```
 
-По умолчанию собирается `ai-media-enhancer:latest`. Другое имя можно передать через
-`make build IMAGE=example/name:tag`.
+The default image is `ai-media-enhancer:latest`. Use
+`make build IMAGE=example/name:tag` to select another name.
 
-Образ задаёт `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`. Это нужно для
-NVDEC/NVENC через PyNvVideoCodec. Контейнеры запускаются с `--gpus all`.
+The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
+required for NVDEC/NVENC through PyNvVideoCodec. Containers run with
+`--gpus all`.
 
-Dev-образ с `ruff`/`mypy`:
+Build the development image with Ruff and mypy:
 
 ```bash
 make build-dev
 ```
 
-## Модели
+## Models
 
-Веса моделей, ONNX-файлы и TensorRT engines не входят в репозиторий. Рекомендуемая
-локальная структура:
+Model weights, ONNX files, and TensorRT engines are not included in the
+repository. The recommended local structure is:
 
 ```text
 models/
-  pretrained/   # исходные .pth checkpoints
-  onnx/         # исходные и подготовленные .onnx
-  engines/      # TensorRT .engine и sidecar .engine.json
+  pretrained/   # source .pth checkpoints
+  onnx/         # source and prepared .onnx files
+  engines/      # TensorRT .engine files and .engine.json sidecars
   cache/        # TensorRT timing cache
 ```
 
-Это соглашение для примеров, а не ограничение CLI: можно использовать любой путь,
-доступный внутри контейнера. При mount `-v "$PWD/models:/app/models"` локальный
-`./models` доступен в аргументах команд как `models/`.
+This structure is a convention used by the examples, not a CLI restriction. Any
+path available inside the container may be used. With
+`-v "$PWD/models:/app/models"`, the local `./models` directory is available to
+commands as `models/`.
 
-`export-onnx` загружает совместимые image-to-image `.pth` checkpoints через
-Spandrel; текущий exporter создаёт 720p и 1080p варианты для 2x upscale и проверен
-на RealESRGAN_x2plus. Готовый ONNX можно сразу передать в `prepare-onnx`.
+`export-onnx` loads compatible image-to-image `.pth` checkpoints through
+Spandrel. The current exporter creates 720p and 1080p variants for 2x upscaling
+and has been verified with RealESRGAN_x2plus. An existing ONNX file can be
+passed directly to `prepare-onnx`.
 
 ## Docker Workflow
 
-### 1. Экспорт `.pth` В ONNX
+### 1. Export `.pth` To ONNX
 
 ```bash
 docker run --rm \
@@ -77,11 +83,11 @@ docker run --rm \
   --model_path models/pretrained/RealESRGAN_x2plus.pth
 ```
 
-### 2. Подготовка ONNX
+### 2. Prepare ONNX
 
-Используется, когда ONNX-модель имеет dynamic axes и для TensorRT нужны фиксированные
-input shapes. Если `--size` не указан, создаются default variants для 1280x720 и
-1920x1080.
+Use this step when an ONNX model has dynamic axes and TensorRT requires fixed
+input shapes. Without `--size`, the command creates default variants for
+1280x720 and 1920x1080.
 
 ```bash
 docker run --rm \
@@ -91,8 +97,8 @@ docker run --rm \
   --size 1280x720
 ```
 
-Для TensorRT 11 FP16 задаётся не builder flag, а типами внутри ONNX. Mixed-precision
-variant создаётся на этом этапе:
+With TensorRT 11, FP16 is defined by tensor types inside ONNX instead of a
+builder flag. Create the mixed-precision variant during this step:
 
 ```bash
 docker run --rm \
@@ -103,13 +109,15 @@ docker run --rm \
   --precision fp16
 ```
 
-`--precision fp16` делает лёгкий ONNX graph rewrite через `onnxconverter-common`:
-внутренние float tensors переводятся в FP16, а input/output тензоры остаются FP32,
-чтобы не менять текущий video runtime contract. GPU для этого шага не нужен.
+`--precision fp16` performs a lightweight ONNX graph rewrite through
+`onnxconverter-common`: internal floating-point tensors are converted to FP16,
+while input/output tensors remain FP32 to preserve the current video runtime
+contract. This step does not require a GPU.
 
-### 3. Сборка TensorRT Engine
+### 3. Build A TensorRT Engine
 
-Время компиляции зависит от модели и GPU. Engine привязан к версии TensorRT и классу GPU.
+Compilation time depends on the model and GPU. An engine is tied to the
+TensorRT version and GPU class.
 
 ```bash
 docker run --rm --gpus all \
@@ -120,18 +128,18 @@ docker run --rm --gpus all \
   --timing-cache models/cache/trt.cache
 ```
 
-`build-engine` автоматически создаёт sidecar manifest рядом с engine:
+`build-engine` automatically creates a sidecar manifest next to the engine:
 
 ```text
 models/engines/model_720p.engine.json
 ```
 
-В sidecar manifest сохраняются ONNX hash, engine hash, версия TensorRT, precision,
-input/output shapes, profile и builder flags. Путь можно задать через `--manifest PATH`,
-а отключить запись через `--no-manifest`.
+The sidecar stores the ONNX hash, engine hash, TensorRT version, precision,
+input/output shapes, profile, and builder flags. Use `--manifest PATH` to select
+another location, or `--no-manifest` to disable it.
 
-FP16 engine собирается из FP16/mixed-precision ONNX без дополнительных precision-флагов
-в `build-engine`:
+An FP16 engine is built from an FP16/mixed-precision ONNX without additional
+precision flags in `build-engine`:
 
 ```bash
 docker run --rm --gpus all \
@@ -142,13 +150,14 @@ docker run --rm --gpus all \
   --timing-cache models/cache/trt.cache
 ```
 
-В TensorRT 11 weak-typing флаги вроде `BuilderFlag.FP16` удалены. Если нужен FP16,
-сначала создайте ONNX через `prepare-onnx --precision fp16`, затем передайте этот ONNX
-в `build-engine`.
+TensorRT 11 removed weak-typing flags such as `BuilderFlag.FP16`. To use FP16,
+first create an ONNX file with `prepare-onnx --precision fp16`, then pass that
+file to `build-engine`.
 
-#### Dynamic Engine: Только Сборка
+#### Dynamic Engine: Build Only
 
-Dynamic ONNX можно собрать напрямую, если явно задать TensorRT optimization profile:
+A dynamic ONNX can be built directly when an explicit TensorRT optimization
+profile is provided:
 
 ```bash
 docker run --rm --gpus all \
@@ -162,16 +171,17 @@ docker run --rm --gpus all \
   --timing-cache models/cache/trt.cache
 ```
 
-Полученный dynamic engine нельзя использовать в текущем video inference runtime.
-Для `upscale --backend ffmpeg|nvcodec` нужен static ONNX variant из `prepare-onnx`
-и соответствующий static engine.
+The resulting dynamic engine cannot be used by the current video inference
+runtime. `upscale --backend ffmpeg|nvcodec` requires a static ONNX variant from
+`prepare-onnx` and a corresponding static engine.
 
-### 4. Апскейл Видео
+### 4. Upscale Video
 
-`--engine` обязателен и должен соответствовать разрешению входного видео. Runtime
-проверяет input shape engine и завершает запуск при несовпадении.
+`--engine` is required and must match the input video resolution. The runtime
+checks the engine input shape and exits on a mismatch.
 
-ffmpeg backend: ffmpeg делает decode/encode, TensorRT inference выполняется на GPU.
+With the FFmpeg backend, FFmpeg performs decode and encode while TensorRT
+inference runs on the GPU:
 
 ```bash
 docker run --rm --gpus all \
@@ -183,7 +193,8 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-NVDEC/NVENC backend: decode, color conversion, TensorRT inference и encode остаются на GPU.
+With the NVDEC/NVENC backend, decode, color conversion, TensorRT inference, and
+encode remain on the GPU:
 
 ```bash
 docker run --rm --gpus all \
@@ -196,7 +207,7 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-Выбор конкретного CUDA device:
+Select a specific CUDA device:
 
 ```bash
 docker run --rm --gpus all \
@@ -209,33 +220,34 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
-### 5. Подготовка Benchmark Workload
+### 5. Prepare A Benchmark Workload
 
-Каноничный workload использует `RealESRGAN_x2plus` и публичный lossless Sintel
-trailer. Команда скачивает около 3.7 GB исходных данных, создаёт H.264 inputs для
-720p/1080p и static mixed-FP16 ONNX. TensorRT engine на этом шаге не строится:
-его нужно собирать на той GPU, где будет выполняться benchmark.
+The canonical workload uses `RealESRGAN_x2plus` and the public lossless Sintel
+trailer. The command downloads approximately 3.7 GB of source data, creates H.264
+inputs for 720p/1080p, and exports static mixed-FP16 ONNX files. It does not build
+a TensorRT engine; engines must be built on the GPU used for the benchmark.
 
 ```bash
 make -C benchmarks prepare
 make -C benchmarks verify
 ```
 
-Модели и видео остаются в игнорируемых `models/` и `videos/`. Зафиксированные
-источники, checksums, license attribution и полный измерительный контракт описаны
-в [Benchmark Methodology](benchmarks/methodology.md).
+Models and videos remain in ignored `models/` and `videos/` directories. Pinned
+sources, checksums, license attribution, and the complete measurement contract
+are documented in
+[Benchmark Methodology](benchmarks/methodology.md).
 
 ### 6. Benchmark
 
-Benchmark-инструменты и NVML dependency не входят в production image. Сначала
-соберите отдельный image, затем запускайте benchmark после сборки engine на
-выбранной benchmark GPU:
+Benchmark tools and the NVML dependency are excluded from the production image.
+Build the separate image first, then run the benchmark after building the engine
+on the selected benchmark GPU:
 
 ```bash
 make -C benchmarks build
 ```
 
-Каноничный запуск:
+Canonical run:
 
 ```bash
 make -C benchmarks run-ai-media \
@@ -243,12 +255,13 @@ make -C benchmarks run-ai-media \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 ```
 
-Runner использует отдельный 100-frame warmup process и минимум три measured process
-по 1000 кадров. При разбросе FPS больше 5% выполняются ещё два run. Обычный benchmark
-не включает `--profile` и измеряет wall time от запуска дочернего `upscale` до его
-завершения после encode, flush и mux.
+The runner uses a separate 100-frame warmup process followed by at least three
+measured processes of 1000 frames each. If FPS spread exceeds 5%, it runs two
+additional processes. The regular benchmark does not enable `--profile`; it
+measures wall time from child `upscale` startup through encode, flush, mux, and
+process exit.
 
-Для короткой проверки инфраструктуры до полного запуска:
+Run a short infrastructure check before the full benchmark:
 
 ```bash
 make -C benchmarks run-ai-media \
@@ -257,14 +270,15 @@ make -C benchmarks run-ai-media \
   ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
 ```
 
-Артефакты сохраняются в `artefacts/benchmarks/`: suite/run manifests, child logs и
-raw NVML samples. В manifest входят end-to-end FPS, peak VRAM, average/peak power,
-energy и joules/frame, hashes и sanitized environment. После SHA256 и полной
-FFmpeg validation валидные MP4 удаляются; невалидный output сохраняется.
+Artifacts are written to `artefacts/benchmarks/`: suite/run manifests, child
+logs, and raw NVML samples. A manifest includes end-to-end FPS, lifecycle and CPU
+metrics, peak VRAM, average/peak power, energy and joules/frame, hashes, and a
+sanitized environment. After SHA256 and complete FFmpeg validation, valid MP4
+files are deleted while invalid output is retained.
 
-`benchmark-upscale` также можно вызвать напрямую для произвольного video-only
-input. Для `nvcodec` требуется явный bitrate, один backend и отдельный output
-directory:
+`benchmark-upscale` can also be called directly for an arbitrary video-only
+input. The `nvcodec` path requires an explicit bitrate, one backend, and a
+separate output directory:
 
 ```bash
 docker run --rm --gpus all \
@@ -280,18 +294,20 @@ docker run --rm --gpus all \
   --json -
 ```
 
-Прогресс выводится в `stderr`, поэтому `--json -` оставляет `stdout` пригодным для
-machine-readable JSON. Per-stage timings снимаются отдельно через
-`upscale --profile` или `upscale --profile-json` и не считаются end-to-end benchmark.
+Progress is written to `stderr`, so `--json -` keeps `stdout` suitable for
+machine-readable JSON. Per-stage timings are collected separately with
+`upscale --profile` or `upscale --profile-json` and are not treated as the
+end-to-end benchmark.
 
-Изолированные runners в `benchmarks/` разделяют technical parity с TensorRT 11
-`vs-mlrt/vstrt`, stock product comparison с `VSGAN-tensorrt-docker` и diagnostic
-ceiling через `trtexec`. Полная последовательность подготовки GPU-хоста и smoke
-описана в [GPU Benchmark Runbook](benchmarks/GPU_RUNBOOK.md).
+The isolated runners in `benchmarks/` separate TensorRT 11
+`vs-mlrt/vstrt` technical parity, stock `VSGAN-tensorrt-docker` product
+comparison, and the diagnostic `trtexec` ceiling. The complete GPU-host
+preparation and smoke sequence is documented in
+[GPU Benchmark Runbook](benchmarks/GPU_RUNBOOK.md).
 
-## CLI-Справка
+## CLI Reference
 
-Доступные команды:
+Available commands:
 
 ```bash
 upscale
@@ -301,7 +317,7 @@ build-engine
 benchmark-upscale
 ```
 
-Полный набор аргументов показывает `--help`:
+Use `--help` to view all arguments:
 
 ```bash
 docker run --rm ai-media-enhancer:latest upscale --help
@@ -313,30 +329,34 @@ docker run --rm ai-media-enhancer:latest build-engine --help
 
 ## Encoding
 
-ffmpeg backend использует `libx264` и управляет качеством через `--crf` со
-значением 18 по умолчанию. NVDEC/NVENC backend не поддерживает `--crf`; codec
-выбирается через `--codec h264|hevc`.
+The FFmpeg backend uses `libx264` and controls quality through `--crf`, which
+defaults to 18. The NVDEC/NVENC backend does not support `--crf`; select the
+codec with `--codec h264|hevc`.
 
-Если `--bitrate-mbps` не указан, NVDEC/NVENC backend автоматически оценивает target
-bitrate от source video bitrate:
-`source_bitrate * (pixel_ratio * fps_ratio) ** 0.6`. Это снижает риск случайно
-получить огромный output после апскейла. Для полностью контролируемого размера
-используйте явный `--bitrate-mbps`.
+Without `--bitrate-mbps`, the NVDEC/NVENC backend estimates target bitrate from
+the source video bitrate:
 
-Если `ffprobe` не смог определить bitrate исходного видео, NVDEC/NVENC backend
-требует явный `--bitrate-mbps` и завершится с ошибкой. `--crf` поддерживается
-только для ffmpeg backend.
+```text
+source_bitrate * (pixel_ratio * fps_ratio) ** 0.6
+```
+
+This reduces the risk of unexpectedly large output after upscaling. Use an
+explicit `--bitrate-mbps` for fully controlled output size.
+
+If `ffprobe` cannot determine the source bitrate, the NVDEC/NVENC backend
+requires an explicit `--bitrate-mbps` and exits with an error. `--crf` is
+supported only by the FFmpeg backend.
 
 ## Media Contract
 
-Текущий media contract рассчитан на SDR 8-bit video. `nvcodec` backend
-fail-fast отклоняет не-`yuv420p`/`nv12` inputs и HDR transfer functions; для
-NV12/RGB conversion используется явный CV-CUDA color spec, а output получает
-явные color tags вместо `unknown`.
+The current media contract targets SDR 8-bit video. The `nvcodec` backend fails
+fast for inputs other than `yuv420p`/`nv12` and for HDR transfer functions.
+NV12/RGB conversion uses an explicit CV-CUDA color specification, and the output
+receives explicit color tags instead of `unknown`.
 
 ## Docker Compose
 
-ffmpeg backend:
+FFmpeg backend:
 
 ```bash
 docker compose run --rm upscale-ffmpeg
@@ -348,18 +368,18 @@ NVDEC/NVENC backend:
 docker compose run --rm upscale-nvcodec
 ```
 
-Пути к engine и input video задаются в `docker-compose.yml`.
+Engine and input video paths are configured in `docker-compose.yml`.
 
-## Проверки Качества
+## Quality Checks
 
-Проверки запускаются через Docker dev image. Unit tests не требуют GPU и не должны
-импортировать TensorRT, CV-CUDA или PyNvVideoCodec.
+Checks run through the Docker development image. Unit tests do not require a GPU
+and must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 
-Docker-based проверки:
+Docker-based checks:
 
 ```bash
 make build-dev
 make check
 ```
 
-Подробная архитектура тестовых слоёв описана в `docs/TESTING.md`.
+The test-layer architecture is documented in `docs/TESTING.md`.

@@ -1,34 +1,34 @@
 # Testing
 
-Тесты проекта запускаются только через Docker dev image. Локальный host может не
-иметь TensorRT, PyNvVideoCodec, CV-CUDA и совместимый Python runtime.
+Project tests run only through the Docker development image. The local host does
+not need TensorRT, PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
 
-## Слои
+## Layers
 
 ### Unit
 
-Быстрые pure-Python тесты без GPU/runtime-зависимостей.
+Fast pure-Python tests without GPU or runtime dependencies:
 
 ```bash
 make build-dev
 make test-unit
 ```
 
-Unit tests не должны импортировать TensorRT, CV-CUDA или PyNvVideoCodec.
+Unit tests must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 
-Тесты сгруппированы по проверяемой подсистеме:
+Tests are grouped by the subsystem under test:
 
 ```text
-tests/unit/ai_media/    # CLI, video helpers, model and engine tooling
-tests/unit/benchmarks/  # benchmark runners, manifests, validation and campaigns
+tests/unit/ai_media/    # CLI, video helpers, and model/engine tooling
+tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaigns
 ```
 
-Обе группы остаются unit-тестами. Реальные GPU/performance-прогоны находятся в
-`benchmarks/`, а не в `tests/`.
+Both groups remain unit tests. Real GPU and performance runs live in
+`benchmarks/`, not in `tests/`.
 
 ### CLI/Docker Smoke
 
-Будущий слой без GPU для проверки Docker image entrypoints:
+A future non-GPU layer will validate Docker image entrypoints:
 
 ```bash
 docker run --rm ai-media-enhancer:dev upscale --help
@@ -40,35 +40,36 @@ docker run --rm ai-media-enhancer:dev build-engine --help
 
 ### GPU Smoke
 
-Будущий явный слой для GPU-хоста. Он должен использовать короткое synthetic video
-и tiny TensorRT engine, а не реальные SPAN/RealESRGAN artifacts.
+A future explicit GPU-host layer should use a short synthetic video and a tiny
+TensorRT engine instead of real SPAN or RealESRGAN artifacts.
 
-Проверять:
+Validate that:
 
-* output file существует;
-* resolution соответствует scale;
-* duration/frame count близки к expected;
-* `pix_fmt` и color tags корректны;
-* кадры не пустые и не зависают на первом кадре.
+- the output file exists;
+- the resolution matches the scale factor;
+- duration and frame count are close to the expected values;
+- `pix_fmt` and color tags are correct;
+- frames are not empty and the video does not freeze on the first frame.
 
 ### Benchmark
 
-Report-first слой пишет suite/run JSON, child logs и raw NVML samples без жёстких
-FPS thresholds. Thresholds можно добавлять только после накопления baseline для
-конкретных GPU, TensorRT version, backend, model и resolution.
+The report-first layer writes suite/run JSON, child logs, and raw NVML samples
+without hard-coded FPS thresholds. Thresholds may be introduced only after
+baselines have been collected for a specific GPU, TensorRT version, backend,
+model, and resolution.
 
-Каноничные benchmark assets подготавливаются и проверяются без GPU:
+Canonical benchmark assets are prepared and verified without a GPU:
 
 ```bash
 make -C benchmarks prepare
 make -C benchmarks verify
 ```
 
-`prepare` скачивает большие ignored assets и поэтому не входит в обычный
-quality gate. Pure-Python контракты workload manifest и команд подготовки входят
-в unit tests.
+`prepare` downloads large ignored assets and is therefore excluded from the
+regular quality gate. Pure-Python workload-manifest and preparation-command
+contracts are covered by unit tests.
 
-На GPU-хосте сначала выполняется короткая проверка runner/validation:
+On a GPU host, first run a short runner and validation smoke test:
 
 ```bash
 make -C benchmarks build
@@ -78,22 +79,22 @@ make -C benchmarks run-ai-media \
   ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
 ```
 
-Конкурентные Docker images, dry-run и команды GPU acceptance описаны в
-`benchmarks/GPU_RUNBOOK.md`. Полный 3+2 benchmark относится к Stage 3. Валидный run
-обязан пройти полный decode, media/timestamp validation и NVML validity checks.
-`nvidia-ml-py` устанавливается
-только в опциональный image `ai-media-enhancer:benchmark` и не входит в production
-runtime.
+Competitor Docker images, dry runs, and GPU acceptance commands are documented
+in `benchmarks/GPU_RUNBOOK.md`. The full 3+2 benchmark belongs to Stage 3. A
+valid run must pass full decode, media/timestamp validation, and NVML validity
+checks. `nvidia-ml-py` is installed only in the optional
+`ai-media-enhancer:benchmark` image and is not part of the production runtime.
 
 ## Quality Gate
 
-Минимальный Docker gate для Python-изменений:
+The minimum Docker gate for Python changes is:
 
 ```bash
 make build-dev
 make check
 ```
 
-`make check` не пересобирает dev image автоматически. После изменения зависимостей в
-`pyproject.toml`/`uv.lock` или изменения `Dockerfile` сначала выполнить
-`make build-dev`. Metadata-only изменение версии проекта пересборки image не требует.
+`make check` does not rebuild the development image automatically. After changes
+to dependencies in `pyproject.toml`/`uv.lock` or to `Dockerfile`, run
+`make build-dev` first. A metadata-only project version change does not require
+an image rebuild.
