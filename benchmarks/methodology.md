@@ -136,12 +136,35 @@ Per-stage profiling и CUDA events являются diagnostics и выключ�
 hot path. Успешный smoke с уменьшенными параметрами получает `status: valid`, но
 `publishable: false`.
 
+## CPU Accounting Contract
+
+CPU измеряется не по общей загрузке host. Runner делает два
+`getrusage(RUSAGE_CHILDREN)` snapshot: после discarded warmup непосредственно
+перед measured subprocess и после завершения всех его дочерних процессов.
+
+Публикуются:
+
+- `user_time_sec` и `system_time_sec`;
+- `total_time_sec`;
+- `average_cores = total_time_sec / measured wall_time_sec`;
+- `capacity_percent = average_cores / available_logical_cpus * 100`.
+
+Primary metric — `average_cores`: `1.0` означает одно полностью занятое ядро,
+`2.5` — эквивалент двух с половиной ядер. `capacity_percent` нормализуется по
+CPU affinity контейнера и является вспомогательной метрикой.
+
+В accounting входят `upscale`, `vspipe`, FFmpeg и другие завершившиеся процессы
+measured pipeline. Не входят discarded warmup, benchmark-controller, NVML
+sampler и посторонние процессы host. Посторонняя CPU-нагрузка всё ещё может
+увеличить wall time, поэтому canonical campaign выполняется без параллельной
+нагрузки и с одинаковой CPU affinity.
+
 ## Metrics
 
 Product/parity таблица содержит:
 
 - median end-to-end FPS и wall time;
-- average CPU utilization;
+- median average CPU cores и долю доступной CPU capacity;
 - average power и joules/frame;
 - peak VRAM;
 - output size и фактический bitrate.

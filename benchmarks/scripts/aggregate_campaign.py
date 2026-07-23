@@ -23,7 +23,6 @@ from benchmarks.scripts.campaign import (
 )
 
 PUBLICATION_GAPS = [
-    "Average CPU utilization is not collected yet",
     "Startup, steady-state and finalize/mux timing scopes are not collected yet",
     "Model-space RGB/float parity is not verified yet",
     "Product-output PSNR/SSIM and visual crops are not generated yet",
@@ -108,6 +107,27 @@ def _output_value(manifest: dict[str, Any], *keys: str) -> float:
     return float(value)
 
 
+def _cpu_contract(manifest: dict[str, Any]) -> dict[str, Any]:
+    value = manifest.get("measured", {}).get("metrics", {}).get("cpu")
+    if not isinstance(value, dict):
+        raise CampaignError("Manifest has no measured CPU accounting")
+    contract = {
+        "accounting": value.get("accounting"),
+        "scope": value.get("scope"),
+        "available_logical_cpus": value.get("available_logical_cpus"),
+    }
+    if not isinstance(contract["accounting"], str) or not contract["accounting"]:
+        raise CampaignError("Manifest has no CPU accounting method")
+    if not isinstance(contract["scope"], str) or not contract["scope"]:
+        raise CampaignError("Manifest has no CPU accounting scope")
+    if (
+        not isinstance(contract["available_logical_cpus"], int)
+        or contract["available_logical_cpus"] <= 0
+    ):
+        raise CampaignError("Manifest has an invalid available logical CPU count")
+    return contract
+
+
 def _median(values: list[float]) -> float:
     return float(statistics.median(values))
 
@@ -151,6 +171,7 @@ def _validate_common_contract(
     cpu = first.get("environment", {}).get("cpu")
     frames = first.get("parameters", {}).get("frames")
     warmup_frames = first.get("parameters", {}).get("warmup_frames")
+    cpu_contract = _cpu_contract(first)
     if not isinstance(encoder, dict):
         raise CampaignError("Campaign manifests have no exact encoder contract")
     expected_revision = os.environ.get("AI_MEDIA_BUILD_REVISION")
@@ -177,6 +198,7 @@ def _validate_common_contract(
                 "source state": (str(image.get("source_dirty")), "0"),
                 "GPU": (environment.get("gpu"), gpu),
                 "CPU": (environment.get("cpu"), cpu),
+                "CPU accounting": (_cpu_contract(manifest), cpu_contract),
                 "frame count": (manifest.get("parameters", {}).get("frames"), frames),
                 "warmup frame count": (
                     manifest.get("parameters", {}).get("warmup_frames"),
@@ -237,6 +259,7 @@ def _validate_common_contract(
         "cpu": cpu,
         "frames": frames,
         "warmup_frames": warmup_frames,
+        "cpu_accounting": cpu_contract,
         "image_ids": image_ids,
         "engine_hashes": engine_hashes,
     }
@@ -252,6 +275,18 @@ def _implementation_statistics(
         {
             "median_wall_time_sec": _median(
                 [_metric(manifest, "wall_time_sec") for manifest in manifests]
+            ),
+            "median_cpu_cores": _median(
+                [
+                    _metric(manifest, "cpu", "average_cores")
+                    for manifest in manifests
+                ]
+            ),
+            "median_cpu_capacity_percent": _median(
+                [
+                    _metric(manifest, "cpu", "capacity_percent")
+                    for manifest in manifests
+                ]
             ),
             "median_gpu_utilization_percent": _median(
                 [
@@ -307,8 +342,9 @@ def _markdown(summary: dict[str, Any]) -> str:
         f"Status: `{summary['status']}`. Publication ready: `no`.",
         "",
         "| Implementation | Runs | Median FPS | vs ai-media | Median wall, s | "
-        "GPU util, % | Power, W | J/frame | Peak VRAM, MiB | Bitrate, Mbps | Size, MiB |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "CPU cores | CPU capacity, % | GPU util, % | Power, W | J/frame | "
+        "Peak VRAM, MiB | Bitrate, Mbps | Size, MiB |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name in IMPLEMENTATIONS:
         result = summary["implementations"][name]
@@ -317,6 +353,8 @@ def _markdown(summary: dict[str, Any]) -> str:
             f"| {result['product']} | {summary['parameters']['rounds']} | "
             f"{stats['median_fps']:.3f} | {result['relative_to_ai_media_percent']:+.2f}% | "
             f"{stats['median_wall_time_sec']:.2f} | "
+            f"{stats['median_cpu_cores']:.3f} | "
+            f"{stats['median_cpu_capacity_percent']:.2f} | "
             f"{stats['median_gpu_utilization_percent']:.2f} | "
             f"{stats['median_power_w']:.2f} | "
             f"{stats['median_joules_per_frame']:.3f} | "
@@ -393,6 +431,7 @@ def aggregate_campaign(
             "idle_seconds": idle_seconds,
             "spread_threshold": spread_threshold,
             "encoder": contract["encoder"],
+            "cpu_accounting": contract["cpu_accounting"],
         },
         "environment": {
             "repository_revision": contract["repository_revision"],

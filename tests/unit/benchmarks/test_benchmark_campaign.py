@@ -93,6 +93,16 @@ def _campaign(
                     "metrics": {
                         "end_to_end_fps": value,
                         "wall_time_sec": 1000 / value,
+                        "cpu": {
+                            "accounting": "getrusage(RUSAGE_CHILDREN)",
+                            "scope": "measured-child-process-tree",
+                            "user_time_sec": 90.0,
+                            "system_time_sec": 10.0,
+                            "total_time_sec": 100.0,
+                            "average_cores": 1.0,
+                            "available_logical_cpus": 16,
+                            "capacity_percent": 6.25,
+                        },
                         "nvml": {
                             "utilization": {"average_gpu_percent": 90.0},
                             "power": {"average_w": 240.0, "joules_per_frame": 24.0},
@@ -165,6 +175,7 @@ def test_aggregate_campaign_builds_acceptance_table(
     assert summary["needs_extra_runs"] is False
     assert summary["parameters"]["rounds"] == 3
     assert summary["implementations"]["ai-media"]["statistics"]["median_fps"] == 10.0
+    assert summary["implementations"]["ai-media"]["statistics"]["median_cpu_cores"] == 1.0
     assert summary["implementations"]["vstrt"][
         "relative_to_ai_media_percent"
     ] == pytest.approx(-10.0)
@@ -210,6 +221,28 @@ def test_aggregate_campaign_rejects_mixed_revisions(
     _write_json(path, manifest)
 
     with pytest.raises(CampaignError, match="repository revision"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_rejects_different_cpu_accounting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    path = campaign_dir / "vsgan/round-02/run-01/manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["measured"]["metrics"]["cpu"]["available_logical_cpus"] = 8
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="CPU accounting"):
         aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
 
 

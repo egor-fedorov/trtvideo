@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ai_media.benchmarking.cpu import snapshot_child_cpu, summarize_child_cpu
 from ai_media.benchmarking.environment import (
     collect_environment,
     environment_errors,
@@ -392,14 +393,21 @@ def run_one(
         return manifest
     _cleanup_valid_output(warmup_output, config.keep_outputs)
 
+    cpu_before = snapshot_child_cpu()
     sampler.start(time.perf_counter())
     start_time = time.perf_counter()
     try:
         measured_returncode = run_child(measured_command, measured_stdout, measured_stderr)
     finally:
         end_time = time.perf_counter()
+        cpu_after = snapshot_child_cpu()
         samples = sampler.samples_relative_to(sampler.stop(), start_time)
     wall_time_sec = end_time - start_time
+    cpu_summary = summarize_child_cpu(
+        cpu_before,
+        cpu_after,
+        wall_time_sec=wall_time_sec,
+    ).as_dict()
     write_samples(samples_path, samples)
     nvml_summary = summarize_samples(
         samples,
@@ -426,6 +434,7 @@ def run_one(
         "wall_time_sec": wall_time_sec,
         "end_to_end_fps": config.frames / wall_time_sec if wall_time_sec > 0 else None,
         "processed_frames": config.frames,
+        "cpu": cpu_summary,
         "nvml": nvml_summary,
     }
     manifest["measured"] = {

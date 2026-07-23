@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ai_media.benchmarking.cpu import snapshot_child_cpu, summarize_child_cpu
 from ai_media.benchmarking.environment import (
     collect_environment,
     environment_errors,
@@ -194,6 +195,7 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
         export_times=times_path,
         iterations=parameters["frames"],
     )
+    cpu_before = snapshot_child_cpu()
     context.sampler.start(time.perf_counter())
     sample_origin = time.perf_counter()
     try:
@@ -203,9 +205,15 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
             stderr_path=stderr_path,
         )
     finally:
+        cpu_after = snapshot_child_cpu()
         samples = context.sampler.samples_relative_to(
             context.sampler.stop(), sample_origin
         )
+    cpu_summary = summarize_child_cpu(
+        cpu_before,
+        cpu_after,
+        wall_time_sec=wall_time,
+    ).as_dict()
     write_samples(samples_path, samples)
     combined_output = "\n".join(
         (
@@ -251,6 +259,7 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
             **parsed,
             "process_wall_time_sec": wall_time,
             "processed_iterations": parameters["frames"],
+            "cpu": cpu_summary,
             "nvml": nvml,
             "nvml_scope": "process-including-setup-and-warmup",
         },

@@ -67,7 +67,8 @@ sanitized acceptance-таблица готовы; остаются CPU/timing и
 
 - [x] Явный одинаковый NVENC rate-control contract для проекта и VSGAN: codec,
   preset, tuning, RC mode, target/min/max bitrate, VBV, GOP и B-frames;
-- [ ] CPU utilization с определённой семантикой и единицами;
+- [x] CPU utilization measured subprocess tree через `RUSAGE_CHILDREN`:
+  user/system CPU seconds, average cores и affinity-normalized capacity;
 - [ ] Раздельные `startup`, steady-state frame loop и `finalize + mux` timing scopes;
 - [ ] Model-space parity на RGB/float кадрах до YUV/encode;
 - [ ] Product-output PSNR/SSIM и visual crops после декодирования MP4;

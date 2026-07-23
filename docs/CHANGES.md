@@ -73,6 +73,10 @@ Performance-изменения с цифрами и benchmark-сравнения
 * Добавлен `make -C benchmarks run-campaign`: реализации чередуются по раундам,
   автоматически получают два дополнительных run при spread выше 5%, а raw
   manifests агрегируются в `campaign.json` и sanitized `results.md`.
+* Benchmark runners получили process-attributed CPU accounting для measured
+  subprocess tree: user/system CPU seconds, average CPU cores и
+  affinity-normalized capacity. Rotated campaign публикует median CPU usage и
+  проверяет одинаковую accounting semantics между продуктами.
 
 ### Changed
 
