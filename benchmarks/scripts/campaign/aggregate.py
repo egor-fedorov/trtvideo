@@ -13,7 +13,7 @@ from typing import Any
 
 from ai_media.benchmarking.environment import relative_artifact_path, sha256_file, write_json
 from ai_media.benchmarking.suite import compute_suite_statistics
-from benchmarks.scripts.campaign import (
+from benchmarks.scripts.campaign.core import (
     EVENT_LOG_NAME,
     IMPLEMENTATIONS,
     ROUND_ORDERS,

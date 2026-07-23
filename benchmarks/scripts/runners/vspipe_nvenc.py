@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ai_media.video.nvenc import NvencCbrContract
-from benchmarks.scripts.competitor_common import CommandSpec, command_spec
+from benchmarks.scripts.runners.common import CommandSpec, command_spec
 
 
 @dataclass(frozen=True)

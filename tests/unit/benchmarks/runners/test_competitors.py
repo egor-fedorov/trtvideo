@@ -8,30 +8,30 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.scripts.build_vsgan_engine import (
-    build_command as build_vsgan_engine_command,
-)
-from benchmarks.scripts.competitor_common import (
+from benchmarks.scripts.runners.common import (
     CompetitorError,
     benchmark_parameters,
     validate_static_engine_contract,
 )
-from benchmarks.scripts.external_video_suite import run_command_spec
-from benchmarks.scripts.run_trtexec import (
+from benchmarks.scripts.runners.external_video_suite import run_command_spec
+from benchmarks.scripts.runners.trtexec import (
     build_plan as build_trtexec_plan,
 )
-from benchmarks.scripts.run_trtexec import (
+from benchmarks.scripts.runners.trtexec import (
     build_trtexec_command,
     parse_trtexec_output,
 )
-from benchmarks.scripts.run_vsgan import (
+from benchmarks.scripts.runners.vsgan import (
     _validate_parity_engine,
     build_vsgan_command,
 )
-from benchmarks.scripts.run_vsgan import (
+from benchmarks.scripts.runners.vsgan import (
     build_plan as build_vsgan_plan,
 )
-from benchmarks.scripts.run_vstrt import build_plan as build_vstrt_plan
+from benchmarks.scripts.runners.vstrt import build_plan as build_vstrt_plan
+from benchmarks.scripts.workloads.build_vsgan_engine import (
+    build_command as build_vsgan_engine_command,
+)
 
 MANIFEST_PATH = "benchmarks/workloads/realesrgan_x2plus_sintel.json"
 IMPLEMENTATIONS_PATH = "benchmarks/implementations.json"

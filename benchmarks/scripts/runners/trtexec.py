@@ -32,7 +32,7 @@ from ai_media.benchmarking.suite import (
     canonical_suite_errors,
     suite_publishability_errors,
 )
-from benchmarks.scripts.competitor_common import (
+from benchmarks.scripts.runners.common import (
     CompetitorError,
     asset_requirement,
     benchmark_parameters,

@@ -22,7 +22,7 @@ from ai_media.benchmarking.suite import (
     should_extend_suite,
     suite_publishability_errors,
 )
-from benchmarks.scripts.run_ai_media import build_command
+from benchmarks.scripts.runners.ai_media import build_command
 
 
 def config(tmp_path: Path, bitrate_mbps: float | None = 35.0) -> BenchmarkConfig:

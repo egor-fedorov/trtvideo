@@ -10,21 +10,21 @@ import pytest
 
 from ai_media.benchmarking.environment import sha256_file
 from ai_media.video.nvenc import NvencCbrContract
-from benchmarks.scripts.aggregate_campaign import (
+from benchmarks.scripts.campaign.aggregate import (
     IMPLEMENTATIONS,
     MODEL_SPACE_GAP,
     PRODUCT_OUTPUT_GAP,
     CampaignError,
     aggregate_campaign,
 )
-from benchmarks.scripts.campaign import (
+from benchmarks.scripts.campaign.core import (
     EVENT_LOG_NAME,
     CampaignEvent,
     append_event,
     campaign_steps,
     load_events,
 )
-from benchmarks.scripts.run_campaign import run_campaign
+from benchmarks.scripts.campaign.run import run_campaign
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -736,7 +736,7 @@ def test_campaign_coordinator_records_actual_rotation(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(
-        "benchmarks.scripts.run_campaign.subprocess.run",
+        "benchmarks.scripts.campaign.run.subprocess.run",
         fake_make,
     )
     args = argparse.Namespace(

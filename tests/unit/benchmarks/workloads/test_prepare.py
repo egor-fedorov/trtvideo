@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.scripts.prepare_workload import (
+from benchmarks.scripts.workloads.prepare import (
     WorkloadError,
     build_ffmpeg_command,
     build_model_commands,

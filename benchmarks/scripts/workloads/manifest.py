@@ -1,4 +1,4 @@
-"""Validation and safe path resolution for benchmark workload manifests."""
+"""Validate benchmark workload manifests and resolve their paths safely."""
 
 from __future__ import annotations
 

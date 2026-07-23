@@ -88,7 +88,7 @@ build-vsgan-engine:
 		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
 		-v "$(ROOT)/models:/app/models" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.build_vsgan_engine \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.workloads.build_vsgan_engine \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--onnx /app/$(ONNX) \
@@ -102,7 +102,7 @@ prepare:
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
-		$(IMAGE) python3 -m benchmarks.scripts.prepare_workload prepare \
+		$(IMAGE) python3 -m benchmarks.scripts.workloads.prepare prepare \
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
 verify:
@@ -111,7 +111,7 @@ verify:
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
-		$(IMAGE) python3 -m benchmarks.scripts.prepare_workload verify \
+		$(IMAGE) python3 -m benchmarks.scripts.workloads.prepare verify \
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
 run-ai-media:
@@ -123,7 +123,7 @@ run-ai-media:
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.run_ai_media \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.ai_media \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
@@ -137,7 +137,7 @@ plan-trtexec:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.run_trtexec \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.trtexec \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -153,7 +153,7 @@ plan-vstrt:
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.run_vstrt \
+		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.runners.vstrt \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -168,7 +168,7 @@ plan-vsgan:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.run_vsgan \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.runners.vsgan \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -187,7 +187,7 @@ run-trtexec:
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.run_trtexec \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.trtexec \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -205,7 +205,7 @@ run-vstrt:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.run_vstrt \
+		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.runners.vstrt \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -223,7 +223,7 @@ run-vsgan:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.run_vsgan \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.runners.vsgan \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
@@ -241,7 +241,7 @@ capture-model-ai-media:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.capture_ai_media_model_space \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.capture_ai_media \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
@@ -258,7 +258,7 @@ capture-model-vstrt:
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.capture_vspipe_model_space \
+		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.quality.capture_vspipe \
 			--implementation vstrt \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
@@ -279,7 +279,7 @@ capture-model-vsgan:
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 \
-			-m benchmarks.scripts.capture_vspipe_model_space \
+			-m benchmarks.scripts.quality.capture_vspipe \
 			--implementation vsgan \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
@@ -293,7 +293,7 @@ capture-model-vsgan:
 compare-model-space:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.compare_model_space \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_model_space \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--reference /app/$(MODEL_SPACE_DIR)/ai-media/manifest.json \
@@ -325,7 +325,7 @@ capture-output-vsgan:
 compare-product-output:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.compare_product_output \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_product_output \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--reference /app/$(PRODUCT_OUTPUT_DIR)/ai-media/run-01/manifest.json \
@@ -408,7 +408,7 @@ aggregate-campaign:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.aggregate_campaign \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.campaign.aggregate \
 			--campaign-dir /app/$(CAMPAIGN_DIR) \
 			--root /app \
 			--idle-seconds $(CAMPAIGN_IDLE_SECONDS) \
@@ -417,7 +417,7 @@ aggregate-campaign:
 			$(ARGS)
 
 run-campaign: campaign-preflight
-	cd "$(ROOT)" && python3 -m benchmarks.scripts.run_campaign \
+	cd "$(ROOT)" && python3 -m benchmarks.scripts.campaign.run \
 		--campaign-dir "$(ROOT)/$(CAMPAIGN_DIR)" \
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \

@@ -1,4 +1,4 @@
-"""Typed execution contract for rotated benchmark campaigns."""
+"""Execution contract for rotated benchmark campaigns."""
 
 from __future__ import annotations
 

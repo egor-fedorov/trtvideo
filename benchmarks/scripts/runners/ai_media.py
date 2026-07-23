@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the canonical ai-media-enhancer benchmark workload."""
+"""Execute the canonical ai-media-enhancer benchmark workload."""
 
 from __future__ import annotations
 

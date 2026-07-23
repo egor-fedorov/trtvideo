@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from ai_media.benchmarking.environment import sha256_file
-from benchmarks.scripts.product_output import (
+from benchmarks.scripts.quality.product_output import (
     OutputEvidence,
     ProductOutputError,
     build_crop_command,
@@ -222,11 +222,11 @@ def test_compare_product_outputs_builds_valid_report(
         return {"all": 0.99, "frames": 1000, "stats_sha256": "6" * 64}
 
     monkeypatch.setattr(
-        "benchmarks.scripts.product_output.run_metric",
+        "benchmarks.scripts.quality.product_output.run_metric",
         fake_metric,
     )
     monkeypatch.setattr(
-        "benchmarks.scripts.product_output.generate_visual_crops",
+        "benchmarks.scripts.quality.product_output.generate_visual_crops",
         lambda *args, **kwargs: [],
     )
 

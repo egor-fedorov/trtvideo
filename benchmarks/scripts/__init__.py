@@ -1,1 +1,1 @@
-"""Benchmark preparation scripts."""
+"""Benchmark tooling grouped by execution responsibility."""

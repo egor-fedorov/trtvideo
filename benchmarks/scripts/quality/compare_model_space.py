@@ -9,12 +9,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.model_space import (
+from benchmarks.scripts.quality.model_space import (
     ModelSpaceError,
     TensorThresholds,
     compare_captures,
 )
-from benchmarks.scripts.workload_manifest import load_manifest
+from benchmarks.scripts.workloads.manifest import load_manifest
 
 
 def _load_thresholds(manifest: dict[str, Any]) -> dict[str, TensorThresholds]:

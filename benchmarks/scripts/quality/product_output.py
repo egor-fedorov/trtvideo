@@ -1,4 +1,4 @@
-"""Final MP4 quality comparison and visual crop generation."""
+"""Final MP4 comparison and visual crop generation."""
 
 from __future__ import annotations
 

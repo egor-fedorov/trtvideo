@@ -9,7 +9,10 @@ TensorRT engines, source videos, and raw results are not added to Git.
 - `implementations.json` - pinned diagnostic, parity, and product
   implementations.
 - `docker/` - TensorRT 11 vstrt parity and stock VSGAN environments.
-- `scripts/` - asset preparation, engine builders, and runners.
+- `scripts/runners/` - project, vstrt, VSGAN, and trtexec execution.
+- `scripts/campaign/` - rotated campaign scheduling and aggregation.
+- `scripts/quality/` - model-space and final-output quality gates.
+- `scripts/workloads/` - asset preparation, validation, and engine builders.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
 
 The benchmark workflow is separated from the root `Makefile`:

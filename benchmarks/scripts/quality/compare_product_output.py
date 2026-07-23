@@ -8,12 +8,12 @@ import json
 import sys
 from pathlib import Path
 
-from benchmarks.scripts.competitor_common import find_variant
-from benchmarks.scripts.product_output import (
+from benchmarks.scripts.quality.product_output import (
     ProductOutputError,
     compare_product_outputs,
 )
-from benchmarks.scripts.workload_manifest import load_manifest
+from benchmarks.scripts.runners.common import find_variant
+from benchmarks.scripts.workloads.manifest import load_manifest
 
 
 def compare(args: argparse.Namespace) -> dict:

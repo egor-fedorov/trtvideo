@@ -114,6 +114,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
   publishable result.
 - Moved benchmark-specific Make targets to `benchmarks/Makefile`. The root
   `Makefile` now contains only project build and quality-gate targets.
+- Split benchmark tooling and its unit tests by responsibility: runners,
+  campaign orchestration, quality gates, and workload preparation.
 - Explicitly aligned the NVENC output contract for the project, vstrt, and
   VSGAN: single-pass CBR, equal target/min/max bitrate, a two-second VBV with
   50% initial occupancy, P4/HQ, disabled lookahead/AQ, one-second GOP, and zero

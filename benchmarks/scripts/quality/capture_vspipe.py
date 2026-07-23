@@ -12,7 +12,14 @@ from typing import Any
 
 from ai_media.benchmarking.environment import collect_image_identity, sha256_file
 from ai_media.benchmarking.runner import BenchmarkError, load_engine_contract
-from benchmarks.scripts.competitor_common import (
+from benchmarks.scripts.quality.model_space import (
+    ModelSpaceError,
+    TensorArtifact,
+    create_tensor_artifact,
+    parse_frame_indices,
+    write_capture_manifest,
+)
+from benchmarks.scripts.runners.common import (
     CompetitorError,
     find_model_variant,
     find_variant,
@@ -20,15 +27,8 @@ from benchmarks.scripts.competitor_common import (
     load_json,
     validate_static_engine_contract,
 )
-from benchmarks.scripts.model_space import (
-    ModelSpaceError,
-    TensorArtifact,
-    create_tensor_artifact,
-    parse_frame_indices,
-    write_capture_manifest,
-)
-from benchmarks.scripts.run_vsgan import _validate_parity_engine
-from benchmarks.scripts.workload_manifest import load_manifest, repo_path
+from benchmarks.scripts.runners.vsgan import _validate_parity_engine
+from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
 
 
 def _quality_frame_indices(

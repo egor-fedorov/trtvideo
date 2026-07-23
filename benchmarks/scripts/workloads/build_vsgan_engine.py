@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_media.benchmarking.environment import sha256_file, write_json
-from benchmarks.scripts.competitor_common import (
+from benchmarks.scripts.runners.common import (
     CompetitorError,
     find_model_variant,
     find_variant,

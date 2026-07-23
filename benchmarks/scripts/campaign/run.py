@@ -11,7 +11,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from benchmarks.scripts.campaign import (
+from benchmarks.scripts.campaign.core import (
     EVENT_LOG_NAME,
     CampaignEvent,
     CampaignEventError,

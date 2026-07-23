@@ -15,10 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from ai_media.benchmarking.environment import sha256_file as sha256_file
-from benchmarks.scripts.workload_manifest import WorkloadError as WorkloadError
-from benchmarks.scripts.workload_manifest import load_manifest as load_manifest
-from benchmarks.scripts.workload_manifest import repo_path as repo_path
-from benchmarks.scripts.workload_manifest import validate_manifest as validate_manifest
+from benchmarks.scripts.workloads.manifest import WorkloadError as WorkloadError
+from benchmarks.scripts.workloads.manifest import load_manifest as load_manifest
+from benchmarks.scripts.workloads.manifest import repo_path as repo_path
+from benchmarks.scripts.workloads.manifest import (
+    validate_manifest as validate_manifest,
+)
 
 DOWNLOAD_CHUNK_SIZE = 8 * 1024 * 1024
 PROGRESS_STEP = 256 * 1024 * 1024

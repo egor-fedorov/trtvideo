@@ -1,4 +1,4 @@
-"""Shared workload and command-plan helpers for external benchmarks."""
+"""Shared workload and command-plan helpers for benchmark runners."""
 
 from __future__ import annotations
 

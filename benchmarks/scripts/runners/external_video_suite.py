@@ -36,7 +36,7 @@ from ai_media.benchmarking.suite import (
     suite_publishability_errors,
 )
 from ai_media.benchmarking.validation import OutputContract, validate_output
-from benchmarks.scripts.competitor_common import CommandSpec, CompetitorError
+from benchmarks.scripts.runners.common import CommandSpec, CompetitorError
 
 CommandFactory = Callable[[Path, int], CommandSpec]
 _VSPipe_FRAME_PATTERN = re.compile(rb"Frame:\s*(\d+)/(\d+)")

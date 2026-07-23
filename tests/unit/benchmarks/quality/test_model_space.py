@@ -7,11 +7,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from benchmarks.scripts.capture_vspipe_model_space import (
+from benchmarks.scripts.quality.capture_vspipe import (
     build_capture_command,
     normalize_vapoursynth_rgbs,
 )
-from benchmarks.scripts.model_space import (
+from benchmarks.scripts.quality.model_space import (
     CaptureManifest,
     ModelSpaceError,
     TensorThresholds,

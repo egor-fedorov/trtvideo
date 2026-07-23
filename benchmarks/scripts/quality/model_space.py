@@ -1,4 +1,4 @@
-"""Model-space capture contracts and float tensor comparison."""
+"""Model-space capture contracts and tensor comparison."""
 
 from __future__ import annotations
 
