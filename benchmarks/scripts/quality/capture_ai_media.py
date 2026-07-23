@@ -76,6 +76,7 @@ def _write_gpu_tensor(
 
 def capture(args: argparse.Namespace) -> Path:
     """Run the production decode/preprocess/inference path for selected frames."""
+    import cvcuda
     import PyNvVideoCodec as nvc
     import torch
 
@@ -125,6 +126,7 @@ def capture(args: argparse.Namespace) -> Path:
         gpu_id=args.gpu_id,
         use_cuda_graph=False,
     )
+    cvcuda_stream = cvcuda.as_stream(runtime.stream)
     device = torch.device(f"cuda:{args.gpu_id}")
     nv12_buffer = torch.empty(
         runtime.input_h * 3 // 2,
@@ -163,8 +165,8 @@ def capture(args: argparse.Namespace) -> Path:
             break
         for raw_frame in frames:
             if frame_index in selected:
-                nv12_tensor = torch.from_dlpack(raw_frame)
                 with torch.cuda.stream(runtime.stream):
+                    nv12_tensor = torch.from_dlpack(raw_frame)
                     rgb = nv12_to_rgb_into(
                         nv12_tensor,
                         runtime.input_h,
@@ -172,6 +174,7 @@ def capture(args: argparse.Namespace) -> Path:
                         rgb_buffer,
                         nv12_buffer,
                         color_spec="bt709",
+                        stream=cvcuda_stream,
                     )
                     model_input.copy_(rgb.permute(2, 0, 1).unsqueeze(0))
                     model_input.div_(255.0)

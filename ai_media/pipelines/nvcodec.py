@@ -9,6 +9,7 @@ import types
 from dataclasses import dataclass
 from typing import Any
 
+import cvcuda
 import PyNvVideoCodec as nvc
 import torch
 
@@ -86,6 +87,7 @@ class NvcodecPipeline(BasePipeline):
         self._tmp_raw_path: str = ""
         self._raw_file: Any | None = None
         self._buffer_pool: FrameBufferPool | None = None
+        self._cvcuda_stream: Any | None = None
         self._color_spec_name = "bt709"
         super().__init__(args)
 
@@ -116,6 +118,11 @@ class NvcodecPipeline(BasePipeline):
             raise RuntimeError("Frame buffer pool is not initialized")
         return self._buffer_pool
 
+    def _require_cvcuda_stream(self):
+        if self._cvcuda_stream is None:
+            raise RuntimeError("CV-CUDA stream is not initialized")
+        return self._cvcuda_stream
+
     def validate_video_input(self, info) -> None:
         super().validate_video_input(info)
         if info.pix_fmt not in {"nv12", "yuv420p"}:
@@ -142,6 +149,7 @@ class NvcodecPipeline(BasePipeline):
 
     def setup_encoder(self) -> None:
         runtime = self.require_runtime()
+        self._cvcuda_stream = cvcuda.as_stream(runtime.stream)
         self._buffer_pool = FrameBufferPool.create(
             input_w=runtime.input_w,
             input_h=runtime.input_h,
@@ -236,16 +244,19 @@ class NvcodecPipeline(BasePipeline):
             self._raw_file.write(bytearray(bs))
 
     def process_frame(self, raw_frame) -> None:
-        nv12_tensor = torch.from_dlpack(raw_frame)
         runtime = self.require_runtime()
         in_h, in_w = runtime.input_h, runtime.input_w
+        stream = runtime.stream
 
         if self.profiler:
+            with torch.cuda.stream(stream):
+                nv12_tensor = torch.from_dlpack(raw_frame)
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
         else:
             pool = self._require_buffer_pool()
-            stream = runtime.stream
+            cvcuda_stream = self._require_cvcuda_stream()
             with torch.cuda.stream(stream):
+                nv12_tensor = torch.from_dlpack(raw_frame)
                 rgb = nv12_to_rgb_into(
                     nv12_tensor,
                     in_h,
@@ -253,6 +264,7 @@ class NvcodecPipeline(BasePipeline):
                     pool.rgb_in,
                     pool.nv12_in,
                     color_spec=self._color_spec_name,
+                    stream=cvcuda_stream,
                 )
                 upscaled = runtime.infer_rgb_tensor_into(
                     rgb,
@@ -266,51 +278,50 @@ class NvcodecPipeline(BasePipeline):
                     upscaled,
                     pool.nv12_out,
                     color_spec=self._color_spec_name,
+                    stream=cvcuda_stream,
                 )
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
-        """Inference with CUDA event profiling and explicit TRT stream handoff."""
+        """Inference with CUDA event profiling on the shared pipeline stream."""
         e0, e1, e2, e3, e4 = (torch.cuda.Event(enable_timing=True) for _ in range(5))
-        cur_stream = torch.cuda.current_stream()
         runtime = self.require_runtime()
-        trt_stream = runtime.stream
-
-        e0.record(cur_stream)
+        stream = runtime.stream
         pool = self._require_buffer_pool()
-        rgb = nv12_to_rgb_into(
-            nv12_tensor,
-            in_h,
-            in_w,
-            pool.rgb_in,
-            pool.nv12_in,
-            color_spec=self._color_spec_name,
-        )
-        e1.record(cur_stream)
+        cvcuda_stream = self._require_cvcuda_stream()
 
-        trt_stream.wait_event(e1)
-        upscaled = runtime.infer_rgb_tensor_into(
-            rgb,
-            pool.rgb_out,
-            input_nchw=pool.nchw_in,
-            output_rgb_float=pool.rgb_out_float,
-            stream=trt_stream,
-            synchronize=False,
-        )
-        e2.record(trt_stream)
+        with torch.cuda.stream(stream):
+            e0.record(stream)
+            rgb = nv12_to_rgb_into(
+                nv12_tensor,
+                in_h,
+                in_w,
+                pool.rgb_in,
+                pool.nv12_in,
+                color_spec=self._color_spec_name,
+                stream=cvcuda_stream,
+            )
+            e1.record(stream)
+            upscaled = runtime.infer_rgb_tensor_into(
+                rgb,
+                pool.rgb_out,
+                input_nchw=pool.nchw_in,
+                output_rgb_float=pool.rgb_out_float,
+                stream=stream,
+                synchronize=False,
+            )
+            e2.record(stream)
+            nv12_out = rgb_to_nv12_into(
+                upscaled,
+                pool.nv12_out,
+                color_spec=self._color_spec_name,
+                stream=cvcuda_stream,
+            )
+            e3.record(stream)
+            self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
+            e4.record(stream)
 
-        cur_stream.wait_event(e2)
-        nv12_out = rgb_to_nv12_into(
-            upscaled,
-            pool.nv12_out,
-            color_spec=self._color_spec_name,
-        )
-        e3.record(cur_stream)
-
-        self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
-        e4.record(cur_stream)
-
-        torch.cuda.synchronize()
+        stream.synchronize()
         self.profiler.commit((e0, e1, e2, e3, e4))
 
     def finalize(self) -> None:
@@ -354,6 +365,7 @@ class NvcodecPipeline(BasePipeline):
             print(f"ERROR: ffmpeg mux failed: {result.stderr}")
 
     def cleanup(self) -> None:
+        self._cvcuda_stream = None
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None

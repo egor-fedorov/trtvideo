@@ -138,9 +138,10 @@ Per-frame processing order:
 9. In `finalize()`, FFmpeg muxes the video bitstream and optional source audio
    into MP4.
 
-In the regular non-profile path, CV-CUDA, TensorRT, and NV12 preparation run on
-the runtime CUDA stream. The same stream is passed to NVENC through
-`cudastream`, preserving GPU operation order without a per-frame
+The NVDEC DLPack handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly use
+the runtime CUDA stream. CV-CUDA wraps that PyTorch stream through
+`cvcuda.as_stream`, and the same native handle is passed to NVENC through
+`cudastream`. This preserves GPU operation order without a per-frame
 `cudaStreamSynchronize`. The CPU remains the orchestration layer and writes the
 compressed bitstream, but full frames do not move between CPU and GPU.
 
