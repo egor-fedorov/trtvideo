@@ -5,6 +5,11 @@ Rotated campaigns, exact rate control, CPU accounting, and lifecycle timing are
 implemented. A publishable result still requires the quality-parity gates from
 `methodology.md`. Run all commands from the repository root.
 
+The host requires Docker, GNU Make, Git, and Python `>=3.10,<3.13`. Python is
+used only by the rotated campaign coordinator; measured workloads and result
+aggregation run in pinned Docker images. Set `HOST_PYTHON=/path/to/python` on
+`run-campaign` when `python3` is not the intended interpreter.
+
 ## 1. Build And Assets
 
 ```bash
@@ -195,7 +200,6 @@ For SPAN:
 
 ```bash
 make -C benchmarks run-campaign \
-  CAMPAIGN_NAME=liveaction-span-sintel-1080p \
   MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine \

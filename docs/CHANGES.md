@@ -130,6 +130,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- The host-side benchmark campaign coordinator now supports the explicit
+  Python `>=3.10,<3.13` range instead of failing on the Python 3.11-only
+  `datetime.UTC` alias.
 - The `nvcodec` pipeline now explicitly runs the NVDEC DLPack handoff,
   CV-CUDA color conversion, TensorRT, and NVENC on one CUDA stream. Decoder
   batches remain locked until that stream completes, preventing asynchronous

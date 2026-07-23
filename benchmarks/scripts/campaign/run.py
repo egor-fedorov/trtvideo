@@ -8,7 +8,7 @@ import json
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from benchmarks.scripts.campaign.core import (
@@ -23,13 +23,15 @@ from benchmarks.scripts.campaign.core import (
     validate_event_prefix,
 )
 
+_UTC = timezone.utc  # noqa: UP017 - campaign orchestration supports host Python 3.10.
+
 
 class CampaignRunError(RuntimeError):
     """Raised when campaign execution cannot preserve the benchmark contract."""
 
 
 def _utc_now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(_UTC)
 
 
 def _manifest_is_valid(path: Path) -> bool:

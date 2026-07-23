@@ -1,5 +1,6 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
+HOST_PYTHON ?= python3
 IMAGE ?= ai-media-enhancer:latest
 BENCHMARK_IMAGE ?= ai-media-enhancer:benchmark
 VSTRT_IMAGE ?= ai-media-enhancer:benchmark-vstrt
@@ -343,6 +344,11 @@ product-output-parity:
 quality-gates: model-space-parity product-output-parity
 
 campaign-preflight:
+	@command -v "$(HOST_PYTHON)" >/dev/null 2>&1 || \
+		(echo "ERROR: run-campaign requires host Python >= 3.10,<3.13; not found: $(HOST_PYTHON)" >&2; exit 2)
+	@"$(HOST_PYTHON)" -c \
+		'import sys; version = sys.version_info[:2]; raise SystemExit(0 if (3, 10) <= version < (3, 13) else 1)' || \
+		(echo "ERROR: run-campaign requires host Python >= 3.10,<3.13 ($(HOST_PYTHON))" >&2; exit 2)
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
 	@test -f "$(ROOT)/$(ENGINE)" || (echo "ERROR: ENGINE not found: $(ENGINE)" >&2; exit 2)
@@ -417,7 +423,7 @@ aggregate-campaign:
 			$(ARGS)
 
 run-campaign: campaign-preflight
-	cd "$(ROOT)" && python3 -m benchmarks.scripts.campaign.run \
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.campaign.run \
 		--campaign-dir "$(ROOT)/$(CAMPAIGN_DIR)" \
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \

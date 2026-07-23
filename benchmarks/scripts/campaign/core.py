@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+_UTC = timezone.utc  # noqa: UP017 - campaign orchestration supports host Python 3.10.
 
 IMPLEMENTATIONS = {
     "ai-media": "ai-media-enhancer",
@@ -135,7 +137,7 @@ def parse_timestamp(value: str) -> datetime:
         raise CampaignEventError(f"Invalid campaign timestamp: {value!r}") from exc
     if timestamp.tzinfo is None:
         raise CampaignEventError("Campaign timestamps must include a timezone")
-    return timestamp.astimezone(UTC)
+    return timestamp.astimezone(_UTC)
 
 
 def load_events(path: Path) -> list[CampaignEvent]:

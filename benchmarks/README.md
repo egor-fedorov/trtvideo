@@ -21,6 +21,14 @@ The benchmark workflow is separated from the root `Makefile`:
 make -C benchmarks help
 ```
 
+Asset preparation, runners, quality gates, and aggregation execute in Docker.
+Only the optional rotated `run-campaign` coordinator runs on the host and
+requires Python `>=3.10,<3.13`. Override its executable when needed:
+
+```bash
+make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
+```
+
 ## Matrix
 
 - `run-vstrt` - technical parity with the same TensorRT 11 engine.
