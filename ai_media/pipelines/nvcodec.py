@@ -15,6 +15,7 @@ import torch
 from ai_media.pipelines.base import BasePipeline
 from ai_media.video.bitrate import auto_bitrate_from_source
 from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
+from ai_media.video.decoder import iter_locked_decode_frames
 from ai_media.video.fps import format_nvenc_fps, gop_size_for_one_second
 from ai_media.video.nvenc import NvencCbrContract
 
@@ -221,11 +222,14 @@ class NvcodecPipeline(BasePipeline):
 
     def decode_frames(self):
         """Yield NV12 frames from NVDEC decoder."""
-        while True:
-            frames = self._decoder.get_batch_frames(self._DECODE_BATCH_SIZE)
-            if not frames:
-                break
-            yield from frames
+        runtime = self.require_runtime()
+        yield from iter_locked_decode_frames(
+            self._decoder.get_batch_frames,
+            batch_size=self._DECODE_BATCH_SIZE,
+            # ThreadedDecoder releases a batch on the next get_batch_frames().
+            # Complete queued reads before its NVDEC surfaces can be reused.
+            release_batch=runtime.stream.synchronize,
+        )
 
     def _write_bitstream(self, bs):
         if bs and self._raw_file:

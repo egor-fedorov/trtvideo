@@ -130,6 +130,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- The `nvcodec` pipeline now keeps each `ThreadedDecoder` batch locked until
+  queued GPU reads complete. This prevents decoder-surface reuse from
+  periodically duplicating a previous frame while preserving batched NVDEC
+  prefetch.
 - Moved the stock VSGAN benchmark from the broken `minimal_no_avx512` image to
   pinned `latest_no_avx512` with native `vspipe`. The Docker build now checks
   the binary type and execution immediately. The benchmark virtual environment
