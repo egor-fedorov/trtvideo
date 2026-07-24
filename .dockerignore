@@ -1,7 +1,6 @@
 /models/
 /videos/
 artefacts/
-tests/
 venv/
 .venv/
 .claude/

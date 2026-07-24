@@ -51,6 +51,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added GitHub Actions checks for Ruff, mypy, compileall, unit tests, and CLI
+  smoke, plus a separate scheduled/manual production and benchmark Docker build.
+- Added a lightweight Python 3.12 checks image in `docker/checks.Dockerfile`.
+  Regular quality checks no longer require downloading the NVIDIA/TensorRT base
+  image.
 - Published the first privacy-reviewed benchmark snapshot: validated
   `1080p -> 4K` RealESRGAN and SPAN parity campaigns on an RTX 3090, including
   CPU, GPU, power, energy, VRAM, quality, and diagnostic `trtexec` results.

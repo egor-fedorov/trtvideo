@@ -1,7 +1,8 @@
 # Testing
 
-Project tests run only through the Docker development image. The local host does
-not need TensorRT, PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
+Project tests run through the lightweight Docker checks image defined in
+`docker/checks.Dockerfile`. The local host does not need TensorRT,
+PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
 
 ## Layers
 
@@ -28,7 +29,7 @@ Both groups remain unit tests. Real GPU and performance runs live in
 
 ### CLI/Docker Smoke
 
-A future non-GPU layer will validate Docker image entrypoints:
+The non-GPU checks image validates Docker entrypoints:
 
 ```bash
 docker run --rm ai-media-enhancer:dev upscale --help
@@ -94,7 +95,12 @@ make build-dev
 make check
 ```
 
-`make check` does not rebuild the development image automatically. After changes
-to dependencies in `pyproject.toml`/`uv.lock` or to `Dockerfile`, run
-`make build-dev` first. A metadata-only project version change does not require
-an image rebuild.
+`make check` does not rebuild the development image automatically. After
+changes to dependencies in `pyproject.toml`/`uv.lock` or to
+`docker/checks.Dockerfile`, run `make build-dev` first. A metadata-only project
+version change does not require an image rebuild.
+
+GitHub Actions builds the same checks image for pull requests and pushes to
+`main`, then reports Ruff, mypy, compileall, unit tests, and CLI smoke as
+separate steps. Production and benchmark Docker targets are built by a separate
+workflow on `main`, on a weekly schedule, and on manual dispatch.

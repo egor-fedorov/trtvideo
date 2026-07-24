@@ -2,7 +2,7 @@ IMAGE ?= ai-media-enhancer:latest
 DEV_IMAGE ?= ai-media-enhancer:dev
 DOCKER_RUN ?= docker run --rm -v "$$PWD:/app"
 
-.PHONY: build build-dev lint typecheck compile test-unit check shell
+.PHONY: build build-dev lint typecheck compile test-unit check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -13,10 +13,7 @@ build:
 
 build-dev:
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg INSTALL_DEV=1 \
-		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
-		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
-		--target production \
+		-f docker/checks.Dockerfile \
 		-t $(DEV_IMAGE) .
 
 lint:
@@ -33,7 +30,13 @@ compile:
 test-unit:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q tests/unit
 
-check: lint typecheck compile test-unit
+cli-smoke:
+	$(DOCKER_RUN) $(DEV_IMAGE) upscale --help
+	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
+	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help
+	$(DOCKER_RUN) $(DEV_IMAGE) build-engine --help
+
+check: lint typecheck compile test-unit cli-smoke
 
 shell:
 	$(DOCKER_RUN) -it $(DEV_IMAGE) bash
