@@ -51,6 +51,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a shared media-preservation contract and Docker FFmpeg integration
+  tests. Both backends now retain all source audio, subtitle, data, attachment,
+  chapter, and metadata content when the selected output container supports it.
+- Added an output-container preflight before TensorRT initialization.
+  Incompatible stream-copy requests fail early and recommend MKV instead of
+  dropping or transcoding source streams implicitly.
 - Added GitHub Actions checks for Ruff, mypy, compileall, unit tests, CLI smoke,
   and BuildKit static validation of the production Dockerfile.
 - Added a lightweight Python 3.12 checks image in `docker/checks.Dockerfile`.
@@ -108,6 +114,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Upscale output is now written to a same-directory temporary file and exposed
+  atomically only after successful decode, encode, and mux. FFmpeg subprocess
+  and final-mux failures return a non-zero status instead of leaving an
+  apparently successful partial output. Chapters are omitted for
+  `--max-frames` runs because original chapter timestamps may exceed the
+  shortened output.
 - Benchmark progress now identifies the project as `ai-media-enhancer` instead
   of exposing its selected `nvcodec` backend. `trtexec` artifact directories
   now include the workload name to prevent cross-model overwrites.

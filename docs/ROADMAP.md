@@ -141,7 +141,7 @@ best-tuned, and live-action confirmation runs remain pending.
 
 - Add `LICENSE` and audit dependency, model, and media licenses.
 - Keep the English README as the primary README and add a one-command demo.
-- Add CI for Ruff, mypy, pytest, and static Dockerfile validation without
+- [x] Add CI for Ruff, mypy, pytest, and static Dockerfile validation without
   requiring a GPU.
 - Move full production and benchmark Docker builds to a larger or self-hosted
   GitHub Actions runner with enough disk for the 17 GB TensorRT base and 26 GB
@@ -149,8 +149,9 @@ best-tuned, and live-action confirmation runs remain pending.
   only.
 - Add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates.
 - Perform a repository privacy and history audit.
-- Preserve multiple audio streams, subtitles, chapters, and metadata, or
-  document the first-release limitations explicitly.
+- [x] Preserve multiple audio streams, subtitles, chapters, attachments, data
+  streams, and metadata. Reject incompatible output containers before
+  inference and expose only atomically completed outputs.
 - Publish the methodology, sanitized raw results, and final tables.
 - Publish a versioned GitHub Release.
 

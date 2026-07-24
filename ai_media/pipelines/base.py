@@ -15,6 +15,12 @@ from ai_media.profiling import ProfileCollector
 from ai_media.runtime import RuntimeEngine
 from ai_media.runtime.tensorrt import TensorRTRuntime
 from ai_media.video.info import VideoInfo, get_video_info
+from ai_media.video.preservation import (
+    MediaPreservationError,
+    commit_atomic_output,
+    create_atomic_output_path,
+    validate_media_preservation,
+)
 
 _UNKNOWN_COLOR_VALUES = {None, "", "unknown", "reserved"}
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
@@ -48,6 +54,7 @@ class BasePipeline(ABC):
         self.profiler: ProfileCollector | None = None
         self._first_frame_completed_ns: int | None = None
         self._last_frame_completed_ns: int | None = None
+        self._working_output_path: Path | None = None
 
     # --- Logging helpers ---
 
@@ -65,12 +72,18 @@ class BasePipeline(ABC):
             raise RuntimeError("Runtime is not initialized")
         return self.runtime
 
+    def working_output_path(self) -> str:
+        """Return the private output path used until the pipeline succeeds."""
+        if self._working_output_path is None:
+            raise RuntimeError("Working output path is not initialized")
+        return str(self._working_output_path)
+
     def ffmpeg_limited_duration_args(self) -> list[str]:
         """Return ffmpeg output args that keep audio aligned with --max-frames."""
         if self.args.max_frames <= 0 or self.info.fps <= 0:
             return []
         duration_sec = self.args.max_frames / self.info.fps
-        return ["-t", f"{duration_sec:.6f}", "-shortest"]
+        return ["-t", f"{duration_sec:.6f}"]
 
     def default_sdr_colorspace(self) -> str:
         """Infer a safe SDR YUV matrix when source metadata is absent."""
@@ -195,48 +208,66 @@ class BasePipeline(ABC):
         self.total_frames = args.max_frames if args.max_frames > 0 else info.nb_frames
         self.engine_path = args.engine
 
-        self.log("\nInitializing TensorRT...")
-        torch.cuda.set_device(args.gpu_id)
-        self.runtime = TensorRTRuntime(
-            self.engine_path,
-            quiet=args.quiet,
-            gpu_id=args.gpu_id,
-            use_cuda_graph=args.cuda_graph,
-        )
-        runtime = self.require_runtime()
-
-        if info.width != runtime.input_w or info.height != runtime.input_h:
-            print(
-                f"WARNING: Video {info.width}x{info.height} "
-                f"!= engine {runtime.input_w}x{runtime.input_h}"
+        try:
+            validate_media_preservation(
+                args.input,
+                args.output,
+                preserve_chapters=args.max_frames <= 0,
             )
+            working_output_path = create_atomic_output_path(args.output)
+        except MediaPreservationError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)
-
-        if args.profile or args.profile_json:
-            self.profiler = ProfileCollector(
-                self.profile_stage_names(),
-                gpu_stages=self.gpu_stage_names(),
-                skip_warmup=args.warmup_frames,
-            )
-
-        self.setup_decoder()
-        self.setup_encoder()
-
-        self.log(f"\nProcessing: {self.total_frames} frames")
-        self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
+        self._working_output_path = working_output_path
 
         frame_times: list[float] = []
-        wall_start = time.perf_counter()
-
         try:
-            self._run_loop(frame_times)
-            self.finalize()
-        except BrokenPipeError:
-            print("WARNING: Encoder pipe closed")
-        finally:
-            self.cleanup()
+            try:
+                self.log("\nInitializing TensorRT...")
+                torch.cuda.set_device(args.gpu_id)
+                self.runtime = TensorRTRuntime(
+                    self.engine_path,
+                    quiet=args.quiet,
+                    gpu_id=args.gpu_id,
+                    use_cuda_graph=args.cuda_graph,
+                )
+                runtime = self.require_runtime()
 
-        wall_total = time.perf_counter() - wall_start
+                if info.width != runtime.input_w or info.height != runtime.input_h:
+                    print(
+                        "ERROR: "
+                        f"Video {info.width}x{info.height} does not match engine "
+                        f"{runtime.input_w}x{runtime.input_h}",
+                        file=sys.stderr,
+                    )
+                    raise SystemExit(1)
+
+                if args.profile or args.profile_json:
+                    self.profiler = ProfileCollector(
+                        self.profile_stage_names(),
+                        gpu_stages=self.gpu_stage_names(),
+                        skip_warmup=args.warmup_frames,
+                    )
+
+                self.setup_decoder()
+                self.setup_encoder()
+
+                self.log(f"\nProcessing: {self.total_frames} frames")
+                self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
+
+                wall_start = time.perf_counter()
+                self._run_loop(frame_times)
+                self.finalize()
+                wall_total = time.perf_counter() - wall_start
+            finally:
+                self.cleanup()
+            commit_atomic_output(working_output_path, args.output)
+        except BaseException:
+            working_output_path.unlink(missing_ok=True)
+            raise
+        finally:
+            self._working_output_path = None
+
         self._write_benchmark_lifecycle_markers(len(frame_times))
 
         # Profile table

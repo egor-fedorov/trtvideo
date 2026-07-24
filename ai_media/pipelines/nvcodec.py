@@ -19,6 +19,7 @@ from ai_media.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
 from ai_media.video.decoder import iter_locked_decode_frames
 from ai_media.video.fps import format_nvenc_fps, gop_size_for_one_second
 from ai_media.video.nvenc import NvencCbrContract
+from ai_media.video.preservation import ffmpeg_preservation_args
 
 
 @dataclass
@@ -325,13 +326,18 @@ class NvcodecPipeline(BasePipeline):
         self.profiler.commit((e0, e1, e2, e3, e4))
 
     def finalize(self) -> None:
-        """Flush NVENC and mux raw bitstream to MP4."""
+        """Flush NVENC and mux the generated video with preserved source media."""
         self._write_bitstream(self._encoder.EndEncode())
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None
 
-        self.log("\nMuxing to MP4...")
+        self.log("\nMuxing output container...")
+        faststart_args = (
+            ["-movflags", "+faststart"]
+            if os.path.splitext(self.args.output)[1].lower() in {".mp4", ".m4v", ".mov"}
+            else []
+        )
         mux_cmd = [
             "ffmpeg",
             "-hide_banner",
@@ -344,25 +350,18 @@ class NvcodecPipeline(BasePipeline):
             self._tmp_raw_path,
             "-i",
             self.args.input,
-            "-c:v",
-            "copy",
-            "-c:a",
-            "copy",
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0?",
-            "-movflags",
-            "+faststart",
+            *ffmpeg_preservation_args(preserve_chapters=self.args.max_frames <= 0),
             *self.ffmpeg_color_metadata_args(),
             *self.ffmpeg_limited_duration_args(),
-            self.args.output,
+            *faststart_args,
+            self.working_output_path(),
         ]
         self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")
         result = subprocess.run(mux_cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
-            print(f"ERROR: ffmpeg mux failed: {result.stderr}")
+            details = result.stderr.strip() or "ffmpeg returned no error details"
+            raise RuntimeError(f"ffmpeg mux failed:\n{details}")
 
     def cleanup(self) -> None:
         self._cvcuda_stream = None

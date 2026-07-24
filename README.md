@@ -209,6 +209,22 @@ docker run --rm --gpus all \
   --input videos/input.mp4
 ```
 
+Both backends replace the source video with the enhanced stream and copy every
+source audio, subtitle, data, and attachment stream without transcoding. Global
+metadata and chapters are retained. Before TensorRT is initialized, a short
+FFmpeg preflight verifies that all copied streams are supported by the selected
+output container. For example, an MP4 output is rejected when an SRT subtitle or
+attachment cannot be represented; choose an `.mkv` output in that case.
+
+Output is written to a same-directory temporary file and replaces the requested
+path atomically only after decode, encode, and mux complete successfully. A
+failed run returns a non-zero status, removes the partial temporary file, and
+leaves an existing output untouched.
+
+With `--max-frames`, copied streams are shortened to the processed video
+duration. Chapters are omitted because their original timestamps may point
+beyond the shortened output.
+
 Select a specific CUDA device:
 
 ```bash

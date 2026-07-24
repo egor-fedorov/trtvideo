@@ -38,14 +38,18 @@ lifecycle:
 2. Use `ffprobe` to read resolution, FPS, frame count, bitrate, and color
    metadata into `VideoInfo`.
 3. Reject inputs outside the current media contract.
-4. Load the selected engine into `TensorRTRuntime` on the requested `--gpu-id`.
-5. Validate the model contract and ensure that the video size matches the
+4. Preflight source-stream compatibility with the selected output container and
+   reserve a same-directory temporary output.
+5. Load the selected engine into `TensorRTRuntime` on the requested `--gpu-id`.
+6. Validate the model contract and ensure that the video size matches the
    engine input shape.
-6. Initialize the decoder, encoder, and reusable buffers for the selected
+7. Initialize the decoder, encoder, and reusable buffers for the selected
    backend.
-7. Process frames sequentially and collect statistics.
-8. Flush the encoder, mux the result when required, and release resources.
-9. Print final throughput and an optional profile.
+8. Process frames sequentially and collect statistics.
+9. Flush the encoder, mux the result when required, and release resources.
+10. Atomically replace the requested output only after every subprocess has
+    completed successfully.
+11. Print final throughput and an optional profile.
 
 `BasePipeline` owns lifecycle and shared validation. Decode, preprocess, encode,
 and cleanup implementations remain in backend classes.
@@ -110,7 +114,8 @@ Per-frame processing order:
 4. TensorRT performs inference.
 5. The output is converted to `uint8 RGB` and copied to the CPU.
 6. Python writes the raw frame to the encoder subprocess through `stdin`.
-7. FFmpeg encodes the video with `libx264` and copies the source audio stream.
+7. FFmpeg encodes the video with `libx264` and copies the source non-video
+   streams.
 
 This backend has fewer GPU dependencies, but CPU pipes and the CPU codec add
 copies and CPU load. Quality is controlled by the real x264 `--crf` option.
@@ -135,8 +140,8 @@ Per-frame processing order:
 6. CV-CUDA converts the output RGB back to NV12.
 7. NV12 is passed to NVENC through PyNvVideoCodec.
 8. NVENC writes a raw H.264 or HEVC bitstream to a temporary file.
-9. In `finalize()`, FFmpeg muxes the video bitstream and optional source audio
-   into MP4.
+9. In `finalize()`, FFmpeg muxes the video bitstream and all supported source
+   non-video streams into the selected output container.
 
 The NVDEC DLPack handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly use
 the runtime CUDA stream. CV-CUDA wraps that PyTorch stream through
@@ -171,6 +176,24 @@ populated `color_range`, `color_space`, `color_transfer`, and
 
 With `--max-frames`, output duration is limited using the exact FPS so audio
 does not continue beyond the last processed video frame.
+
+Both backends share one media-preservation contract:
+
+- the enhanced stream replaces all source video streams;
+- every source audio, subtitle, data, and attachment stream is stream-copied;
+- global metadata, stream tags/dispositions, and chapters are retained;
+- no incompatible stream is silently transcoded or dropped.
+
+A short FFmpeg preflight runs before TensorRT initialization. If the selected
+container cannot represent one of the copied codecs, the command fails and
+recommends MKV rather than processing the video and failing during final mux.
+When `--max-frames` is used, chapters are omitted because their original
+timestamps can exceed the shortened output.
+
+The final container is built at a same-directory temporary path. Successful
+decode, encode, mux, and subprocess exit are required before `os.replace`
+exposes it at the requested output path. Failure removes the temporary file and
+does not overwrite an existing output.
 
 ## Profiling And Benchmarking
 

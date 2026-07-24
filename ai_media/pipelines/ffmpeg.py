@@ -3,11 +3,13 @@
 import argparse
 import subprocess
 import time
+from contextlib import suppress
 
 import numpy as np
 import torch
 
 from ai_media.pipelines.base import BasePipeline
+from ai_media.video.preservation import ffmpeg_preservation_args
 
 _GPU_STAGES = [
     "Preprocess (CPU\u2192GPU)",
@@ -91,10 +93,7 @@ class FfmpegPipeline(BasePipeline):
             "pipe:0",
             "-i",
             self.args.input,
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0?",
+            *ffmpeg_preservation_args(preserve_chapters=self.args.max_frames <= 0),
             "-c:v",
             "libx264",
             "-preset",
@@ -104,10 +103,8 @@ class FfmpegPipeline(BasePipeline):
             "-pix_fmt",
             "yuv420p",
             *self.ffmpeg_color_metadata_args(),
-            "-c:a",
-            "copy",
             *self.ffmpeg_limited_duration_args(),
-            self.args.output,
+            self.working_output_path(),
         ]
         self.log_verbose(f"Encode cmd: {' '.join(encode_cmd)}")
         self._encoder = subprocess.Popen(
@@ -222,13 +219,40 @@ class FfmpegPipeline(BasePipeline):
         raise NotImplementedError  # logic in _run_loop
 
     def finalize(self) -> None:
-        pass  # ffmpeg flushes on stdin close
+        """Flush both FFmpeg processes and reject partial/failed output."""
+        encoder = self._encoder
+        decoder = self._decoder
+        if encoder is None or decoder is None:
+            raise RuntimeError("FFmpeg processes are not initialized")
+
+        if encoder.stdin:
+            encoder.stdin.close()
+        encoder_returncode = encoder.wait()
+
+        if decoder.stdout:
+            decoder.stdout.close()
+        decoder_returncode = decoder.wait()
+
+        self._encoder = None
+        self._decoder = None
+        if decoder_returncode != 0:
+            raise RuntimeError(f"ffmpeg decoder exited with code {decoder_returncode}")
+        if encoder_returncode != 0:
+            raise RuntimeError(f"ffmpeg encoder exited with code {encoder_returncode}")
 
     def cleanup(self) -> None:
-        if self._decoder and self._decoder.stdout:
-            self._decoder.stdout.close()
+        if self._decoder:
+            if self._decoder.stdout:
+                self._decoder.stdout.close()
+            if self._decoder.poll() is None:
+                self._decoder.terminate()
             self._decoder.wait()
+            self._decoder = None
         if self._encoder:
             if self._encoder.stdin:
-                self._encoder.stdin.close()
+                with suppress(BrokenPipeError):
+                    self._encoder.stdin.close()
+            if self._encoder.poll() is None:
+                self._encoder.terminate()
             self._encoder.wait()
+            self._encoder = None

@@ -41,5 +41,8 @@ jobs:
       - name: Run unit tests
         run: make test-unit
 
+      - name: Run media integration tests
+        run: make test-media-integration
+
       - name: Run CLI smoke tests
         run: make cli-smoke

@@ -27,6 +27,20 @@ tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaign
 Both groups remain unit tests. Real GPU and performance runs live in
 `benchmarks/`, not in `tests/`.
 
+### Media Integration
+
+The checks image also runs a GPU-free FFmpeg integration test:
+
+```bash
+make test-media-integration
+```
+
+It creates a synthetic MKV with two audio tracks, a subtitle, chapters, global
+metadata, and an attachment. The test applies the shared output mapping,
+validates every preserved stream with `ffprobe`, and fully decodes video plus
+both audio tracks. A separate case confirms that MP4 preflight rejects source
+streams that cannot be copied into MP4.
+
 ### CLI/Docker Smoke
 
 The non-GPU checks image validates Docker entrypoints:
@@ -101,8 +115,8 @@ changes to dependencies in `pyproject.toml`/`uv.lock` or to
 version change does not require an image rebuild.
 
 GitHub Actions builds the same checks image for pull requests and pushes to
-`main`, then reports Ruff, mypy, compileall, unit tests, and CLI smoke as
-separate steps. A separate workflow runs BuildKit static validation for the
-production Dockerfile without downloading the 26 GB runtime image. Full
-production and benchmark builds remain a GPU-host or self-hosted-runner
-acceptance check.
+`main`, then reports Ruff, mypy, compileall, unit tests, media integration tests,
+and CLI smoke as separate steps. A separate workflow runs BuildKit static
+validation for the production Dockerfile without downloading the 26 GB runtime
+image. Full production and benchmark builds remain a GPU-host or
+self-hosted-runner acceptance check.
