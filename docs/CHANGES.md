@@ -51,6 +51,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Published the first privacy-reviewed benchmark snapshot: validated
+  `1080p -> 4K` RealESRGAN and SPAN parity campaigns on an RTX 3090, including
+  CPU, GPU, power, energy, VRAM, quality, and diagnostic `trtexec` results.
 - Benchmark manifests and campaign summaries now contain separate lifecycle
   scopes: startup through the first completed frame, steady state through the
   last frame, and finalize/encoder flush/mux through process exit.

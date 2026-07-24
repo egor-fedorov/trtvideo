@@ -3,6 +3,7 @@
 This directory contains reproducible workload manifests, pinned implementation
 metadata, isolated Docker environments, and runners. Models, ONNX files,
 TensorRT engines, source videos, and raw results are not added to Git.
+Compact, privacy-reviewed publication snapshots are stored in `results/`.
 
 - `methodology.md` - comparison classes and validity criteria.
 - `workloads/` - RealESRGAN and SPAN workload manifests.
@@ -14,6 +15,9 @@ TensorRT engines, source videos, and raw results are not added to Git.
 - `scripts/quality/` - model-space and final-output quality gates.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
+- [`results/`](results/README.md) - committed benchmark tables and
+  machine-readable sanitized snapshots; large raw artifacts remain under
+  ignored `artefacts/`.
 
 The benchmark workflow is separated from the root `Makefile`:
 

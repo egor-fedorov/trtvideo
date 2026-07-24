@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "document_type": "published_benchmark_snapshot",
+  "status": "valid",
+  "publishable": true,
+  "scope": {
+    "variant": "1080p",
+    "input_width": 1920,
+    "input_height": 1080,
+    "output_width": 3840,
+    "output_height": 2160,
+    "input_fps": "24/1",
+    "date_utc": "2026-07-24",
+    "repository_revision": "49ae95a6ef34fe6affb4816855eb9e2cec3421ae",
+    "source_dirty": false,
+    "final_multi_resolution_claim": false,
+    "pending": [
+      "720p confirmation",
+      "Nsight Systems trace",
+      "live-action confirmation",
+      "best-tuned campaign"
+    ]
+  },
+  "environment": {
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 3090",
+      "compute_capability": "8.6",
+      "total_memory_mib": 24576,
+      "driver_version": "595.71.05",
+      "power": {
+        "manual_limit_applied": false,
+        "active_limit_w": 350.0,
+        "default_limit_w": 350.0,
+        "maximum_configurable_limit_w": 375.0,
+        "sw_power_cap_observed": true
+      }
+    },
+    "cpu": {
+      "model": "AMD Ryzen 5 5600 6-Core Processor",
+      "logical_cores": 12
+    },
+    "project_runtime": {
+      "base_image": "nvcr.io/nvidia/tensorrt:26.06-py3",
+      "image_id": "sha256:699c4f264bf499497593b52b46fc8506a9495dd822d1b0846b532648aae59544",
+      "ai_media_enhancer": "0.3.1",
+      "python": "3.12.3",
+      "cuda": "13.0",
+      "tensorrt": "11.0.0.114",
+      "cvcuda": "0.16.0",
+      "pynvvideocodec": "2.1.0",
+      "torch": "2.11.0",
+      "ffmpeg": "6.1.1-3ubuntu5"
+    },
+    "comparison_images": {
+      "vstrt": {
+        "base_image": "nvcr.io/nvidia/tensorrt:26.06-py3",
+        "image_id": "sha256:2469204b02312b320e0aa9c2c2f74facee66e6d09f68fe94108a4fc3468bda86",
+        "tensorrt": "11.0.0.114"
+      },
+      "vsgan": {
+        "base_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
+        "image_id": "sha256:58447e4ba4694d72b3fce750038012252facc404783e6b4a17a0754bd90456c1",
+        "tensorrt": "10.16"
+      }
+    }
+  },
+  "methodology": {
+    "warmup_frames": 100,
+    "measured_frames": 1000,
+    "rounds": 3,
+    "rotated_order": true,
+    "idle_seconds": 10.0,
+    "spread_threshold": 0.05,
+    "cuda_graph": false,
+    "cpu_accounting": {
+      "method": "getrusage(RUSAGE_CHILDREN)",
+      "scope": "measured-child-process-tree"
+    },
+    "encoder": {
+      "codec": "h264",
+      "preset": "p4",
+      "tuning": "high_quality",
+      "rate_control": "cbr",
+      "target_bitrate_bps": 60000000,
+      "min_bitrate_bps": 60000000,
+      "max_bitrate_bps": 60000000,
+      "vbv_buffer_bits": 120000000,
+      "vbv_initial_delay_bits": 60000000,
+      "gop_frames": 24,
+      "b_frames": 0,
+      "lookahead_frames": 0,
+      "multipass": "disabled",
+      "spatial_aq": false,
+      "temporal_aq": false
+    }
+  },
+  "assets": {
+    "input_sha256": "b5f86aad34b2472e2f0eae16caecc90a4bb0626af92c4ed9692a50007f8f4032"
+  },
+  "workloads": {
+    "realesrgan_x2plus": {
+      "workload_id": "realesrgan-x2plus-sintel-v4",
+      "onnx_sha256": "450d20162c35df6508672a87b3003abc5bf24b08ff58dd81957fd338eb5ba52d",
+      "engines": {
+        "project_and_vstrt_sha256": "fff6be8389a7a9e70ff0813227eb7ebf891d7d5a0bb73f477cd6dfb64e314e70",
+        "vsgan_sha256": "a72f129716f5ffe4610daed67460712f602e176cd5ae9cadbc09028d09a38936"
+      },
+      "implementations": {
+        "ai_media": {
+          "product": "ai-media-enhancer",
+          "fps_runs": [
+            2.793744525898981,
+            2.790385544126543,
+            2.78663969866768
+          ],
+          "median_fps": 2.790385544126543,
+          "relative_spread": 0.002546181206484574,
+          "median_wall_time_sec": 358.373416213,
+          "median_cpu_cores": 1.0046644056656502,
+          "median_cpu_capacity_percent": 8.372203380547084,
+          "median_gpu_utilization_percent": 98.89621318373071,
+          "median_power_w": 346.3305951029136,
+          "median_joules_per_frame": 124.11567850611245,
+          "median_peak_vram_mib": 4281.6875,
+          "median_output_bitrate_mbps": 56.574905,
+          "median_output_size_mib": 281.01855278015137,
+          "median_startup_sec": 3.301670235,
+          "median_steady_state_frame_loop_sec": 353.653939534,
+          "median_finalize_mux_sec": 1.403505736
+        },
+        "vstrt": {
+          "product": "vs-mlrt",
+          "fps_runs": [
+            2.306410122668142,
+            2.291372298803897,
+            2.3194190348682207
+          ],
+          "median_fps": 2.306410122668142,
+          "relative_spread": 0.01216034207822414,
+          "median_wall_time_sec": 433.574233035,
+          "median_cpu_cores": 1.063267541922367,
+          "median_cpu_capacity_percent": 8.860562849353059,
+          "median_gpu_utilization_percent": 81.6260748315129,
+          "median_power_w": 315.11198186541463,
+          "median_joules_per_frame": 136.62443585743597,
+          "median_peak_vram_mib": 4209.125,
+          "median_output_bitrate_mbps": 60.436222,
+          "median_output_size_mib": 300.1982297897339,
+          "median_startup_sec": 2.086235911,
+          "median_steady_state_frame_loop_sec": 431.45705882,
+          "median_finalize_mux_sec": 0.025225891
+        },
+        "vsgan": {
+          "product": "VSGAN-tensorrt-docker",
+          "fps_runs": [
+            2.306695661803086,
+            2.309583580023745,
+            2.343487579545387
+          ],
+          "median_fps": 2.309583580023745,
+          "relative_spread": 0.015930108812915348,
+          "median_wall_time_sec": 432.978485234,
+          "median_cpu_cores": 1.0607650881059125,
+          "median_cpu_capacity_percent": 8.839709067549272,
+          "median_gpu_utilization_percent": 82.79642110155706,
+          "median_power_w": 317.56088647935786,
+          "median_joules_per_frame": 137.4970315973986,
+          "median_peak_vram_mib": 4207.125,
+          "median_output_bitrate_mbps": 60.436222,
+          "median_output_size_mib": 300.1982297897339,
+          "median_startup_sec": 1.986346436,
+          "median_steady_state_frame_loop_sec": 430.978482417,
+          "median_finalize_mux_sec": 0.013394054
+        }
+      },
+      "diagnostic_trtexec": {
+        "fps_runs": [
+          2.8285,
+          2.826,
+          2.81682
+        ],
+        "median_qps": 2.826,
+        "relative_spread": 0.004133050247699977,
+        "pipeline_efficiency_percent": 98.73975740008999,
+        "cuda_graph": false,
+        "data_transfers": false
+      },
+      "quality": {
+        "model_space": {
+          "status": "valid",
+          "frames": [
+            0,
+            499,
+            999
+          ],
+          "minimum_non_exact_input_psnr_db": 50.42753967303976,
+          "minimum_non_exact_output_psnr_db": 52.51684380549126
+        },
+        "product_output": {
+          "status": "valid",
+          "compared_frames": 1000,
+          "vstrt": {
+            "psnr_db": 48.957425,
+            "ssim": 0.995281
+          },
+          "vsgan": {
+            "psnr_db": 48.957425,
+            "ssim": 0.995281
+          }
+        }
+      }
+    },
+    "liveaction_span": {
+      "workload_id": "liveaction-span-sintel-v3",
+      "onnx_sha256": "05bb72dbc89e3351d866c7c6f700a2a6cd1a3d28d87d449cd616baf8b143e46d",
+      "engines": {
+        "project_and_vstrt_sha256": "0e48c670c5d927f0cc3cccea29239457f5768f4853237c263567840975c0300a",
+        "vsgan_sha256": "b04724f544af996e583bb0c196d3cb84317a040563da1f91e556f7aa71bd6d4b"
+      },
+      "implementations": {
+        "ai_media": {
+          "product": "ai-media-enhancer",
+          "fps_runs": [
+            24.662240597218958,
+            24.57093337036784,
+            24.60054059469012
+          ],
+          "median_fps": 24.60054059469012,
+          "relative_spread": 0.0037115943245095207,
+          "median_wall_time_sec": 40.649513215,
+          "median_cpu_cores": 0.49034287064094184,
+          "median_cpu_capacity_percent": 4.086190588674516,
+          "median_gpu_utilization_percent": 90.91358024691358,
+          "median_power_w": 328.0992835340524,
+          "median_joules_per_frame": 13.322469474979806,
+          "median_peak_vram_mib": 2664.125,
+          "median_output_bitrate_mbps": 56.205819,
+          "median_output_size_mib": 279.18560218811035,
+          "median_startup_sec": 2.557753405,
+          "median_steady_state_frame_loop_sec": 37.132650109,
+          "median_finalize_mux_sec": 0.934761105
+        },
+        "vstrt": {
+          "product": "vs-mlrt",
+          "fps_runs": [
+            8.956712672623038,
+            9.055937882530516,
+            8.99982854045055
+          ],
+          "median_fps": 8.99982854045055,
+          "relative_spread": 0.011025233365447118,
+          "median_wall_time_sec": 111.113227936,
+          "median_cpu_cores": 1.2414254283508985,
+          "median_cpu_capacity_percent": 10.345211902924154,
+          "median_gpu_utilization_percent": 36.32220216606498,
+          "median_power_w": 205.89538322621223,
+          "median_joules_per_frame": 22.87770064738419,
+          "median_peak_vram_mib": 2607.125,
+          "median_output_bitrate_mbps": 60.460868,
+          "median_output_size_mib": 300.32067584991455,
+          "median_startup_sec": 1.336122897,
+          "median_steady_state_frame_loop_sec": 109.713153219,
+          "median_finalize_mux_sec": 0.023354483
+        },
+        "vsgan": {
+          "product": "VSGAN-tensorrt-docker",
+          "fps_runs": [
+            9.07518870524921,
+            8.960724689814874,
+            9.05547708762649
+          ],
+          "median_fps": 9.05547708762649,
+          "relative_spread": 0.012640307553838477,
+          "median_wall_time_sec": 110.430404751,
+          "median_cpu_cores": 1.2331741544102857,
+          "median_cpu_capacity_percent": 10.27645128675238,
+          "median_gpu_utilization_percent": 36.83017163504968,
+          "median_power_w": 205.51579000958012,
+          "median_joules_per_frame": 22.71252738756714,
+          "median_peak_vram_mib": 2605.125,
+          "median_output_bitrate_mbps": 60.460868,
+          "median_output_size_mib": 300.32067584991455,
+          "median_startup_sec": 1.32457567,
+          "median_steady_state_frame_loop_sec": 109.083506938,
+          "median_finalize_mux_sec": 0.020304738
+        }
+      },
+      "diagnostic_trtexec": {
+        "fps_runs": [
+          27.3509,
+          27.3114,
+          27.4112
+        ],
+        "median_qps": 27.3509,
+        "relative_spread": 0.003648874442888603,
+        "pipeline_efficiency_percent": 89.94402377983906,
+        "cuda_graph": false,
+        "data_transfers": false
+      },
+      "quality": {
+        "model_space": {
+          "status": "valid",
+          "frames": [
+            0,
+            499,
+            999
+          ],
+          "minimum_non_exact_input_psnr_db": 50.42753967303976,
+          "minimum_non_exact_output_psnr_db": 51.26295232749933
+        },
+        "product_output": {
+          "status": "valid",
+          "compared_frames": 1000,
+          "vstrt": {
+            "psnr_db": 50.885585,
+            "ssim": 0.996312
+          },
+          "vsgan": {
+            "psnr_db": 50.885585,
+            "ssim": 0.996312
+          }
+        }
+      },
+      "bitstream_observation": {
+        "source": "retained product-output SPAN run",
+        "ai_media_raw_h264_bytes": 292738602,
+        "ffmpeg_raw_h264_bytes": 314901390,
+        "ffmpeg_without_filler_raw_h264_bytes": 298130299,
+        "ffmpeg_filler_bytes": 16771091,
+        "filler_share_of_size_gap_percent": 75.675
+      }
+    }
+  }
+}

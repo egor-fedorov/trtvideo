@@ -9,6 +9,26 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
+## 2026-07-24 - RTX 3090 1080p parity baseline
+
+The first competitor baseline compares `ai-media-enhancer`, TensorRT 11
+`vs-mlrt`, and stock TensorRT 10.16 VSGAN on RealESRGAN_x2plus and SPAN. The
+campaign used 100 warmup frames, 1000 measured frames, and three rotated rounds.
+No reduced GPU power limit was applied: the RTX 3090 used its default 350 W
+board limit.
+
+Key results:
+
+| Workload | ai-media | vs-mlrt | VSGAN | trtexec ceiling |
+| --- | ---: | ---: | ---: | ---: |
+| RealESRGAN_x2plus | 2.790 FPS | 2.306 FPS | 2.310 FPS | 2.826 QPS |
+| SPAN | 24.601 FPS | 9.000 FPS | 9.055 FPS | 27.351 QPS |
+
+The complete compact result, CPU/resource metrics, quality gates, hashes, and
+encoder bitrate caveat are published in the
+[RTX 3090 baseline](../benchmarks/results/rtx-3090/1080p/README.md). The ignored
+raw artifacts remain outside Git.
+
 ## 2026-07-12 - NVENC stream synchronization
 
 Changes:

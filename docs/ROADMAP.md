@@ -65,24 +65,26 @@ The target card for the first campaign is one physical GeForce RTX 3090 with
 
 ## Stage 2. Measurement Gaps
 
-Status: partially implemented. The exact NVENC contract, rotated campaign
-runner, sanitized acceptance table, CPU accounting, lifecycle timings, and
-offline tooling for both quality gates are complete. Model-space and
-product-output GPU acceptance remain.
+Status: complete for the published RTX 3090 1080p baseline. The exact NVENC
+contract, rotated campaign runner, sanitized acceptance table, CPU accounting,
+lifecycle timings, and both quality gates passed. The 720p confirmation belongs
+to Stage 3.
 
-- [x] Explicit, identical NVENC rate-control contract for the project and VSGAN:
+- [x] Explicit requested NVENC rate-control contract for the project and VSGAN:
   codec, preset, tuning, RC mode, target/min/max bitrate, VBV, GOP, and B-frames.
+  Actual bitrate and implementation-specific strict-CBR filler are reported
+  separately.
 - [x] CPU utilization for the measured subprocess tree through
   `RUSAGE_CHILDREN`: user/system CPU seconds, average cores, and
   affinity-normalized capacity.
 - [x] Separate `startup`, steady-state frame loop, and `finalize + mux` timing
   scopes with one process/frame boundary contract.
-- [ ] Model-space parity on RGB/float frames before YUV conversion and encode.
-  Capture/compare tooling and fixed thresholds are implemented; the RTX 3090
-  acceptance run is pending.
-- [ ] Product-output PSNR/SSIM and visual crops after decoding MP4.
+- [x] Model-space parity on RGB/float frames before YUV conversion and encode.
+  Capture/compare tooling and fixed thresholds passed for both 1080p workloads
+  on the RTX 3090.
+- [x] Product-output PSNR/SSIM and visual crops after decoding MP4.
   Retained-output runs, full-decode metrics, crop generation, and aggregator
-  validation are implemented; the RTX 3090 acceptance run is pending.
+  validation passed for both 1080p workloads.
 - [x] Campaign runner that rotates products by round instead of running grouped
   suites.
 - [x] Sanitized final acceptance-table generation from raw manifests.
@@ -91,6 +93,10 @@ Individual runners remain acceptance/baseline data. A campaign is not
 publishable until the remaining Stage 2 gates are complete.
 
 ## Stage 3. Parity Campaign
+
+Status: the validated RTX 3090 `1080p -> 4K` campaigns for RealESRGAN and SPAN
+are published in `benchmarks/results/rtx-3090/1080p/`. The
+`720p -> 1440p` confirmation remains pending.
 
 - Run 100 warmup and 1000 measured frames, at least three runs, and two
   additional runs when spread exceeds 5%.

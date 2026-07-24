@@ -103,6 +103,13 @@ single-pass CBR: target/min/max are equal, the VBV buffer holds two seconds of
 bitrate, initial occupancy is one second, and lookahead plus spatial/temporal AQ
 are disabled.
 
+Parity applies to the requested encoder settings, not to implementation-specific
+strict-CBR padding. FFmpeg NVENC may insert filler NAL units while
+PyNvVideoCodec may produce a lower actual bitrate for the same target. Reports
+must publish actual bitrate and output size, retain the fixed 10% bitrate
+tolerance, and disclose confirmed filler behavior. The project output is not
+padded or assigned a content-dependent target solely to equalize file sizes.
+
 An output is valid only after a complete decode and validation of resolution,
 codec, pixel format, color tags, FPS, duration, frame count, B-frames, keyframe
 interval, actual bitrate, and monotonic PTS/DTS. A valid MP4 may be deleted after
