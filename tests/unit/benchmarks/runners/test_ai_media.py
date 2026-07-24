@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ from ai_media.benchmarking.suite import (
     canonical_suite_errors,
     compute_suite_statistics,
     report_invalid_run,
+    report_publishability_errors,
     should_extend_suite,
     suite_publishability_errors,
 )
@@ -123,6 +125,29 @@ def test_suite_runner_rejects_power_limit_drift() -> None:
     assert result.errors == ("GPU power limit changed between measured runs",)
 
 
+def test_single_run_suite_omits_redundant_progress_fraction() -> None:
+    output = StringIO()
+    runner = SuiteRunner(
+        SuitePolicy(1, 0, 0.05, 0),
+        label="nvcodec",
+        frames=1000,
+        metric_reader=lambda manifest: manifest["metric"],
+        power_limit_reader=lambda manifest: manifest["power_limit"],
+        stream=output,
+    )
+
+    runner.execute(
+        lambda index: {
+            "status": "valid",
+            "run_index": index,
+            "metric": 40.0,
+            "power_limit": 250.0,
+        }
+    )
+
+    assert output.getvalue() == "Benchmark: nvcodec, 1000 frames\n"
+
+
 def test_invalid_run_reports_manifest_errors(capsys: pytest.CaptureFixture[str]) -> None:
     report_invalid_run(
         {
@@ -135,6 +160,33 @@ def test_invalid_run_reports_manifest_errors(capsys: pytest.CaptureFixture[str])
         "Benchmark run 2 invalid:\n"
         "  - Warmup process exited with code 1\n"
         "  - Output was not created\n"
+    )
+
+
+def test_acceptance_suite_suppresses_expected_publishability_errors() -> None:
+    output = StringIO()
+
+    report_publishability_errors(
+        ["Individual suites are acceptance-only"],
+        acceptance_only=True,
+        stream=output,
+    )
+
+    assert output.getvalue() == ""
+
+
+def test_standalone_suite_reports_publishability_errors() -> None:
+    output = StringIO()
+
+    report_publishability_errors(
+        ["Run contract changed"],
+        acceptance_only=False,
+        stream=output,
+    )
+
+    assert output.getvalue() == (
+        "Benchmark suite is not publishable:\n"
+        "  - Run contract changed\n"
     )
 
 

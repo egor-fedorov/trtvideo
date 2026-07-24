@@ -98,6 +98,21 @@ def report_invalid_run(run: RunManifest, *, stream: TextIO | None = None) -> Non
         print(f"  - {error}", file=stream)
 
 
+def report_publishability_errors(
+    errors: list[str],
+    *,
+    acceptance_only: bool,
+    stream: TextIO | None = None,
+) -> None:
+    """Report actionable standalone errors, not expected campaign-step state."""
+    if not errors or acceptance_only:
+        return
+    stream = stream or sys.stderr
+    print("Benchmark suite is not publishable:", file=stream)
+    for error in errors:
+        print(f"  - {error}", file=stream)
+
+
 def canonical_suite_errors(
     parameters: Mapping[str, Any],
     benchmark: Mapping[str, Any] | None,
@@ -184,11 +199,14 @@ class SuiteRunner:
         while run_index <= target_runs:
             if run_index > 1 and self._policy.idle_seconds > 0:
                 self._sleep(self._policy.idle_seconds)
-            print(
-                f"Benchmark run {run_index}/{target_runs}: {self._label}, "
-                f"{self._frames} frames",
-                file=self._stream,
-            )
+            if self._policy.initial_runs == 1 and self._policy.extra_runs == 0:
+                message = f"Benchmark: {self._label}, {self._frames} frames"
+            else:
+                message = (
+                    f"Benchmark run {run_index}/{target_runs}: {self._label}, "
+                    f"{self._frames} frames"
+                )
+            print(message, file=self._stream)
             manifest = run(run_index)
             manifests.append(manifest)
             if manifest.get("status") != "valid":

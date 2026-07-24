@@ -30,6 +30,7 @@ from ai_media.benchmarking.suite import (
     SuitePolicy,
     SuiteRunner,
     canonical_suite_errors,
+    report_publishability_errors,
     suite_publishability_errors,
 )
 from benchmarks.scripts.runners.common import (
@@ -406,10 +407,10 @@ def _run_suite(
         f"spread={spread!r}",
         file=sys.stderr,
     )
-    if publishability_errors:
-        print("Benchmark suite is not publishable:", file=sys.stderr)
-        for error in publishability_errors:
-            print(f"  - {error}", file=sys.stderr)
+    report_publishability_errors(
+        publishability_errors,
+        acceptance_only=False,
+    )
     return summary, 0 if status == "valid" else 2
 
 
