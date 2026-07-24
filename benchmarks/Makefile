@@ -22,8 +22,11 @@ ARGS ?=
 TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
 VSGAN_ARGS ?=
+NSIGHT_ARGS ?=
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostic-trtexec-$(WORKLOAD_NAME)-$(VARIANT)
+NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
+NSIGHT_FRAMES ?= 120
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/campaigns/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
@@ -35,8 +38,9 @@ QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
-.PHONY: run-ai-media plan-trtexec plan-vstrt plan-vsgan dry-run
+.PHONY: run-ai-media plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
+.PHONY: profile-nsight
 .PHONY: capture-model-ai-media capture-model-vstrt capture-model-vsgan
 .PHONY: compare-model-space model-space-parity
 .PHONY: capture-output-ai-media capture-output-vstrt capture-output-vsgan
@@ -57,6 +61,8 @@ help:
 		'run-vstrt           Run strict TensorRT 11 parity (ENGINE required)' \
 		'run-vsgan           Run stock VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
+		'plan-nsight         Print the project Nsight diagnostic plan' \
+		'profile-nsight      Capture one project Nsight Systems trace' \
 		'model-space-parity  Compare pre/post-TensorRT RGB float tensors' \
 		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
 		'quality-gates       Run model-space and product-output parity gates' \
@@ -181,6 +187,21 @@ plan-vsgan:
 
 dry-run: plan-trtexec plan-vstrt plan-vsgan
 
+plan-nsight:
+	mkdir -p "$(ROOT)/artefacts/benchmarks"
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.diagnostics.nsight \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
+			--gpu-id $(GPU_ID) \
+			--frames $(NSIGHT_FRAMES) \
+			--output-dir /app/$(NSIGHT_OUTPUT_DIR) \
+			--dry-run $(NSIGHT_ARGS)
+
 run-trtexec:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/$(TRTEXEC_OUTPUT_DIR)"
@@ -233,6 +254,24 @@ run-vsgan:
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
 			$(ARGS) $(VSGAN_ARGS)
+
+profile-nsight:
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(NSIGHT_OUTPUT_DIR)"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.diagnostics.nsight \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--engine /app/$(ENGINE) \
+			--gpu-id $(GPU_ID) \
+			--frames $(NSIGHT_FRAMES) \
+			--output-dir /app/$(NSIGHT_OUTPUT_DIR) \
+			$(NSIGHT_ARGS)
 
 capture-model-ai-media:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)

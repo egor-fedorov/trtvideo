@@ -11,6 +11,7 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
   implementations.
 - `docker/` - TensorRT 11 vstrt parity and stock VSGAN environments.
 - `scripts/runners/` - project, vstrt, VSGAN, and trtexec execution.
+- `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
 - `scripts/quality/` - model-space and final-output quality gates.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
@@ -40,6 +41,7 @@ make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
   TRT10.16 engine because serialized engines are incompatible across runtime
   versions.
 - `run-trtexec` - diagnostic inference ceiling, not a competitor.
+- `profile-nsight` - one non-publishable project timeline for pipeline analysis.
 - `model-space-parity` - compare FP32 RGB tensors immediately before and after
   TensorRT, outside the timed benchmark path.
 - `product-output-parity` - retain one canonical MP4 per product, run complete
@@ -52,6 +54,30 @@ make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
 `artefacts/benchmarks/diagnostic-trtexec-<workload>-<variant>/`, preventing
 results for different models at the same resolution from overwriting each
 other.
+
+`profile-nsight` wraps one ordinary unprofiled `upscale --backend nvcodec`
+process. It does not contribute FPS values to a campaign. The canonical Stage 4
+trace uses SPAN at 1080p because its lighter inference makes pipeline gaps more
+visible:
+
+```bash
+make -C benchmarks plan-nsight \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+
+make -C benchmarks profile-nsight \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+```
+
+The 120-frame trace and CLI reports are written under
+`artefacts/benchmarks/diagnostics/nsight/liveaction_span_sintel-1080p/`.
+`manifest.json` records the workload, engine and image contract; the ignored
+`.nsys-rep` can be opened with a matching or newer Nsight Systems GUI. The
+runner requires GPU video tracing and validates the complete output after
+collection.
 
 Video2X is excluded because it did not run the canonical
 `RealESRGAN_x2plus`; its FPS therefore did not answer the same-model performance

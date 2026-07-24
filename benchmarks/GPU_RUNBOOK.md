@@ -255,3 +255,50 @@ Results are kept separately under
 
 The diagnostic uses the TRT11 engine shared by `ai-media-enhancer` and vstrt.
 The separate TRT10 VSGAN engine is not an input to this measurement.
+
+## 8. Nsight Systems Pipeline Diagnostic
+
+Nsight Systems is already included in the TensorRT benchmark image. First
+inspect the generated command without a GPU:
+
+```bash
+make -C benchmarks plan-nsight \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+```
+
+On the benchmark GPU, capture the canonical 120-frame SPAN trace:
+
+```bash
+make -C benchmarks profile-nsight \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+```
+
+The runner uses the normal non-`--profile` pipeline with CUDA Graph disabled,
+enables NVTX only for this subprocess, and requests CUDA, NVTX, OS-runtime,
+NvVideo, and GPU video-accelerator traces. It fails if GPU video tracing is not
+available or if the profiled output does not fully decode and satisfy the
+120-frame media contract.
+
+Inspect:
+
+```text
+artefacts/benchmarks/diagnostics/nsight/liveaction_span_sintel-1080p/
+  ai-media.nsys-rep
+  manifest.json
+  stats/
+  output.mp4
+```
+
+Open `ai-media.nsys-rep` in Nsight Systems 2026.3.1 or newer. Check the
+`ai_media.*` NVTX ranges for per-frame H2D/D2H copies, gaps on the shared CUDA
+stream, blocking CUDA/OS calls, and NVDEC/TensorRT/NVENC overlap. The CSV
+reports provide command-line summaries when the GUI is unavailable. Do not use
+the profiled wall time or FPS as a benchmark result.
+
+The raw trace and generated reports remain ignored. After review, publish only
+privacy-safe conclusions. Do not mark the Roadmap item complete until the trace
+has been captured and interpreted.

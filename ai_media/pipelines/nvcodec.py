@@ -232,8 +232,17 @@ class NvcodecPipeline(BasePipeline):
     def decode_frames(self):
         """Yield NV12 frames from NVDEC decoder."""
         runtime = self.require_runtime()
+        fetch_batch = self._decoder.get_batch_frames
+        if self._nvtx.enabled:
+
+            def annotated_fetch_batch(batch_size: int):
+                with self._nvtx.range("ai_media.nvcodec.decode_batch"):
+                    return self._decoder.get_batch_frames(batch_size)
+
+            fetch_batch = annotated_fetch_batch
+
         yield from iter_locked_decode_frames(
-            self._decoder.get_batch_frames,
+            fetch_batch,
             batch_size=self._DECODE_BATCH_SIZE,
             # ThreadedDecoder releases a batch on the next get_batch_frames().
             # Complete queued reads before its NVDEC surfaces can be reused.
@@ -253,6 +262,8 @@ class NvcodecPipeline(BasePipeline):
             with torch.cuda.stream(stream):
                 nv12_tensor = torch.from_dlpack(raw_frame)
             self._process_frame_profiled(nv12_tensor, in_h, in_w)
+        elif self._nvtx.enabled:
+            self._process_frame_nvtx(raw_frame, in_h, in_w)
         else:
             pool = self._require_buffer_pool()
             cvcuda_stream = self._require_cvcuda_stream()
@@ -281,6 +292,44 @@ class NvcodecPipeline(BasePipeline):
                     color_spec=self._color_spec_name,
                     stream=cvcuda_stream,
                 )
+            self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
+
+    def _process_frame_nvtx(self, raw_frame, in_h: int, in_w: int) -> None:
+        """Run the regular hot path with ranges for an external Nsight trace."""
+        runtime = self.require_runtime()
+        stream = runtime.stream
+        pool = self._require_buffer_pool()
+        cvcuda_stream = self._require_cvcuda_stream()
+
+        with torch.cuda.stream(stream):
+            nv12_tensor = torch.from_dlpack(raw_frame)
+            with self._nvtx.range("ai_media.nvcodec.nv12_to_rgb"):
+                rgb = nv12_to_rgb_into(
+                    nv12_tensor,
+                    in_h,
+                    in_w,
+                    pool.rgb_in,
+                    pool.nv12_in,
+                    color_spec=self._color_spec_name,
+                    stream=cvcuda_stream,
+                )
+            with self._nvtx.range("ai_media.nvcodec.tensorrt"):
+                upscaled = runtime.infer_rgb_tensor_into(
+                    rgb,
+                    pool.rgb_out,
+                    input_nchw=pool.nchw_in,
+                    output_rgb_float=pool.rgb_out_float,
+                    stream=stream,
+                    synchronize=False,
+                )
+            with self._nvtx.range("ai_media.nvcodec.rgb_to_nv12"):
+                nv12_out = rgb_to_nv12_into(
+                    upscaled,
+                    pool.nv12_out,
+                    color_spec=self._color_spec_name,
+                    stream=cvcuda_stream,
+                )
+        with self._nvtx.range("ai_media.nvcodec.nvenc_encode"):
             self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
 
     def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
@@ -327,7 +376,8 @@ class NvcodecPipeline(BasePipeline):
 
     def finalize(self) -> None:
         """Flush NVENC and mux the generated video with preserved source media."""
-        self._write_bitstream(self._encoder.EndEncode())
+        with self._nvtx.range("ai_media.nvcodec.nvenc_flush"):
+            self._write_bitstream(self._encoder.EndEncode())
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None
@@ -357,7 +407,8 @@ class NvcodecPipeline(BasePipeline):
             self.working_output_path(),
         ]
         self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")
-        result = subprocess.run(mux_cmd, capture_output=True, text=True)
+        with self._nvtx.range("ai_media.nvcodec.mux"):
+            result = subprocess.run(mux_cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
             details = result.stderr.strip() or "ffmpeg returned no error details"

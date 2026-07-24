@@ -118,8 +118,9 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-Status: 1080p `trtexec` ceilings and pipeline efficiency are published. Nsight,
-best-tuned, and live-action confirmation runs remain pending.
+Status: 1080p `trtexec` ceilings and pipeline efficiency are published. Nsight
+capture tooling is implemented, but the GPU trace and its analysis remain
+pending together with best-tuned and live-action confirmation runs.
 
 - [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
   from the product table for the 1080p baseline.

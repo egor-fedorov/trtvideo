@@ -51,6 +51,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a reproducible `make -C benchmarks profile-nsight` diagnostic for one
+  SPAN 1080p `nvcodec` run. Opt-in NVTX ranges label the GPU pipeline, while the
+  runner captures CUDA/NvVideo reports and validates the profiled output without
+  treating profiler-affected FPS as a benchmark result.
 - Added `make demo`, a self-contained GPU workflow using pinned and
   SHA256-verified RealESRGAN_x2plus weights plus a generated rich-media 720p
   input. It exports mixed-FP16 ONNX, builds the engine on the current GPU, runs

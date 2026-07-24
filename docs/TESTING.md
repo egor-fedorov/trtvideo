@@ -112,6 +112,12 @@ valid run must pass full decode, media/timestamp validation, and NVML validity
 checks. `nvidia-ml-py` is installed only in the optional
 `ai-media-enhancer:benchmark` image and is not part of the production runtime.
 
+The one-off `profile-nsight` diagnostic is also GPU-only, but it is not a
+performance test: profiler overhead invalidates its FPS. Unit tests cover
+command generation and opt-in NVTX behavior; GPU acceptance requires a valid
+`.nsys-rep`, CLI stats reports, GPU video trace support, and a fully validated
+120-frame output.
+
 ## Quality Gate
 
 The minimum Docker gate for Python changes is:

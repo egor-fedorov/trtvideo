@@ -11,6 +11,7 @@ from pathlib import Path
 import torch
 
 from ai_media.benchmarking.lifecycle import FrameLifecycleMarkers, write_frame_markers
+from ai_media.diagnostics.nvtx import NvtxAnnotator
 from ai_media.profiling import ProfileCollector
 from ai_media.runtime import RuntimeEngine
 from ai_media.runtime.tensorrt import TensorRTRuntime
@@ -55,6 +56,7 @@ class BasePipeline(ABC):
         self._first_frame_completed_ns: int | None = None
         self._last_frame_completed_ns: int | None = None
         self._working_output_path: Path | None = None
+        self._nvtx = NvtxAnnotator.from_environment()
 
     # --- Logging helpers ---
 
@@ -223,41 +225,44 @@ class BasePipeline(ABC):
         frame_times: list[float] = []
         try:
             try:
-                self.log("\nInitializing TensorRT...")
-                torch.cuda.set_device(args.gpu_id)
-                self.runtime = TensorRTRuntime(
-                    self.engine_path,
-                    quiet=args.quiet,
-                    gpu_id=args.gpu_id,
-                    use_cuda_graph=args.cuda_graph,
-                )
-                runtime = self.require_runtime()
-
-                if info.width != runtime.input_w or info.height != runtime.input_h:
-                    print(
-                        "ERROR: "
-                        f"Video {info.width}x{info.height} does not match engine "
-                        f"{runtime.input_w}x{runtime.input_h}",
-                        file=sys.stderr,
+                with self._nvtx.range("ai_media.initialization"):
+                    self.log("\nInitializing TensorRT...")
+                    torch.cuda.set_device(args.gpu_id)
+                    self.runtime = TensorRTRuntime(
+                        self.engine_path,
+                        quiet=args.quiet,
+                        gpu_id=args.gpu_id,
+                        use_cuda_graph=args.cuda_graph,
                     )
-                    raise SystemExit(1)
+                    runtime = self.require_runtime()
 
-                if args.profile or args.profile_json:
-                    self.profiler = ProfileCollector(
-                        self.profile_stage_names(),
-                        gpu_stages=self.gpu_stage_names(),
-                        skip_warmup=args.warmup_frames,
-                    )
+                    if info.width != runtime.input_w or info.height != runtime.input_h:
+                        print(
+                            "ERROR: "
+                            f"Video {info.width}x{info.height} does not match engine "
+                            f"{runtime.input_w}x{runtime.input_h}",
+                            file=sys.stderr,
+                        )
+                        raise SystemExit(1)
 
-                self.setup_decoder()
-                self.setup_encoder()
+                    if args.profile or args.profile_json:
+                        self.profiler = ProfileCollector(
+                            self.profile_stage_names(),
+                            gpu_stages=self.gpu_stage_names(),
+                            skip_warmup=args.warmup_frames,
+                        )
 
-                self.log(f"\nProcessing: {self.total_frames} frames")
-                self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
+                    self.setup_decoder()
+                    self.setup_encoder()
+
+                    self.log(f"\nProcessing: {self.total_frames} frames")
+                    self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
 
                 wall_start = time.perf_counter()
-                self._run_loop(frame_times)
-                self.finalize()
+                with self._nvtx.range("ai_media.frame_loop"):
+                    self._run_loop(frame_times)
+                with self._nvtx.range("ai_media.finalize"):
+                    self.finalize()
                 wall_total = time.perf_counter() - wall_start
             finally:
                 self.cleanup()

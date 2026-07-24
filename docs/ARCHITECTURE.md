@@ -18,6 +18,7 @@ The main component boundaries are:
 ai_media/
   cli/          argument parsing and command/backend selection
   demo/         pinned quick-demo assets, orchestration, and media validation
+  diagnostics/  opt-in markers for external profilers
   pipelines/    decode -> inference -> encode orchestration
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
   video/        ffprobe metadata, FPS, bitrate, and colorspace helpers
@@ -77,6 +78,11 @@ without host-side waits between stages.
 The experimental `--cuda-graph` option captures the TensorRT enqueue operation
 for a static-shape engine. If capture fails, the runtime records the reason and
 falls back to regular `execute_async_v3`.
+
+The internal `AI_MEDIA_NVTX=1` diagnostic switch adds Nsight Systems ranges
+around pipeline lifecycle and `nvcodec` GPU stages. It is set only by benchmark
+diagnostic tooling. Ordinary inference does not enter the per-stage NVTX path,
+and Nsight collection is never part of a measured benchmark campaign.
 
 A TensorRT engine depends on the TensorRT version and GPU architecture. Rebuild
 the engine after changing to an incompatible TensorRT container or GPU class.

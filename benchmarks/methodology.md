@@ -287,7 +287,14 @@ pipeline efficiency = ai-media-enhancer end-to-end FPS / trtexec QPS
 
 One representative run includes an Nsight Systems trace for checking H2D/D2H
 copies, stream gaps, CPU waits, PCIe traffic, and NVDEC/TensorRT/NVENC overlap.
-The trace is not collected inside every measured run.
+The trace is not collected inside any measured campaign run. It wraps one
+ordinary 120-frame SPAN 1080p `nvcodec` process with CUDA Graph and built-in
+stage profiling disabled. Opt-in NVTX ranges label initialization, the frame
+loop, decode batches, color conversion, TensorRT, NVENC, and mux. Collection
+uses CUDA, NVTX, OS-runtime, and NvVideo tracing plus the selected GPU's video
+accelerator trace. CPU IP sampling and scheduler context-switch tracing are
+disabled to avoid privileged container execution. Profiler-affected FPS is
+never published.
 
 ## Environment Contract
 
