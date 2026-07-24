@@ -100,6 +100,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Versioned the RealESRGAN and SPAN benchmark workloads after the first RTX 3090
+  model-space run exposed an over-sensitive gate. Model-space acceptance now
+  uses RMSE, p99, and PSNR; `max_abs` remains diagnostic, and input p99 allows
+  `3/255` for differences between NVDEC/CV-CUDA and BestSource/zimg conversion.
 - Updated the canonical benchmark workloads to
   `realesrgan-x2plus-sintel-v3` and `liveaction-span-sintel-v2`. The manifests
   now include immutable model-space frame selection and acceptance thresholds.

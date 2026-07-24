@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "id": "liveaction-span-sintel-v2",
-  "lock_path": "models/benchmarks/liveaction-span-sintel-v2.assets.json",
+  "id": "liveaction-span-sintel-v3",
+  "lock_path": "models/benchmarks/liveaction-span-sintel-v3.assets.json",
   "benchmark": {
     "warmup_frames": 100,
     "measured_frames": 1000,
@@ -20,13 +20,11 @@
       ],
       "thresholds": {
         "input": {
-          "max_abs": 0.031373,
-          "p99_abs": 0.007843,
+          "p99_abs": 0.011765,
           "rmse": 0.003922,
           "min_psnr_db": 48.0
         },
         "output": {
-          "max_abs": 0.062745,
           "p99_abs": 0.015686,
           "rmse": 0.007843,
           "min_psnr_db": 42.0

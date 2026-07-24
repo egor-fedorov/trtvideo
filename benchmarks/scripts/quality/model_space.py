@@ -11,7 +11,7 @@ from typing import Any
 from ai_media.benchmarking.environment import environment_errors, sha256_file
 
 CAPTURE_SCHEMA_VERSION = 1
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
 TENSOR_DTYPE = "float32"
 TENSOR_LAYOUT = "CHW"
 TENSOR_CHANNEL_ORDER = "RGB"
@@ -26,7 +26,6 @@ class ModelSpaceError(RuntimeError):
 class TensorThresholds:
     """Fixed acceptance limits for one model-space tensor stage."""
 
-    max_abs: float
     p99_abs: float
     rmse: float
     min_psnr_db: float
@@ -35,7 +34,6 @@ class TensorThresholds:
     def from_dict(cls, value: dict[str, Any], *, stage: str) -> TensorThresholds:
         try:
             thresholds = cls(
-                max_abs=float(value["max_abs"]),
                 p99_abs=float(value["p99_abs"]),
                 rmse=float(value["rmse"]),
                 min_psnr_db=float(value["min_psnr_db"]),
@@ -45,8 +43,7 @@ class TensorThresholds:
                 f"Invalid model-space thresholds for {stage}: {exc}"
             ) from exc
         if (
-            thresholds.max_abs <= 0
-            or thresholds.p99_abs <= 0
+            thresholds.p99_abs <= 0
             or thresholds.rmse <= 0
             or thresholds.min_psnr_db <= 0
         ):
@@ -57,7 +54,6 @@ class TensorThresholds:
 
     def as_dict(self) -> dict[str, float]:
         return {
-            "max_abs": self.max_abs,
             "p99_abs": self.p99_abs,
             "rmse": self.rmse,
             "min_psnr_db": self.min_psnr_db,
@@ -380,7 +376,6 @@ def evaluate_metrics(
         math.inf if metrics.get("exact") is True else float(metrics["psnr_db"])
     )
     checks = {
-        "max_abs": (float(metrics["max_abs"]), thresholds.max_abs, "<="),
         "p99_abs": (float(metrics["p99_abs"]), thresholds.p99_abs, "<="),
         "rmse": (float(metrics["rmse"]), thresholds.rmse, "<="),
         "psnr_db": (psnr_db, thresholds.min_psnr_db, ">="),

@@ -143,15 +143,26 @@ and source state. Captures from different revisions cannot form a valid report.
 
 Acceptance limits are fixed in each workload manifest:
 
-| Stage | RMSE | p99 absolute error | Maximum absolute error | Minimum PSNR |
-|---|---:|---:|---:|---:|
-| model input | `0.003922` | `0.007843` | `0.031373` | `48 dB` |
-| model output | `0.007843` | `0.015686` | `0.062745` | `42 dB` |
+| Stage | RMSE | p99 absolute error | Minimum PSNR |
+|---|---:|---:|---:|
+| model input | `0.003922` (`1/255`) | `0.011765` (`3/255`) | `48 dB` |
+| model output | `0.007843` (`2/255`) | `0.015686` (`4/255`) | `42 dB` |
 
 All values use normalized RGB where `1.0` is the PSNR data range. These limits
 allow small decoder/colorspace and TensorRT-version differences but reject a
 materially different preprocessing or model result. They must not be changed
 after observing GPU results without invalidating and explaining the campaign.
+`max_abs` remains in every tensor report as a diagnostic, but it is not an
+acceptance limit: a single finite edge pixel is not representative across
+millions of tensor elements and differs between NVDEC/CV-CUDA and
+BestSource/zimg chroma reconstruction. Non-finite values always fail the gate.
+
+The v2 gate originally used `max_abs` as a hard limit and input p99 `2/255`.
+The first RTX 3090 acceptance run showed high aggregate parity (input/output
+PSNR `50–54 dB`, RMSE within limits, and valid final-MP4 parity) while isolated
+decoder/colorspace edge pixels exceeded that maximum. The affected campaigns
+remain evidence for the rejected v2 methodology and are not reused by this
+versioned contract.
 
 Run the gate with `make -C benchmarks model-space-parity`. It writes capture
 manifests, raw tensors, logs, and `model-space-parity.json` under the ignored

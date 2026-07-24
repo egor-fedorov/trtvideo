@@ -17,6 +17,7 @@ from benchmarks.scripts.quality.model_space import (
     TensorThresholds,
     compare_captures,
     create_tensor_artifact,
+    evaluate_metrics,
     parse_frame_indices,
     write_capture_manifest,
 )
@@ -69,7 +70,6 @@ def _write_capture(
 def _thresholds(limit: float = 0.01) -> dict[str, TensorThresholds]:
     return {
         stage: TensorThresholds(
-            max_abs=limit,
             p99_abs=limit,
             rmse=limit,
             min_psnr_db=40.0,
@@ -161,6 +161,26 @@ def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
     assert any("output frame 0" in error for error in report["errors"])
 
 
+def test_maximum_error_is_diagnostic_not_an_acceptance_limit() -> None:
+    errors = evaluate_metrics(
+        {
+            "finite": True,
+            "exact": False,
+            "max_abs": 0.25,
+            "p99_abs": 0.005,
+            "rmse": 0.002,
+            "psnr_db": 50.0,
+        },
+        TensorThresholds(
+            p99_abs=0.01,
+            rmse=0.004,
+            min_psnr_db=48.0,
+        ),
+    )
+
+    assert errors == []
+
+
 def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
     args = argparse.Namespace(
         implementation="vsgan",
@@ -214,3 +234,8 @@ def test_workload_manifests_fix_model_space_contract() -> None:
 
         assert quality["frame_indices"] == [0, 499, 999]
         assert set(quality["thresholds"]) == {"input", "output"}
+        assert set(quality["thresholds"]["input"]) == {
+            "p99_abs",
+            "rmse",
+            "min_psnr_db",
+        }

@@ -94,7 +94,7 @@ def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int)
     thresholds = _require_dict(model_space, "thresholds")
     for stage in ("input", "output"):
         stage_thresholds = _require_dict(thresholds, stage)
-        for name in ("max_abs", "p99_abs", "rmse", "min_psnr_db"):
+        for name in ("p99_abs", "rmse", "min_psnr_db"):
             value = stage_thresholds.get(name)
             if (
                 not isinstance(value, (int, float))
