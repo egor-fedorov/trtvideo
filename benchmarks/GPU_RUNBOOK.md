@@ -227,3 +227,31 @@ ceiling.
 Do not publish sequential execution of independent suites as the final
 comparison. Raw manifests, logs, and NVML samples are not committed before
 sanitization and review.
+
+## 7. TensorRT Diagnostic Ceiling
+
+Run the canonical `trtexec` suite separately for each TRT11 engine. It measures
+inference without video decode, color conversion, encode, or mux and is used to
+calculate pipeline efficiency rather than product ranking:
+
+```bash
+make -C benchmarks run-trtexec \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
+```
+
+```bash
+make -C benchmarks run-trtexec \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+```
+
+Repeat both commands at 720p with the corresponding engine paths. Canonical
+defaults are 1000 measured iterations, three runs, two additional runs when
+spread exceeds 5%, ten seconds between runs, and a 1000 ms `trtexec` warmup.
+Results are kept separately under
+`artefacts/benchmarks/diagnostic-trtexec-<workload>-<variant>/`.
+
+The diagnostic uses the TRT11 engine shared by `ai-media-enhancer` and vstrt.
+The separate TRT10 VSGAN engine is not an input to this measurement.
