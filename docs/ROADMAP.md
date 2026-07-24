@@ -89,8 +89,8 @@ to Stage 3.
   suites.
 - [x] Sanitized final acceptance-table generation from raw manifests.
 
-Individual runners remain acceptance/baseline data. A campaign is not
-publishable until the remaining Stage 2 gates are complete.
+Individual runners remain acceptance/baseline data. Only an aggregated campaign
+with completed quality gates is publishable.
 
 ## Stage 3. Parity Campaign
 
@@ -118,8 +118,11 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-- Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
-  from the product table.
+Status: 1080p `trtexec` ceilings and pipeline efficiency are published. Nsight,
+best-tuned, and live-action confirmation runs remain pending.
+
+- [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
+  from the product table for the 1080p baseline.
 - Collect one representative Nsight Systems trace and inspect H2D/D2H copies,
   PCIe traffic, stream gaps, CPU waits, and NVDEC/TensorRT/NVENC overlap.
 - Run a separate best-tuned benchmark: VSGAN with recommended requests, streams,
