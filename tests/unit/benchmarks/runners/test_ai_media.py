@@ -9,6 +9,7 @@ import pytest
 
 from ai_media.benchmarking.environment import relative_artifact_path, sanitize_command
 from ai_media.benchmarking.runner import (
+    PRODUCT_NAME,
     BenchmarkConfig,
     BenchmarkError,
     build_upscale_command,
@@ -125,11 +126,11 @@ def test_suite_runner_rejects_power_limit_drift() -> None:
     assert result.errors == ("GPU power limit changed between measured runs",)
 
 
-def test_single_run_suite_omits_redundant_progress_fraction() -> None:
+def test_single_run_suite_uses_product_name_without_progress_fraction() -> None:
     output = StringIO()
     runner = SuiteRunner(
         SuitePolicy(1, 0, 0.05, 0),
-        label="nvcodec",
+        label=PRODUCT_NAME,
         frames=1000,
         metric_reader=lambda manifest: manifest["metric"],
         power_limit_reader=lambda manifest: manifest["power_limit"],
@@ -145,7 +146,7 @@ def test_single_run_suite_omits_redundant_progress_fraction() -> None:
         }
     )
 
-    assert output.getvalue() == "Benchmark: nvcodec, 1000 frames\n"
+    assert output.getvalue() == "Benchmark: ai-media-enhancer, 1000 frames\n"
 
 
 def test_invalid_run_reports_manifest_errors(capsys: pytest.CaptureFixture[str]) -> None:

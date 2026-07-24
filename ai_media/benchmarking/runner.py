@@ -39,6 +39,8 @@ from ai_media.video.fps import gop_size_for_one_second
 from ai_media.video.info import get_video_info
 from ai_media.video.nvenc import NvencCbrContract
 
+PRODUCT_NAME = "ai-media-enhancer"
+
 
 class BenchmarkError(RuntimeError):
     """Raised for invalid benchmark configuration or assets."""
@@ -345,7 +347,7 @@ def run_one(
         "schema_version": 1,
         "status": "running",
         "run_index": run_index,
-        "product": "ai-media-enhancer",
+        "product": PRODUCT_NAME,
         "backend": config.backend,
         "workload_id": workload_id,
         "variant": config.variant,
@@ -544,7 +546,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     )
     suite_runner = SuiteRunner(
         policy,
-        label=config.backend,
+        label=PRODUCT_NAME,
         frames=config.frames,
         metric_reader=_end_to_end_fps,
         power_limit_reader=_video_power_limit,
@@ -610,7 +612,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
             "canonical_contract": not canonical_errors,
             "errors": publishability_errors,
         },
-        "product": "ai-media-enhancer",
+        "product": PRODUCT_NAME,
         "backend": config.backend,
         "workload_id": workload_id,
         "variant": config.variant,

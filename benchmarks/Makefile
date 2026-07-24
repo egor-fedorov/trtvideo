@@ -23,6 +23,7 @@ TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
 VSGAN_ARGS ?=
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
+TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostic-trtexec-$(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/campaigns/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
@@ -144,7 +145,7 @@ plan-trtexec:
 			--variant $(VARIANT) \
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT) \
+			--output-dir /app/$(TRTEXEC_OUTPUT_DIR) \
 			--dry-run $(ARGS) $(TRTEXEC_ARGS)
 
 plan-vstrt:
@@ -182,7 +183,7 @@ dry-run: plan-trtexec plan-vstrt plan-vsgan
 
 run-trtexec:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT)"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/$(TRTEXEC_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
@@ -194,7 +195,7 @@ run-trtexec:
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/diagnostic-trtexec-$(VARIANT) \
+			--output-dir /app/$(TRTEXEC_OUTPUT_DIR) \
 			$(ARGS) $(TRTEXEC_ARGS)
 
 run-vstrt:

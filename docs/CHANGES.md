@@ -100,6 +100,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Benchmark progress now identifies the project as `ai-media-enhancer` instead
+  of exposing its selected `nvcodec` backend. `trtexec` artifact directories
+  now include the workload name to prevent cross-model overwrites.
 - Versioned the RealESRGAN and SPAN benchmark workloads after the first RTX 3090
   model-space run exposed an over-sensitive gate. Model-space acceptance now
   uses RMSE, p99, and PSNR; `max_abs` remains diagnostic, and input p99 allows

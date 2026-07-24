@@ -44,6 +44,11 @@ make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
 - `run-campaign` - canonical rotation of project/vstrt/VSGAN by round and
   generation of a shared acceptance table.
 
+`run-trtexec` stores each suite under
+`artefacts/benchmarks/diagnostic-trtexec-<workload>-<variant>/`, preventing
+results for different models at the same resolution from overwriting each
+other.
+
 Video2X is excluded because it did not run the canonical
 `RealESRGAN_x2plus`; its FPS therefore did not answer the same-model performance
 question.
