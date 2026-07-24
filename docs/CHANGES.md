@@ -51,8 +51,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
-- Added GitHub Actions checks for Ruff, mypy, compileall, unit tests, and CLI
-  smoke, plus a separate scheduled/manual production and benchmark Docker build.
+- Added GitHub Actions checks for Ruff, mypy, compileall, unit tests, CLI smoke,
+  and BuildKit static validation of the production Dockerfile.
 - Added a lightweight Python 3.12 checks image in `docker/checks.Dockerfile`.
   Regular quality checks no longer require downloading the NVIDIA/TensorRT base
   image.

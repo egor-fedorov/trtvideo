@@ -102,5 +102,7 @@ version change does not require an image rebuild.
 
 GitHub Actions builds the same checks image for pull requests and pushes to
 `main`, then reports Ruff, mypy, compileall, unit tests, and CLI smoke as
-separate steps. Production and benchmark Docker targets are built by a separate
-workflow on `main`, on a weekly schedule, and on manual dispatch.
+separate steps. A separate workflow runs BuildKit static validation for the
+production Dockerfile without downloading the 26 GB runtime image. Full
+production and benchmark builds remain a GPU-host or self-hosted-runner
+acceptance check.
