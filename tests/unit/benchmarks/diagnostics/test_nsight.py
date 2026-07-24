@@ -8,6 +8,7 @@ from benchmarks.scripts.diagnostics.nsight import (
     STATS_REPORTS,
     TRACE_APIS,
     NsightPaths,
+    build_export_command,
     build_nsight_command,
     build_plan,
     build_stats_command,
@@ -82,17 +83,30 @@ def test_nsight_command_enables_required_trace_providers(tmp_path: Path) -> None
     )
 
 
-def test_stats_command_refreshes_sqlite_only_when_requested(tmp_path: Path) -> None:
+def test_stats_command_reads_preexported_sqlite_quietly(tmp_path: Path) -> None:
     command = build_stats_command(
         "nsys",
         STATS_REPORTS[0],
-        tmp_path / "trace.nsys-rep",
-        force_export=True,
+        tmp_path / "trace.sqlite",
     )
 
-    assert "--force-export=true" in command
+    assert "--quiet" in command
+    assert not any(value.startswith("--force-export") for value in command)
     assert command[command.index("--report") + 1] == STATS_REPORTS[0]
     assert command[command.index("--format") + 1] == "csv"
+    assert command[-1] == str(tmp_path / "trace.sqlite")
+
+
+def test_export_command_overwrites_one_sqlite_for_all_reports(tmp_path: Path) -> None:
+    paths = NsightPaths.create(tmp_path)
+
+    command = build_export_command("nsys", paths)
+
+    assert command[:3] == ["nsys", "export", "--type=sqlite"]
+    assert "--force-overwrite=true" in command
+    assert "--quiet=true" in command
+    assert command[command.index("--output") + 1] == str(paths.sqlite)
+    assert command[-1] == str(paths.trace)
 
 
 def test_dry_run_plan_is_explicitly_non_publishable(tmp_path: Path) -> None:

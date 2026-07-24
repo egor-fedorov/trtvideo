@@ -66,6 +66,7 @@ class NsightPaths:
     output_dir: Path
     trace_base: Path
     trace: Path
+    sqlite: Path
     video: Path
     manifest: Path
     stdout: Path
@@ -81,6 +82,7 @@ class NsightPaths:
             output_dir=output_dir,
             trace_base=output_dir / "ai-media",
             trace=output_dir / "ai-media.nsys-rep",
+            sqlite=output_dir / "ai-media.sqlite",
             video=output_dir / "output.mp4",
             manifest=output_dir / "manifest.json",
             stdout=output_dir / "nsys.stdout.log",
@@ -147,20 +149,32 @@ def build_nsight_command(
 def build_stats_command(
     nsys: str,
     report: str,
-    trace: Path,
-    *,
-    force_export: bool,
+    sqlite: Path,
 ) -> list[str]:
     """Build one stable CSV summary command for a captured report."""
     return [
         nsys,
         "stats",
-        f"--force-export={'true' if force_export else 'false'}",
+        "--quiet",
         "--report",
         report,
         "--format",
         "csv",
-        str(trace),
+        str(sqlite),
+    ]
+
+
+def build_export_command(nsys: str, paths: NsightPaths) -> list[str]:
+    """Build one deterministic SQLite export for all stats reports."""
+    return [
+        nsys,
+        "export",
+        "--type=sqlite",
+        "--force-overwrite=true",
+        "--quiet=true",
+        "--output",
+        str(paths.sqlite),
+        str(paths.trace),
     ]
 
 
@@ -305,13 +319,20 @@ def _write_stats(paths: NsightPaths, nsys: str) -> tuple[dict[str, str], list[st
     errors: list[str] = []
     stderr_chunks: list[str] = []
     paths.stats_dir.mkdir(parents=True, exist_ok=True)
-    for index, report in enumerate(STATS_REPORTS):
-        command = build_stats_command(
-            nsys,
-            report,
-            paths.trace,
-            force_export=index == 0,
+    export_code, export_stdout, export_stderr = _run_text(
+        build_export_command(nsys, paths)
+    )
+    if export_stdout or export_stderr:
+        stderr_chunks.append(
+            f"== sqlite export ==\n{export_stdout}{export_stderr}".rstrip() + "\n"
         )
+    if export_code != 0:
+        errors.append(f"Nsight SQLite export failed with code {export_code}")
+    elif not paths.sqlite.is_file():
+        errors.append("Nsight SQLite export was not created")
+
+    for report in STATS_REPORTS if not errors else ():
+        command = build_stats_command(nsys, report, paths.sqlite)
         returncode, stdout, stderr = _run_text(command)
         report_path = paths.stats_dir / f"{report}.csv"
         report_path.write_text(stdout, encoding="utf-8")
@@ -455,6 +476,11 @@ def run_diagnostic(
             "trace": (
                 relative_artifact_path(paths.trace, root)
                 if paths.trace.is_file()
+                else None
+            ),
+            "sqlite": (
+                relative_artifact_path(paths.sqlite, root)
+                if paths.sqlite.is_file()
                 else None
             ),
             "output": (
