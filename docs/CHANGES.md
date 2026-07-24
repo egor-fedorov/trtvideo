@@ -51,6 +51,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added `make demo`, a self-contained GPU workflow using pinned and
+  SHA256-verified RealESRGAN_x2plus weights plus a generated rich-media 720p
+  input. It exports mixed-FP16 ONNX, builds the engine on the current GPU, runs
+  `nvcodec`, and validates the complete 1440p output. Verified intermediates are
+  cached under `.demo/`; `DEMO_FORCE=1` rebuilds generated assets.
+- Added repeatable `export-onnx --size WIDTHxHEIGHT`; omitting it retains the
+  existing 720p and 1080p defaults.
 - Added a shared media-preservation contract and Docker FFmpeg integration
   tests. Both backends now retain all source audio, subtitle, data, attachment,
   chapter, and metadata content when the selected output container supports it.
@@ -188,6 +195,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Removed
 
+- Removed `docker-compose.yml` and its duplicate fixed-path backend examples.
+  The canonical quick-start path is now `make demo`; normal inference continues
+  to use the explicit Docker commands in `README.md`.
 - Removed Video2X from canonical benchmark tooling. Version 6.4.0 ran
   `realesr-animevideov3` instead of the required `RealESRGAN_x2plus`, so its FPS
   could not support a same-model performance claim.

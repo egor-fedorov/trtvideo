@@ -51,6 +51,40 @@ Build the development image with Ruff and mypy:
 make build-dev
 ```
 
+## Quick Demo
+
+On an NVIDIA GPU host, the complete workflow is available as one command:
+
+```bash
+make demo
+```
+
+The target builds the production image, downloads the pinned
+`RealESRGAN_x2plus` v0.2.1 weights, verifies their size and SHA256, and creates a
+one-second 720p MKV with two audio tracks, a subtitle, chapters, metadata, and an
+attachment. It then exports only the 720p ONNX, converts it to mixed FP16,
+builds a TensorRT engine on the current GPU, runs the `nvcodec` pipeline, and
+fully validates the 1440p output.
+
+Verified assets are cached under the ignored `.demo/` directory. The final
+video and machine-readable validation report are:
+
+```text
+.demo/output/demo_1440p.mkv
+.demo/demo-result.json
+```
+
+Use another GPU index or rebuild generated assets explicitly:
+
+```bash
+make demo DEMO_GPU_ID=1
+make demo DEMO_FORCE=1
+```
+
+Remove the complete cache with `make demo-clean`. The demo model is attributed
+to Real-ESRGAN, Xintao Wang et al.; its pinned license is linked in the
+validation report.
+
 ## Models
 
 Model weights, ONNX files, and TensorRT engines are not included in the
@@ -72,7 +106,8 @@ commands as `models/`.
 `export-onnx` loads compatible image-to-image `.pth` checkpoints through
 Spandrel. The current exporter creates 720p and 1080p variants for 2x upscaling
 and has been verified with RealESRGAN_x2plus. An existing ONNX file can be
-passed directly to `prepare-onnx`.
+passed directly to `prepare-onnx`. Use one or more `--size WIDTHxHEIGHT`
+arguments to export only selected resolutions.
 
 ## Docker Workflow
 
@@ -82,8 +117,12 @@ passed directly to `prepare-onnx`.
 docker run --rm \
   -v "$PWD/models:/app/models" \
   ai-media-enhancer:latest export-onnx \
-  --model_path models/pretrained/RealESRGAN_x2plus.pth
+  --model_path models/pretrained/RealESRGAN_x2plus.pth \
+  --size 1280x720
 ```
+
+Without `--size`, the exporter creates the default 1280x720 and 1920x1080
+variants.
 
 ### 2. Prepare ONNX
 
@@ -371,22 +410,6 @@ The current media contract targets SDR 8-bit video. The `nvcodec` backend fails
 fast for inputs other than `yuv420p`/`nv12` and for HDR transfer functions.
 NV12/RGB conversion uses an explicit CV-CUDA color specification, and the output
 receives explicit color tags instead of `unknown`.
-
-## Docker Compose
-
-FFmpeg backend:
-
-```bash
-docker compose run --rm upscale-ffmpeg
-```
-
-NVDEC/NVENC backend:
-
-```bash
-docker compose run --rm upscale-nvcodec
-```
-
-Engine and input video paths are configured in `docker-compose.yml`.
 
 ## Quality Checks
 

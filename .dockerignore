@@ -1,5 +1,6 @@
 /models/
 /videos/
+.demo/
 artefacts/
 venv/
 .venv/

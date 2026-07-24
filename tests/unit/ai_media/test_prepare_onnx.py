@@ -2,12 +2,34 @@ import os
 
 import pytest
 
-from ai_media.cli.export_onnx import export_filename
+from ai_media.cli.export_onnx import build_parser, export_filename, export_filename_for_target
 from ai_media.cli.prepare_onnx import ONNXPrecision, is_dynamic, output_path_for_variant, parse_size
 
 
 def test_export_filename_uses_explicit_model_name() -> None:
     assert export_filename("liveaction_span", 1080) == "liveaction_span_1080p.onnx"
+
+
+def test_export_filename_for_custom_target() -> None:
+    assert (
+        export_filename_for_target(
+            "model",
+            {"name": "640x360", "h": 360, "w": 640},
+        )
+        == "model_640x360.onnx"
+    )
+
+
+def test_export_parser_defaults_to_all_standard_sizes() -> None:
+    args = build_parser().parse_args([])
+
+    assert args.size == []
+
+
+def test_export_parser_accepts_selected_sizes() -> None:
+    args = build_parser().parse_args(["--size", "1280x720", "--size", "640x360"])
+
+    assert args.size == ["1280x720", "640x360"]
 
 
 @pytest.mark.parametrize(

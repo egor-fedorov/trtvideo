@@ -55,8 +55,17 @@ docker run --rm ai-media-enhancer:dev build-engine --help
 
 ### GPU Smoke
 
-A future explicit GPU-host layer should use a short synthetic video and a tiny
-TensorRT engine instead of real SPAN or RealESRGAN artifacts.
+The self-contained manual GPU smoke test is:
+
+```bash
+make demo
+```
+
+It uses pinned RealESRGAN weights and a generated 24-frame 720p rich-media MKV.
+The workflow covers model export, FP16 conversion, TensorRT engine build,
+NVDEC/CV-CUDA/TensorRT/NVENC processing, mux, full decode, frame/timestamp/color
+validation, and preservation of auxiliary media. Generated artifacts are
+cached in `.demo/`; use `DEMO_FORCE=1` to rebuild them.
 
 Validate that:
 
@@ -65,6 +74,9 @@ Validate that:
 - duration and frame count are close to the expected values;
 - `pix_fmt` and color tags are correct;
 - frames are not empty and the video does not freeze on the first frame.
+
+The GPU-free media integration test generates and validates the exact demo
+input command. Engine build and inference still require a GPU host.
 
 ### Benchmark
 

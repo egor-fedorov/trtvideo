@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Export a Spandrel-supported x2 image model to static ONNX variants.
 
-Creates ONNX files for 720p and 1080p resolutions.
+Creates ONNX files for selected resolutions, defaulting to 720p and 1080p.
 
 Usage:
     export-onnx --model_path models/pretrained/model.pth --name model
+    export-onnx --model_path models/pretrained/model.pth --size 1280x720
 """
 
 import argparse
 import os
 import sys
 from typing import Any
+
+from ai_media.cli.prepare_onnx import TARGETS, TargetSpec, parse_size
 
 
 def load_model(model_path: str) -> Any:
@@ -125,7 +128,13 @@ def export_filename(model_name: str, height: int) -> str:
     return f"{model_name}_{height}p.onnx"
 
 
-def main():
+def export_filename_for_target(model_name: str, target: TargetSpec) -> str:
+    """Return a deterministic filename for a parsed target resolution."""
+    return f"{model_name}_{target['name']}.onnx"
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Create the exporter CLI parser."""
     parser = argparse.ArgumentParser(
         description="Export a Spandrel-supported x2 image model to static ONNX"
     )
@@ -146,10 +155,20 @@ def main():
         default="realesrgan_x2plus",
         help="Output model basename (default: realesrgan_x2plus)",
     )
+    parser.add_argument(
+        "--size",
+        action="append",
+        default=[],
+        help="Target input size WIDTHxHEIGHT. Can be repeated. Default: 1280x720 and 1920x1080.",
+    )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
     verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
 
     if not os.path.exists(args.model_path):
         print(f"ERROR: File {args.model_path} not found.")
@@ -166,13 +185,11 @@ def main():
     model = load_model(args.model_path)
     log(f"  Model loaded: {type(model).__name__}")
 
-    # Export for both resolutions
-    configs = [
-        (720, 1280, export_filename(args.name, 720)),
-        (1080, 1920, export_filename(args.name, 1080)),
-    ]
+    targets = [parse_size(size) for size in args.size] or TARGETS
 
-    for input_h, input_w, filename in configs:
+    for target in targets:
+        input_h, input_w = target["h"], target["w"]
+        filename = export_filename_for_target(args.name, target)
         output_path = os.path.join(args.output_dir, filename)
         log(f"\n--- Export {filename} ---")
         export_onnx(model, input_h, input_w, output_path)

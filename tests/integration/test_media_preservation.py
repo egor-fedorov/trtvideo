@@ -4,6 +4,17 @@ from pathlib import Path
 
 import pytest
 
+from ai_media.demo.config import (
+    DEMO_INPUT_HEIGHT,
+    DEMO_INPUT_WIDTH,
+    DemoPaths,
+    DemoVideoContract,
+)
+from ai_media.demo.media import (
+    build_demo_input_command,
+    validate_demo_video,
+    write_demo_media_assets,
+)
 from ai_media.video.preservation import (
     MediaPreservationError,
     ffmpeg_preservation_args,
@@ -217,3 +228,19 @@ def test_mp4_preflight_rejects_unrepresentable_source_streams(tmp_path: Path) ->
             str(tmp_path / "output.mp4"),
             preserve_chapters=True,
         )
+
+
+def test_self_contained_demo_input_passes_its_media_contract(tmp_path: Path) -> None:
+    paths = DemoPaths.under(tmp_path)
+    write_demo_media_assets(paths)
+    paths.input_video.parent.mkdir(parents=True)
+
+    _run(build_demo_input_command(paths))
+    observed = validate_demo_video(
+        paths.input_video,
+        DemoVideoContract(DEMO_INPUT_WIDTH, DEMO_INPUT_HEIGHT),
+    )
+
+    assert observed["width"] == 1280
+    assert observed["height"] == 720
+    assert observed["frames"] == 24

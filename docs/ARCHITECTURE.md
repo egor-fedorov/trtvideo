@@ -17,6 +17,7 @@ The main component boundaries are:
 ```text
 ai_media/
   cli/          argument parsing and command/backend selection
+  demo/         pinned quick-demo assets, orchestration, and media validation
   pipelines/    decode -> inference -> encode orchestration
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
   video/        ffprobe metadata, FPS, bitrate, and colorspace helpers

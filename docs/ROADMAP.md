@@ -140,7 +140,8 @@ best-tuned, and live-action confirmation runs remain pending.
 ## Stage 5. Open-Source Release
 
 - Add `LICENSE` and audit dependency, model, and media licenses.
-- Keep the English README as the primary README and add a one-command demo.
+- [x] Keep the English README as the primary README and add a one-command
+  cached GPU demo covering model download through validated rich-media output.
 - [x] Add CI for Ruff, mypy, pytest, and static Dockerfile validation without
   requiring a GPU.
 - Move full production and benchmark Docker builds to a larger or self-hosted
