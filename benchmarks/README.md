@@ -7,9 +7,8 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 
 - `methodology.md` - comparison classes and validity criteria.
 - `workloads/` - RealESRGAN and SPAN workload manifests.
-- `implementations.json` - pinned diagnostic, parity, and product
-  implementations.
-- `docker/` - TensorRT 11 vstrt parity and stock VSGAN environments.
+- `implementations.json` - pinned implementations and execution profiles.
+- `docker/` - TensorRT 11 vstrt and pinned VSGAN environments.
 - `scripts/runners/` - project, vstrt, VSGAN, and trtexec execution.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
@@ -40,8 +39,8 @@ The public benchmark interface has three independent workflows:
 
 - `run-project` - project-only regression measurement used before and after a
   code or dependency change;
-- `run-comparative` - canonical rotated project/vstrt/VSGAN comparison used for
-  public performance claims;
+- `run-comparative` - canonical rotated single-stream parity comparison used
+  for the currently published performance claims;
 - `run-trtexec`, `profile-nsight`, and per-stage profiling - diagnostics that
   are never rows in the competitor table.
 
@@ -52,10 +51,11 @@ artifacts are separated under `artefacts/benchmarks/project/`,
 
 ## Comparison Matrix
 
-- `run-vstrt` - technical parity with the same TensorRT 11 engine.
-- `run-vsgan` - stock product comparison from the same ONNX but with a separate
-  TRT10.16 engine because serialized engines are incompatible across runtime
-  versions.
+- `run-vstrt` - pinned vstrt with a selectable scheduling profile and the same
+  TensorRT 11 engine.
+- `run-vsgan` - pinned upstream VSGAN with a selectable scheduling profile and
+  a separate TRT10.16 engine because serialized engines are incompatible across
+  runtime versions.
 - `run-trtexec` - diagnostic inference ceiling, not a competitor.
 - `profile-nsight` - one non-publishable project timeline for pipeline analysis.
 - `model-space-parity` - compare FP32 RGB tensors immediately before and after
@@ -98,6 +98,34 @@ collection.
 Video2X is excluded because it did not run the canonical
 `RealESRGAN_x2plus`; its FPS therefore did not answer the same-model performance
 question.
+
+## Execution Profiles
+
+`VAPOURSYNTH_MODE` selects the scheduling contract for both external runners:
+
+- `parity` is the default and reproduces the published one-request/one-stream
+  baseline;
+- `upstream-default` uses the defaults recorded from each pinned upstream;
+- `tuned` requires explicit `--requests`, `--num-streams`, `--vs-threads`, and
+  `--cuda-graph` or `--no-cuda-graph` values.
+
+For example, these commands only generate plans and do not require a GPU:
+
+```bash
+make -C benchmarks plan-vstrt \
+  VAPOURSYNTH_MODE=upstream-default \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
+
+make -C benchmarks plan-vsgan \
+  VAPOURSYNTH_MODE=upstream-default \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+For tuned experiments, pass implementation-specific values through
+`VSTRT_ARGS` or `VSGAN_ARGS`. Tuned values must first be selected by a documented
+sweep and then frozen before a measured campaign. The canonical comparative
+campaign directories currently remain parity-only; mode-specific campaign
+namespaces are the next benchmark infrastructure step.
 
 ## Assets
 
@@ -149,7 +177,7 @@ the native binary.
 
 Upstream FFmpeg requires NVENC API 13.1 and driver 610+. The benchmark wrapper
 uses pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5` as an external encoder adapter and
-the source of `ffprobe`; the stock VSGAN inference stack remains unchanged.
+the source of `ffprobe`; the pinned VSGAN inference stack remains unchanged.
 
 Command-generation checks do not require a GPU. A VSGAN plan needs the path of
 the future TRT10 engine, but the file itself is optional in dry-run mode:
@@ -197,7 +225,7 @@ make -C benchmarks model-space-parity \
 ```
 
 The command captures canonical frames `0`, `499`, and `999` from the project,
-TRT11 vstrt, and stock VSGAN. It compares normalized FP32 CHW RGB tensors before
+TRT11 vstrt, and pinned VSGAN. It compares normalized FP32 CHW RGB tensors before
 and after TensorRT using thresholds fixed in the workload manifest. Raw tensors
 and `model-space-parity.json` are written under
 `artefacts/benchmarks/comparative/quality/model-space-<workload>-<variant>/`.

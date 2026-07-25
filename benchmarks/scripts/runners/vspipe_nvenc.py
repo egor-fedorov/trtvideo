@@ -11,13 +11,13 @@ from benchmarks.scripts.runners.common import CommandSpec, command_spec
 
 @dataclass(frozen=True)
 class VspipeNvencConfig:
-    """Immutable inputs shared by the vstrt and stock VSGAN command paths."""
+    """Immutable inputs shared by the vstrt and pinned VSGAN command paths."""
 
     script: str
     source: str
     engine: str
     gpu_id: int
-    requests: int
+    requests: int | None
     cuda_graph: bool
     num_streams: int
     encoder: NvencCbrContract
@@ -35,19 +35,23 @@ class VspipeNvencConfig:
             "0",
             "--end",
             str(frames - 1),
-            "--requests",
-            str(self.requests),
-            "--arg",
-            f"source={self.source}",
-            "--arg",
-            f"engine={self.engine}",
-            "--arg",
-            f"gpu_id={self.gpu_id}",
-            "--arg",
-            f"cuda_graph={int(self.cuda_graph)}",
-            "--arg",
-            f"num_streams={self.num_streams}",
         ]
+        if self.requests is not None:
+            vspipe.extend(["--requests", str(self.requests)])
+        vspipe.extend(
+            [
+                "--arg",
+                f"source={self.source}",
+                "--arg",
+                f"engine={self.engine}",
+                "--arg",
+                f"gpu_id={self.gpu_id}",
+                "--arg",
+                f"cuda_graph={int(self.cuda_graph)}",
+                "--arg",
+                f"num_streams={self.num_streams}",
+            ]
+        )
         for name, value in self.script_arguments:
             vspipe.extend(["--arg", f"{name}={value}"])
         vspipe.extend([self.script, "-"])

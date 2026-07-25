@@ -8,6 +8,8 @@
     "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
     "source_dirty": false,
     "media_preservation_included": true,
+    "comparison_mode": "single-stream-parity",
+    "claim_scope": "End-to-end throughput with vspipe requests=1, TensorRT streams=1, and CUDA Graph disabled; not upstream-default or best-tuned competitor throughput.",
     "variants": {
       "720p": {
         "input": "1280x720",
@@ -35,6 +37,18 @@
     "spread_threshold": 0.05,
     "stability_policy": "full-range-3-then-consensus-4-of-5",
     "cuda_graph": false,
+    "competitor_scheduling": {
+      "vstrt": {
+        "vspipe_requests": 1,
+        "tensorrt_streams": 1,
+        "vapoursynth_threads": "runtime-default"
+      },
+      "vsgan": {
+        "vspipe_requests": 1,
+        "tensorrt_streams": 1,
+        "vapoursynth_threads": 8
+      }
+    },
     "cpu_accounting": {
       "accounting": "getrusage(RUSAGE_CHILDREN)",
       "available_logical_cpus": 12,
@@ -119,9 +133,9 @@
         "image_id": "sha256:a2d6b3c97fb8af447e5e1afbaef5a4a796afcc3f4e85afbed0a8482c9e5f96e2",
         "implementation": {
           "bestsource_version": "19.0",
-          "comparison_class": "parity",
+          "comparison_class": "single-stream-parity",
           "image": "ai-media-enhancer:benchmark-vstrt",
-          "notes": "Technical parity target built against the same TensorRT 11 base as the project.",
+          "notes": "Technical single-stream parity target built against the same TensorRT 11 base and engine as the project; not an upstream-default or best-tuned throughput result.",
           "role": "parity",
           "source": "https://github.com/AmusementClub/vs-mlrt",
           "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
@@ -135,13 +149,13 @@
         "base_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
         "image_id": "sha256:8a3e9c6cdce45198a7dadc623a9d050e04b972c021fb32f52871163a4e416e03",
         "implementation": {
-          "comparison_class": "product",
+          "comparison_class": "single-stream-parity",
           "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
           "exact_engine_match": false,
           "exact_model_match": true,
           "image": "ai-media-enhancer:benchmark-vsgan",
-          "notes": "Pinned stock VSGAN inference environment with the native vspipe binary and no AVX-512 requirement. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine.",
-          "role": "product",
+          "notes": "Pinned upstream VSGAN inference environment measured with benchmark parity settings requests=1, num_streams=1, and CUDA Graph disabled rather than its upstream-default throughput configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine.",
+          "role": "parity",
           "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
           "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
           "tensorrt_version": "10.16",

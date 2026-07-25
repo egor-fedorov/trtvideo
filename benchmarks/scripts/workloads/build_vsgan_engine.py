@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a stock VSGAN TensorRT 10 engine and write a parity sidecar."""
+"""Build a pinned VSGAN TensorRT 10 engine and write a parity sidecar."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def build_command(
     engine_path: Path,
     timing_cache: Path | None,
 ) -> list[str]:
-    """Return the strongly typed stock trtexec build command."""
+    """Return the strongly typed pinned-runtime trtexec build command."""
     command = [
         "trtexec",
         f"--onnx={onnx_path}",

@@ -1,4 +1,4 @@
-"""Stock VSGAN configuration script for full-frame x2 parity runs."""
+"""Pinned VSGAN configuration script for full-frame x2 benchmark runs."""
 
 import vapoursynth as vs
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan or run the pinned stock VSGAN full-video benchmark."""
+"""Plan or run a pinned VSGAN video benchmark profile."""
 
 from __future__ import annotations
 
@@ -34,6 +34,13 @@ from benchmarks.scripts.runners.external_video_suite import (
     ExternalVideoWorkload,
     run_external_video_suite,
 )
+from benchmarks.scripts.runners.vapoursynth_profile import (
+    VapourSynthExecutionProfile,
+    add_execution_profile_arguments,
+    comparison_class,
+    resolve_execution_profile,
+    validate_declared_profile,
+)
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
 
 VSGAN_SCRIPT = "/app/benchmarks/vsgan/upscale.vpy"
@@ -46,8 +53,10 @@ def build_vsgan_command(
     output_path: Path,
     frames: int,
     source: str | None = None,
+    profile: VapourSynthExecutionProfile | None = None,
 ) -> CommandSpec:
-    """Build the stock VSGAN vspipe-to-NVENC command pipeline."""
+    """Build the pinned VSGAN vspipe-to-NVENC command pipeline."""
+    profile = profile or resolve_execution_profile(args, "vsgan")
     variant = find_variant(manifest, args.variant)
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     fps_num, fps_den = (int(part) for part in manifest["clip"]["fps"].split("/", 1))
@@ -61,11 +70,15 @@ def build_vsgan_command(
         source=source or args.input,
         engine=args.engine,
         gpu_id=args.gpu_id,
-        requests=args.requests,
-        cuda_graph=args.cuda_graph,
-        num_streams=args.num_streams,
+        requests=profile.requests,
+        cuda_graph=profile.cuda_graph,
+        num_streams=profile.num_streams,
         encoder=encoder,
-        script_arguments=(("vs_threads", str(args.vs_threads)),),
+        script_arguments=(
+            (("vs_threads", str(profile.vapoursynth_threads)),)
+            if profile.vapoursynth_threads is not None
+            else ()
+        ),
     ).build(output_path=output_path, frames=frames)
 
 
@@ -82,7 +95,7 @@ def _validate_parity_engine(
         raise CompetitorError("VSGAN parity engine must be strongly typed")
     version = str(sidecar.get("tensorrt_version", "")).replace(".", "")
     if not version.startswith("1016"):
-        raise CompetitorError("Stock VSGAN engine must be built by TensorRT 10.16")
+        raise CompetitorError("Pinned VSGAN engine must be built by TensorRT 10.16")
     builder_base_image = sidecar.get("builder_base_image")
     runtime_base_image = os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown")
     if runtime_base_image != expected_base_image:
@@ -106,11 +119,25 @@ def _validate_parity_engine(
         )
 
 
-def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Build a machine-readable stock VSGAN plan."""
+def build_plan(
+    args: argparse.Namespace,
+    *,
+    profile: VapourSynthExecutionProfile | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build a machine-readable pinned VSGAN plan."""
+    profile = profile or resolve_execution_profile(args, "vsgan")
     manifest = load_json(Path(args.manifest))
     implementations = load_json(Path(args.implementations))
     implementation = implementation_config(implementations, "vsgan")
+    validate_declared_profile(implementation, profile)
+    measured_implementation = dict(implementation)
+    result_class = comparison_class(
+        str(implementation["comparison_class"]),
+        profile,
+    )
+    measured_implementation["comparison_class"] = result_class
+    if profile.mode != "parity":
+        measured_implementation["role"] = "product"
     parameters = benchmark_parameters(args, manifest)
     variant = find_variant(manifest, args.variant)
     input_path = str(Path("/app") / variant["path"])
@@ -121,6 +148,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
         output_path=output_dir / "dry-run-warmup.mp4",
         frames=parameters["warmup_frames"],
         source=input_path,
+        profile=profile,
     )
     measured = build_vsgan_command(
         args,
@@ -128,6 +156,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
         output_path=output_dir / "dry-run-output.mp4",
         frames=parameters["frames"],
         source=input_path,
+        profile=profile,
     )
     fps_num, fps_den = (int(part) for part in manifest["clip"]["fps"].split("/", 1))
     encoder = NvencCbrContract(
@@ -136,11 +165,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     )
     parameters.update(
         {
-            "mode": args.mode,
-            "cuda_graph": args.cuda_graph,
-            "num_streams": args.num_streams,
-            "vspipe_requests": args.requests,
-            "vapoursynth_threads": args.vs_threads,
+            **profile.as_parameters(),
             "batch_size": 1,
             "full_frame": True,
             "tiling": False,
@@ -153,8 +178,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     plan = plan_document(
         product="VSGAN-tensorrt-docker",
         backend="VapourSynth/vstrt",
-        comparison_class=implementation["comparison_class"],
-        implementation=implementation,
+        comparison_class=result_class,
+        implementation=measured_implementation,
         manifest=manifest,
         variant_name=args.variant,
         parameters=parameters,
@@ -170,7 +195,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
             asset_requirement(args.manifest, "workload_manifest"),
         ],
         limitations=[
-            "Stock VSGAN uses TensorRT 10.16 and therefore receives a separate engine.",
+            "Pinned VSGAN uses TensorRT 10.16 and therefore receives a separate engine.",
             "The engine must be built from the same canonical ONNX on the same GPU.",
             "The mounted .vpy file is configuration only; no VSGAN source is patched.",
         ],
@@ -179,13 +204,9 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Benchmark stock VSGAN")
+    parser = argparse.ArgumentParser(description="Benchmark pinned VSGAN")
     add_common_arguments(parser, engine=True)
-    parser.add_argument("--mode", choices=["parity", "tuned"], default="parity")
-    parser.add_argument("--requests", type=int, default=1)
-    parser.add_argument("--num-streams", type=int, default=1)
-    parser.add_argument("--vs-threads", type=int, default=8)
-    parser.add_argument("--cuda-graph", action="store_true")
+    add_execution_profile_arguments(parser)
     parser.add_argument("--keep-outputs", action="store_true")
     return parser
 
@@ -193,15 +214,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     try:
-        if args.requests <= 0 or args.num_streams <= 0 or args.vs_threads <= 0:
-            raise CompetitorError("requests, streams and threads must be positive")
-        if args.mode == "parity" and (
-            args.requests != 1 or args.num_streams != 1 or args.cuda_graph
-        ):
-            raise CompetitorError(
-                "Parity mode requires requests=1, num_streams=1 and CUDA Graph disabled"
-            )
-        plan, manifest = build_plan(args)
+        profile = resolve_execution_profile(args, "vsgan")
+        plan, manifest = build_plan(args, profile=profile)
         if args.dry_run:
             write_json_target(plan, args.json)
             return
@@ -260,11 +274,7 @@ def main() -> None:
             sample_interval_ms=parameters["nvml_sample_interval_ms"],
             gpu_id=args.gpu_id,
             implementation_parameters={
-                "mode": args.mode,
-                "requests": args.requests,
-                "num_streams": args.num_streams,
-                "vapoursynth_threads": args.vs_threads,
-                "cuda_graph": args.cuda_graph,
+                **profile.as_parameters(),
                 "batch_size": 1,
                 "full_frame": True,
                 "tiling": False,
@@ -276,6 +286,7 @@ def main() -> None:
                 output_path=path,
                 frames=frames,
                 source=str(input_path),
+                profile=profile,
             ),
             measured_command=lambda path, frames: build_vsgan_command(
                 args,
@@ -283,6 +294,7 @@ def main() -> None:
                 output_path=path,
                 frames=frames,
                 source=str(input_path),
+                profile=profile,
             ),
             keep_outputs=args.keep_outputs,
         )

@@ -130,6 +130,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Reclassified the published RTX 3090 comparison as a single-stream parity
+  baseline. The result now explicitly records the one-request/one-stream
+  VapourSynth contract and no longer presents SPAN deltas as stock or
+  best-tuned competitor throughput.
+- Added validated `parity`, `upstream-default`, and `tuned` execution profiles
+  to both VapourSynth benchmark runners. Automatic vspipe scheduling now omits
+  `--requests`, while tuned runs require every scheduling choice explicitly.
 - Comparative campaign stability now uses the full spread for three rounds and,
   after an automatic extension to five, accepts an explicit four-of-five
   consensus within the same 5% threshold. Raw values and headline medians still

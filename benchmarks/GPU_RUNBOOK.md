@@ -23,6 +23,11 @@ For `run-project`, do not build vstrt/VSGAN images or engines and do not run
 validates the media, timestamp, color, and bitrate contract. Quality gates are
 cross-product parity checks and are consumed only by comparative campaigns.
 
+All comparative commands in this runbook use `VAPOURSYNTH_MODE=parity`, which
+is the default. This reproduces the published one-request/one-stream baseline.
+Use `upstream-default` or `tuned` only for standalone plans and smoke tests until
+mode-specific campaign directories and aggregation are implemented.
+
 ## 1. Build And Assets
 
 ```bash
@@ -89,7 +94,7 @@ docker run --rm --gpus all \
   --timing-cache models/cache/benchmark-trt11.cache
 ```
 
-Stock VSGAN uses TensorRT 10.16 and therefore receives a separate engine built
+Pinned VSGAN uses TensorRT 10.16 and therefore receives a separate engine built
 from the same ONNX. The builder stores a log and sidecar:
 
 ```bash

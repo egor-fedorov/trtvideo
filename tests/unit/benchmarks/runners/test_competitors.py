@@ -28,7 +28,12 @@ from benchmarks.scripts.runners.vsgan import (
 from benchmarks.scripts.runners.vsgan import (
     build_plan as build_vsgan_plan,
 )
-from benchmarks.scripts.runners.vstrt import build_plan as build_vstrt_plan
+from benchmarks.scripts.runners.vstrt import (
+    build_plan as build_vstrt_plan,
+)
+from benchmarks.scripts.runners.vstrt import (
+    build_vstrt_command,
+)
 from benchmarks.scripts.workloads.build_vsgan_engine import (
     build_command as build_vsgan_engine_command,
 )
@@ -62,7 +67,7 @@ def common_args(**overrides) -> argparse.Namespace:
         "requests": 1,
         "num_streams": 1,
         "mode": "parity",
-        "vs_threads": 8,
+        "vs_threads": None,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -169,7 +174,7 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert args.input == original_input
 
 
-def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:
+def test_vsgan_command_uses_pinned_script_and_explicit_nvenc_contract() -> None:
     args = common_args()
 
     spec = build_vsgan_command(
@@ -184,6 +189,7 @@ def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:
     assert "--progress" in vspipe
     assert "num_streams=1" in vspipe
     assert "cuda_graph=0" in vspipe
+    assert "vs_threads=8" in vspipe
     assert vspipe[-2] == "/app/benchmarks/vsgan/upscale.vpy"
     assert ffmpeg[ffmpeg.index("-rc") + 1] == "cbr"
     assert ffmpeg[ffmpeg.index("-b:v") + 1] == "60000000"
@@ -192,10 +198,10 @@ def test_vsgan_command_uses_stock_script_and_explicit_nvenc_contract() -> None:
     assert ffmpeg[ffmpeg.index("-bf") + 1] == "0"
 
 
-def test_vsgan_plan_is_pinned_product_parity() -> None:
+def test_vsgan_plan_is_single_stream_parity() -> None:
     plan, _ = build_vsgan_plan(common_args())
 
-    assert plan["comparison_class"] == "product"
+    assert plan["comparison_class"] == "single-stream-parity"
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
     assert plan["implementation"]["upstream_tag"] == "latest_no_avx512"
@@ -204,6 +210,92 @@ def test_vsgan_plan_is_pinned_product_parity() -> None:
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
+
+
+def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
+    args = common_args(
+        mode="upstream-default",
+        requests=None,
+        num_streams=None,
+        cuda_graph=None,
+    )
+
+    plan, benchmark_manifest = build_vstrt_plan(args)
+    vspipe, _ = build_vstrt_command(
+        args,
+        benchmark_manifest,
+        output_path=Path("/app/artefacts/output.mp4"),
+        frames=1000,
+    )
+
+    assert "--requests" not in vspipe
+    assert "num_streams=1" in vspipe
+    assert not any(value.startswith("vs_threads=") for value in vspipe)
+    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["vspipe_requests"] == "auto"
+    assert plan["parameters"]["vapoursynth_threads"] == "auto"
+
+
+def test_vsgan_upstream_default_matches_pinned_configuration() -> None:
+    args = common_args(
+        mode="upstream-default",
+        requests=None,
+        num_streams=None,
+        cuda_graph=None,
+    )
+
+    plan, benchmark_manifest = build_vsgan_plan(args)
+    vspipe, _ = build_vsgan_command(
+        args,
+        benchmark_manifest,
+        output_path=Path("/app/artefacts/output.mp4"),
+        frames=1000,
+    )
+
+    assert "--requests" not in vspipe
+    assert "num_streams=4" in vspipe
+    assert "vs_threads=4" in vspipe
+    assert plan["comparison_class"] == "upstream-default"
+    assert plan["implementation"]["role"] == "product"
+    assert plan["parameters"]["vspipe_requests"] == "auto"
+
+
+def test_tuned_profile_requires_explicit_scheduling_contract() -> None:
+    with pytest.raises(CompetitorError, match="tuned requires explicit"):
+        build_vsgan_plan(
+            common_args(
+                mode="tuned",
+                requests=None,
+                num_streams=None,
+                vs_threads=None,
+                cuda_graph=None,
+            )
+        )
+
+
+def test_tuned_profile_records_explicit_scheduling_contract() -> None:
+    args = common_args(
+        mode="tuned",
+        requests="auto",
+        num_streams=3,
+        vs_threads=6,
+        cuda_graph=True,
+    )
+
+    plan, benchmark_manifest = build_vstrt_plan(args)
+    vspipe, _ = build_vstrt_command(
+        args,
+        benchmark_manifest,
+        output_path=Path("/app/artefacts/output.mp4"),
+        frames=1000,
+    )
+
+    assert "--requests" not in vspipe
+    assert "num_streams=3" in vspipe
+    assert "vs_threads=6" in vspipe
+    assert "cuda_graph=1" in vspipe
+    assert plan["comparison_class"] == "tuned"
+    assert plan["parameters"]["cuda_graph"] is True
 
 
 def test_vsgan_engine_build_is_static_strongly_typed() -> None:

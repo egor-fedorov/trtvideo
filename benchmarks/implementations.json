@@ -20,12 +20,30 @@
       "vapoursynth_headers_revision": "325756ed04588b31840fdb74479537cddcba4bf7",
       "bestsource_version": "19.0",
       "tensorrt_version": "11.0.0",
+      "execution_profiles": {
+        "parity": {
+          "vspipe_requests": 1,
+          "num_streams": 1,
+          "vapoursynth_threads": "auto",
+          "cuda_graph": false
+        },
+        "upstream-default": {
+          "vspipe_requests": "auto",
+          "num_streams": 1,
+          "vapoursynth_threads": "auto",
+          "cuda_graph": false,
+          "source": "https://github.com/AmusementClub/vs-mlrt/blob/885e8bb827fc431fce8e3109e7d60b0c38aa2035/vstrt/README.md"
+        },
+        "tuned": {
+          "configuration": "Explicit requests, num_streams, vapoursynth_threads, and cuda_graph values are required."
+        }
+      },
       "notes": "Technical parity target built against the same TensorRT 11 base as the project."
     },
     "vsgan": {
-      "role": "product",
+      "role": "parity",
       "version": "2026-06-22",
-      "comparison_class": "product",
+      "comparison_class": "single-stream-parity",
       "image": "ai-media-enhancer:benchmark-vsgan",
       "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
       "upstream_tag": "latest_no_avx512",
@@ -35,7 +53,25 @@
       "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
       "exact_model_match": true,
       "exact_engine_match": false,
-      "notes": "Pinned stock VSGAN inference environment with the native vspipe binary and no AVX-512 requirement. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the stock TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+      "execution_profiles": {
+        "parity": {
+          "vspipe_requests": 1,
+          "num_streams": 1,
+          "vapoursynth_threads": 8,
+          "cuda_graph": false
+        },
+        "upstream-default": {
+          "vspipe_requests": "auto",
+          "num_streams": 4,
+          "vapoursynth_threads": 4,
+          "cuda_graph": false,
+          "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker/blob/f4c06ed08e0d09952cf8671ec453f53c029c2158/inference_config.py"
+        },
+        "tuned": {
+          "configuration": "Explicit requests, num_streams, vapoursynth_threads, and cuda_graph values are required."
+        }
+      },
+      "notes": "Pinned upstream VSGAN inference environment measured with the single-stream parity configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine."
     }
   }
 }

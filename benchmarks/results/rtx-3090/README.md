@@ -1,8 +1,8 @@
-# RTX 3090 Multi-Resolution Parity Benchmark
+# RTX 3090 Multi-Resolution Single-Stream Parity Baseline
 
-This snapshot publishes the validated RealESRGAN_x2plus and SPAN parity
-campaigns executed on 2026-07-25. All measured processes and benchmark images
-used clean measurement revision
+This snapshot publishes validated RealESRGAN_x2plus and SPAN single-stream
+parity campaigns executed on 2026-07-25. All measured processes and benchmark
+images used clean measurement revision
 `0fc30377046d2c40207d143b1239d8f24e46e7d4`, which includes the media
 preservation path.
 
@@ -24,17 +24,33 @@ startup/finalize path without adding ancillary streams to this workload.
 - CPU: AMD Ryzen 5 5600, 6 cores / 12 logical CPUs.
 - NVIDIA driver: 595.71.05.
 - Project runtime: TensorRT 11.0.0.114, CUDA 13.0, Python 3.12.3.
-- Stock VSGAN runtime: TensorRT 10.16.
+- Pinned upstream VSGAN runtime: TensorRT 10.16.
 - Input: Sintel, 24 FPS, limited-range BT.709 H.264 without B-frames.
 - Measurement: 100 warmup frames, 1000 measured frames, three rotated rounds.
 - Stability: two additional complete rounds when any three-run spread exceeds
   5%; a four-of-five consensus may accept one explicitly reported outlier.
 - CUDA Graph: disabled.
+- External VapourSynth scheduling: one vspipe request and one TensorRT stream.
+  VSGAN used eight explicitly configured VapourSynth threads; the TRT11 vstrt
+  runner used the VapourSynth runtime default.
 - Power policy: no manual power reduction was applied. The active and default
   board limit was 350 W; `sw_power_cap` was observed when the card reached that
   default limit.
 
-## End-To-End Results
+## Claim Boundary
+
+The VSGAN container is pinned to an upstream image, but these measurements do
+not use its upstream-default throughput configuration. Both VapourSynth runners
+were deliberately restricted to `requests=1`, `num_streams=1`, and disabled
+CUDA Graph. The project used its regular production NVDEC/CV-CUDA/TensorRT/NVENC
+path.
+
+The table therefore compares end-to-end pipelines under a reproducible
+single-stream contract. It does not establish maximum or upstream-default
+VSGAN/vstrt throughput. This distinction is especially important for SPAN,
+where the VapourSynth runners reached only about 37% GPU utilization.
+
+## Single-Stream End-To-End Results
 
 | Workload | Input | ai-media | vs-mlrt | VSGAN |
 |---|---|---:|---:|---:|
@@ -43,12 +59,17 @@ startup/finalize path without adding ancillary streams to this workload.
 | SPAN | 1080p | **25.104 FPS** | 9.348 FPS | 9.018 FPS |
 | SPAN | 720p | **49.941 FPS** | 19.825 FPS | 20.315 FPS |
 
-The project was faster than `vs-mlrt` / stock VSGAN by:
+Under this single-stream contract, the project was faster than `vs-mlrt` /
+the pinned VSGAN runtime by:
 
 - RealESRGAN 1080p: 20.43% / 20.20%;
 - RealESRGAN 720p: 16.10% / 14.59%;
 - SPAN 1080p: 168.54% / 178.38%;
 - SPAN 720p: 151.91% / 145.83%.
+
+The SPAN deltas expose the overhead of the measured single-request
+VapourSynth/BestSource/Y4M path relative to the GPU-resident project pipeline.
+They are not a product claim against tuned or upstream-default VSGAN settings.
 
 ### RealESRGAN_x2plus 1080p
 
@@ -146,5 +167,5 @@ metrics, quality results, TensorRT ceilings, and compact Nsight findings.
 Multi-gigabyte MP4 files, FP32 tensor captures, NVML time series, engines,
 models, and profiler traces remain outside Git.
 
-Best-tuned and live-action confirmation campaigns remain future work and must
-be published separately from this parity snapshot.
+Upstream-default/tuned and live-action confirmation campaigns remain future
+work and must be published separately from this single-stream parity snapshot.

@@ -10,8 +10,9 @@ remain outside Git.
 
 ## Baselines
 
-- [RTX 3090 multi-resolution parity benchmark](rtx-3090/README.md) -
+- [RTX 3090 multi-resolution single-stream parity baseline](rtx-3090/README.md) -
   validated `720p -> 1440p` and `1080p -> 4K` RealESRGAN_x2plus and SPAN
   campaigns measured on runtime revision
   `0fc30377046d2c40207d143b1239d8f24e46e7d4`, including quality gates,
-  TensorRT ceilings, and an Nsight diagnostic.
+  TensorRT ceilings, and an Nsight diagnostic. It does not represent
+  upstream-default or best-tuned competitor throughput.

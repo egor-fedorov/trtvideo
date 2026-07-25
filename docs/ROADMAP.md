@@ -14,13 +14,14 @@ The architectural claim under test is:
 
 Results are divided into independent classes:
 
-1. Technical parity: `ai-media-enhancer` against locally built
-   `VapourSynth/vstrt` on TensorRT 11 with the same serialized engine.
-2. Stock product: `ai-media-enhancer` against pinned stock
-   `VSGAN-tensorrt-docker` with the same ONNX but separate native engines. Stock
-   VSGAN uses TensorRT 10.16 and cannot load a TensorRT 11 engine.
+1. Single-stream parity: `ai-media-enhancer` against locally built
+   `VapourSynth/vstrt` and a pinned upstream VSGAN runtime with one vspipe
+   request, one TensorRT stream, and CUDA Graph disabled.
+2. Product-default/tuned: future campaigns with documented upstream defaults or
+   separately selected best-performing settings. These results remain separate
+   from single-stream parity.
 3. Diagnostics: `trtexec`, stage profiling, and Nsight. These are not
-   competitors and do not appear as rows in the product table.
+   competitors and do not appear as rows in the comparative table.
 
 Video2X is excluded: version 6.4.0 does not support the universal
 `RealESRGAN_x2plus` used here and runs a different anime model. Comparing its FPS
@@ -34,13 +35,13 @@ Mandatory workloads:
 ## Stage 0. Rebaseline Tooling
 
 Status: implemented offline. `make check`, benchmark/TRT11 vstrt image builds,
-runner dry runs, and the static VSGAN Dockerfile check pass. The complete stock
+runner dry runs, and the static VSGAN Dockerfile check pass. The complete pinned
 VSGAN image build, TensorRT engines, and runtime smoke tests belong to GPU
 acceptance in Stage 1.
 
 - Remove Video2X from canonical tooling and documentation.
 - Move `trtexec` to the diagnostic/reference class.
-- Add a pinned stock VSGAN image without changing its internal code.
+- Add a pinned upstream VSGAN image without changing its internal code.
 - Keep a strict TRT11 `vstrt` runner for technical parity.
 - Add a SPAN workload with verifiable source hash, attribution, and license.
 - Build a TRT10.16 VSGAN engine from the canonical mixed-FP16 ONNX on the
@@ -54,9 +55,9 @@ The target card for the first campaign is one physical GeForce RTX 3090 with
 24 GB of VRAM.
 
 - Record driver, power limit, clocks, thermal state, and immutable image IDs.
-- Build project TRT11 engines and stock VSGAN TRT10.16 engines for RealESRGAN and
+- Build project TRT11 engines and pinned VSGAN TRT10.16 engines for RealESRGAN and
   SPAN on this GPU. Never reuse engines across TensorRT runtimes.
-- Run a 720p smoke test for every runner: project, TRT11 `vstrt`, stock VSGAN,
+- Run a 720p smoke test for every runner: project, TRT11 `vstrt`, pinned VSGAN,
   and diagnostic `trtexec`. Repeat at 1080p.
 - For each video output, validate complete decode, frame count, timestamps, color
   tags, GOP/B-frames, bitrate, and size.
@@ -91,12 +92,14 @@ accounting, lifecycle timings, and both quality gates passed.
 Individual runners remain acceptance/baseline data. Only an aggregated campaign
 with completed quality gates is publishable.
 
-## Stage 3. Parity Campaign
+## Stage 3. Single-Stream Parity Campaign
 
 Status: complete. The validated RTX 3090 `1080p -> 4K` and
 `720p -> 1440p` campaigns for RealESRGAN and SPAN include media preservation
 and are published in `benchmarks/results/rtx-3090/`. The measured runtime
 revision is `0fc3037`; the publication commit is tracked separately by Git.
+These results validate the fixed `requests=1`, `streams=1` contract and are not
+upstream-default or maximum-throughput product claims.
 
 - Run 100 warmup and 1000 measured frames, at least three runs, and two
   additional runs when spread exceeds 5%.
@@ -121,8 +124,9 @@ The success criterion is fixed before measurement:
 Status: parity diagnostics are complete. All four `trtexec` ceilings and
 pipeline-efficiency values are published. A clean SPAN 1080p Nsight trace used
 an engine rebuilt on the profiled RTX 3090 and confirmed a GPU-resident,
-compute-saturated frame loop. Best-tuned and live-action confirmation runs
-remain pending.
+continuously kernel-active frame loop without material per-frame host/device
+transfers. Product-default/tuned and live-action confirmation runs remain
+pending.
 
 - [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
   from the product table for both resolutions and workloads.

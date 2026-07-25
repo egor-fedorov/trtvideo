@@ -9,11 +9,14 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
-## 2026-07-25 - RTX 3090 multi-resolution parity benchmark
+## 2026-07-25 - RTX 3090 multi-resolution single-stream parity baseline
 
-The current competitor baseline compares `ai-media-enhancer`, TensorRT 11
-`vs-mlrt`, and stock TensorRT 10.16 VSGAN on RealESRGAN_x2plus and SPAN at
-`720p -> 1440p` and `1080p -> 4K`. Measured revision `0fc3037` includes media
+The current single-stream baseline compares `ai-media-enhancer`, TensorRT 11
+`vs-mlrt`, and a pinned upstream TensorRT 10.16 VSGAN runtime on
+RealESRGAN_x2plus and SPAN at `720p -> 1440p` and `1080p -> 4K`. Both
+VapourSynth runners used one vspipe request, one TensorRT stream, and disabled
+CUDA Graph; these are parity settings rather than upstream-default or
+best-tuned product settings. Measured revision `0fc3037` includes media
 preservation. Each campaign used 100 warmup frames, 1000 measured frames, and
 three rotated rounds; SPAN 1080p extended to five rounds under the stability
 policy. No reduced GPU power limit was applied: the RTX 3090 used its default
@@ -27,6 +30,11 @@ Key results:
 | RealESRGAN_x2plus | 720p | 6.277 FPS | 5.406 FPS | 5.477 FPS | 6.458 QPS |
 | SPAN | 1080p | 25.104 FPS | 9.348 FPS | 9.018 FPS | 28.490 QPS |
 | SPAN | 720p | 49.941 FPS | 19.825 FPS | 20.315 FPS | 62.846 QPS |
+
+These values remain valid for the recorded single-stream contract. In
+particular, the SPAN deltas are not a claim against maximum or upstream-default
+VSGAN/vstrt throughput; separate product-default/tuned measurements are
+required.
 
 All eight model-space/product-output gates passed. The SPAN 1080p `vs-mlrt`
 series is valid with one explicit outlier: the full five-run spread is 6.10%,

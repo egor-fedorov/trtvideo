@@ -3,6 +3,9 @@
 import vapoursynth as vs
 
 core = vs.core
+configured_threads = globals().get("vs_threads")
+if configured_threads is not None:
+    core.num_threads = int(configured_threads)
 model_space_stage = globals().get("model_space_stage", "video")
 if model_space_stage not in {"video", "input", "output"}:
     raise ValueError(f"Unknown model_space_stage: {model_space_stage}")

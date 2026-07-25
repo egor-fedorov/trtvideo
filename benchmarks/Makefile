@@ -20,6 +20,7 @@ TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
 VSGAN_ARGS ?=
 NSIGHT_ARGS ?=
+VAPOURSYNTH_MODE ?= parity
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
 AI_MEDIA_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
@@ -53,16 +54,16 @@ help:
 	@printf '%s\n' \
 		'build               Build the project benchmark image' \
 		'build-vstrt         Build the TensorRT 11 VapourSynth parity image' \
-		'build-vsgan         Build the pinned stock VSGAN benchmark wrapper' \
-		'build-vsgan-engine  Build a stock TensorRT 10.16 engine (ONNX/VSGAN_ENGINE)' \
+		'build-vsgan         Build the pinned upstream VSGAN benchmark wrapper' \
+		'build-vsgan-engine  Build a pinned VSGAN TRT10.16 engine (ONNX/VSGAN_ENGINE)' \
 		'prepare             Download and prepare the selected workload assets' \
 		'verify              Verify the selected workload assets' \
-		'dry-run             Print diagnostic, parity and VSGAN product plans' \
+		'dry-run             Print diagnostic and selected-profile plans' \
 		'run-project         Run the project-only regression benchmark' \
 		'run-comparative     Run/resume the canonical rotated comparison' \
 		'run-ai-media        Run the low-level project implementation suite' \
-		'run-vstrt           Run strict TensorRT 11 parity (ENGINE required)' \
-		'run-vsgan           Run stock VSGAN (VSGAN_ENGINE required)' \
+		'run-vstrt           Run vstrt with VAPOURSYNTH_MODE (ENGINE required)' \
+		'run-vsgan           Run pinned VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
 		'plan-nsight         Print the project Nsight diagnostic plan' \
 		'profile-nsight      Capture one project Nsight Systems trace' \
@@ -174,6 +175,7 @@ plan-vstrt:
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSTRT_OUTPUT_DIR) \
+			--mode $(VAPOURSYNTH_MODE) \
 			--dry-run $(ARGS) $(VSTRT_ARGS)
 
 plan-vsgan:
@@ -189,6 +191,7 @@ plan-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
+			--mode $(VAPOURSYNTH_MODE) \
 			--dry-run $(ARGS) $(VSGAN_ARGS)
 
 dry-run: plan-trtexec plan-vstrt plan-vsgan
@@ -241,6 +244,7 @@ run-vstrt:
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSTRT_OUTPUT_DIR) \
+			--mode $(VAPOURSYNTH_MODE) \
 			$(ARGS) $(VSTRT_ARGS)
 
 run-vsgan:
@@ -259,6 +263,7 @@ run-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
+			--mode $(VAPOURSYNTH_MODE) \
 			$(ARGS) $(VSGAN_ARGS)
 
 profile-nsight:

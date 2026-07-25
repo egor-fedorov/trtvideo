@@ -8,12 +8,18 @@ across the complete path from compressed input to a valid MP4 output.
 
 The following result classes are kept separate:
 
-1. `vstrt parity` - the project and a locally built VapourSynth/vstrt use the
-   same TensorRT 11 engine. This compares integration and video pipelines.
-2. `VSGAN product` - the project is compared with pinned stock
-   VSGAN-tensorrt-docker. Both use the same ONNX, but separate native engines:
-   stock VSGAN runs TensorRT 10.16 while the project runs TensorRT 11.
-3. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
+1. `single-stream vstrt parity` - the project and a locally built
+   VapourSynth/vstrt use the same TensorRT 11 engine with one vspipe request and
+   one TensorRT stream. This compares integration and video pipelines under a
+   fixed, reproducible external scheduling contract.
+2. `single-stream VSGAN parity` - the project is compared with a pinned upstream
+   VSGAN-tensorrt-docker runtime under the same one-request/one-stream contract.
+   Both use the same ONNX, but separate native engines because VSGAN runs
+   TensorRT 10.16 while the project runs TensorRT 11.
+3. `product-default/tuned` - future campaigns use documented upstream defaults
+   or separately selected best-performing settings. These results must not be
+   mixed with the single-stream baseline.
+4. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
    encode, or mux.
 
 Video2X is excluded from the matrix because the available version does not
@@ -71,7 +77,7 @@ published separately from Sintel.
 
 ## Inference Contract
 
-Technical parity requires:
+The published single-stream parity baseline requires:
 
 ```text
 engine SHA256 identical
@@ -85,12 +91,47 @@ TensorRT streams = 1
 CUDA Graph disabled
 ```
 
-Stock VSGAN cannot load a TRT11 engine. For product comparison, both engines are
-built from the same canonical ONNX on the same GPU, with matching shape, dtype,
-batch, and builder intent. Engine hashes and TensorRT runtimes differ and must
-be shown explicitly. VSGAN is pinned by immutable image digest and source
-revision. Only `.vpy` configuration, model/engine mounts, and the encoder
-adapter are allowed; the stock inference stack is unchanged.
+The pinned VSGAN runtime cannot load a TRT11 engine. For VSGAN parity, both
+engines are built from the same canonical ONNX on the same GPU, with matching
+shape, dtype, batch, and builder intent. Engine hashes and TensorRT runtimes
+differ and must be shown explicitly. VSGAN is pinned by immutable image digest
+and source revision. Only `.vpy` configuration, model/engine mounts, and the
+encoder adapter are allowed; the upstream inference stack is unchanged.
+
+The pinned VSGAN image is an upstream runtime, but the published baseline is not
+an upstream-default throughput configuration: its `.vpy` adapter deliberately
+uses one vspipe request and one TensorRT stream. Likewise, the vstrt runner does
+not use vspipe's automatic multi-request default. The baseline therefore
+supports only single-stream parity claims, not claims about stock or maximum
+competitor throughput.
+
+## VapourSynth Execution Profiles
+
+The vstrt and VSGAN runners expose the same three scheduling profiles:
+
+| Mode | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
+|---|---:|---:|---:|---:|
+| vstrt `parity` | 1 | 1 | runtime default | off |
+| VSGAN `parity` | 1 | 1 | 8 | off |
+| vstrt `upstream-default` | auto | 1 | runtime default | off |
+| VSGAN `upstream-default` | auto | 4 | 4 | off |
+| either `tuned` | explicit | explicit | explicit | explicit |
+
+`auto` is not converted to a guessed host-dependent integer. The runner omits
+the corresponding `vspipe --requests` or `.vpy` thread argument and lets the
+pinned VapourSynth runtime resolve its own default. VSGAN's upstream-default
+stream and thread counts come from its pinned `inference_config.py`; vstrt keeps
+its documented one-stream default.
+
+Preset modes reject conflicting scheduling overrides. Tuned mode requires
+explicit values for requests, TensorRT streams, VapourSynth threads, and CUDA
+Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
+value is written to the plan and measured-run manifest.
+
+The canonical campaign namespace currently represents only `parity`.
+Upstream-default and tuned runners may be planned or smoke-tested independently,
+but their publishable campaigns require the separate result namespaces and
+aggregation contract defined by the next benchmark infrastructure stage.
 
 External `vspipe | ffmpeg` encoding is normalized to pinned Ubuntu FFmpeg
 `7:6.1.1-3ubuntu5`. The upstream binary requires NVENC API 13.1 and driver 610+,
@@ -163,7 +204,8 @@ The vstrt and VSGAN captures use `RGBS` immediately before and after
 normalized to logical RGB CHW after capture. Every raw tensor is size-checked
 and hashed. The report also requires identical input-video and ONNX hashes;
 technical vstrt parity requires the exact same serialized engine as the
-project. Stock VSGAN uses its native TRT10.16 engine built from the same ONNX.
+project. The pinned VSGAN runtime uses its native TRT10.16 engine built from the
+same ONNX.
 Each capture records its immutable Docker image ID, clean repository revision,
 and source state. Captures from different revisions cannot form a valid report.
 
@@ -300,7 +342,7 @@ load and with identical CPU affinity.
 
 ## Metrics
 
-The product/parity table contains:
+The single-stream parity table contains:
 
 - median end-to-end FPS and wall time;
 - median average CPU cores and share of available CPU capacity;
@@ -365,5 +407,5 @@ An individual suite always remains acceptance data, even with canonical
 frames/runs. A comparative result is formed only by the rotated campaign runner.
 The runner stores an append-only event log with actual order, UTC timestamps,
 and observed idle intervals; the aggregator validates this log instead of
-reconstructing order from directory names. Until quality parity is implemented,
-even a valid campaign receives `publishable: false`.
+reconstructing order from directory names. A campaign is publishable only after
+both quality gates pass for the same measured revision and asset contracts.
