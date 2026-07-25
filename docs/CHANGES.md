@@ -51,6 +51,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added machine-checked benchmark contract versions to workload, run, and
+  campaign manifests. Aggregation now rejects mixed frame-budget contracts.
 - Split benchmark orchestration into explicit `run-project`,
   `run-comparative`, and diagnostic workflows with collision-free artifact
   namespaces. The GPU runbook now contains concrete 720p quality, campaign, and
@@ -129,6 +131,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   manifests and rejects evidence from another build.
 
 ### Changed
+
+- Reduced the RealESRGAN performance contract from 100 warmup and 1000 measured
+  frames to 30 and 400 after verifying startup remains below 10% for every
+  implementation. SPAN and the full 1000-frame product-output quality gate are
+  unchanged.
 
 - Reclassified the published RTX 3090 comparison as a single-stream parity
   baseline. The result now explicitly records the one-request/one-stream

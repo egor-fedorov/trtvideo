@@ -281,7 +281,8 @@ crops are written under
 The fixed gate requires 1000 compared frames, average PSNR of at least 35 dB,
 and overall SSIM of at least 0.95. The aggregator reloads the retained-output
 run manifests and requires the same images, revision, encoder, assets, and
-engines as the measured campaign.
+engines as the measured campaign. Its 1000-frame window is independent of the
+workload-specific performance window.
 
 Run the canonical campaign after smoke tests:
 

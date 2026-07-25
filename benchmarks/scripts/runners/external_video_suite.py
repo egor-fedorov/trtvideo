@@ -285,6 +285,9 @@ def _run_one(
         "backend": implementation.backend,
         "comparison_class": implementation.comparison_class,
         "workload_id": workload.workload_id,
+        "benchmark_contract_version": workload.benchmark_contract[
+            "contract_version"
+        ],
         "variant": workload.variant,
         "implementation": implementation.metadata,
         "started_at_utc": datetime.now(UTC).isoformat(),
@@ -545,6 +548,9 @@ def run_external_video_suite(
         "backend": implementation.backend,
         "comparison_class": implementation.comparison_class,
         "workload_id": workload.workload_id,
+        "benchmark_contract_version": workload.benchmark_contract[
+            "contract_version"
+        ],
         "variant": workload.variant,
         "implementation": implementation.metadata,
         "parameters": parameters,

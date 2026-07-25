@@ -250,6 +250,9 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
         "backend": "TensorRT",
         "comparison_class": context.plan["comparison_class"],
         "workload_id": context.workload["id"],
+        "benchmark_contract_version": context.workload["benchmark"][
+            "contract_version"
+        ],
         "variant": context.args.variant,
         "implementation": context.plan["implementation"],
         "parameters": parameters,
@@ -386,6 +389,7 @@ def _run_suite(
         "backend": "TensorRT",
         "comparison_class": plan["comparison_class"],
         "workload_id": manifest["id"],
+        "benchmark_contract_version": manifest["benchmark"]["contract_version"],
         "variant": args.variant,
         "implementation": plan["implementation"],
         "parameters": parameters,

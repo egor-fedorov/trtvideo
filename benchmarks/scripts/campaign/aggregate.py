@@ -444,9 +444,13 @@ def _validate_quality_run_manifest(
         "product": (manifest.get("product"), product),
         "workload": (manifest.get("workload_id"), contract["workload_id"]),
         "variant": (manifest.get("variant"), contract["variant"]),
+        "benchmark contract version": (
+            _benchmark_contract_version(manifest),
+            contract["benchmark_contract_version"],
+        ),
         "frame count": (
             manifest.get("parameters", {}).get("frames"),
-            contract["frames"],
+            contract["product_output_frames"],
         ),
         "encoder contract": (
             manifest.get("parameters", {}).get("encoder"),
@@ -721,6 +725,13 @@ def _execution_profile_contract(
     return profile
 
 
+def _benchmark_contract_version(manifest: dict[str, Any]) -> int:
+    value = manifest.get("benchmark_contract_version")
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise CampaignError("Manifest has no valid benchmark contract version")
+    return value
+
+
 def _validate_common_contract(
     rounds: list[dict[str, dict[str, Any]]],
     *,
@@ -739,6 +750,7 @@ def _validate_common_contract(
     cpu = first.get("environment", {}).get("cpu")
     frames = first.get("parameters", {}).get("frames")
     warmup_frames = first.get("parameters", {}).get("warmup_frames")
+    benchmark_contract_version = _benchmark_contract_version(first)
     cpu_contract = _cpu_contract(first)
     lifecycle_contract = _lifecycle_contract(first)
     if not isinstance(encoder, dict):
@@ -777,6 +789,10 @@ def _validate_common_contract(
                 "warmup frame count": (
                     manifest.get("parameters", {}).get("warmup_frames"),
                     warmup_frames,
+                ),
+                "benchmark contract version": (
+                    _benchmark_contract_version(manifest),
+                    benchmark_contract_version,
                 ),
                 "encoder contract": (
                     manifest.get("parameters", {}).get("encoder"),
@@ -827,6 +843,10 @@ def _validate_common_contract(
     workload = _load_json(workload_path)
     benchmark = workload.get("benchmark", {})
     canonical_checks = {
+        "contract version": (
+            benchmark_contract_version,
+            benchmark.get("contract_version"),
+        ),
         "measured frames": (frames, benchmark.get("measured_frames")),
         "warmup frames": (warmup_frames, benchmark.get("warmup_frames")),
         "idle seconds": (idle_seconds, benchmark.get("idle_seconds")),
@@ -847,6 +867,8 @@ def _validate_common_contract(
         "cpu": cpu,
         "frames": frames,
         "warmup_frames": warmup_frames,
+        "benchmark_contract_version": benchmark_contract_version,
+        "product_output_frames": workload.get("clip", {}).get("frames"),
         "model_space_frame_indices": workload.get("quality", {})
         .get("model_space", {})
         .get("frame_indices"),
@@ -1160,6 +1182,7 @@ def aggregate_campaign(
             "warnings": publication_warnings,
         },
         "workload_id": contract["workload_id"],
+        "benchmark_contract_version": contract["benchmark_contract_version"],
         "variant": contract["variant"],
         "parameters": {
             "rounds": len(rounds),

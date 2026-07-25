@@ -312,6 +312,7 @@ def run_one(
     sidecar: dict[str, Any],
     assets: dict[str, Any],
     workload_id: str | None,
+    benchmark_contract_version: int | None,
     environment: dict[str, Any],
     encoder_parameters: dict[str, Any] | None,
     sampler: NvmlSampler,
@@ -350,6 +351,7 @@ def run_one(
         "product": PRODUCT_NAME,
         "backend": config.backend,
         "workload_id": workload_id,
+        "benchmark_contract_version": benchmark_contract_version,
         "variant": config.variant,
         "started_at_utc": datetime.now(UTC).isoformat(),
         "parameters": {
@@ -531,6 +533,21 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         )
     sidecar, sidecar_path = load_engine_contract(config.engine)
     assets, workload_id = collect_assets(config, sidecar, sidecar_path, root)
+    workload_manifest = (
+        load_json(config.workload_manifest)
+        if config.workload_manifest is not None
+        else None
+    )
+    benchmark_contract = (
+        workload_manifest.get("benchmark")
+        if isinstance(workload_manifest, dict)
+        else None
+    )
+    benchmark_contract_version = (
+        int(benchmark_contract["contract_version"])
+        if isinstance(benchmark_contract, dict)
+        else None
+    )
     sampler = NvmlSampler(config.gpu_id, config.sample_interval_ms)
     gpu = sampler.initialize()
     environment = collect_environment(gpu)
@@ -564,6 +581,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
             sidecar=sidecar,
             assets=assets,
             workload_id=workload_id,
+            benchmark_contract_version=benchmark_contract_version,
             environment=environment,
             encoder_parameters=encoder_parameters,
             sampler=sampler,
@@ -592,11 +610,6 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         "cuda_graph": config.cuda_graph,
         "encoder": encoder_parameters,
     }
-    benchmark_contract = (
-        load_json(config.workload_manifest).get("benchmark")
-        if config.workload_manifest is not None
-        else None
-    )
     canonical_errors = canonical_suite_errors(
         parameters,
         benchmark_contract if isinstance(benchmark_contract, dict) else None,
@@ -620,6 +633,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         "product": PRODUCT_NAME,
         "backend": config.backend,
         "workload_id": workload_id,
+        "benchmark_contract_version": benchmark_contract_version,
         "variant": config.variant,
         "parameters": parameters,
         "statistics": statistics_report,

@@ -35,6 +35,25 @@ def test_span_manifest_is_valid() -> None:
     validate_manifest(json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8")))
 
 
+def test_workload_benchmark_contract_versions_are_explicit() -> None:
+    realesrgan = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    span = json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    assert realesrgan["benchmark"]["contract_version"] == 2
+    assert realesrgan["benchmark"]["measured_frames"] == 400
+    assert realesrgan["benchmark"]["warmup_frames"] == 30
+    assert span["benchmark"]["contract_version"] == 1
+    assert span["benchmark"]["measured_frames"] == 1000
+    assert span["benchmark"]["warmup_frames"] == 100
+
+
+def test_quality_frame_indices_remain_on_full_canonical_clip() -> None:
+    for path in (MANIFEST_PATH, SPAN_MANIFEST_PATH):
+        workload = json.loads(path.read_text(encoding="utf-8"))
+        assert workload["quality"]["model_space"]["frame_indices"] == [0, 499, 999]
+        assert workload["quality"]["product_output"]["frame_indices"] == [0, 499, 999]
+
+
 def test_manifest_rejects_non_sha256(manifest: dict) -> None:
     invalid = copy.deepcopy(manifest)
     invalid["clip"]["source"]["sha256"] = "pending"
@@ -56,6 +75,17 @@ def test_manifest_rejects_missing_measurement_contract(manifest: dict) -> None:
     del invalid["benchmark"]["warmup_frames"]
 
     with pytest.raises(WorkloadError, match="benchmark fields are missing"):
+        validate_manifest(invalid)
+
+
+def test_manifest_rejects_invalid_benchmark_contract_version(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    invalid["benchmark"]["contract_version"] = True
+
+    with pytest.raises(
+        WorkloadError,
+        match="benchmark.contract_version",
+    ):
         validate_manifest(invalid)
 
 

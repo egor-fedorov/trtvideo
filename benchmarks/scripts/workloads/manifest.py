@@ -189,6 +189,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     _validate_relative_path(manifest.get("lock_path"), "lock_path")
     benchmark = _require_dict(manifest, "benchmark")
     required_benchmark_fields = {
+        "contract_version",
         "warmup_frames",
         "measured_frames",
         "initial_runs",
@@ -203,12 +204,17 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             f"Manifest benchmark fields are missing: {', '.join(missing_benchmark)}"
         )
     for field in (
+        "contract_version",
         "warmup_frames",
         "measured_frames",
         "initial_runs",
         "nvml_sample_interval_ms",
     ):
-        if not isinstance(benchmark.get(field), int) or benchmark[field] <= 0:
+        if (
+            not isinstance(benchmark.get(field), int)
+            or isinstance(benchmark[field], bool)
+            or benchmark[field] <= 0
+        ):
             raise WorkloadError(f"Manifest field 'benchmark.{field}' must be positive")
     if not isinstance(benchmark.get("extra_runs_on_spread"), int) or (
         benchmark["extra_runs_on_spread"] < 0

@@ -449,6 +449,7 @@ def run_diagnostic(
         "product": "ai-media-enhancer",
         "backend": "nvcodec",
         "workload_id": workload_id,
+        "benchmark_contract_version": manifest["benchmark"]["contract_version"],
         "variant": args.variant,
         "started_at_utc": started_at_utc,
         "parameters": {

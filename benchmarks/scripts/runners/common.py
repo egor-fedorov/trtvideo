@@ -247,6 +247,9 @@ def plan_document(
         "backend": backend,
         "comparison_class": comparison_class,
         "workload_id": manifest.get("id"),
+        "benchmark_contract_version": manifest.get("benchmark", {}).get(
+            "contract_version"
+        ),
         "variant": variant_name,
         "implementation": implementation,
         "parameters": parameters,

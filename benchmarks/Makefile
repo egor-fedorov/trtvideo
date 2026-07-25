@@ -36,7 +36,8 @@ CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
 MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
 MODEL_SPACE_ARGS ?=
 PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
-QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
+QUALITY_FRAMES ?= 1000
+QUALITY_RUN_ARGS = --frames $(QUALITY_FRAMES) --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify

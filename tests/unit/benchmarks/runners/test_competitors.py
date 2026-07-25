@@ -123,6 +123,8 @@ def test_trtexec_plan_is_diagnostic() -> None:
     plan, _ = build_trtexec_plan(args)
 
     assert plan["comparison_class"] == "diagnostic"
+    assert plan["benchmark_contract_version"] == 2
+    assert "--iterations=400" in plan["commands"]["measured"][0]
     assert plan["parameters"]["data_transfers"] is False
     assert plan["assets"][0]["present"] is False
 
@@ -158,7 +160,7 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
 
     assert len(spec) == 2
     assert spec[0][0] == "vspipe"
-    assert spec[0][spec[0].index("--end") + 1] == "999"
+    assert spec[0][spec[0].index("--end") + 1] == "399"
     assert "source=/app/videos/benchmarks/sintel_1080p24_h264.mp4" in spec[0]
     assert spec[1][0] == "ffmpeg"
     assert spec[1][spec[1].index("-b:v") + 1] == "60000000"
@@ -200,7 +202,10 @@ def test_vsgan_command_uses_pinned_script_and_explicit_nvenc_contract() -> None:
 
 def test_vsgan_plan_is_single_stream_parity() -> None:
     plan, _ = build_vsgan_plan(common_args())
+    vspipe, _ = plan["commands"]["measured"]
 
+    assert plan["benchmark_contract_version"] == 2
+    assert vspipe[vspipe.index("--end") + 1] == "399"
     assert plan["comparison_class"] == "single-stream-parity"
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
@@ -232,6 +237,9 @@ def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
     assert "num_streams=1" in vspipe
     assert not any(value.startswith("vs_threads=") for value in vspipe)
     assert plan["comparison_class"] == "upstream-default"
+    assert plan["commands"]["measured"][0][
+        plan["commands"]["measured"][0].index("--end") + 1
+    ] == "399"
     assert plan["parameters"]["vspipe_requests"] == "auto"
     assert plan["parameters"]["vapoursynth_threads"] == "auto"
 
@@ -256,6 +264,9 @@ def test_vsgan_upstream_default_matches_pinned_configuration() -> None:
     assert "num_streams=4" in vspipe
     assert "vs_threads=4" in vspipe
     assert plan["comparison_class"] == "upstream-default"
+    assert plan["commands"]["measured"][0][
+        plan["commands"]["measured"][0].index("--end") + 1
+    ] == "399"
     assert plan["implementation"]["role"] == "product"
     assert plan["parameters"]["vspipe_requests"] == "auto"
 

@@ -265,10 +265,13 @@ measured on runtime revision `0fc3037`, including media preservation. Repeat
 the complete matrix only for a claim about a later runtime revision; keep the
 same physical GPU, power state, commit, and image set within that campaign.
 
-Canonical defaults are 100 warmup frames, 1000 measured frames, three rotated
-rounds, and two additional rounds when the spread of any implementation exceeds
-5%. Extra rounds repeat all implementations to preserve rotation and equal
-sample counts. After five rounds, the campaign is valid when every
+Canonical frame budgets come from each workload manifest: RealESRGAN contract
+v2 uses 30 warmup and 400 measured frames, while SPAN contract v1 remains at
+100 warmup and 1000 measured frames. Product-output quality runs always process
+the complete 1000-frame canonical clip. Campaigns use three rotated rounds and
+two additional rounds when the spread of any implementation exceeds 5%. Extra
+rounds repeat all implementations to preserve rotation and equal sample counts.
+After five rounds, the campaign is valid when every
 implementation either passes the full-range threshold or has a four-of-five
 consensus within 5%. A consensus result is labeled `stable-with-one-outlier`;
 the raw five values and all-run median remain unchanged.

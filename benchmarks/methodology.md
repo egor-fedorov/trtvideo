@@ -249,7 +249,8 @@ evidence. A valid report is required in addition to the product-output quality
 report before campaign results can be published.
 
 Product-output parity uses one separate canonical retained-output run per
-implementation. These runs use 100 warmup and 1000 output frames but are not
+implementation. These runs use the workload warmup and the complete 1000-frame
+canonical clip, independently of the shorter performance window, and are not
 included in the rotated performance statistics. Each candidate MP4 is compared
 with the project MP4 through complete FFmpeg decode passes:
 
@@ -279,10 +280,22 @@ The primary metric is full-process end-to-end FPS. An external monotonic timer
 includes startup, decode, colorspace conversion, inference, encode, flush, and
 mux.
 
+Canonical frame budgets are workload-specific:
+
+| Workload contract | Warmup frames | Measured frames |
+|---|---:|---:|
+| RealESRGAN_x2plus v2 | 30 | 400 |
+| LiveAction SPAN v1 | 100 | 1000 |
+
+RealESRGAN uses a shorter fixed window because the model-bound frame loop
+dominates wall time. In the RTX 3090 baseline, the worst projected startup share
+at 400 frames was 4.95%, below the preselected 10% limit. SPAN remains unchanged
+because startup already accounts for 12.79% of the project's 720p wall time.
+
 For a canonical run:
 
-1. A separate discarded process handles 100 warmup frames.
-2. A new process handles exactly 1000 measured frames.
+1. A separate discarded process handles the workload's warmup frame count.
+2. A new process handles the workload's fixed measured frame count.
 3. Three runs are accepted when full relative spread does not exceed 5%.
 4. When any implementation exceeds 5%, two complete rotated rounds are added
    for every implementation to preserve equal sample counts and order balance.
@@ -301,6 +314,11 @@ its spread and selected rounds are published separately.
 Startup/context initialization, steady-state frame loop, and finalize/mux are
 also recorded; these scopes do not replace full-process wall time. Cold-start
 and warm-cache results are not mixed.
+
+Each workload declares `benchmark.contract_version`. Every run manifest records
+the corresponding `benchmark_contract_version`; campaign aggregation rejects
+missing, non-canonical, or mixed versions. The final `campaign.json` publishes
+the version so results from different frame-budget contracts cannot be merged.
 
 Lifecycle scopes use one boundary contract:
 

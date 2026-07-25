@@ -42,14 +42,18 @@ def _campaign(
     fps: dict[str, list[float]],
     *,
     revision: str = "revision-1",
+    contract_version: int = 1,
+    measured_frames: int = 1000,
+    warmup_frames: int = 100,
 ) -> Path:
     workload_path = root / "benchmarks/workload.json"
     _write_json(
         workload_path,
         {
             "benchmark": {
-                "warmup_frames": 100,
-                "measured_frames": 1000,
+                "contract_version": contract_version,
+                "warmup_frames": warmup_frames,
+                "measured_frames": measured_frames,
                 "initial_runs": 3,
                 "extra_runs_on_spread": 2,
                 "spread_threshold": 0.05,
@@ -68,6 +72,7 @@ def _campaign(
                     "crops": [{"name": "center"}],
                 }
             },
+            "clip": {"frames": 1000},
         },
     )
     workload_sha = sha256_file(workload_path)
@@ -87,16 +92,17 @@ def _campaign(
     for implementation, product in IMPLEMENTATIONS.items():
         for round_index, value in enumerate(fps[implementation], start=1):
             engine_sha = "shared-engine" if implementation != "vsgan" else "vsgan-engine"
-            wall_time_sec = 1000 / value
+            wall_time_sec = measured_frames / value
             manifest: dict[str, Any] = {
                 "status": "valid",
                 "run_index": 1,
                 "product": product,
                 "workload_id": "workload-v1",
+                "benchmark_contract_version": contract_version,
                 "variant": "1080p",
                 "parameters": {
-                    "frames": 1000,
-                    "warmup_frames": 100,
+                    "frames": measured_frames,
+                    "warmup_frames": warmup_frames,
                     "encoder": encoder,
                 },
                 "assets": {
@@ -143,8 +149,8 @@ def _campaign(
                             "steady_state_frame_loop_sec": wall_time_sec * 0.95,
                             "finalize_mux_sec": wall_time_sec * 0.03,
                             "total_sec": wall_time_sec,
-                            "processed_frames": 1000,
-                            "steady_state_frames": 999,
+                            "processed_frames": measured_frames,
+                            "steady_state_frames": measured_frames - 1,
                         },
                         "nvml": {
                             "utilization": {"average_gpu_percent": 90.0},
@@ -289,7 +295,7 @@ def _model_space_report(root: Path) -> Path:
     return path
 
 
-def _product_output_report(root: Path) -> Path:
+def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
     report_dir = root / "artefacts/benchmarks/quality/product-output"
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -343,6 +349,7 @@ def _product_output_report(root: Path) -> Path:
             "status": "valid",
             "product": product,
             "workload_id": "workload-v1",
+            "benchmark_contract_version": contract_version,
             "variant": "1080p",
             "parameters": parameters,
             "assets": {
@@ -482,6 +489,7 @@ def test_aggregate_campaign_builds_acceptance_table(
     summary = aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
 
     assert summary["status"] == "valid"
+    assert summary["benchmark_contract_version"] == 1
     assert summary["publishable"] is False
     assert summary["publication"]["errors"] == [
         MODEL_SPACE_GAP,
@@ -561,6 +569,40 @@ def test_aggregate_campaign_is_publishable_with_both_quality_reports(
         "errors": [],
         "warnings": [],
     }
+    assert summary["quality"]["product_output"]["status"] == "valid"
+
+
+def test_product_output_quality_keeps_full_clip_for_shorter_campaign(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+        contract_version=2,
+        measured_frames=400,
+        warmup_frames=30,
+    )
+
+    summary = aggregate_campaign(
+        campaign_dir,
+        root=tmp_path,
+        idle_seconds=10,
+        model_space_report=_model_space_report(tmp_path),
+        product_output_report=_product_output_report(
+            tmp_path,
+            contract_version=2,
+        ),
+    )
+
+    assert summary["publishable"] is True
+    assert summary["benchmark_contract_version"] == 2
+    assert summary["parameters"]["measured_frames"] == 400
     assert summary["quality"]["product_output"]["status"] == "valid"
 
 
@@ -747,6 +789,28 @@ def test_aggregate_campaign_rejects_mixed_revisions(
     _write_json(path, manifest)
 
     with pytest.raises(CampaignError, match="repository revision"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_rejects_mixed_benchmark_contract_versions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    path = campaign_dir / "vstrt/round-02/run-01/manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["benchmark_contract_version"] = 2
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="benchmark contract version"):
         aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
 
 

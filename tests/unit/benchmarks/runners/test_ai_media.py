@@ -309,8 +309,8 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
         "videos/benchmarks/sintel_1080p24_h264.mp4"
     )
     assert command[command.index("--bitrate-mbps") + 1] == "60"
-    assert command[command.index("--warmup-frames") + 1] == "100"
-    assert command[command.index("--frames") + 1] == "1000"
+    assert command[command.index("--warmup-frames") + 1] == "30"
+    assert command[command.index("--frames") + 1] == "400"
     assert command[command.index("--runs") + 1] == "3"
 
 
