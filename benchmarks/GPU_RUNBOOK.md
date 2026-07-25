@@ -10,6 +10,19 @@ used only by the rotated campaign coordinator; measured workloads and result
 aggregation run in pinned Docker images. Set `HOST_PYTHON=/path/to/python` on
 `run-comparative` when `python3` is not the intended interpreter.
 
+Choose the workflow before following the numbered sections:
+
+| Goal | Required sections |
+|---|---|
+| Project-only regression with `run-project` | Project image/assets/engine, project smoke, then Section 6 |
+| Publishable competitor comparison with `run-comparative` | Sections 1-5 and 7; quality gates are mandatory |
+| TensorRT or pipeline diagnosis | Relevant setup plus Section 8 or 9 |
+
+For `run-project`, do not build vstrt/VSGAN images or engines and do not run
+`quality-gates`. The project runner already performs full output decode and
+validates the media, timestamp, color, and bitrate contract. Quality gates are
+cross-product parity checks and are consumed only by comparative campaigns.
+
 ## 1. Build And Assets
 
 ```bash
@@ -147,6 +160,10 @@ media/timestamp contract. `trtexec` is checked separately as a diagnostic
 ceiling.
 
 ## 5. Quality Gates
+
+This section is required only for a publishable `run-comparative` campaign. Skip
+it for `run-project`; running `quality-gates` always processes
+`ai-media-enhancer`, vstrt, and VSGAN.
 
 Run both independent quality jobs. The first compares model input/output FP32
 RGB tensors. The second retains one canonical MP4 per product, performs complete
