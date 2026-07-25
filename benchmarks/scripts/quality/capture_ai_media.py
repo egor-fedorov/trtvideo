@@ -8,8 +8,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import collect_image_identity, sha256_file
-from ai_media.benchmarking.runner import BenchmarkError, load_engine_contract
 from benchmarks.scripts.quality.model_space import (
     ModelSpaceError,
     TensorArtifact,
@@ -23,6 +21,8 @@ from benchmarks.scripts.runners.common import (
     find_variant,
     validate_static_engine_contract,
 )
+from benchmarks.scripts.runtime.environment import collect_image_identity, sha256_file
+from benchmarks.scripts.runtime.runner import BenchmarkError, load_engine_contract
 from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
 
 _DECODE_BATCH_SIZE = 8

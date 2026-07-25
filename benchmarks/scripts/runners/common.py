@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import sha256_file
+from benchmarks.scripts.runtime.environment import sha256_file
 
 
 class CompetitorError(RuntimeError):

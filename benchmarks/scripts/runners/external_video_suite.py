@@ -14,8 +14,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from ai_media.benchmarking.cpu import snapshot_child_cpu, summarize_child_cpu
-from ai_media.benchmarking.environment import (
+from ai_media.benchmarking.lifecycle import (
+    FrameLifecycleMarkers,
+    LifecycleTimingError,
+    summarize_lifecycle,
+)
+from ai_media.benchmarking.validation import OutputContract, validate_output
+from benchmarks.scripts.runners.common import CommandSpec, CompetitorError
+from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
+from benchmarks.scripts.runtime.environment import (
     collect_environment,
     environment_errors,
     relative_artifact_path,
@@ -23,21 +30,14 @@ from ai_media.benchmarking.environment import (
     sha256_file,
     write_json,
 )
-from ai_media.benchmarking.lifecycle import (
-    FrameLifecycleMarkers,
-    LifecycleTimingError,
-    summarize_lifecycle,
-)
-from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
-from ai_media.benchmarking.suite import (
+from benchmarks.scripts.runtime.nvml import NvmlSampler, summarize_samples, write_samples
+from benchmarks.scripts.runtime.suite import (
     SuitePolicy,
     SuiteRunner,
     canonical_suite_errors,
     report_publishability_errors,
     suite_publishability_errors,
 )
-from ai_media.benchmarking.validation import OutputContract, validate_output
-from benchmarks.scripts.runners.common import CommandSpec, CompetitorError
 
 CommandFactory = Callable[[Path, int], CommandSpec]
 _VSPipe_FRAME_PATTERN = re.compile(rb"Frame:\s*(\d+)/(\d+)")

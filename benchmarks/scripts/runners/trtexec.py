@@ -13,26 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.cpu import snapshot_child_cpu, summarize_child_cpu
-from ai_media.benchmarking.environment import (
-    collect_environment,
-    environment_errors,
-    relative_artifact_path,
-    sha256_file,
-    write_json,
-)
-from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
-from ai_media.benchmarking.runner import (
-    load_engine_contract,
-    write_summary_target,
-)
-from ai_media.benchmarking.suite import (
-    SuitePolicy,
-    SuiteRunner,
-    canonical_suite_errors,
-    report_publishability_errors,
-    suite_publishability_errors,
-)
 from benchmarks.scripts.runners.common import (
     CompetitorError,
     asset_requirement,
@@ -42,6 +22,26 @@ from benchmarks.scripts.runners.common import (
     load_json,
     plan_document,
     write_json_target,
+)
+from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
+from benchmarks.scripts.runtime.environment import (
+    collect_environment,
+    environment_errors,
+    relative_artifact_path,
+    sha256_file,
+    write_json,
+)
+from benchmarks.scripts.runtime.nvml import NvmlSampler, summarize_samples, write_samples
+from benchmarks.scripts.runtime.runner import (
+    load_engine_contract,
+    write_summary_target,
+)
+from benchmarks.scripts.runtime.suite import (
+    SuitePolicy,
+    SuiteRunner,
+    canonical_suite_errors,
+    report_publishability_errors,
+    suite_publishability_errors,
 )
 
 NUMBER = r"([0-9]+(?:\.[0-9]+)?)"

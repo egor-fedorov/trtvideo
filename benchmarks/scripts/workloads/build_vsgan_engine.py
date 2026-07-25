@@ -12,13 +12,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import sha256_file, write_json
 from benchmarks.scripts.runners.common import (
     CompetitorError,
     find_model_variant,
     find_variant,
     load_json,
 )
+from benchmarks.scripts.runtime.environment import sha256_file, write_json
 
 TENSORRT_VERSION_RE = re.compile(r"TensorRT[^\n]*v([0-9]+)", re.IGNORECASE)
 

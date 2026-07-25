@@ -10,6 +10,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from benchmarks.scripts.contracts.manifest import (
+    ManifestContractError,
+    RunExpectation,
+    RunIdentity,
+    artifact_path,
+    execution_profile,
+    load_json,
+    validate_run_manifest,
+)
+from benchmarks.scripts.contracts.model_space import (
+    ModelSpaceComparisonExpectation,
+    ModelSpaceReportExpectation,
+    validate_model_space_report,
+)
 from benchmarks.scripts.tuning.contract import (
     TunedCandidate,
     TuningContract,
@@ -22,36 +36,10 @@ PRODUCTS = {
     "vstrt": "vs-mlrt",
     "vsgan": "VSGAN-tensorrt-docker",
 }
-PROFILE_KEYS = (
-    "mode",
-    "vspipe_requests",
-    "num_streams",
-    "vapoursynth_threads",
-    "cuda_graph",
-)
 
 
 class TuningEvidenceError(RuntimeError):
     """Raised when tuned evidence cannot be read safely."""
-
-
-def _load_json(path: Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise TuningEvidenceError(f"Cannot read JSON evidence {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise TuningEvidenceError(f"Expected JSON object in {path}")
-    return value
-
-
-def _artifact_path(root: Path, value: Any, *, label: str) -> Path:
-    if not isinstance(value, str) or not value:
-        raise TuningEvidenceError(f"{label} has no artifact path")
-    path = (root / value).resolve()
-    if path != root and root not in path.parents:
-        raise TuningEvidenceError(f"{label} escapes the repository root")
-    return path
 
 
 def _positive_float(value: Any, *, label: str) -> float:
@@ -74,68 +62,6 @@ def _non_negative_float(value: Any, *, label: str) -> float:
     ):
         raise TuningEvidenceError(f"{label} must be a non-negative finite number")
     return float(value)
-
-
-def _asset_sha(manifest: dict[str, Any], name: str) -> str:
-    value = manifest.get("assets", {}).get(name, {}).get("sha256")
-    if not isinstance(value, str) or len(value) != 64:
-        raise TuningEvidenceError(f"Run manifest has no {name} SHA256")
-    return value
-
-
-def _profile(parameters: dict[str, Any]) -> dict[str, Any]:
-    return {key: parameters.get(key) for key in PROFILE_KEYS}
-
-
-@dataclass(frozen=True)
-class RunIdentity:
-    """Evidence that must remain invariant across one implementation's sweep."""
-
-    workload_id: str
-    variant: str
-    benchmark_contract_version: int
-    input_sha256: str
-    onnx_sha256: str
-    engine_sha256: str
-    workload_sha256: str
-    image_id: str
-    repository_revision: str
-    frames: int
-    warmup_frames: int
-    encoder: dict[str, Any]
-
-    def shared_model_key(self) -> tuple[Any, ...]:
-        return (
-            self.workload_id,
-            self.variant,
-            self.benchmark_contract_version,
-            self.input_sha256,
-            self.onnx_sha256,
-            self.workload_sha256,
-            self.repository_revision,
-            self.frames,
-            self.warmup_frames,
-            json.dumps(self.encoder, sort_keys=True),
-        )
-
-    def implementation_key(self) -> tuple[Any, ...]:
-        return (*self.shared_model_key(), self.engine_sha256, self.image_id)
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "workload_id": self.workload_id,
-            "variant": self.variant,
-            "benchmark_contract_version": self.benchmark_contract_version,
-            "input_sha256": self.input_sha256,
-            "onnx_sha256": self.onnx_sha256,
-            "engine_sha256": self.engine_sha256,
-            "workload_sha256": self.workload_sha256,
-            "image_id": self.image_id,
-            "repository_revision": self.repository_revision,
-            "frames": self.frames,
-            "warmup_frames": self.warmup_frames,
-            "encoder": self.encoder,
-        }
 
 
 @dataclass
@@ -198,7 +124,7 @@ def load_disqualifications(
     """Load candidate rejections produced by the full winner quality gate."""
     if path is None or not path.exists():
         return {}
-    value = _load_json(path)
+    value = load_json(path)
     if value.get("schema_version") != 1:
         raise TuningEvidenceError("Unsupported disqualification schema version")
     entries = value.get("entries")
@@ -231,86 +157,6 @@ def load_disqualifications(
     return result
 
 
-def _run_identity(
-    manifest: dict[str, Any],
-    *,
-    expected_workload_id: str,
-    expected_variant: str,
-    expected_contract_version: int,
-) -> RunIdentity:
-    image = manifest.get("environment", {}).get("image", {})
-    parameters = manifest.get("parameters", {})
-    encoder = parameters.get("encoder")
-    if not isinstance(encoder, dict):
-        raise TuningEvidenceError("Run manifest has no encoder contract")
-    image_id = image.get("id")
-    revision = image.get("repository_revision")
-    version = manifest.get("benchmark_contract_version")
-    frames = parameters.get("frames")
-    warmup_frames = parameters.get("warmup_frames")
-    if manifest.get("workload_id") != expected_workload_id:
-        raise TuningEvidenceError("Run manifest changed workload")
-    if manifest.get("variant") != expected_variant:
-        raise TuningEvidenceError("Run manifest changed variant")
-    if version != expected_contract_version:
-        raise TuningEvidenceError("Run manifest changed benchmark contract version")
-    if not isinstance(image_id, str) or not image_id:
-        raise TuningEvidenceError("Run manifest has no image id")
-    if not isinstance(revision, str) or not revision:
-        raise TuningEvidenceError("Run manifest has no repository revision")
-    if str(image.get("source_dirty")) != "0":
-        raise TuningEvidenceError("Run manifest was built from dirty source")
-    if not isinstance(frames, int) or frames <= 0:
-        raise TuningEvidenceError("Run manifest has invalid measured frame count")
-    if not isinstance(warmup_frames, int) or warmup_frames <= 0:
-        raise TuningEvidenceError("Run manifest has invalid warmup frame count")
-    return RunIdentity(
-        workload_id=expected_workload_id,
-        variant=expected_variant,
-        benchmark_contract_version=expected_contract_version,
-        input_sha256=_asset_sha(manifest, "input"),
-        onnx_sha256=_asset_sha(manifest, "onnx"),
-        engine_sha256=_asset_sha(manifest, "engine"),
-        workload_sha256=_asset_sha(manifest, "workload_manifest"),
-        image_id=image_id,
-        repository_revision=revision,
-        frames=frames,
-        warmup_frames=warmup_frames,
-        encoder=encoder,
-    )
-
-
-def _validate_run(
-    manifest: dict[str, Any],
-    *,
-    candidate: TunedCandidate,
-    workload_id: str,
-    variant: str,
-    contract_version: int,
-) -> RunIdentity:
-    if manifest.get("status") != "valid":
-        raise TuningEvidenceError("Measured run status is not valid")
-    if manifest.get("product") != PRODUCTS[candidate.implementation]:
-        raise TuningEvidenceError("Measured run product does not match candidate")
-    if manifest.get("comparison_class") != "tuned":
-        raise TuningEvidenceError("Measured run comparison class is not tuned")
-    parameters = manifest.get("parameters")
-    if not isinstance(parameters, dict):
-        raise TuningEvidenceError("Measured run has no parameters")
-    if _profile(parameters) != candidate.execution_profile():
-        raise TuningEvidenceError("Measured run execution profile changed")
-    if manifest.get("reproducibility", {}).get("publishable") is not True:
-        raise TuningEvidenceError("Measured run is not reproducible")
-    if manifest.get("measured", {}).get("validation", {}).get("valid") is not True:
-        raise TuningEvidenceError("Measured run failed complete media validation")
-    return _run_identity(
-        manifest,
-        expected_workload_id=workload_id,
-        expected_variant=variant,
-        expected_contract_version=contract_version,
-    )
-
-
 def _validate_suite(
     assessment: CandidateAssessment,
     *,
@@ -326,7 +172,7 @@ def _validate_suite(
         assessment.reject("Performance suite evidence is missing", evidence_complete=False)
         return
     try:
-        suite = _load_json(suite_path)
+        suite = load_json(suite_path)
         if suite.get("status") != "valid":
             assessment.reject(f"Performance suite status is {suite.get('status')!r}")
         if suite.get("workload_id") != workload_id or suite.get("variant") != variant:
@@ -336,7 +182,7 @@ def _validate_suite(
         parameters = suite.get("parameters")
         if not isinstance(parameters, dict):
             raise TuningEvidenceError("Performance suite has no parameters")
-        if _profile(parameters) != assessment.candidate.execution_profile():
+        if execution_profile(parameters) != assessment.candidate.execution_profile():
             assessment.reject("Performance suite execution profile changed")
         statistics = suite.get("statistics")
         if not isinstance(statistics, dict):
@@ -361,7 +207,7 @@ def _validate_suite(
         for run in runs:
             if not isinstance(run, dict):
                 raise TuningEvidenceError("Performance suite run entry is invalid")
-            manifest_path = _artifact_path(
+            manifest_path = artifact_path(
                 root,
                 run.get("manifest"),
                 label="Performance run",
@@ -371,12 +217,18 @@ def _validate_suite(
                     f"Performance run manifest is missing: {manifest_path}"
                 )
             identities.append(
-                _validate_run(
-                    _load_json(manifest_path),
-                    candidate=assessment.candidate,
-                    workload_id=workload_id,
-                    variant=variant,
-                    contract_version=contract_version,
+                validate_run_manifest(
+                    load_json(manifest_path),
+                    expectation=RunExpectation(
+                        product=PRODUCTS[assessment.candidate.implementation],
+                        workload_id=workload_id,
+                        variant=variant,
+                        benchmark_contract_version=contract_version,
+                        implementation=assessment.candidate.implementation,
+                        execution_profile=assessment.candidate.execution_profile(),
+                        require_media_validation=True,
+                    ),
+                    checksum_length=64,
                 )
             )
         first_identity = identities[0]
@@ -386,7 +238,7 @@ def _validate_suite(
         ):
             assessment.reject("Performance runs changed immutable evidence")
         assessment.identity = first_identity
-    except TuningEvidenceError as exc:
+    except (ManifestContractError, TuningEvidenceError) as exc:
         assessment.reject(str(exc), evidence_complete=False)
 
 
@@ -402,58 +254,42 @@ def _validate_model_space(
     if not report_path.is_file():
         assessment.reject("Model-space evidence is missing", evidence_complete=False)
         return
+    if assessment.identity is None:
+        assessment.reject(
+            "Model-space identity cannot be checked without a valid run",
+            evidence_complete=False,
+        )
+        return
     try:
-        report = _load_json(report_path)
-        if report.get("document_type") != "model-space-parity":
-            raise TuningEvidenceError("Model-space evidence has an invalid document type")
-        if report.get("workload_id") != workload_id or report.get("variant") != variant:
-            assessment.reject("Model-space evidence changed workload or variant")
-        if report.get("status") != "valid" or report.get("publishable") is not True:
-            assessment.reject("Model-space parity did not pass")
-        comparisons = report.get("comparisons")
-        if not isinstance(comparisons, list) or len(comparisons) != 1:
-            raise TuningEvidenceError(
-                "Candidate model-space report must contain exactly one comparison"
-            )
-        comparison = comparisons[0]
-        if not isinstance(comparison, dict):
-            raise TuningEvidenceError("Candidate model-space comparison is invalid")
-        if comparison.get("implementation") != PRODUCTS[assessment.candidate.implementation]:
-            assessment.reject("Model-space implementation does not match candidate")
-        if comparison.get("comparison_class") != "tuned":
-            assessment.reject("Model-space comparison class is not tuned")
-        if comparison.get("execution_profile") != assessment.candidate.execution_profile():
-            assessment.reject("Model-space execution profile changed")
-        if comparison.get("status") != "valid":
-            assessment.reject("Candidate model-space comparison is invalid")
-        if assessment.identity is not None:
-            assets = report.get("assets", {})
-            image = comparison.get("image", {})
-            checks = {
-                "input SHA256": (
-                    assets.get("input_sha256"),
-                    assessment.identity.input_sha256,
-                ),
-                "ONNX SHA256": (
-                    assets.get("onnx_sha256"),
-                    assessment.identity.onnx_sha256,
-                ),
-                "engine SHA256": (
-                    comparison.get("engine_sha256"),
-                    assessment.identity.engine_sha256,
-                ),
-                "image id": (image.get("id"), assessment.identity.image_id),
-                "repository revision": (
-                    image.get("repository_revision"),
-                    assessment.identity.repository_revision,
-                ),
-                "source state": (str(image.get("source_dirty")), "0"),
-            }
-            for label, (actual, expected) in checks.items():
-                if actual != expected:
-                    assessment.reject(f"Model-space {label} changed")
-    except TuningEvidenceError as exc:
+        identity = assessment.identity
+        report = load_json(report_path)
+    except ManifestContractError as exc:
         assessment.reject(str(exc), evidence_complete=False)
+        return
+    try:
+        validate_model_space_report(
+            report,
+            expectation=ModelSpaceReportExpectation(
+                workload_id=workload_id,
+                variant=variant,
+                input_sha256=identity.input_sha256,
+                onnx_sha256=identity.onnx_sha256,
+                comparisons=(
+                    ModelSpaceComparisonExpectation(
+                        implementation=PRODUCTS[
+                            assessment.candidate.implementation
+                        ],
+                        engine_sha256=identity.engine_sha256,
+                        image_id=identity.image_id,
+                        repository_revision=identity.repository_revision,
+                        execution_profile=assessment.candidate.execution_profile(),
+                        comparison_class="tuned",
+                    ),
+                ),
+            ),
+        )
+    except (ManifestContractError, TuningEvidenceError) as exc:
+        assessment.reject(str(exc))
 
 
 def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
@@ -501,7 +337,7 @@ def _validate_disqualification(
     variant: str,
     contract_version: int,
 ) -> None:
-    evidence_path = _artifact_path(
+    evidence_path = artifact_path(
         root,
         rejection["evidence"],
         label=f"{assessment.candidate.candidate_id} disqualification",
@@ -510,7 +346,7 @@ def _validate_disqualification(
         raise TuningEvidenceError(
             f"Disqualification evidence is missing: {evidence_path}"
         )
-    report = _load_json(evidence_path)
+    report = load_json(evidence_path)
     if report.get("document_type") not in {
         "model-space-parity",
         "product-output-parity",
@@ -551,17 +387,23 @@ def _validate_disqualification(
         )
     run_manifest_value = comparison.get("run_manifest")
     if run_manifest_value is not None:
-        run_manifest_path = _artifact_path(
+        run_manifest_path = artifact_path(
             root,
             run_manifest_value,
             label="Disqualified product-output run",
         )
-        identity = _validate_run(
-            _load_json(run_manifest_path),
-            candidate=assessment.candidate,
-            workload_id=workload_id,
-            variant=variant,
-            contract_version=contract_version,
+        identity = validate_run_manifest(
+            load_json(run_manifest_path),
+            expectation=RunExpectation(
+                product=PRODUCTS[assessment.candidate.implementation],
+                workload_id=workload_id,
+                variant=variant,
+                benchmark_contract_version=contract_version,
+                implementation=assessment.candidate.implementation,
+                execution_profile=assessment.candidate.execution_profile(),
+                require_media_validation=True,
+            ),
+            checksum_length=64,
         )
         if (
             assessment.identity is not None
@@ -756,7 +598,13 @@ def main() -> None:
             json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n",
             encoding="utf-8",
         )
-    except (TuningContractError, TuningEvidenceError, OSError, ValueError) as exc:
+    except (
+        ManifestContractError,
+        TuningContractError,
+        TuningEvidenceError,
+        OSError,
+        ValueError,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)
     print(f"Tuned candidate selection {report['status']}: {output_path}")

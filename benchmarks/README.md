@@ -9,6 +9,11 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `workloads/` - RealESRGAN and SPAN workload manifests.
 - `implementations.json` - pinned implementations and execution profiles.
 - `docker/` - TensorRT 11 vstrt and pinned VSGAN environments.
+- `bin/` - benchmark-image-only command wrappers.
+- `scripts/contracts/` - shared run and quality evidence contracts used by
+  campaign aggregation and tuned selection.
+- `scripts/runtime/` - process timing, CPU/NVML sampling, environment capture,
+  output validation orchestration, and suite policy.
 - `scripts/runners/` - project, vstrt, VSGAN, and trtexec execution.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.

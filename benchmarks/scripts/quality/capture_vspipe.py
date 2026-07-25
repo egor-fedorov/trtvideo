@@ -10,8 +10,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import collect_image_identity, sha256_file
-from ai_media.benchmarking.runner import BenchmarkError, load_engine_contract
 from benchmarks.scripts.quality.model_space import (
     ModelSpaceError,
     TensorArtifact,
@@ -35,6 +33,8 @@ from benchmarks.scripts.runners.vapoursynth_profile import (
     validate_declared_profile,
 )
 from benchmarks.scripts.runners.vsgan import _validate_parity_engine
+from benchmarks.scripts.runtime.environment import collect_image_identity, sha256_file
+from benchmarks.scripts.runtime.runner import BenchmarkError, load_engine_contract
 from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
 
 

@@ -7,15 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from ai_media.benchmarking.environment import relative_artifact_path, sanitize_command
-from ai_media.benchmarking.runner import (
+from benchmarks.scripts.runners.ai_media import build_command
+from benchmarks.scripts.runtime.environment import relative_artifact_path, sanitize_command
+from benchmarks.scripts.runtime.runner import (
     PRODUCT_NAME,
     BenchmarkConfig,
     BenchmarkError,
     build_upscale_command,
     validate_config,
 )
-from ai_media.benchmarking.suite import (
+from benchmarks.scripts.runtime.suite import (
     SuitePolicy,
     SuiteRunner,
     canonical_suite_errors,
@@ -25,7 +26,6 @@ from ai_media.benchmarking.suite import (
     should_extend_suite,
     suite_publishability_errors,
 )
-from benchmarks.scripts.runners.ai_media import build_command
 
 
 def config(tmp_path: Path, bitrate_mbps: float | None = 35.0) -> BenchmarkConfig:

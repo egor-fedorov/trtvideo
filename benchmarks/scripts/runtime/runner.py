@@ -12,8 +12,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.cpu import snapshot_child_cpu, summarize_child_cpu
-from ai_media.benchmarking.environment import (
+from ai_media.benchmarking.lifecycle import (
+    LifecycleTimingError,
+    load_frame_markers,
+    summarize_lifecycle,
+)
+from ai_media.benchmarking.validation import OutputContract, validate_output
+from ai_media.video.fps import gop_size_for_one_second
+from ai_media.video.info import get_video_info
+from ai_media.video.nvenc import NvencCbrContract
+from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
+from benchmarks.scripts.runtime.environment import (
     collect_environment,
     environment_errors,
     relative_artifact_path,
@@ -21,23 +30,14 @@ from ai_media.benchmarking.environment import (
     sha256_file,
     write_json,
 )
-from ai_media.benchmarking.lifecycle import (
-    LifecycleTimingError,
-    load_frame_markers,
-    summarize_lifecycle,
-)
-from ai_media.benchmarking.nvml import NvmlSampler, summarize_samples, write_samples
-from ai_media.benchmarking.suite import (
+from benchmarks.scripts.runtime.nvml import NvmlSampler, summarize_samples, write_samples
+from benchmarks.scripts.runtime.suite import (
     SuitePolicy,
     SuiteRunner,
     canonical_suite_errors,
     report_publishability_errors,
     suite_publishability_errors,
 )
-from ai_media.benchmarking.validation import OutputContract, validate_output
-from ai_media.video.fps import gop_size_for_one_second
-from ai_media.video.info import get_video_info
-from ai_media.video.nvenc import NvencCbrContract
 
 PRODUCT_NAME = "ai-media-enhancer"
 

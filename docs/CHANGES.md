@@ -138,6 +138,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Moved benchmark process orchestration, CPU/NVML sampling, environment
+  collection, and suite policy out of the production Python package. The
+  `benchmark-upscale` wrapper now exists only in benchmark/check images, while
+  campaign aggregation and tuned selection share one evidence-contract layer.
 - Reduced the RealESRGAN performance contract from 100 warmup and 1000 measured
   frames to 30 and 400 after verifying startup remains below 10% for every
   implementation. SPAN and the full 1000-frame product-output quality gate are

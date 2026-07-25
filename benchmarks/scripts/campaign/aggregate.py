@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import statistics
 import sys
@@ -13,8 +12,6 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import relative_artifact_path, sha256_file, write_json
-from ai_media.benchmarking.suite import compute_suite_statistics
 from benchmarks.scripts.campaign.core import (
     CONFIG_NAME,
     EVENT_LOG_NAME,
@@ -26,20 +23,31 @@ from benchmarks.scripts.campaign.core import (
     load_events,
     validate_complete_event_log,
 )
+from benchmarks.scripts.contracts.manifest import (
+    ManifestContractError as CampaignError,
+)
+from benchmarks.scripts.contracts.manifest import (
+    RunExpectation,
+    RunIdentity,
+    extract_run_identity,
+    load_json,
+    validate_execution_profile,
+    validate_run_manifest,
+)
+from benchmarks.scripts.contracts.model_space import (
+    ModelSpaceComparisonExpectation,
+    ModelSpaceReportExpectation,
+    validate_model_space_report,
+)
+from benchmarks.scripts.runtime.environment import (
+    relative_artifact_path,
+    sha256_file,
+    write_json,
+)
+from benchmarks.scripts.runtime.suite import compute_suite_statistics
 
 MODEL_SPACE_GAP = "Model-space RGB/float parity is not verified yet"
 PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generated yet"
-PROFILE_PARAMETER_KEYS = (
-    "mode",
-    "vspipe_requests",
-    "num_streams",
-    "vapoursynth_threads",
-    "cuda_graph",
-)
-
-
-class CampaignError(RuntimeError):
-    """Raised when campaign artifacts cannot form one comparable result."""
 
 
 @dataclass(frozen=True)
@@ -82,16 +90,6 @@ class StabilityAssessment:
         }
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CampaignError(f"Cannot read JSON {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise CampaignError(f"Expected a JSON object in {path}")
-    return value
-
-
 def _manifest_path(campaign_dir: Path, implementation: str, round_index: int) -> Path:
     return (
         campaign_dir
@@ -121,17 +119,10 @@ def _load_rounds(campaign_dir: Path) -> list[dict[str, dict[str, Any]]]:
             raise CampaignError(
                 f"Round {round_index} is incomplete; missing: {', '.join(missing)}"
             )
-        rounds.append({name: _load_json(path) for name, path in paths.items()})
+        rounds.append({name: load_json(path) for name, path in paths.items()})
     if len(rounds) not in {3, 5}:
         raise CampaignError(f"Campaign requires 3 or 5 complete rounds, got {len(rounds)}")
     return rounds
-
-
-def _asset_sha(manifest: dict[str, Any], name: str) -> str:
-    value = manifest.get("assets", {}).get(name, {}).get("sha256")
-    if not isinstance(value, str) or not value:
-        raise CampaignError(f"Manifest has no SHA256 for {name}")
-    return value
 
 
 def _metric(manifest: dict[str, Any], *keys: str) -> float:
@@ -281,126 +272,42 @@ def _validate_model_space_report(
     contract: dict[str, Any],
     root: Path,
 ) -> dict[str, Any]:
-    report = _load_json(path)
-    checks = {
-        "document type": (report.get("document_type"), "model-space-parity"),
-        "status": (report.get("status"), "valid"),
-        "publishable": (report.get("publishable"), True),
-        "workload": (report.get("workload_id"), contract["workload_id"]),
-        "variant": (report.get("variant"), contract["variant"]),
-        "execution profile": (
-            report.get("execution_profile"),
-            contract["execution_profile"],
-        ),
-        "input SHA256": (
-            report.get("assets", {}).get("input_sha256"),
-            contract["input_sha256"],
-        ),
-        "ONNX SHA256": (
-            report.get("assets", {}).get("onnx_sha256"),
-            contract["onnx_sha256"],
-        ),
-        "frame indices": (
-            report.get("frame_indices"),
-            contract["model_space_frame_indices"],
-        ),
-        "reference engine": (
-            report.get("reference", {}).get("engine_sha256"),
-            contract["engine_hashes"]["ai-media"],
-        ),
-        "reference image": (
-            report.get("reference", {}).get("image", {}).get("id"),
-            contract["image_ids"]["ai-media"],
-        ),
-        "reference revision": (
-            report.get("reference", {})
-            .get("image", {})
-            .get("repository_revision"),
-            contract["repository_revision"],
-        ),
-        "reference source state": (
-            str(
-                report.get("reference", {})
-                .get("image", {})
-                .get("source_dirty")
+    report = load_json(path)
+    validate_model_space_report(
+        report,
+        expectation=ModelSpaceReportExpectation(
+            workload_id=contract["workload_id"],
+            variant=contract["variant"],
+            input_sha256=contract["input_sha256"],
+            onnx_sha256=contract["onnx_sha256"],
+            comparisons=(
+                ModelSpaceComparisonExpectation(
+                    implementation="vs-mlrt",
+                    engine_sha256=contract["engine_hashes"]["vstrt"],
+                    image_id=contract["image_ids"]["vstrt"],
+                    repository_revision=contract["repository_revision"],
+                    execution_profile=contract["execution_profiles"]["vstrt"],
+                ),
+                ModelSpaceComparisonExpectation(
+                    implementation="VSGAN-tensorrt-docker",
+                    engine_sha256=contract["engine_hashes"]["vsgan"],
+                    image_id=contract["image_ids"]["vsgan"],
+                    repository_revision=contract["repository_revision"],
+                    execution_profile=contract["execution_profiles"]["vsgan"],
+                ),
             ),
-            "0",
-        ),
-        "reference execution profile": (
-            report.get("reference", {}).get("execution_profile"),
-            {
+            execution_profile=contract["execution_profile"],
+            frame_indices=contract["model_space_frame_indices"],
+            reference_engine_sha256=contract["engine_hashes"]["ai-media"],
+            reference_image_id=contract["image_ids"]["ai-media"],
+            reference_revision=contract["repository_revision"],
+            reference_source_dirty="0",
+            reference_execution_profile={
                 "mode": contract["execution_profile"],
                 "cuda_graph": False,
             },
         ),
-    }
-    for label, (actual, expected) in checks.items():
-        if actual != expected:
-            raise CampaignError(f"Model-space report changed {label}")
-
-    comparisons = report.get("comparisons")
-    if not isinstance(comparisons, list):
-        raise CampaignError("Model-space report has no comparisons")
-    by_implementation = {
-        comparison.get("implementation"): comparison
-        for comparison in comparisons
-        if isinstance(comparison, dict)
-    }
-    expected_contracts = {
-        "vs-mlrt": (
-            "vstrt",
-            contract["engine_hashes"]["vstrt"],
-            contract["image_ids"]["vstrt"],
-        ),
-        "VSGAN-tensorrt-docker": (
-            "vsgan",
-            contract["engine_hashes"]["vsgan"],
-            contract["image_ids"]["vsgan"],
-        ),
-    }
-    for implementation, (
-        campaign_implementation,
-        engine_sha256,
-        image_id,
-    ) in expected_contracts.items():
-        comparison = by_implementation.get(implementation)
-        if not isinstance(comparison, dict):
-            raise CampaignError(
-                f"Model-space report has no {implementation} comparison"
-            )
-        if comparison.get("status") != "valid":
-            raise CampaignError(
-                f"Model-space report marks {implementation} as invalid"
-            )
-        if comparison.get("engine_sha256") != engine_sha256:
-            raise CampaignError(
-                f"Model-space report changed {implementation} engine"
-            )
-        if (
-            comparison.get("execution_profile")
-            != contract["execution_profiles"][campaign_implementation]
-        ):
-            raise CampaignError(
-                f"Model-space report changed {implementation} execution profile"
-            )
-        image = comparison.get("image", {})
-        if not isinstance(image, dict):
-            raise CampaignError(
-                f"Model-space report has no {implementation} image identity"
-            )
-        image_checks = {
-            "image": (image.get("id"), image_id),
-            "revision": (
-                image.get("repository_revision"),
-                contract["repository_revision"],
-            ),
-            "source state": (str(image.get("source_dirty")), "0"),
-        }
-        for label, (actual, expected) in image_checks.items():
-            if actual != expected:
-                raise CampaignError(
-                    f"Model-space report changed {implementation} {label}"
-                )
+    )
     return {
         "status": "valid",
         "report": relative_artifact_path(path, root),
@@ -437,44 +344,41 @@ def _validate_quality_run_manifest(
     product: str,
     contract: dict[str, Any],
 ) -> None:
-    manifest = _load_json(path)
-    image = manifest.get("environment", {}).get("image", {})
+    manifest = load_json(path)
+    expected_profile = (
+        contract["execution_profiles"][implementation]
+        if implementation in {"vstrt", "vsgan"}
+        else None
+    )
+    identity = validate_run_manifest(
+        manifest,
+        expectation=RunExpectation(
+            product=product,
+            workload_id=contract["workload_id"],
+            variant=contract["variant"],
+            benchmark_contract_version=contract["benchmark_contract_version"],
+            implementation=(
+                implementation if expected_profile is not None else None
+            ),
+            execution_profile=expected_profile,
+            require_media_validation=True,
+            require_workload_identity=False,
+            require_warmup_frames=False,
+        ),
+    )
     checks = {
-        "status": (manifest.get("status"), "valid"),
-        "product": (manifest.get("product"), product),
-        "workload": (manifest.get("workload_id"), contract["workload_id"]),
-        "variant": (manifest.get("variant"), contract["variant"]),
-        "benchmark contract version": (
-            _benchmark_contract_version(manifest),
-            contract["benchmark_contract_version"],
-        ),
-        "frame count": (
-            manifest.get("parameters", {}).get("frames"),
-            contract["product_output_frames"],
-        ),
-        "encoder contract": (
-            manifest.get("parameters", {}).get("encoder"),
-            contract["encoder"],
-        ),
-        "input SHA256": (_asset_sha(manifest, "input"), contract["input_sha256"]),
-        "ONNX SHA256": (_asset_sha(manifest, "onnx"), contract["onnx_sha256"]),
+        "frame count": (identity.frames, contract["product_output_frames"]),
+        "encoder contract": (identity.encoder, contract["encoder"]),
+        "input SHA256": (identity.input_sha256, contract["input_sha256"]),
+        "ONNX SHA256": (identity.onnx_sha256, contract["onnx_sha256"]),
         "engine SHA256": (
-            _asset_sha(manifest, "engine"),
+            identity.engine_sha256,
             contract["engine_hashes"][implementation],
         ),
-        "image": (image.get("id"), contract["image_ids"][implementation]),
+        "image": (identity.image_id, contract["image_ids"][implementation]),
         "revision": (
-            image.get("repository_revision"),
+            identity.repository_revision,
             contract["repository_revision"],
-        ),
-        "source state": (str(image.get("source_dirty")), "0"),
-        "reproducibility": (
-            manifest.get("reproducibility", {}).get("publishable"),
-            True,
-        ),
-        "output validation": (
-            manifest.get("measured", {}).get("validation", {}).get("valid"),
-            True,
         ),
     }
     for label, (actual, expected) in checks.items():
@@ -482,25 +386,13 @@ def _validate_quality_run_manifest(
             raise CampaignError(
                 f"Product-output {product} run changed {label}"
             )
-    if implementation in {"vstrt", "vsgan"}:
-        profile = _execution_profile_contract(
-            manifest,
-            implementation=implementation,
-            expected_profile=contract["execution_profile"],
-        )
-        if profile != contract["execution_profiles"][implementation]:
-            raise CampaignError(
-                f"Product-output {product} run changed execution profile"
-            )
-
-
 def _validate_product_output_report(
     path: Path,
     *,
     contract: dict[str, Any],
     root: Path,
 ) -> dict[str, Any]:
-    report = _load_json(path)
+    report = load_json(path)
     checks = {
         "document type": (report.get("document_type"), "product-output-parity"),
         "status": (report.get("status"), "valid"),
@@ -670,66 +562,19 @@ def _validate_manifest(
     *,
     implementation: str,
     round_index: int,
-) -> None:
-    expected_product = IMPLEMENTATIONS[implementation]
-    if manifest.get("status") != "valid":
-        raise CampaignError(f"{implementation} round {round_index} is not valid")
-    if manifest.get("product") != expected_product:
+) -> RunIdentity:
+    try:
+        return validate_run_manifest(
+            manifest,
+            expectation=RunExpectation(
+                product=IMPLEMENTATIONS[implementation],
+                run_index=1,
+            ),
+        )
+    except CampaignError as exc:
         raise CampaignError(
-            f"{implementation} round {round_index} has unexpected product"
-        )
-    if manifest.get("run_index") != 1:
-        raise CampaignError(f"{implementation} round {round_index} is not a single run")
-    reproducibility = manifest.get("reproducibility", {})
-    if reproducibility.get("publishable") is not True:
-        raise CampaignError(
-            f"{implementation} round {round_index} is not reproducible"
-        )
-
-
-def _execution_profile_contract(
-    manifest: dict[str, Any],
-    *,
-    implementation: str,
-    expected_profile: str,
-) -> dict[str, Any]:
-    parameters = manifest.get("parameters", {})
-    if not isinstance(parameters, dict):
-        raise CampaignError(f"{implementation} manifest has no parameters")
-    missing = [key for key in PROFILE_PARAMETER_KEYS if key not in parameters]
-    if missing:
-        raise CampaignError(
-            f"{implementation} manifest has no execution profile fields: "
-            + ", ".join(missing)
-        )
-    profile = {key: parameters[key] for key in PROFILE_PARAMETER_KEYS}
-    if profile["mode"] != expected_profile:
-        raise CampaignError(
-            f"{implementation} execution profile is {profile['mode']!r}, "
-            f"expected {expected_profile!r}"
-        )
-    expected_class = (
-        "parity"
-        if expected_profile == "parity" and implementation == "vstrt"
-        else (
-            "single-stream-parity"
-            if expected_profile == "parity"
-            else expected_profile
-        )
-    )
-    if manifest.get("comparison_class") != expected_class:
-        raise CampaignError(
-            f"{implementation} comparison class does not match "
-            f"{expected_profile} execution profile"
-        )
-    return profile
-
-
-def _benchmark_contract_version(manifest: dict[str, Any]) -> int:
-    value = manifest.get("benchmark_contract_version")
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise CampaignError("Manifest has no valid benchmark contract version")
-    return value
+            f"{implementation} round {round_index}: {exc}"
+        ) from exc
 
 
 def _validate_common_contract(
@@ -740,21 +585,20 @@ def _validate_common_contract(
     execution_profile: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     first = rounds[0]["ai-media"]
-    workload_id = first.get("workload_id")
-    variant = first.get("variant")
-    revision = first.get("environment", {}).get("image", {}).get("repository_revision")
-    encoder = first.get("parameters", {}).get("encoder")
-    input_sha = _asset_sha(first, "input")
-    onnx_sha = _asset_sha(first, "onnx")
+    first_identity = extract_run_identity(first)
+    workload_id = first_identity.workload_id
+    variant = first_identity.variant
+    revision = first_identity.repository_revision
+    encoder = first_identity.encoder
+    input_sha = first_identity.input_sha256
+    onnx_sha = first_identity.onnx_sha256
     gpu = first.get("environment", {}).get("gpu")
     cpu = first.get("environment", {}).get("cpu")
-    frames = first.get("parameters", {}).get("frames")
-    warmup_frames = first.get("parameters", {}).get("warmup_frames")
-    benchmark_contract_version = _benchmark_contract_version(first)
+    frames = first_identity.frames
+    warmup_frames = first_identity.warmup_frames
+    contract_version = first_identity.benchmark_contract_version
     cpu_contract = _cpu_contract(first)
     lifecycle_contract = _lifecycle_contract(first)
-    if not isinstance(encoder, dict):
-        raise CampaignError("Campaign manifests have no exact encoder contract")
     expected_revision = os.environ.get("AI_MEDIA_BUILD_REVISION")
     if expected_revision and expected_revision != "unknown" and revision != expected_revision:
         raise CampaignError(
@@ -766,18 +610,19 @@ def _validate_common_contract(
     execution_profiles: dict[str, dict[str, Any]] = {}
     for round_index, round_data in enumerate(rounds, start=1):
         for implementation, manifest in round_data.items():
-            _validate_manifest(
+            identity = _validate_manifest(
                 manifest,
                 implementation=implementation,
                 round_index=round_index,
             )
             environment = manifest.get("environment", {})
-            image = environment.get("image", {})
             checks = {
-                "workload": (manifest.get("workload_id"), workload_id),
-                "variant": (manifest.get("variant"), variant),
-                "repository revision": (image.get("repository_revision"), revision),
-                "source state": (str(image.get("source_dirty")), "0"),
+                "workload": (identity.workload_id, workload_id),
+                "variant": (identity.variant, variant),
+                "repository revision": (
+                    identity.repository_revision,
+                    revision,
+                ),
                 "GPU": (environment.get("gpu"), gpu),
                 "CPU": (environment.get("cpu"), cpu),
                 "CPU accounting": (_cpu_contract(manifest), cpu_contract),
@@ -785,42 +630,38 @@ def _validate_common_contract(
                     _lifecycle_contract(manifest),
                     lifecycle_contract,
                 ),
-                "frame count": (manifest.get("parameters", {}).get("frames"), frames),
-                "warmup frame count": (
-                    manifest.get("parameters", {}).get("warmup_frames"),
-                    warmup_frames,
-                ),
+                "frame count": (identity.frames, frames),
+                "warmup frame count": (identity.warmup_frames, warmup_frames),
                 "benchmark contract version": (
-                    _benchmark_contract_version(manifest),
-                    benchmark_contract_version,
+                    identity.benchmark_contract_version,
+                    contract_version,
                 ),
-                "encoder contract": (
-                    manifest.get("parameters", {}).get("encoder"),
-                    encoder,
+                "encoder contract": (identity.encoder, encoder),
+                "input SHA256": (identity.input_sha256, input_sha),
+                "ONNX SHA256": (identity.onnx_sha256, onnx_sha),
+                "workload manifest SHA256": (
+                    identity.workload_sha256,
+                    first_identity.workload_sha256,
                 ),
-                "input SHA256": (_asset_sha(manifest, "input"), input_sha),
-                "ONNX SHA256": (_asset_sha(manifest, "onnx"), onnx_sha),
             }
             for label, (actual, expected) in checks.items():
                 if actual != expected:
                     raise CampaignError(
                         f"{implementation} round {round_index} changed {label}"
                     )
-            image_id = image.get("id")
-            if not isinstance(image_id, str) or not image_id:
-                raise CampaignError(f"{implementation} has no image ID")
+            image_id = identity.image_id
             previous_image = image_ids.setdefault(implementation, image_id)
             if image_id != previous_image:
                 raise CampaignError(f"{implementation} image changed between rounds")
-            engine_hash = _asset_sha(manifest, "engine")
+            engine_hash = identity.engine_sha256
             previous_engine = engine_hashes.setdefault(implementation, engine_hash)
             if engine_hash != previous_engine:
                 raise CampaignError(f"{implementation} engine changed between rounds")
             if implementation in {"vstrt", "vsgan"}:
-                profile = _execution_profile_contract(
+                profile = validate_execution_profile(
                     manifest,
                     implementation=implementation,
-                    expected_profile=execution_profile,
+                    expected_mode=execution_profile,
                 )
                 previous_profile = execution_profiles.setdefault(
                     implementation,
@@ -840,11 +681,11 @@ def _validate_common_contract(
         raise CampaignError(f"Canonical workload manifest not found: {workload_path}")
     if sha256_file(workload_path) != workload_asset.get("sha256"):
         raise CampaignError("Canonical workload manifest SHA256 changed")
-    workload = _load_json(workload_path)
+    workload = load_json(workload_path)
     benchmark = workload.get("benchmark", {})
     canonical_checks = {
         "contract version": (
-            benchmark_contract_version,
+            contract_version,
             benchmark.get("contract_version"),
         ),
         "measured frames": (frames, benchmark.get("measured_frames")),
@@ -867,7 +708,7 @@ def _validate_common_contract(
         "cpu": cpu,
         "frames": frames,
         "warmup_frames": warmup_frames,
-        "benchmark_contract_version": benchmark_contract_version,
+        "benchmark_contract_version": contract_version,
         "product_output_frames": workload.get("clip", {}).get("frames"),
         "model_space_frame_indices": workload.get("quality", {})
         .get("model_space", {})

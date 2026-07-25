@@ -60,5 +60,6 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     rm /tmp/benchmark-requirements.txt
 
 COPY benchmarks/ benchmarks/
+COPY --chmod=755 benchmarks/bin/benchmark-upscale /usr/local/bin/benchmark-upscale
 
 FROM runtime AS production

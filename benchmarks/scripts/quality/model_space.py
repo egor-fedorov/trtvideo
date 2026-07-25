@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import environment_errors, sha256_file
+from benchmarks.scripts.runtime.environment import environment_errors, sha256_file
 
 CAPTURE_SCHEMA_VERSION = 2
 REPORT_SCHEMA_VERSION = 3

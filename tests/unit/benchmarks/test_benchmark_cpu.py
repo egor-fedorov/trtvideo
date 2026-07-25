@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from ai_media.benchmarking import cpu
-from ai_media.benchmarking.cpu import (
+from benchmarks.scripts.runtime import cpu
+from benchmarks.scripts.runtime.cpu import (
     ChildCpuSnapshot,
     CpuAccountingError,
     available_logical_cpus,

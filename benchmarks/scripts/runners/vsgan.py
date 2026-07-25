@@ -9,8 +9,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.runner import load_engine_contract, write_summary_target
-from ai_media.benchmarking.suite import SuitePolicy
 from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.runners.common import (
     CommandSpec,
@@ -42,6 +40,8 @@ from benchmarks.scripts.runners.vapoursynth_profile import (
     validate_declared_profile,
 )
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
+from benchmarks.scripts.runtime.runner import load_engine_contract, write_summary_target
+from benchmarks.scripts.runtime.suite import SuitePolicy
 
 VSGAN_SCRIPT = "/app/benchmarks/vsgan/upscale.vpy"
 

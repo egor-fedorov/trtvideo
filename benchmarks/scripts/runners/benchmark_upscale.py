@@ -7,8 +7,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from ai_media.benchmarking.nvml import NvmlError
-from ai_media.benchmarking.runner import (
+from benchmarks.scripts.runtime.nvml import NvmlError
+from benchmarks.scripts.runtime.runner import (
     BenchmarkConfig,
     BenchmarkError,
     run_suite,

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import relative_artifact_path, sha256_file
+from benchmarks.scripts.runtime.environment import relative_artifact_path, sha256_file
 
 REPORT_SCHEMA_VERSION = 1
 _PSNR_PATTERN = re.compile(r"\baverage:(inf|[0-9]+(?:\.[0-9]+)?)")

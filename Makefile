@@ -55,6 +55,7 @@ test-media-integration:
 
 cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) upscale --help
+	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-upscale --help
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m ai_media.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help

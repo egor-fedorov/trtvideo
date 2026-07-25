@@ -4,8 +4,13 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from ai_media.benchmarking import nvml as nvml_module
-from ai_media.benchmarking.nvml import NvmlError, NvmlSample, NvmlSampler, summarize_samples
+from benchmarks.scripts.runtime import nvml as nvml_module
+from benchmarks.scripts.runtime.nvml import (
+    NvmlError,
+    NvmlSample,
+    NvmlSampler,
+    summarize_samples,
+)
 
 
 def sample(

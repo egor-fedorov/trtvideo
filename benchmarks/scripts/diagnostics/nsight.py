@@ -12,22 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import (
-    collect_environment,
-    environment_errors,
-    relative_artifact_path,
-    sanitize_command,
-    write_json,
-)
-from ai_media.benchmarking.nvml import NvmlError, NvmlSampler
-from ai_media.benchmarking.runner import (
-    BenchmarkConfig,
-    BenchmarkError,
-    collect_assets,
-    load_engine_contract,
-    output_contract,
-    validate_config,
-)
 from ai_media.benchmarking.validation import validate_output
 from ai_media.diagnostics.nvtx import NVTX_ENV
 from benchmarks.scripts.runners.common import (
@@ -36,6 +20,22 @@ from benchmarks.scripts.runners.common import (
     load_json,
     plan_document,
     write_json_target,
+)
+from benchmarks.scripts.runtime.environment import (
+    collect_environment,
+    environment_errors,
+    relative_artifact_path,
+    sanitize_command,
+    write_json,
+)
+from benchmarks.scripts.runtime.nvml import NvmlError, NvmlSampler
+from benchmarks.scripts.runtime.runner import (
+    BenchmarkConfig,
+    BenchmarkError,
+    collect_assets,
+    load_engine_contract,
+    output_contract,
+    validate_config,
 )
 
 TRACE_APIS = "cuda,nvtx,osrt,nvvideo"

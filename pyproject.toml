@@ -49,7 +49,6 @@ dev = [
 
 [project.scripts]
 upscale = "ai_media.cli.upscale:main"
-benchmark-upscale = "ai_media.cli.benchmark_upscale:main"
 export-onnx = "ai_media.cli.export_onnx:main"
 prepare-onnx = "ai_media.cli.prepare_onnx:main"
 build-engine = "ai_media.cli.build_engine:main"

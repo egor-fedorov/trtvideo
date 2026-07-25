@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from ai_media.benchmarking.environment import sha256_file
 from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.campaign.aggregate import (
     IMPLEMENTATIONS,
@@ -30,6 +29,7 @@ from benchmarks.scripts.campaign.core import (
     write_campaign_config,
 )
 from benchmarks.scripts.campaign.run import CampaignRunError, run_campaign
+from benchmarks.scripts.runtime.environment import sha256_file
 
 
 def _write_json(path: Path, value: dict) -> None:

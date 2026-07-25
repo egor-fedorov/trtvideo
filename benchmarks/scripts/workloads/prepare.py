@@ -14,7 +14,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.environment import sha256_file as sha256_file
+from benchmarks.scripts.runtime.environment import sha256_file as sha256_file
 from benchmarks.scripts.workloads.manifest import WorkloadError as WorkloadError
 from benchmarks.scripts.workloads.manifest import load_manifest as load_manifest
 from benchmarks.scripts.workloads.manifest import repo_path as repo_path

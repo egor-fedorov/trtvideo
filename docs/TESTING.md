@@ -43,7 +43,9 @@ streams that cannot be copied into MP4.
 
 ### CLI/Docker Smoke
 
-The non-GPU checks image validates Docker entrypoints:
+The non-GPU checks image validates Docker entrypoints. `benchmark-upscale` is
+copied into this image only for test parity with the benchmark target; it is not
+installed as a production project script.
 
 ```bash
 docker run --rm ai-media-enhancer:dev upscale --help

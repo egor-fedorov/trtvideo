@@ -1,1 +1,1 @@
-"""End-to-end benchmark measurement and validation helpers."""
+"""Product lifecycle instrumentation and output validation."""

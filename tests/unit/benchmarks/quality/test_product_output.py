@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from ai_media.benchmarking.environment import sha256_file
 from benchmarks.scripts.quality.product_output import (
     OutputEvidence,
     ProductOutputError,
@@ -16,6 +15,7 @@ from benchmarks.scripts.quality.product_output import (
     parse_metric_log,
     validate_evidence_set,
 )
+from benchmarks.scripts.runtime.environment import sha256_file
 
 
 def _write_run_manifest(

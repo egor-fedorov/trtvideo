@@ -227,13 +227,13 @@ The stage profiler starts after receiving a frame from the decoder and is not a
 complete end-to-end process profile. Its results diagnose individual stages;
 they are not used for cross-product comparisons.
 
-`benchmark-upscale` launches regular, unprofiled `upscale` subprocesses: a
-discarded warmup followed by a measured run. The external timer covers process
-startup, inference, encode, flush, and mux. A parallel NVML sampler measures
-total GPU memory, power, utilization, temperature, and throttle state without
-calls in the per-frame hot path. After timing ends, the output is fully decoded
-and checked with FFmpeg/ffprobe, so validation and hashing do not affect
-end-to-end FPS.
+The benchmark-image-only `benchmark-upscale` wrapper launches regular,
+unprofiled `upscale` subprocesses: a discarded warmup followed by a measured
+run. The external timer covers process startup, inference, encode, flush, and
+mux. A parallel NVML sampler measures total GPU memory, power, utilization,
+temperature, and throttle state without calls in the per-frame hot path. After
+timing ends, the output is fully decoded and checked with FFmpeg/ffprobe, so
+validation and hashing do not affect end-to-end FPS.
 
 The same project runner powers two orchestration modes. `run-project` measures
 standalone regressions, while `run-comparative` schedules that runner alongside
@@ -242,8 +242,11 @@ write to separate `project/` and `comparative/` artifact namespaces.
 `trtexec`, Nsight, and per-stage profiles remain under `diagnostics/`.
 
 The benchmark runtime is an optional Docker target. The production image
-contains the main CLI but does not install `nvidia-ml-py` or copy benchmark
-runner scripts. Reproducible measurements use
+contains the main CLI, frame lifecycle marker emission, and reusable output
+validation, but it does not install `nvidia-ml-py`, expose
+`benchmark-upscale`, or copy the benchmark harness. Process orchestration,
+NVML sampling, environment capture, suite policy, and evidence contracts live
+under `benchmarks/scripts/`. Reproducible measurements use
 `ai-media-enhancer:benchmark`.
 
 ## Static And Dynamic Shapes
