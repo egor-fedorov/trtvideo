@@ -14,6 +14,7 @@ ENGINE ?=
 PLAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_$(VARIANT).engine
 VSGAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_$(VARIANT).engine
 ONNX ?= models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_$(VARIANT)_fp16.onnx
+TRT_TIMING_CACHE ?= models/cache/benchmark-trt11.cache
 GPU_ID ?= 0
 ARGS ?=
 TRTEXEC_ARGS ?=
@@ -49,7 +50,7 @@ MODEL_SPACE_CANDIDATE ?=
 MODEL_SPACE_REPORT ?=
 RESUME ?= 0
 
-.PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
+.PHONY: help build build-vstrt build-vsgan build-project-engine build-vsgan-engine prepare verify
 .PHONY: run-project run-ai-media plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
 .PHONY: profile-nsight
@@ -68,6 +69,7 @@ help:
 		'build               Build the project benchmark image' \
 		'build-vstrt         Build the TensorRT 11 VapourSynth parity image' \
 		'build-vsgan         Build the pinned upstream VSGAN benchmark wrapper' \
+		'build-project-engine  Build one project TRT11 engine (ONNX/ENGINE)' \
 		'build-vsgan-engine  Build a pinned VSGAN TRT10.16 engine (ONNX/VSGAN_ENGINE)' \
 		'prepare             Download and prepare the selected workload assets' \
 		'verify              Verify the selected workload assets' \
@@ -111,6 +113,17 @@ build-vsgan:
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git -C "$(ROOT)" status --porcelain)"; then echo 0; else echo 1; fi)" \
 		-f "$(ROOT)/benchmarks/docker/vsgan.Dockerfile" \
 		-t $(VSGAN_IMAGE) "$(ROOT)"
+
+build-project-engine:
+	@test -n "$(ONNX)" || (echo "ERROR: ONNX is required" >&2; exit 2)
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/$(dir $(ENGINE))" "$(ROOT)/models/cache"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/models:/app/models" \
+		$(IMAGE) build-engine \
+			/app/$(ONNX) \
+			-o /app/$(ENGINE) \
+			--timing-cache /app/$(TRT_TIMING_CACHE)
 
 build-vsgan-engine:
 	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"

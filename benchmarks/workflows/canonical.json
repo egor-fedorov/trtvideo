@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "workloads": [
+    {
+      "key": "realesrgan",
+      "manifest": "benchmarks/workloads/realesrgan_x2plus_sintel.json",
+      "variants": {
+        "720p": {
+          "onnx": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx",
+          "engine": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine",
+          "vsgan_engine": "models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine"
+        },
+        "1080p": {
+          "onnx": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_1080p_fp16.onnx",
+          "engine": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine",
+          "vsgan_engine": "models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine"
+        }
+      }
+    },
+    {
+      "key": "span",
+      "manifest": "benchmarks/workloads/liveaction_span_sintel.json",
+      "variants": {
+        "720p": {
+          "onnx": "models/benchmarks/liveaction-span/onnx/liveaction_span_720p_fp16.onnx",
+          "engine": "models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine",
+          "vsgan_engine": "models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_720p.engine"
+        },
+        "1080p": {
+          "onnx": "models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx",
+          "engine": "models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine",
+          "vsgan_engine": "models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine"
+        }
+      }
+    }
+  ],
+  "diagnostics": {
+    "nsight": {
+      "workload": "span",
+      "variant": "1080p"
+    }
+  }
+}

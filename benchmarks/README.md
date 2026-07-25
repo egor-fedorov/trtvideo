@@ -7,9 +7,10 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 
 - `methodology.md` - comparison classes and validity criteria.
 - `workloads/` - RealESRGAN and SPAN workload manifests.
+- `workflows/` - canonical workload/resolution matrix for complete workflows.
 - `implementations.json` - pinned implementations and execution profiles.
 - `docker/` - TensorRT 11 vstrt and pinned VSGAN environments.
-- `bin/` - benchmark-image-only command wrappers.
+- `bin/run-benchmark.sh` - goal-based host workflow entrypoint.
 - `scripts/contracts/` - shared run and quality evidence contracts used by
   campaign aggregation and tuned selection.
 - `scripts/runtime/` - process timing, CPU/NVML sampling, environment capture,
@@ -20,6 +21,7 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `scripts/quality/` - model-space and final-output quality gates.
 - `scripts/tuning/` - candidate sweep, deterministic selection, and
   cross-resolution publication checks.
+- `scripts/workflow/` - complete goal planning, execution, and resume state.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
 - `tuning/candidates.json` - predeclared tuned candidates and selection policy.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
@@ -34,28 +36,58 @@ make -C benchmarks help
 ```
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
-Only the optional rotated comparative coordinator runs on the host and requires
-Python `>=3.10,<3.13`. Override its executable when needed:
+The goal coordinator runs on the host and requires Python `>=3.10,<3.13`.
+Override its executable when needed:
 
 ```bash
-make -C benchmarks run-comparative HOST_PYTHON=/usr/bin/python3.12 ...
+HOST_PYTHON=/usr/bin/python3.12 \
+  benchmarks/bin/run-benchmark.sh comparative
 ```
 
 ## Workflows
 
-The public benchmark interface has three independent workflows:
+Choose the intended result; the coordinator builds the required images,
+prepares and verifies assets, builds every selected engine on the current GPU,
+runs smoke checks, and executes the required measurement stages:
 
-- `run-project` - project-only regression measurement used before and after a
-  code or dependency change;
-- `run-comparative` - canonical rotated single-stream parity comparison used
-  for the currently published performance claims;
-- `run-trtexec`, `profile-nsight`, and per-stage profiling - diagnostics that
-  are never rows in the competitor table.
+```bash
+benchmarks/bin/run-benchmark.sh project
+benchmarks/bin/run-benchmark.sh comparative
+benchmarks/bin/run-benchmark.sh tuned
+benchmarks/bin/run-benchmark.sh diagnostics
+```
 
-All workflows reuse the same project runner and validation contract. Raw
-artifacts are separated under `artefacts/benchmarks/project/`,
-`artefacts/benchmarks/comparative/`, and
-`artefacts/benchmarks/diagnostics/`.
+With no filters, each goal covers RealESRGAN and SPAN at both 720p and 1080p.
+Scope a run when the complete matrix is not required:
+
+```bash
+benchmarks/bin/run-benchmark.sh comparative \
+  --workload span \
+  --variant 1080p \
+  --mode upstream-default
+```
+
+`--dry-run` prints the complete ordered command plan without Docker or GPU
+access. `--resume` continues the exact revision, matrix, profile, and selection
+recorded under `artefacts/benchmarks/workflows/`; it never guesses completion
+from arbitrary files. Run without `--resume` refuses to overwrite existing
+state.
+
+The goals are intentionally separate:
+
+- `project` measures only `ai-media-enhancer` for regression work;
+- `comparative` runs quality gates and rotated project/vstrt/VSGAN campaigns
+  using `parity` or `upstream-default`;
+- `tuned` runs candidate sweeps, winner quality gates, final campaigns, and
+  cross-resolution publication checks;
+- `diagnostics` records `trtexec` ceilings for the selection and the canonical
+  SPAN 1080p Nsight trace when that combination is selected.
+
+All workflows reuse the same runners and validation contracts. Raw artifacts
+remain separated under `artefacts/benchmarks/project/`,
+`artefacts/benchmarks/comparative/` (including tuned evidence), and
+`artefacts/benchmarks/diagnostics/`. The Make targets documented below are the
+low-level troubleshooting interface, not the normal full-cycle workflow.
 
 ## Comparison Matrix
 

@@ -109,11 +109,15 @@ make -C benchmarks run-project \
 ```
 
 Competitor Docker images, dry runs, and GPU acceptance commands are documented
-in `benchmarks/GPU_RUNBOOK.md`. `run-project` is a project-only regression
-measurement; only the rotated `run-comparative` workflow can produce a
-competitor claim. A valid run must pass full decode, media/timestamp validation,
-and NVML validity checks. `nvidia-ml-py` is installed only in the optional
-`ai-media-enhancer:benchmark` image and is not part of the production runtime.
+in `benchmarks/GPU_RUNBOOK.md`. The normal GPU entrypoint is
+`benchmarks/bin/run-benchmark.sh <goal>`; unit tests validate complete matrix
+planning and revision-bound resume without a GPU. Make targets remain the
+low-level test and troubleshooting interface. `project` is a project-only
+regression measurement; only the rotated `comparative` or validated `tuned`
+workflow can produce a competitor claim. A valid run must pass full decode,
+media/timestamp validation, and NVML validity checks. `nvidia-ml-py` is
+installed only in the optional `ai-media-enhancer:benchmark` image and is not
+part of the production runtime.
 
 The one-off `profile-nsight` diagnostic is also GPU-only, but it is not a
 performance test: profiler overhead invalidates its FPS. Unit tests cover

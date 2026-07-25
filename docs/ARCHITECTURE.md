@@ -235,11 +235,16 @@ temperature, and throttle state without calls in the per-frame hot path. After
 timing ends, the output is fully decoded and checked with FFmpeg/ffprobe, so
 validation and hashing do not affect end-to-end FPS.
 
-The same project runner powers two orchestration modes. `run-project` measures
-standalone regressions, while `run-comparative` schedules that runner alongside
-vstrt and VSGAN in rotated rounds. They share timing and validation code but
-write to separate `project/` and `comparative/` artifact namespaces.
-`trtexec`, Nsight, and per-stage profiles remain under `diagnostics/`.
+The same project runner powers standalone regression and rotated competitor
+campaigns. The goal coordinator under `benchmarks/scripts/workflow/` reads a
+strict workload/resolution matrix and expands `project`, `comparative`, `tuned`,
+or `diagnostics` into ordered low-level Make targets. Successful high-level
+steps are recorded against the exact repository revision, matrix hash, profile,
+GPU id, and selected combinations, so resume skips only proven work.
+
+Project, profile-specific comparative/tuning, and diagnostic evidence use
+distinct artifact paths. `trtexec`, Nsight, and per-stage profiles remain
+diagnostic and are never competitor rows.
 
 The benchmark runtime is an optional Docker target. The production image
 contains the main CLI, frame lifecycle marker emission, and reusable output
