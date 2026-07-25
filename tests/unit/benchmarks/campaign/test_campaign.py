@@ -723,6 +723,7 @@ def test_campaign_coordinator_records_actual_rotation(
         assert check is False
         target = command[3]
         if target == "aggregate-campaign":
+            _write_json(campaign_dir / "campaign.json", {"status": "valid"})
             return subprocess.CompletedProcess(command, 0)
         implementation = target.removeprefix("campaign-")
         round_index = int(command[4].split("=", 1)[1])
@@ -755,3 +756,53 @@ def test_campaign_coordinator_records_actual_rotation(
         step.implementation for step in campaign_steps(3)
     ]
     assert all(event.status == "completed" for event in events)
+
+
+def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign_dir = tmp_path / "artefacts/benchmarks/campaign"
+    benchmarks_dir = tmp_path / "benchmarks"
+    benchmarks_dir.mkdir()
+    aggregate_calls = 0
+
+    def fake_make(command: list[str], *, check: bool) -> subprocess.CompletedProcess:
+        nonlocal aggregate_calls
+        assert check is False
+        target = command[3]
+        if target == "aggregate-campaign":
+            aggregate_calls += 1
+            status = "needs-extra-runs" if aggregate_calls == 1 else "valid"
+            _write_json(campaign_dir / "campaign.json", {"status": status})
+            return subprocess.CompletedProcess(command, 0)
+        implementation = target.removeprefix("campaign-")
+        round_index = int(command[4].split("=", 1)[1])
+        path = (
+            campaign_dir
+            / implementation
+            / f"round-{round_index:02d}"
+            / "run-01/manifest.json"
+        )
+        _write_json(path, {"status": "valid"})
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(
+        "benchmarks.scripts.campaign.run.subprocess.run",
+        fake_make,
+    )
+    args = argparse.Namespace(
+        campaign_dir=str(campaign_dir),
+        make_campaign_dir="artefacts/benchmarks/campaign",
+        benchmarks_dir=str(benchmarks_dir),
+        idle_seconds=0.0,
+        make_command="make",
+        resume=False,
+    )
+
+    assert run_campaign(args) == 0
+    events = load_events(campaign_dir / EVENT_LOG_NAME)
+
+    assert aggregate_calls == 2
+    assert len(events) == len(campaign_steps(5))
+    assert events[-1].round_index == 5

@@ -164,21 +164,33 @@ def _run_until(
 
 def _aggregate(
     *,
+    campaign_dir: Path,
     benchmarks_dir: Path,
     make_command: str,
     make_campaign_dir: str,
     request_extra: bool,
 ) -> int:
-    args = "--request-extra-exit-code" if request_extra else ""
     command = [
         make_command,
         "-C",
         str(benchmarks_dir),
         "aggregate-campaign",
         f"CAMPAIGN_DIR={make_campaign_dir}",
-        f"ARGS={args}",
     ]
-    return subprocess.run(command, check=False).returncode
+    returncode = subprocess.run(command, check=False).returncode
+    if returncode != 0 or not request_extra:
+        return returncode
+
+    report_path = campaign_dir / "campaign.json"
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CampaignRunError(
+            f"Cannot read aggregate campaign status: {report_path}"
+        ) from exc
+    if not isinstance(report, dict) or not isinstance(report.get("status"), str):
+        raise CampaignRunError(f"Aggregate campaign status is invalid: {report_path}")
+    return 3 if report["status"] == "needs-extra-runs" else 0
 
 
 def run_campaign(args: argparse.Namespace) -> int:
@@ -213,6 +225,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             resume=True,
         )
         return _aggregate(
+            campaign_dir=campaign_dir,
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,
@@ -220,6 +233,7 @@ def run_campaign(args: argparse.Namespace) -> int:
         )
 
     status = _aggregate(
+        campaign_dir=campaign_dir,
         benchmarks_dir=benchmarks_dir,
         make_command=args.make_command,
         make_campaign_dir=args.make_campaign_dir,
@@ -237,6 +251,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             resume=True,
         )
         return _aggregate(
+            campaign_dir=campaign_dir,
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,

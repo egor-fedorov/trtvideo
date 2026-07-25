@@ -172,6 +172,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- The comparative campaign coordinator now reads the generated campaign status
+  instead of expecting GNU Make to preserve a sentinel exit code. Campaigns
+  whose initial three rounds exceed the spread threshold now automatically run
+  rounds four and five.
 - The host-side benchmark campaign coordinator now supports the explicit
   Python `>=3.10,<3.13` range instead of failing on the Python 3.11-only
   `datetime.UTC` alias.
