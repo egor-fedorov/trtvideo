@@ -12,15 +12,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from benchmarks.scripts.campaign.core import (
+    CONFIG_NAME,
     EVENT_LOG_NAME,
+    EXECUTION_PROFILES,
+    CampaignConfig,
     CampaignEvent,
     CampaignEventError,
     CampaignStep,
     append_event,
     campaign_steps,
+    load_campaign_config,
     load_events,
     parse_timestamp,
     validate_event_prefix,
+    write_campaign_config,
 )
 
 _UTC = timezone.utc  # noqa: UP017 - campaign orchestration supports host Python 3.10.
@@ -75,6 +80,14 @@ def _wait_for_idle(previous: CampaignEvent | None, idle_seconds: float) -> float
     return max(0.0, (_utc_now() - previous_finished).total_seconds())
 
 
+def _make_profile_arguments(config: CampaignConfig) -> list[str]:
+    return [
+        f"VAPOURSYNTH_MODE={config.execution_profile}",
+        f"VSTRT_ARGS={config.vstrt_arguments}",
+        f"VSGAN_ARGS={config.vsgan_arguments}",
+    ]
+
+
 def _run_step(
     step: CampaignStep,
     *,
@@ -84,6 +97,7 @@ def _run_step(
     benchmarks_dir: Path,
     make_command: str,
     make_campaign_dir: str,
+    config: CampaignConfig,
     idle_seconds: float,
     resume: bool,
 ) -> CampaignEvent:
@@ -99,6 +113,7 @@ def _run_step(
         f"ROUND={step.round_index:02d}",
         f"CAMPAIGN_DIR={make_campaign_dir}",
         f"RESUME={int(resume)}",
+        *_make_profile_arguments(config),
     ]
     process = subprocess.run(command, check=False)
     finished = _utc_now()
@@ -131,6 +146,7 @@ def _run_until(
     benchmarks_dir: Path,
     make_command: str,
     make_campaign_dir: str,
+    config: CampaignConfig,
     idle_seconds: float,
     resume: bool,
 ) -> list[CampaignEvent]:
@@ -148,6 +164,7 @@ def _run_until(
             benchmarks_dir=benchmarks_dir,
             make_command=make_command,
             make_campaign_dir=make_campaign_dir,
+            config=config,
             idle_seconds=idle_seconds,
             resume=resume,
         )
@@ -168,6 +185,7 @@ def _aggregate(
     benchmarks_dir: Path,
     make_command: str,
     make_campaign_dir: str,
+    config: CampaignConfig,
     request_extra: bool,
 ) -> int:
     command = [
@@ -176,6 +194,7 @@ def _aggregate(
         str(benchmarks_dir),
         "aggregate-campaign",
         f"CAMPAIGN_DIR={make_campaign_dir}",
+        *_make_profile_arguments(config),
     ]
     returncode = subprocess.run(command, check=False).returncode
     if returncode != 0 or not request_extra:
@@ -197,6 +216,29 @@ def run_campaign(args: argparse.Namespace) -> int:
     campaign_dir = Path(args.campaign_dir).resolve()
     benchmarks_dir = Path(args.benchmarks_dir).resolve()
     events_path = campaign_dir / EVENT_LOG_NAME
+    config_path = campaign_dir / CONFIG_NAME
+    requested_config = CampaignConfig.create(
+        execution_profile=args.execution_profile,
+        vstrt_arguments=args.vstrt_arguments,
+        vsgan_arguments=args.vsgan_arguments,
+    )
+    if config_path.exists():
+        if not args.resume:
+            raise CampaignRunError(
+                f"Campaign config already exists; use --resume: {config_path}"
+            )
+        stored_config = load_campaign_config(config_path)
+        if stored_config != requested_config:
+            raise CampaignRunError(
+                "Campaign execution profile or runner arguments changed on resume"
+            )
+    else:
+        if args.resume:
+            raise CampaignRunError(
+                f"Campaign config is missing; cannot resume: {config_path}"
+            )
+        write_campaign_config(config_path, requested_config)
+
     if not args.resume and events_path.exists():
         raise CampaignRunError(
             f"Campaign event log already exists; use --resume: {events_path}"
@@ -209,6 +251,7 @@ def run_campaign(args: argparse.Namespace) -> int:
         benchmarks_dir=benchmarks_dir,
         make_command=args.make_command,
         make_campaign_dir=args.make_campaign_dir,
+        config=requested_config,
         idle_seconds=args.idle_seconds,
         resume=args.resume,
     )
@@ -221,6 +264,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,
+            config=requested_config,
             idle_seconds=args.idle_seconds,
             resume=True,
         )
@@ -229,6 +273,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,
+            config=requested_config,
             request_extra=False,
         )
 
@@ -237,6 +282,7 @@ def run_campaign(args: argparse.Namespace) -> int:
         benchmarks_dir=benchmarks_dir,
         make_command=args.make_command,
         make_campaign_dir=args.make_campaign_dir,
+        config=requested_config,
         request_extra=True,
     )
     if status == 3:
@@ -247,6 +293,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,
+            config=requested_config,
             idle_seconds=args.idle_seconds,
             resume=True,
         )
@@ -255,6 +302,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             benchmarks_dir=benchmarks_dir,
             make_command=args.make_command,
             make_campaign_dir=args.make_campaign_dir,
+            config=requested_config,
             request_extra=False,
         )
     return status
@@ -267,6 +315,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--benchmarks-dir", required=True)
     parser.add_argument("--idle-seconds", required=True, type=float)
     parser.add_argument("--make-command", default="make")
+    parser.add_argument(
+        "--execution-profile",
+        choices=EXECUTION_PROFILES,
+        required=True,
+    )
+    parser.add_argument("--vstrt-arguments", default="")
+    parser.add_argument("--vsgan-arguments", default="")
     parser.add_argument("--resume", action="store_true")
     return parser
 

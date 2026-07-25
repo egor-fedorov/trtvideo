@@ -24,18 +24,18 @@ VAPOURSYNTH_MODE ?= parity
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
 AI_MEDIA_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
-VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
-VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
+VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
+VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_FRAMES ?= 120
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
-CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(CAMPAIGN_NAME)
+CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(VAPOURSYNTH_MODE)/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
 CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
 MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space-$(WORKLOAD_NAME)-$(VARIANT)
 MODEL_SPACE_ARGS ?=
-PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output-$(WORKLOAD_NAME)-$(VARIANT)
+PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
 QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 RESUME ?= 0
 
@@ -60,7 +60,7 @@ help:
 		'verify              Verify the selected workload assets' \
 		'dry-run             Print diagnostic and selected-profile plans' \
 		'run-project         Run the project-only regression benchmark' \
-		'run-comparative     Run/resume the canonical rotated comparison' \
+		'run-comparative     Run/resume the selected-profile rotation' \
 		'run-ai-media        Run the low-level project implementation suite' \
 		'run-vstrt           Run vstrt with VAPOURSYNTH_MODE (ENGINE required)' \
 		'run-vsgan           Run pinned VSGAN (VSGAN_ENGINE required)' \
@@ -395,6 +395,10 @@ product-output-parity:
 quality-gates: model-space-parity product-output-parity
 
 campaign-preflight:
+	@case "$(VAPOURSYNTH_MODE)" in \
+		parity|upstream-default|tuned) ;; \
+		*) echo "ERROR: unknown VAPOURSYNTH_MODE: $(VAPOURSYNTH_MODE)" >&2; exit 2 ;; \
+	esac
 	@command -v "$(HOST_PYTHON)" >/dev/null 2>&1 || \
 		(echo "ERROR: comparative campaign requires host Python >= 3.10,<3.13; not found: $(HOST_PYTHON)" >&2; exit 2)
 	@"$(HOST_PYTHON)" -c \
@@ -469,6 +473,7 @@ aggregate-campaign:
 			--campaign-dir /app/$(CAMPAIGN_DIR) \
 			--root /app \
 			--idle-seconds $(CAMPAIGN_IDLE_SECONDS) \
+			--execution-profile $(VAPOURSYNTH_MODE) \
 			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/model-space-parity.json),--model-space-report /app/$(MODEL_SPACE_DIR)/model-space-parity.json) \
 			$(if $(wildcard $(ROOT)/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json),--product-output-report /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json) \
 			$(ARGS)
@@ -479,6 +484,9 @@ run-campaign: campaign-preflight
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \
 		--idle-seconds "$(CAMPAIGN_IDLE_SECONDS)" \
+		--execution-profile "$(VAPOURSYNTH_MODE)" \
+		--vstrt-arguments="$(VSTRT_ARGS)" \
+		--vsgan-arguments="$(VSGAN_ARGS)" \
 		$(if $(filter 1,$(RESUME)),--resume,)
 
 run-comparative: run-campaign

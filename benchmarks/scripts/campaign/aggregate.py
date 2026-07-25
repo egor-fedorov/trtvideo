@@ -16,16 +16,26 @@ from typing import Any
 from ai_media.benchmarking.environment import relative_artifact_path, sha256_file, write_json
 from ai_media.benchmarking.suite import compute_suite_statistics
 from benchmarks.scripts.campaign.core import (
+    CONFIG_NAME,
     EVENT_LOG_NAME,
+    EXECUTION_PROFILES,
     IMPLEMENTATIONS,
     ROUND_ORDERS,
     CampaignEventError,
+    load_campaign_config,
     load_events,
     validate_complete_event_log,
 )
 
 MODEL_SPACE_GAP = "Model-space RGB/float parity is not verified yet"
 PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generated yet"
+PROFILE_PARAMETER_KEYS = (
+    "mode",
+    "vspipe_requests",
+    "num_streams",
+    "vapoursynth_threads",
+    "cuda_graph",
+)
 
 
 class CampaignError(RuntimeError):
@@ -444,6 +454,16 @@ def _validate_quality_run_manifest(
             raise CampaignError(
                 f"Product-output {product} run changed {label}"
             )
+    if implementation in {"vstrt", "vsgan"}:
+        profile = _execution_profile_contract(
+            manifest,
+            implementation=implementation,
+            expected_profile=contract["execution_profile"],
+        )
+        if profile != contract["execution_profiles"][implementation]:
+            raise CampaignError(
+                f"Product-output {product} run changed execution profile"
+            )
 
 
 def _validate_product_output_report(
@@ -639,11 +659,50 @@ def _validate_manifest(
         )
 
 
+def _execution_profile_contract(
+    manifest: dict[str, Any],
+    *,
+    implementation: str,
+    expected_profile: str,
+) -> dict[str, Any]:
+    parameters = manifest.get("parameters", {})
+    if not isinstance(parameters, dict):
+        raise CampaignError(f"{implementation} manifest has no parameters")
+    missing = [key for key in PROFILE_PARAMETER_KEYS if key not in parameters]
+    if missing:
+        raise CampaignError(
+            f"{implementation} manifest has no execution profile fields: "
+            + ", ".join(missing)
+        )
+    profile = {key: parameters[key] for key in PROFILE_PARAMETER_KEYS}
+    if profile["mode"] != expected_profile:
+        raise CampaignError(
+            f"{implementation} execution profile is {profile['mode']!r}, "
+            f"expected {expected_profile!r}"
+        )
+    expected_class = (
+        "parity"
+        if expected_profile == "parity" and implementation == "vstrt"
+        else (
+            "single-stream-parity"
+            if expected_profile == "parity"
+            else expected_profile
+        )
+    )
+    if manifest.get("comparison_class") != expected_class:
+        raise CampaignError(
+            f"{implementation} comparison class does not match "
+            f"{expected_profile} execution profile"
+        )
+    return profile
+
+
 def _validate_common_contract(
     rounds: list[dict[str, dict[str, Any]]],
     *,
     root: Path,
     idle_seconds: float,
+    execution_profile: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     first = rounds[0]["ai-media"]
     workload_id = first.get("workload_id")
@@ -668,6 +727,7 @@ def _validate_common_contract(
 
     image_ids: dict[str, str] = {}
     engine_hashes: dict[str, str] = {}
+    execution_profiles: dict[str, dict[str, Any]] = {}
     for round_index, round_data in enumerate(rounds, start=1):
         for implementation, manifest in round_data.items():
             _validate_manifest(
@@ -716,6 +776,20 @@ def _validate_common_contract(
             previous_engine = engine_hashes.setdefault(implementation, engine_hash)
             if engine_hash != previous_engine:
                 raise CampaignError(f"{implementation} engine changed between rounds")
+            if implementation in {"vstrt", "vsgan"}:
+                profile = _execution_profile_contract(
+                    manifest,
+                    implementation=implementation,
+                    expected_profile=execution_profile,
+                )
+                previous_profile = execution_profiles.setdefault(
+                    implementation,
+                    profile,
+                )
+                if profile != previous_profile:
+                    raise CampaignError(
+                        f"{implementation} execution profile changed between rounds"
+                    )
 
     if engine_hashes["ai-media"] != engine_hashes["vstrt"]:
         raise CampaignError("ai-media and vstrt must use the same serialized engine")
@@ -769,6 +843,8 @@ def _validate_common_contract(
         "lifecycle_timing": lifecycle_contract,
         "image_ids": image_ids,
         "engine_hashes": engine_hashes,
+        "execution_profile": execution_profile,
+        "execution_profiles": execution_profiles,
     }
 
 
@@ -870,6 +946,7 @@ def _markdown(summary: dict[str, Any]) -> str:
         "",
         f"Status: `{summary['status']}`. Publication ready: "
         f"`{'yes' if summary['publication']['ready'] else 'no'}`.",
+        f"Execution profile: `{summary['comparison_profile']}`.",
         "",
         "| Implementation | Runs | Median FPS | vs ai-media | Median wall, s | "
         "CPU cores | CPU capacity, % | GPU util, % | Power, W | J/frame | "
@@ -953,10 +1030,21 @@ def aggregate_campaign(
     *,
     root: Path,
     idle_seconds: float,
+    execution_profile: str = "parity",
     model_space_report: Path | None = None,
     product_output_report: Path | None = None,
 ) -> dict[str, Any]:
     """Validate and aggregate all completed rounds in one campaign directory."""
+    if execution_profile not in EXECUTION_PROFILES:
+        raise CampaignError(f"Unknown campaign execution profile: {execution_profile}")
+    try:
+        campaign_config = load_campaign_config(campaign_dir / CONFIG_NAME)
+    except CampaignEventError as exc:
+        raise CampaignError(f"Invalid campaign config: {exc}") from exc
+    if campaign_config.execution_profile != execution_profile:
+        raise CampaignError(
+            "Campaign config execution profile does not match aggregation request"
+        )
     rounds = _load_rounds(campaign_dir)
     events_path = campaign_dir / EVENT_LOG_NAME
     try:
@@ -971,6 +1059,7 @@ def aggregate_campaign(
         rounds,
         root=root,
         idle_seconds=idle_seconds,
+        execution_profile=execution_profile,
     )
     quality: dict[str, Any] = {}
     publication_errors = [MODEL_SPACE_GAP, PRODUCT_OUTPUT_GAP]
@@ -1039,6 +1128,7 @@ def aggregate_campaign(
         "document_type": "benchmark-campaign",
         "status": status,
         "scope": "rotated-campaign",
+        "comparison_profile": execution_profile,
         "publishable": publication_ready,
         "publication": {
             "ready": publication_ready,
@@ -1056,6 +1146,7 @@ def aggregate_campaign(
             "stability_policy": "full-range-3-then-consensus-4-of-5",
             "encoder": contract["encoder"],
             "cpu_accounting": contract["cpu_accounting"],
+            "execution_profiles": contract["execution_profiles"],
         },
         "environment": {
             "repository_revision": contract["repository_revision"],
@@ -1067,6 +1158,12 @@ def aggregate_campaign(
             "onnx_sha256": contract["onnx_sha256"],
         },
         "execution": {
+            "config": relative_artifact_path(campaign_dir / CONFIG_NAME, root),
+            "config_sha256": sha256_file(campaign_dir / CONFIG_NAME),
+            "runner_arguments": {
+                "vstrt": campaign_config.vstrt_arguments,
+                "vsgan": campaign_config.vsgan_arguments,
+            },
             "event_log": relative_artifact_path(events_path, root),
             "event_log_sha256": sha256_file(events_path),
         },
@@ -1101,6 +1198,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--campaign-dir", required=True)
     parser.add_argument("--root", default="/app")
     parser.add_argument("--idle-seconds", type=float, required=True)
+    parser.add_argument(
+        "--execution-profile",
+        choices=EXECUTION_PROFILES,
+        required=True,
+    )
     parser.add_argument("--json", default=None)
     parser.add_argument("--markdown", default=None)
     parser.add_argument(
@@ -1133,6 +1235,7 @@ def main() -> None:
             campaign_dir,
             root=Path(args.root),
             idle_seconds=args.idle_seconds,
+            execution_profile=args.execution_profile,
             model_space_report=(
                 Path(args.model_space_report) if args.model_space_report else None
             ),

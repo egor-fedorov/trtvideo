@@ -25,8 +25,9 @@ cross-product parity checks and are consumed only by comparative campaigns.
 
 All comparative commands in this runbook use `VAPOURSYNTH_MODE=parity`, which
 is the default. This reproduces the published one-request/one-stream baseline.
-Use `upstream-default` or `tuned` only for standalone plans and smoke tests until
-mode-specific campaign directories and aggregation are implemented.
+`upstream-default` and `tuned` use separate quality and campaign directories.
+For tuned runs, freeze both `VSTRT_ARGS` and `VSGAN_ARGS`; resume rejects any
+change to the selected profile or these argument strings.
 
 ## 1. Build And Assets
 
@@ -213,7 +214,7 @@ Each command must finish with both `Model-space parity valid` and
 Inspect
 `artefacts/benchmarks/comparative/quality/model-space-<workload>-<variant>/model-space-parity.json`
 and
-`artefacts/benchmarks/comparative/quality/product-output-<workload>-<variant>/product-output-parity.json`
+`artefacts/benchmarks/comparative/quality/product-output/parity/<workload>-<variant>/product-output-parity.json`
 before deleting raw tensors or retained MP4s. Review the PNG crop matrix
 manually. Any threshold failure is a quality-contract failure, not benchmark
 noise, and must be investigated before the campaign can be published. The
@@ -315,15 +316,15 @@ removal of only its own directory. If the process was interrupted after a run
 completed but before its event was recorded, its manifest is considered
 untracked and its directory must also be removed before resuming.
 
-The campaign stores raw manifests, append-only `campaign.events.jsonl`, and
-shared `campaign.json`/`results.md` files in
-`artefacts/benchmarks/comparative/campaigns/<name>/`. The event log is mandatory
-evidence of actual rotation and idle intervals. Until the quality gates are
-complete, the aggregator sets `publishable: false` even for a valid campaign.
-After changing only aggregation logic, rerun `aggregate-campaign` against the
-existing complete rounds; GPU workloads do not need to be repeated. Keep the
-benchmark image used for those measured rounds because revision validation
-still applies:
+The campaign stores immutable `campaign.config.json`, raw manifests, append-only
+`campaign.events.jsonl`, and shared `campaign.json`/`results.md` files in
+`artefacts/benchmarks/comparative/campaigns/<profile>/<name>/`. The config fixes
+the profile and runner arguments; the event log proves actual rotation and idle
+intervals. Until the quality gates are complete, the aggregator sets
+`publishable: false` even for a valid campaign. After changing only aggregation
+logic, rerun `aggregate-campaign` against existing complete rounds; GPU
+workloads do not need to be repeated. Keep the benchmark image used for those
+measured rounds because revision validation still applies:
 
 ```bash
 make -C benchmarks aggregate-campaign \

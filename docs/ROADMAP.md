@@ -128,6 +128,8 @@ continuously kernel-active frame loop without material per-frame host/device
 transfers. Product-default/tuned and live-action confirmation runs remain
 pending.
 
+- [x] Add isolated `parity`, `upstream-default`, and `tuned` campaign classes
+  with immutable scheduling configuration and aggregate-time contract checks.
 - [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
   from the product table for both resolutions and workloads.
 - [x] Collect one representative Nsight Systems trace and inspect H2D/D2H

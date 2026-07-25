@@ -5,6 +5,7 @@ import json
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -19,13 +20,16 @@ from benchmarks.scripts.campaign.aggregate import (
     aggregate_campaign,
 )
 from benchmarks.scripts.campaign.core import (
+    CONFIG_NAME,
     EVENT_LOG_NAME,
+    CampaignConfig,
     CampaignEvent,
     append_event,
     campaign_steps,
     load_events,
+    write_campaign_config,
 )
-from benchmarks.scripts.campaign.run import run_campaign
+from benchmarks.scripts.campaign.run import CampaignRunError, run_campaign
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -68,6 +72,14 @@ def _campaign(
     )
     workload_sha = sha256_file(workload_path)
     campaign_dir = root / "artefacts/benchmarks/campaign"
+    write_campaign_config(
+        campaign_dir / CONFIG_NAME,
+        CampaignConfig.create(
+            execution_profile="parity",
+            vstrt_arguments="",
+            vsgan_arguments="",
+        ),
+    )
     encoder = NvencCbrContract(
         bitrate_bps=60_000_000,
         gop_frames=24,
@@ -76,7 +88,7 @@ def _campaign(
         for round_index, value in enumerate(fps[implementation], start=1):
             engine_sha = "shared-engine" if implementation != "vsgan" else "vsgan-engine"
             wall_time_sec = 1000 / value
-            manifest = {
+            manifest: dict[str, Any] = {
                 "status": "valid",
                 "run_index": 1,
                 "product": product,
@@ -146,6 +158,28 @@ def _campaign(
                     "output": {"size_bytes": 300 * 1024 * 1024},
                 },
             }
+            if implementation == "vstrt":
+                manifest["comparison_class"] = "parity"
+                manifest["parameters"].update(
+                    {
+                        "mode": "parity",
+                        "vspipe_requests": 1,
+                        "num_streams": 1,
+                        "vapoursynth_threads": "auto",
+                        "cuda_graph": False,
+                    }
+                )
+            elif implementation == "vsgan":
+                manifest["comparison_class"] = "single-stream-parity"
+                manifest["parameters"].update(
+                    {
+                        "mode": "parity",
+                        "vspipe_requests": 1,
+                        "num_streams": 1,
+                        "vapoursynth_threads": 8,
+                        "cuda_graph": False,
+                    }
+                )
             _write_json(
                 campaign_dir
                 / implementation
@@ -259,32 +293,59 @@ def _product_output_report(root: Path) -> Path:
         engine_sha256: str,
     ) -> tuple[str, str]:
         path = report_dir / name
+        parameters = {
+            "frames": 1000,
+            "encoder": encoder,
+        }
+        comparison_class = None
+        if implementation == "vstrt":
+            comparison_class = "parity"
+            parameters.update(
+                {
+                    "mode": "parity",
+                    "vspipe_requests": 1,
+                    "num_streams": 1,
+                    "vapoursynth_threads": "auto",
+                    "cuda_graph": False,
+                }
+            )
+        elif implementation == "vsgan":
+            comparison_class = "single-stream-parity"
+            parameters.update(
+                {
+                    "mode": "parity",
+                    "vspipe_requests": 1,
+                    "num_streams": 1,
+                    "vapoursynth_threads": 8,
+                    "cuda_graph": False,
+                }
+            )
+        manifest = {
+            "status": "valid",
+            "product": product,
+            "workload_id": "workload-v1",
+            "variant": "1080p",
+            "parameters": parameters,
+            "assets": {
+                "input": {"sha256": "input-sha"},
+                "onnx": {"sha256": "onnx-sha"},
+                "engine": {"sha256": engine_sha256},
+            },
+            "environment": {
+                "image": {
+                    "id": f"{implementation}-image",
+                    "repository_revision": "revision-1",
+                    "source_dirty": "0",
+                }
+            },
+            "reproducibility": {"publishable": True},
+            "measured": {"validation": {"valid": True}},
+        }
+        if comparison_class is not None:
+            manifest["comparison_class"] = comparison_class
         _write_json(
             path,
-            {
-                "status": "valid",
-                "product": product,
-                "workload_id": "workload-v1",
-                "variant": "1080p",
-                "parameters": {
-                    "frames": 1000,
-                    "encoder": encoder,
-                },
-                "assets": {
-                    "input": {"sha256": "input-sha"},
-                    "onnx": {"sha256": "onnx-sha"},
-                    "engine": {"sha256": engine_sha256},
-                },
-                "environment": {
-                    "image": {
-                        "id": f"{implementation}-image",
-                        "repository_revision": "revision-1",
-                        "source_dirty": "0",
-                    }
-                },
-                "reproducibility": {"publishable": True},
-                "measured": {"validation": {"valid": True}},
-            },
+            manifest,
         )
         return path.relative_to(root).as_posix(), sha256_file(path)
 
@@ -340,7 +401,7 @@ def _product_output_report(root: Path) -> Path:
     ):
         crops = []
         for frame_index in (0, 499, 999):
-            path, checksum = artifact(
+            crop_path, checksum = artifact(
                 f"crops/{directory}/frame-{frame_index:06d}.center.png",
                 f"{implementation} {frame_index}".encode(),
             )
@@ -348,15 +409,15 @@ def _product_output_report(root: Path) -> Path:
                 {
                     "frame_index": frame_index,
                     "crop": "center",
-                    "path": path,
+                    "path": crop_path,
                     "sha256": checksum,
                 }
             )
         visual_crops[implementation] = crops
 
-    path = report_dir / "product-output-parity.json"
+    report_path = report_dir / "product-output-parity.json"
     _write_json(
-        path,
+        report_path,
         {
             "document_type": "product-output-parity",
             "status": "valid",
@@ -382,7 +443,7 @@ def _product_output_report(root: Path) -> Path:
             "visual_crops": visual_crops,
         },
     )
-    return path
+    return report_path
 
 
 def test_aggregate_campaign_builds_acceptance_table(
@@ -408,7 +469,15 @@ def test_aggregate_campaign_builds_acceptance_table(
         PRODUCT_OUTPUT_GAP,
     ]
     assert summary["needs_extra_runs"] is False
+    assert summary["comparison_profile"] == "parity"
     assert summary["parameters"]["rounds"] == 3
+    assert summary["parameters"]["execution_profiles"]["vstrt"] == {
+        "mode": "parity",
+        "vspipe_requests": 1,
+        "num_streams": 1,
+        "vapoursynth_threads": "auto",
+        "cuda_graph": False,
+    }
     assert summary["implementations"]["ai-media"]["statistics"]["median_fps"] == 10.0
     assert summary["implementations"]["ai-media"]["statistics"]["median_cpu_cores"] == 1.0
     assert (
@@ -561,6 +630,37 @@ def test_aggregate_campaign_rejects_product_output_image_drift(
         )
 
 
+def test_aggregate_campaign_rejects_product_output_profile_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    report_path = _product_output_report(tmp_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    manifest_path = tmp_path / report["comparisons"][0]["run_manifest"]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["parameters"]["num_streams"] = 2
+    _write_json(manifest_path, manifest)
+    report["comparisons"][0]["run_manifest_sha256"] = sha256_file(manifest_path)
+    _write_json(report_path, report)
+
+    with pytest.raises(CampaignError, match="changed execution profile"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            product_output_report=report_path,
+        )
+
+
 def test_aggregate_campaign_requests_two_extra_rounds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -602,6 +702,51 @@ def test_aggregate_campaign_rejects_mixed_revisions(
 
     with pytest.raises(CampaignError, match="repository revision"):
         aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_rejects_mixed_execution_profiles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    path = campaign_dir / "vstrt/round-02/run-01/manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["parameters"]["num_streams"] = 2
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="execution profile changed"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_rejects_requested_profile_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+
+    with pytest.raises(CampaignError, match="does not match aggregation request"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            execution_profile="tuned",
+        )
 
 
 def test_aggregate_campaign_rejects_different_cpu_accounting(
@@ -803,6 +948,7 @@ def test_campaign_coordinator_records_actual_rotation(
 
     def fake_make(command: list[str], *, check: bool) -> subprocess.CompletedProcess:
         assert check is False
+        assert "VAPOURSYNTH_MODE=parity" in command
         target = command[3]
         if target == "aggregate-campaign":
             _write_json(campaign_dir / "campaign.json", {"status": "valid"})
@@ -828,6 +974,9 @@ def test_campaign_coordinator_records_actual_rotation(
         benchmarks_dir=str(benchmarks_dir),
         idle_seconds=0.0,
         make_command="make",
+        execution_profile="parity",
+        vstrt_arguments="",
+        vsgan_arguments="",
         resume=False,
     )
 
@@ -838,6 +987,8 @@ def test_campaign_coordinator_records_actual_rotation(
         step.implementation for step in campaign_steps(3)
     ]
     assert all(event.status == "completed" for event in events)
+    config = json.loads((campaign_dir / CONFIG_NAME).read_text(encoding="utf-8"))
+    assert config["execution_profile"] == "parity"
 
 
 def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
@@ -879,6 +1030,9 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
         benchmarks_dir=str(benchmarks_dir),
         idle_seconds=0.0,
         make_command="make",
+        execution_profile="parity",
+        vstrt_arguments="",
+        vsgan_arguments="",
         resume=False,
     )
 
@@ -888,3 +1042,38 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
     assert aggregate_calls == 2
     assert len(events) == len(campaign_steps(5))
     assert events[-1].round_index == 5
+
+
+def test_campaign_coordinator_rejects_changed_profile_arguments_on_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign_dir = tmp_path / "artefacts/benchmarks/campaign"
+    benchmarks_dir = tmp_path / "benchmarks"
+    benchmarks_dir.mkdir()
+    write_campaign_config(
+        campaign_dir / CONFIG_NAME,
+        CampaignConfig.create(
+            execution_profile="tuned",
+            vstrt_arguments="--requests auto --num-streams 2",
+            vsgan_arguments="--requests auto --num-streams 4",
+        ),
+    )
+    monkeypatch.setattr(
+        "benchmarks.scripts.campaign.run.subprocess.run",
+        lambda command, check: subprocess.CompletedProcess(command, 0),
+    )
+    args = argparse.Namespace(
+        campaign_dir=str(campaign_dir),
+        make_campaign_dir="artefacts/benchmarks/campaign",
+        benchmarks_dir=str(benchmarks_dir),
+        idle_seconds=0.0,
+        make_command="make",
+        execution_profile="tuned",
+        vstrt_arguments="--requests auto --num-streams 3",
+        vsgan_arguments="--requests auto --num-streams 4",
+        resume=True,
+    )
+
+    with pytest.raises(CampaignRunError, match="runner arguments changed"):
+        run_campaign(args)

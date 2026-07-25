@@ -128,10 +128,12 @@ explicit values for requests, TensorRT streams, VapourSynth threads, and CUDA
 Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
 value is written to the plan and measured-run manifest.
 
-The canonical campaign namespace currently represents only `parity`.
-Upstream-default and tuned runners may be planned or smoke-tested independently,
-but their publishable campaigns require the separate result namespaces and
-aggregation contract defined by the next benchmark infrastructure stage.
+Each profile has separate standalone, product-output, and campaign directories.
+A campaign stores its profile and exact vstrt/VSGAN argument strings in an
+immutable `campaign.config.json`; resume and aggregation reject a changed
+configuration. The aggregator also requires every measured and product-output
+manifest to use the selected mode, comparison class, and unchanged scheduling
+parameters. Results from different profiles therefore cannot form one campaign.
 
 External `vspipe | ffmpeg` encoding is normalized to pinned Ubuntu FFmpeg
 `7:6.1.1-3ubuntu5`. The upstream binary requires NVENC API 13.1 and driver 610+,
@@ -407,5 +409,7 @@ An individual suite always remains acceptance data, even with canonical
 frames/runs. A comparative result is formed only by the rotated campaign runner.
 The runner stores an append-only event log with actual order, UTC timestamps,
 and observed idle intervals; the aggregator validates this log instead of
-reconstructing order from directory names. A campaign is publishable only after
-both quality gates pass for the same measured revision and asset contracts.
+reconstructing order from directory names. Its immutable config records the
+execution profile and runner arguments used by every round. A campaign is
+publishable only after product-output evidence matches the same profile and
+both quality gates match the measured revision and asset contracts.

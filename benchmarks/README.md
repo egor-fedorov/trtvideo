@@ -123,9 +123,22 @@ make -C benchmarks plan-vsgan \
 
 For tuned experiments, pass implementation-specific values through
 `VSTRT_ARGS` or `VSGAN_ARGS`. Tuned values must first be selected by a documented
-sweep and then frozen before a measured campaign. The canonical comparative
-campaign directories currently remain parity-only; mode-specific campaign
-namespaces are the next benchmark infrastructure step.
+sweep and then frozen before a measured campaign.
+
+Every profile has isolated artifact directories. A rotated campaign stores an
+immutable `campaign.config.json` and rejects `RESUME=1` if the selected profile
+or either runner argument string changes. For example:
+
+```bash
+make -C benchmarks run-comparative \
+  VAPOURSYNTH_MODE=upstream-default \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+A tuned campaign uses the same command with `VAPOURSYNTH_MODE=tuned` and frozen
+`VSTRT_ARGS` plus `VSGAN_ARGS`. The runner requires explicit requests, streams,
+VapourSynth threads, and CUDA Graph state for each implementation.
 
 ## Assets
 
@@ -248,7 +261,7 @@ The product-output job performs one separate canonical retained-output run per
 implementation. It does not contribute FPS values to the rotated campaign.
 `product-output-parity.json`, FFmpeg metric logs, retained MP4s, and visual PNG
 crops are written under
-`artefacts/benchmarks/comparative/quality/product-output-<workload>-<variant>/`.
+`artefacts/benchmarks/comparative/quality/product-output/<profile>/<workload>-<variant>/`.
 The fixed gate requires 1000 compared frames, average PSNR of at least 35 dB,
 and overall SSIM of at least 0.95. The aggregator reloads the retained-output
 run manifests and requires the same images, revision, encoder, assets, and
@@ -264,16 +277,17 @@ make -C benchmarks run-comparative \
 ```
 
 Results are written to
-`artefacts/benchmarks/comparative/campaigns/realesrgan_x2plus_sintel-1080p/`:
-raw manifests, `campaign.events.jsonl`, `campaign.json`, and `results.md`. The
-event log records the actual order, start/end time, and observed pause for each
-run; the aggregator rejects results without a complete log. The main table
-contains median FPS, wall time, CPU cores, GPU utilization, power, VRAM,
-bitrate, and size. A separate lifecycle table contains median startup,
-steady-state frame loop, and finalize/mux durations, which sum to the same
-full-process wall time. A stability table retains all raw FPS values and reports
-full spread plus an explicit four-of-five consensus and outlier when the
-initial three rounds required two additional rounds.
+`artefacts/benchmarks/comparative/campaigns/parity/realesrgan_x2plus_sintel-1080p/`:
+raw manifests, `campaign.config.json`, `campaign.events.jsonl`, `campaign.json`,
+and `results.md`. The config fixes scheduling identity; the event log records
+the actual order, start/end time, and observed pause for each run. The aggregator
+rejects either missing evidence or mixed profiles. The main table contains
+median FPS, wall time, CPU cores, GPU utilization, power, VRAM, bitrate, and
+size. A separate lifecycle table contains median startup, steady-state frame
+loop, and finalize/mux durations, which sum to the same full-process wall time.
+A stability table retains all raw FPS values and reports full spread plus an
+explicit four-of-five consensus and outlier when the initial three rounds
+required two additional rounds.
 
 The production image contains neither NVML nor external benchmark tools. The
 complete GPU workflow is documented in `GPU_RUNBOOK.md`.

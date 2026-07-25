@@ -23,11 +23,67 @@ ROUND_ORDERS = {
     5: ("ai-media", "vsgan", "vstrt"),
 }
 EVENT_LOG_NAME = "campaign.events.jsonl"
+CONFIG_NAME = "campaign.config.json"
+EXECUTION_PROFILES = ("parity", "upstream-default", "tuned")
 IDLE_TOLERANCE_SECONDS = 0.05
 
 
 class CampaignEventError(ValueError):
     """Raised when a campaign event log cannot prove the execution contract."""
+
+
+@dataclass(frozen=True)
+class CampaignConfig:
+    """Immutable identity required to create or resume a campaign."""
+
+    schema_version: int
+    execution_profile: str
+    vstrt_arguments: str
+    vsgan_arguments: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        execution_profile: str,
+        vstrt_arguments: str,
+        vsgan_arguments: str,
+    ) -> CampaignConfig:
+        config = cls(
+            schema_version=1,
+            execution_profile=execution_profile,
+            vstrt_arguments=vstrt_arguments.strip(),
+            vsgan_arguments=vsgan_arguments.strip(),
+        )
+        config.validate()
+        return config
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> CampaignConfig:
+        try:
+            config = cls(
+                schema_version=int(value["schema_version"]),
+                execution_profile=str(value["execution_profile"]),
+                vstrt_arguments=str(value["vstrt_arguments"]),
+                vsgan_arguments=str(value["vsgan_arguments"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CampaignEventError(f"Invalid campaign config: {exc}") from exc
+        config.validate()
+        return config
+
+    def validate(self) -> None:
+        if self.schema_version != 1:
+            raise CampaignEventError(
+                f"Unsupported campaign config schema: {self.schema_version}"
+            )
+        if self.execution_profile not in EXECUTION_PROFILES:
+            raise CampaignEventError(
+                f"Unknown campaign execution profile: {self.execution_profile}"
+            )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -176,6 +232,29 @@ def append_event(path: Path, event: CampaignEvent) -> None:
         json.dump(event.as_dict(), file, sort_keys=True)
         file.write("\n")
         file.flush()
+
+
+def load_campaign_config(path: Path) -> CampaignConfig:
+    """Load and validate one immutable campaign config."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CampaignEventError(f"Cannot read campaign config {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise CampaignEventError(f"Campaign config must be an object: {path}")
+    return CampaignConfig.from_dict(value)
+
+
+def write_campaign_config(path: Path, config: CampaignConfig) -> None:
+    """Create a campaign config without replacing existing identity."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as file:
+            json.dump(config.as_dict(), file, indent=2, sort_keys=True)
+            file.write("\n")
+            file.flush()
+    except FileExistsError as exc:
+        raise CampaignEventError(f"Campaign config already exists: {path}") from exc
 
 
 def completed_events(events: list[CampaignEvent]) -> list[CampaignEvent]:

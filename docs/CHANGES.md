@@ -137,6 +137,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added validated `parity`, `upstream-default`, and `tuned` execution profiles
   to both VapourSynth benchmark runners. Automatic vspipe scheduling now omits
   `--requests`, while tuned runs require every scheduling choice explicitly.
+- Isolated comparative and product-output artifacts by execution profile.
+  Rotated campaigns now persist immutable runner settings and reject mixed
+  scheduling contracts during resume, quality validation, and aggregation.
 - Comparative campaign stability now uses the full spread for three rounds and,
   after an automatic extension to five, accepts an explicit four-of-five
   consensus within the same 5% threshold. Raw values and headline medians still
