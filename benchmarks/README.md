@@ -243,7 +243,9 @@ run; the aggregator rejects results without a complete log. The main table
 contains median FPS, wall time, CPU cores, GPU utilization, power, VRAM,
 bitrate, and size. A separate lifecycle table contains median startup,
 steady-state frame loop, and finalize/mux durations, which sum to the same
-full-process wall time.
+full-process wall time. A stability table retains all raw FPS values and reports
+full spread plus an explicit four-of-five consensus and outlier when the
+initial three rounds required two additional rounds.
 
 The production image contains neither NVML nor external benchmark tools. The
 complete GPU workflow is documented in `GPU_RUNBOOK.md`.

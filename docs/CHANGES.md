@@ -129,6 +129,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Comparative campaign stability now uses the full spread for three rounds and,
+  after an automatic extension to five, accepts an explicit four-of-five
+  consensus within the same 5% threshold. Raw values and headline medians still
+  include all five runs; JSON and Markdown reports identify the accepted
+  outlier and both spreads.
 - Upscale output is now written to a same-directory temporary file and exposed
   atomically only after successful decode, encode, and mux. FFmpeg subprocess
   and final-mux failures return a non-zero status instead of leaving an

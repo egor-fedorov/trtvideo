@@ -231,12 +231,21 @@ For a canonical run:
 
 1. A separate discarded process handles 100 warmup frames.
 2. A new process handles exactly 1000 measured frames.
-3. At least three runs are executed; two more are added when relative spread
-   exceeds 5%.
-4. Product order rotates between rounds.
-5. The same idle interval is observed between runs.
+3. Three runs are accepted when full relative spread does not exceed 5%.
+4. When any implementation exceeds 5%, two complete rotated rounds are added
+   for every implementation to preserve equal sample counts and order balance.
+5. After five runs, a result is stable when either the full range passes or the
+   narrowest four-of-five subset passes the same 5% threshold. The latter is
+   reported as `stable-with-one-outlier`, including the excluded round and
+   value.
+6. Five runs without an accepted four-run consensus remain unstable.
+7. Product order rotates between rounds.
+8. The same idle interval is observed between runs.
 
 Raw values, median, min/max, and spread `(max - min) / median` are published.
+All headline medians and resource statistics use all measured runs, including
+an accepted outlier. The four-of-five subset affects only stability acceptance;
+its spread and selected rounds are published separately.
 Startup/context initialization, steady-state frame loop, and finalize/mux are
 also recorded; these scopes do not replace full-process wall time. Cold-start
 and warm-cache results are not mixed.

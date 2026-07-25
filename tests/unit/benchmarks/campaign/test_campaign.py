@@ -15,6 +15,7 @@ from benchmarks.scripts.campaign.aggregate import (
     MODEL_SPACE_GAP,
     PRODUCT_OUTPUT_GAP,
     CampaignError,
+    _markdown,
     aggregate_campaign,
 )
 from benchmarks.scripts.campaign.core import (
@@ -467,7 +468,11 @@ def test_aggregate_campaign_is_publishable_with_both_quality_reports(
     )
 
     assert summary["publishable"] is True
-    assert summary["publication"] == {"ready": True, "errors": []}
+    assert summary["publication"] == {
+        "ready": True,
+        "errors": [],
+        "warnings": [],
+    }
     assert summary["quality"]["product_output"]["status"] == "valid"
 
 
@@ -709,6 +714,83 @@ def test_aggregate_campaign_accepts_complete_five_round_log(
     assert summary["status"] == "valid"
     assert summary["parameters"]["rounds"] == 5
     assert summary["rounds"][3]["order"] == ["vsgan", "vstrt", "ai-media"]
+
+
+def test_aggregate_campaign_accepts_four_of_five_consensus(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    vstrt_fps = [
+        9.206078920416692,
+        9.776448783606835,
+        9.418761837122538,
+        9.348216376211594,
+        9.215761747924864,
+    ]
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [25.1, 25.0, 24.9, 25.1, 25.0],
+            "vstrt": vstrt_fps,
+            "vsgan": [9.3, 9.2, 9.1, 9.3, 9.2],
+        },
+    )
+
+    summary = aggregate_campaign(
+        campaign_dir,
+        root=tmp_path,
+        idle_seconds=10,
+        model_space_report=_model_space_report(tmp_path),
+        product_output_report=_product_output_report(tmp_path),
+    )
+
+    result = summary["implementations"]["vstrt"]
+    stability = result["stability"]
+    assert summary["status"] == "valid"
+    assert summary["publishable"] is True
+    assert summary["unstable_implementations"] == []
+    assert summary["stable_with_outlier_implementations"] == ["vstrt"]
+    assert result["statistics"]["values_fps"] == vstrt_fps
+    assert result["statistics"]["median_fps"] == vstrt_fps[3]
+    assert stability["status"] == "stable-with-one-outlier"
+    assert stability["full_relative_spread"] == pytest.approx(0.0610137635)
+    assert stability["consensus"]["rounds"] == [1, 3, 4, 5]
+    assert stability["consensus"]["relative_spread"] == pytest.approx(0.0229, abs=1e-4)
+    assert stability["outlier"] == {
+        "round": 2,
+        "fps": vstrt_fps[1],
+    }
+    assert len(summary["publication"]["warnings"]) == 1
+    markdown = _markdown(summary)
+    assert "stable-with-one-outlier" in markdown
+    assert "round 2: 9.776 FPS" in markdown
+
+
+def test_aggregate_campaign_rejects_five_runs_without_consensus(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9, 10.0, 10.1],
+            "vstrt": [8.0, 9.0, 10.0, 11.0, 12.0],
+            "vsgan": [8.8, 8.9, 8.7, 8.8, 8.9],
+        },
+    )
+
+    summary = aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+    stability = summary["implementations"]["vstrt"]["stability"]
+    assert summary["status"] == "unstable"
+    assert summary["publishable"] is False
+    assert summary["unstable_implementations"] == ["vstrt"]
+    assert summary["stable_with_outlier_implementations"] == []
+    assert stability["status"] == "unstable"
+    assert stability["consensus"]["accepted"] is False
+    assert stability["outlier"] is None
 
 
 def test_campaign_coordinator_records_actual_rotation(

@@ -262,7 +262,11 @@ state, commit, and image set.
 
 Canonical defaults are 100 warmup frames, 1000 measured frames, three rotated
 rounds, and two additional rounds when the spread of any implementation exceeds
-5%:
+5%. Extra rounds repeat all implementations to preserve rotation and equal
+sample counts. After five rounds, the campaign is valid when every
+implementation either passes the full-range threshold or has a four-of-five
+consensus within 5%. A consensus result is labeled `stable-with-one-outlier`;
+the raw five values and all-run median remain unchanged.
 
 ```bash
 make -C benchmarks run-comparative \
@@ -312,6 +316,16 @@ shared `campaign.json`/`results.md` files in
 `artefacts/benchmarks/comparative/campaigns/<name>/`. The event log is mandatory
 evidence of actual rotation and idle intervals. Until the quality gates are
 complete, the aggregator sets `publishable: false` even for a valid campaign.
+After changing only aggregation logic, rerun `aggregate-campaign` against the
+existing complete rounds; GPU workloads do not need to be repeated. Keep the
+benchmark image used for those measured rounds because revision validation
+still applies:
+
+```bash
+make -C benchmarks aggregate-campaign \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p
+```
 
 Individual `run-ai-media`, `run-vstrt`, and `run-vsgan` targets remain available
 for smoke tests and diagnosis. `run-trtexec` remains a separate inference

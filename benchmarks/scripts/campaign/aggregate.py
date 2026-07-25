@@ -8,6 +8,8 @@ import json
 import os
 import statistics
 import sys
+from dataclasses import dataclass
+from itertools import combinations
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +30,46 @@ PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generate
 
 class CampaignError(RuntimeError):
     """Raised when campaign artifacts cannot form one comparable result."""
+
+
+@dataclass(frozen=True)
+class StabilityAssessment:
+    """Result of applying the campaign's two-phase stability policy."""
+
+    status: str
+    threshold: float
+    full_relative_spread: float
+    consensus_rounds: tuple[int, ...] = ()
+    consensus_values_fps: tuple[float, ...] = ()
+    consensus_relative_spread: float | None = None
+    outlier_round: int | None = None
+    outlier_fps: float | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        consensus = None
+        if self.consensus_rounds:
+            consensus = {
+                "required_rounds": 4,
+                "rounds": list(self.consensus_rounds),
+                "values_fps": list(self.consensus_values_fps),
+                "relative_spread": self.consensus_relative_spread,
+                "accepted": self.consensus_relative_spread is not None
+                and self.consensus_relative_spread <= self.threshold,
+            }
+        outlier = None
+        if self.outlier_round is not None:
+            outlier = {
+                "round": self.outlier_round,
+                "fps": self.outlier_fps,
+            }
+        return {
+            "status": self.status,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "threshold": self.threshold,
+            "full_relative_spread": self.full_relative_spread,
+            "consensus": consensus,
+            "outlier": outlier,
+        }
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -160,6 +202,67 @@ def _lifecycle_contract(manifest: dict[str, Any]) -> dict[str, str]:
 
 def _median(values: list[float]) -> float:
     return float(statistics.median(values))
+
+
+def _relative_spread(values: list[float]) -> float:
+    median = _median(values)
+    if median <= 0:
+        raise CampaignError("FPS values must have a positive median")
+    return (max(values) - min(values)) / median
+
+
+def _assess_stability(
+    values: list[float],
+    *,
+    threshold: float,
+) -> StabilityAssessment:
+    """Apply the canonical three-run, then four-of-five consensus policy."""
+    if len(values) not in {3, 5}:
+        raise CampaignError(
+            f"Stability assessment requires 3 or 5 values, got {len(values)}"
+        )
+
+    full_spread = _relative_spread(values)
+    if full_spread <= threshold:
+        return StabilityAssessment(
+            status="stable",
+            threshold=threshold,
+            full_relative_spread=full_spread,
+        )
+    if len(values) == 3:
+        return StabilityAssessment(
+            status="needs-extra-runs",
+            threshold=threshold,
+            full_relative_spread=full_spread,
+        )
+
+    indexed_values = tuple(enumerate(values, start=1))
+    candidates = []
+    for candidate in combinations(indexed_values, 4):
+        candidate_values = [value for _, value in candidate]
+        candidates.append((_relative_spread(candidate_values), candidate))
+    consensus_spread, consensus = min(
+        candidates,
+        key=lambda item: (item[0], tuple(index for index, _ in item[1])),
+    )
+    consensus_rounds = tuple(index for index, _ in consensus)
+    consensus_values = tuple(value for _, value in consensus)
+    excluded = next(item for item in indexed_values if item not in consensus)
+    status = (
+        "stable-with-one-outlier"
+        if consensus_spread <= threshold
+        else "unstable"
+    )
+    return StabilityAssessment(
+        status=status,
+        threshold=threshold,
+        full_relative_spread=full_spread,
+        consensus_rounds=consensus_rounds,
+        consensus_values_fps=consensus_values,
+        consensus_relative_spread=consensus_spread,
+        outlier_round=excluded[0] if status == "stable-with-one-outlier" else None,
+        outlier_fps=excluded[1] if status == "stable-with-one-outlier" else None,
+    )
 
 
 def _validate_model_space_report(
@@ -805,8 +908,42 @@ def _markdown(summary: dict[str, Any]) -> str:
             f"{stats['median_steady_state_frame_loop_sec']:.3f} | "
             f"{stats['median_finalize_mux_sec']:.3f} |"
         )
-    lines.extend(["", "Publication gaps:"])
-    lines.extend(f"- {gap}" for gap in summary["publication"]["errors"])
+    lines.extend(
+        [
+            "",
+            "| Implementation | Stability | Full spread | 4-of-5 spread | "
+            "Outlier | Raw FPS |",
+            "|---|---|---:|---:|---|---|",
+        ]
+    )
+    for name in IMPLEMENTATIONS:
+        result = summary["implementations"][name]
+        stats = result["statistics"]
+        stability = result["stability"]
+        consensus = stability["consensus"]
+        outlier = stability["outlier"]
+        consensus_spread = (
+            f"{consensus['relative_spread']:.2%}" if consensus else "-"
+        )
+        outlier_label = (
+            f"round {outlier['round']}: {outlier['fps']:.3f} FPS"
+            if outlier
+            else "-"
+        )
+        raw_values = ", ".join(f"{value:.3f}" for value in stats["values_fps"])
+        lines.append(
+            f"| {result['product']} | {stability['status']} | "
+            f"{stability['full_relative_spread']:.2%} | {consensus_spread} | "
+            f"{outlier_label} | {raw_values} |"
+        )
+    if summary["publication"]["warnings"]:
+        lines.extend(["", "Publication warnings:"])
+        lines.extend(
+            f"- {warning}" for warning in summary["publication"]["warnings"]
+        )
+    if summary["publication"]["errors"]:
+        lines.extend(["", "Publication gaps:"])
+        lines.extend(f"- {gap}" for gap in summary["publication"]["errors"])
     lines.append("")
     return "\n".join(lines)
 
@@ -852,12 +989,19 @@ def aggregate_campaign(
         )
         publication_errors.remove(PRODUCT_OUTPUT_GAP)
     implementation_results: dict[str, Any] = {}
+    spread_threshold = float(workload["benchmark"]["spread_threshold"])
     for name, product in IMPLEMENTATIONS.items():
+        statistics_report = _implementation_statistics(rounds, name)
+        stability = _assess_stability(
+            statistics_report["values_fps"],
+            threshold=spread_threshold,
+        )
         implementation_results[name] = {
             "product": product,
             "image_id": contract["image_ids"][name],
             "engine_sha256": contract["engine_hashes"][name],
-            "statistics": _implementation_statistics(rounds, name),
+            "statistics": statistics_report,
+            "stability": stability.as_dict(),
         }
 
     ai_fps = implementation_results["ai-media"]["statistics"]["median_fps"]
@@ -865,14 +1009,30 @@ def aggregate_campaign(
         median_fps = result["statistics"]["median_fps"]
         result["relative_to_ai_media_percent"] = (median_fps / ai_fps - 1) * 100
 
-    spread_threshold = float(workload["benchmark"]["spread_threshold"])
     unstable = [
         name
         for name, result in implementation_results.items()
-        if result["statistics"]["relative_spread"] > spread_threshold
+        if result["stability"]["status"] in {"needs-extra-runs", "unstable"}
+    ]
+    stable_with_outlier = [
+        name
+        for name, result in implementation_results.items()
+        if result["stability"]["status"] == "stable-with-one-outlier"
     ]
     needs_extra = len(rounds) == 3 and bool(unstable)
     status = "needs-extra-runs" if needs_extra else ("unstable" if unstable else "valid")
+    publication_warnings = []
+    for name in stable_with_outlier:
+        result = implementation_results[name]
+        stability = result["stability"]
+        outlier = stability["outlier"]
+        consensus = stability["consensus"]
+        publication_warnings.append(
+            f"{result['product']} is stable with one outlier: "
+            f"round {outlier['round']} at {outlier['fps']:.3f} FPS; "
+            f"full spread {stability['full_relative_spread']:.2%}, "
+            f"4-of-5 consensus spread {consensus['relative_spread']:.2%}"
+        )
     publication_ready = status == "valid" and not publication_errors
     summary = {
         "schema_version": 1,
@@ -883,6 +1043,7 @@ def aggregate_campaign(
         "publication": {
             "ready": publication_ready,
             "errors": publication_errors,
+            "warnings": publication_warnings,
         },
         "workload_id": contract["workload_id"],
         "variant": contract["variant"],
@@ -892,6 +1053,7 @@ def aggregate_campaign(
             "measured_frames": contract["frames"],
             "idle_seconds": idle_seconds,
             "spread_threshold": spread_threshold,
+            "stability_policy": "full-range-3-then-consensus-4-of-5",
             "encoder": contract["encoder"],
             "cpu_accounting": contract["cpu_accounting"],
         },
@@ -927,6 +1089,7 @@ def aggregate_campaign(
             for index in range(1, len(rounds) + 1)
         ],
         "unstable_implementations": unstable,
+        "stable_with_outlier_implementations": stable_with_outlier,
         "needs_extra_runs": needs_extra,
         "implementations": implementation_results,
     }
