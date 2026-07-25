@@ -254,11 +254,10 @@ Commit all changes and rebuild all three benchmark images before the campaign.
 Preflight rejects a dirty worktree or an image not built from the current
 commit.
 
-The published RTX 3090 1080p snapshot remains valid for its recorded revision.
-Run 1080p again for a current-release claim because media preservation changed
-the measured process startup and finalize/mux path after that snapshot. Run the
-pending 720p confirmation in the same session, on the same physical GPU, power
-state, commit, and image set.
+The published RTX 3090 snapshot contains both resolutions and workloads
+measured on runtime revision `0fc3037`, including media preservation. Repeat
+the complete matrix only for a claim about a later runtime revision; keep the
+same physical GPU, power state, commit, and image set within that campaign.
 
 Canonical defaults are 100 warmup frames, 1000 measured frames, three rotated
 rounds, and two additional rounds when the spread of any implementation exceeds
@@ -275,7 +274,7 @@ make -C benchmarks run-comparative \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-The explicit RealESRGAN 720p confirmation is:
+For RealESRGAN 720p:
 
 ```bash
 make -C benchmarks run-comparative \
@@ -294,7 +293,7 @@ make -C benchmarks run-comparative \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
-The explicit SPAN 720p confirmation is:
+For SPAN 720p:
 
 ```bash
 make -C benchmarks run-comparative \

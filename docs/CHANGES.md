@@ -77,9 +77,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added a lightweight Python 3.12 checks image in `docker/checks.Dockerfile`.
   Regular quality checks no longer require downloading the NVIDIA/TensorRT base
   image.
-- Published the first privacy-reviewed benchmark snapshot: validated
-  `1080p -> 4K` RealESRGAN and SPAN parity campaigns on an RTX 3090, including
-  CPU, GPU, power, energy, VRAM, quality, and diagnostic `trtexec` results.
+- Published a privacy-reviewed multi-resolution benchmark snapshot: validated
+  `720p -> 1440p` and `1080p -> 4K` RealESRGAN and SPAN parity campaigns on an
+  RTX 3090, including CPU, GPU, power, energy, VRAM, lifecycle, quality,
+  stability, `trtexec`, and compact Nsight results.
 - Benchmark manifests and campaign summaries now contain separate lifecycle
   scopes: startup through the first completed frame, steady state through the
   last frame, and finalize/encoder flush/mux through process exit.

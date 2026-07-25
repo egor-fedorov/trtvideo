@@ -9,25 +9,39 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
-## 2026-07-24 - RTX 3090 1080p parity baseline
+## 2026-07-25 - RTX 3090 multi-resolution parity benchmark
 
-The first competitor baseline compares `ai-media-enhancer`, TensorRT 11
-`vs-mlrt`, and stock TensorRT 10.16 VSGAN on RealESRGAN_x2plus and SPAN. The
-campaign used 100 warmup frames, 1000 measured frames, and three rotated rounds.
-No reduced GPU power limit was applied: the RTX 3090 used its default 350 W
-board limit.
+The current competitor baseline compares `ai-media-enhancer`, TensorRT 11
+`vs-mlrt`, and stock TensorRT 10.16 VSGAN on RealESRGAN_x2plus and SPAN at
+`720p -> 1440p` and `1080p -> 4K`. Measured revision `0fc3037` includes media
+preservation. Each campaign used 100 warmup frames, 1000 measured frames, and
+three rotated rounds; SPAN 1080p extended to five rounds under the stability
+policy. No reduced GPU power limit was applied: the RTX 3090 used its default
+350 W board limit.
 
 Key results:
 
-| Workload | ai-media | vs-mlrt | VSGAN | trtexec ceiling |
-| --- | ---: | ---: | ---: | ---: |
-| RealESRGAN_x2plus | 2.790 FPS | 2.306 FPS | 2.310 FPS | 2.826 QPS |
-| SPAN | 24.601 FPS | 9.000 FPS | 9.055 FPS | 27.351 QPS |
+| Workload | Input | ai-media | vs-mlrt | VSGAN | trtexec |
+|---|---|---:|---:|---:|---:|
+| RealESRGAN_x2plus | 1080p | 2.884 FPS | 2.394 FPS | 2.399 FPS | 2.921 QPS |
+| RealESRGAN_x2plus | 720p | 6.277 FPS | 5.406 FPS | 5.477 FPS | 6.458 QPS |
+| SPAN | 1080p | 25.104 FPS | 9.348 FPS | 9.018 FPS | 28.490 QPS |
+| SPAN | 720p | 49.941 FPS | 19.825 FPS | 20.315 FPS | 62.846 QPS |
 
-The complete compact result, CPU/resource metrics, quality gates, hashes, and
-encoder bitrate caveat are published in the
-[RTX 3090 baseline](../benchmarks/results/rtx-3090/1080p/README.md). The ignored
-raw artifacts remain outside Git.
+All eight model-space/product-output gates passed. The SPAN 1080p `vs-mlrt`
+series is valid with one explicit outlier: the full five-run spread is 6.10%,
+while rounds 1, 3, 4, and 5 form a 2.29% consensus. All five runs remain in the
+published median.
+
+The same-GPU SPAN 1080p Nsight trace found that CUDA kernel intervals covered
+98.17% of the frame loop, with no material per-frame H2D/D2H transfer. NVDEC
+and NVENC workloads overlapped CUDA kernels by 91.25% and 98.92%. Profiler FPS
+is not a performance result.
+
+The complete compact result, CPU/resource and lifecycle metrics, quality,
+hashes, stability evidence, and encoder bitrate caveat are published in the
+[RTX 3090 benchmark](../benchmarks/results/rtx-3090/README.md). The ignored raw
+artifacts remain outside Git.
 
 ## 2026-07-12 - NVENC stream synchronization
 

@@ -65,10 +65,9 @@ The target card for the first campaign is one physical GeForce RTX 3090 with
 
 ## Stage 2. Measurement Gaps
 
-Status: complete for the published RTX 3090 1080p baseline. The exact NVENC
-contract, rotated campaign runner, sanitized acceptance table, CPU accounting,
-lifecycle timings, and both quality gates passed. The 720p confirmation belongs
-to Stage 3.
+Status: complete for both published RTX 3090 resolutions and workloads. The
+exact NVENC contract, rotated campaign runner, sanitized acceptance table, CPU
+accounting, lifecycle timings, and both quality gates passed.
 
 - [x] Explicit requested NVENC rate-control contract for the project and VSGAN:
   codec, preset, tuning, RC mode, target/min/max bitrate, VBV, GOP, and B-frames.
@@ -80,11 +79,11 @@ to Stage 3.
 - [x] Separate `startup`, steady-state frame loop, and `finalize + mux` timing
   scopes with one process/frame boundary contract.
 - [x] Model-space parity on RGB/float frames before YUV conversion and encode.
-  Capture/compare tooling and fixed thresholds passed for both 1080p workloads
-  on the RTX 3090.
+  Capture/compare tooling and fixed thresholds passed for both resolutions and
+  workloads on the RTX 3090.
 - [x] Product-output PSNR/SSIM and visual crops after decoding MP4.
   Retained-output runs, full-decode metrics, crop generation, and aggregator
-  validation passed for both 1080p workloads.
+  validation passed for both resolutions and workloads.
 - [x] Campaign runner that rotates products by round instead of running grouped
   suites.
 - [x] Sanitized final acceptance-table generation from raw manifests.
@@ -94,11 +93,10 @@ with completed quality gates is publishable.
 
 ## Stage 3. Parity Campaign
 
-Status: the validated RTX 3090 `1080p -> 4K` campaigns for RealESRGAN and SPAN
-remain a valid historical baseline for revision `49ae95a` and are published in
-`benchmarks/results/rtx-3090/1080p/`. Media preservation changed the
-full-process finalize/mux path after that revision, so a current-release 1080p
-rebaseline and the `720p -> 1440p` confirmation remain pending.
+Status: complete. The validated RTX 3090 `1080p -> 4K` and
+`720p -> 1440p` campaigns for RealESRGAN and SPAN include media preservation
+and are published in `benchmarks/results/rtx-3090/`. The measured runtime
+revision is `0fc3037`; the publication commit is tracked separately by Git.
 
 - Run 100 warmup and 1000 measured frames, at least three runs, and two
   additional runs when spread exceeds 5%.
@@ -120,16 +118,16 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-Status: 1080p `trtexec` ceilings and pipeline efficiency are published. The
-first Nsight trace confirmed a GPU-resident, compute-saturated steady state, but
-TensorRT reported that its engine was built for a different device model. A
-clean trace with an engine rebuilt on the profiling GPU remains pending,
-together with best-tuned and live-action confirmation runs.
+Status: parity diagnostics are complete. All four `trtexec` ceilings and
+pipeline-efficiency values are published. A clean SPAN 1080p Nsight trace used
+an engine rebuilt on the profiled RTX 3090 and confirmed a GPU-resident,
+compute-saturated frame loop. Best-tuned and live-action confirmation runs
+remain pending.
 
 - [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
-  from the product table for the 1080p baseline.
-- Collect one representative Nsight Systems trace and inspect H2D/D2H copies,
-  PCIe traffic, stream gaps, CPU waits, and NVDEC/TensorRT/NVENC overlap.
+  from the product table for both resolutions and workloads.
+- [x] Collect one representative Nsight Systems trace and inspect H2D/D2H
+  copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
 - Run a separate best-tuned benchmark: VSGAN with recommended requests, streams,
   and CUDA Graph; the project with its best verified settings.
 - Keep CUDA Graph experimental while it captures only the TensorRT call and

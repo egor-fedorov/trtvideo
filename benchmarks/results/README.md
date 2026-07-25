@@ -10,8 +10,8 @@ remain outside Git.
 
 ## Baselines
 
-- [RTX 3090, 1080p to 4K parity baseline](rtx-3090/1080p/README.md) -
-  RealESRGAN_x2plus and SPAN on revision
-  `49ae95a6ef34fe6affb4816855eb9e2cec3421ae`. This remains valid for that
-  revision; a current-release rebaseline is required because the later media
-  preservation work changed the measured finalize/mux path.
+- [RTX 3090 multi-resolution parity benchmark](rtx-3090/README.md) -
+  validated `720p -> 1440p` and `1080p -> 4K` RealESRGAN_x2plus and SPAN
+  campaigns measured on runtime revision
+  `0fc30377046d2c40207d143b1239d8f24e46e7d4`, including quality gates,
+  TensorRT ceilings, and an Nsight diagnostic.
