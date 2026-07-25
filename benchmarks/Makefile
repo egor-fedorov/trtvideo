@@ -38,6 +38,15 @@ MODEL_SPACE_ARGS ?=
 PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
 QUALITY_FRAMES ?= 1000
 QUALITY_RUN_ARGS = --frames $(QUALITY_FRAMES) --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
+TUNING_CONTRACT ?= benchmarks/tuning/candidates.json
+TUNING_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-$(VARIANT)
+TUNING_RESUME ?= 0
+TUNING_720_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-720p
+TUNING_1080_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-1080p
+TUNING_MATRIX_OUTPUT ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-matrix.json
+MODEL_SPACE_REFERENCE ?=
+MODEL_SPACE_CANDIDATE ?=
+MODEL_SPACE_REPORT ?=
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
@@ -46,10 +55,13 @@ RESUME ?= 0
 .PHONY: profile-nsight
 .PHONY: capture-model-ai-media capture-model-vstrt capture-model-vsgan
 .PHONY: compare-model-space model-space-parity
+.PHONY: compare-model-space-candidate
 .PHONY: capture-output-ai-media capture-output-vstrt capture-output-vsgan
 .PHONY: compare-product-output product-output-parity quality-gates
 .PHONY: campaign-preflight campaign-ai-media campaign-vstrt campaign-vsgan
 .PHONY: aggregate-campaign run-campaign run-comparative
+.PHONY: run-tuned-sweep rank-tuned run-tuned-quality run-tuned-campaign
+.PHONY: verify-tuned-matrix
 
 help:
 	@printf '%s\n' \
@@ -71,6 +83,11 @@ help:
 		'model-space-parity  Compare pre/post-TensorRT RGB float tensors' \
 		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
 		'quality-gates       Run model-space and product-output parity gates' \
+		'run-tuned-sweep     Evaluate every declared tuned scheduling candidate' \
+		'rank-tuned          Rebuild the tuned candidate selection report' \
+		'run-tuned-quality   Fully validate winners; promote on candidate failure' \
+		'run-tuned-campaign  Run the rotated campaign for validated tuned winners' \
+		'verify-tuned-matrix Require valid tuned evidence for 720p and 1080p' \
 		'run-campaign        Low-level comparative campaign coordinator' \
 		'aggregate-campaign  Rebuild campaign.json and results.md from raw runs'
 
@@ -357,6 +374,19 @@ compare-model-space:
 			--candidate /app/$(MODEL_SPACE_DIR)/vsgan/manifest.json \
 			--output /app/$(MODEL_SPACE_DIR)/model-space-parity.json
 
+compare-model-space-candidate:
+	@test -n "$(MODEL_SPACE_REFERENCE)" || (echo "ERROR: MODEL_SPACE_REFERENCE is required" >&2; exit 2)
+	@test -n "$(MODEL_SPACE_CANDIDATE)" || (echo "ERROR: MODEL_SPACE_CANDIDATE is required" >&2; exit 2)
+	@test -n "$(MODEL_SPACE_REPORT)" || (echo "ERROR: MODEL_SPACE_REPORT is required" >&2; exit 2)
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_model_space \
+			--manifest /app/$(MANIFEST) \
+			--variant $(VARIANT) \
+			--reference /app/$(MODEL_SPACE_REFERENCE) \
+			--candidate /app/$(MODEL_SPACE_CANDIDATE) \
+			--output /app/$(MODEL_SPACE_REPORT)
+
 model-space-parity:
 	$(MAKE) capture-model-ai-media
 	$(MAKE) capture-model-vstrt
@@ -397,6 +427,55 @@ product-output-parity:
 	$(MAKE) compare-product-output
 
 quality-gates: model-space-parity product-output-parity
+
+run-tuned-sweep:
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow sweep \
+		--contract "$(TUNING_CONTRACT)" \
+		--manifest "$(MANIFEST)" \
+		--variant "$(VARIANT)" \
+		--engine "$(ENGINE)" \
+		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--gpu-id "$(GPU_ID)" \
+		--sweep-dir "$(TUNING_DIR)" \
+		$(if $(filter 1,$(TUNING_RESUME)),--resume,)
+
+rank-tuned:
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.rank \
+		--contract "$(TUNING_CONTRACT)" \
+		--manifest "$(MANIFEST)" \
+		--variant "$(VARIANT)" \
+		--sweep-dir "$(TUNING_DIR)" \
+		--root "$(ROOT)" \
+		--output "$(TUNING_DIR)/selection.json" \
+		--disqualifications "$(TUNING_DIR)/disqualifications.json"
+
+run-tuned-quality:
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow quality \
+		--contract "$(TUNING_CONTRACT)" \
+		--manifest "$(MANIFEST)" \
+		--variant "$(VARIANT)" \
+		--engine "$(ENGINE)" \
+		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--gpu-id "$(GPU_ID)" \
+		--sweep-dir "$(TUNING_DIR)"
+
+run-tuned-campaign:
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow campaign \
+		--contract "$(TUNING_CONTRACT)" \
+		--manifest "$(MANIFEST)" \
+		--variant "$(VARIANT)" \
+		--engine "$(ENGINE)" \
+		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--gpu-id "$(GPU_ID)" \
+		--sweep-dir "$(TUNING_DIR)" \
+		$(if $(filter 1,$(RESUME)),--resume,)
+
+verify-tuned-matrix:
+	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.matrix \
+		--root "$(ROOT)" \
+		--campaign-720p "$(TUNING_720_DIR)/final-campaign.json" \
+		--campaign-1080p "$(TUNING_1080_DIR)/final-campaign.json" \
+		--output "$(TUNING_MATRIX_OUTPUT)"
 
 campaign-preflight:
 	@case "$(VAPOURSYNTH_MODE)" in \

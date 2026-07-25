@@ -51,6 +51,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a manifest-driven tuned benchmark workflow. Every declared scheduling
+  candidate is isolated, media-validated, checked in model space, and ranked by
+  stable median end-to-end FPS. Full 1000-frame quality runs only for selected
+  winners; candidate-specific failures are retained and promote the next
+  eligible point. Tuned publication now requires machine-verified 720p and
+  1080p evidence.
 - Added machine-checked benchmark contract versions to workload, run, and
   campaign manifests. Aggregation now rejects mixed frame-budget contracts.
 - Split benchmark orchestration into explicit `run-project`,

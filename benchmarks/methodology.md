@@ -134,6 +134,35 @@ Before publishing a vstrt throughput comparison for a light workload, tuned
 selection must sweep at least `num_streams=2/3/4` under otherwise fixed
 conditions.
 
+Tuned selection is a two-stage protocol. The candidate set and winner rule are
+fixed in `benchmarks/tuning/candidates.json` before measurement. Every declared
+candidate receives a collision-free directory and must provide:
+
+1. a stable canonical performance suite;
+2. unchanged workload, input, ONNX, engine, image, encoder, and revision hashes;
+3. complete output/media validation from every measured run;
+4. model-space parity on frames `0`, `499`, and `999` under that candidate's
+   exact requests, stream, thread, and CUDA Graph settings.
+
+Only eligible candidates are ranked. The winner is the highest stable median
+end-to-end FPS; candidate ID is the deterministic tie-breaker. Missing evidence
+invalidates the entire sweep instead of silently reducing the search space.
+The selected pair then runs the independent full 1000-frame product-output
+gate. A candidate-specific failure is retained as disqualification evidence and
+the next eligible point is promoted. Sweep FPS is never published as a final
+product comparison.
+
+The project is not silently tuned during this search. Its profile is fixed in
+the same contract to the best already verified production configuration:
+`nvcodec` with CUDA Graph disabled. Changing that profile creates a new tuning
+contract and requires a new sweep.
+
+Selection, full quality, and the rotated campaign are performed separately for
+720p and 1080p. A single-resolution final campaign remains evidence only. The
+publication matrix is valid only when both resolutions passed full quality on
+the same workload, repository revision, and GPU contract. This avoids using a
+1080p quality result to justify a 720p performance claim.
+
 Each profile has separate standalone, product-output, and campaign directories.
 A campaign stores its profile and exact vstrt/VSGAN argument strings in an
 immutable `campaign.config.json`; resume and aggregation reject a changed

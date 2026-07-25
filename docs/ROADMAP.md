@@ -134,10 +134,13 @@ pending.
   from the product table for both resolutions and workloads.
 - [x] Collect one representative Nsight Systems trace and inspect H2D/D2H
   copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
-- Run a separate best-tuned benchmark: VSGAN with recommended requests, streams,
-  and CUDA Graph; sweep vstrt `num_streams=2/3/4` at minimum; run the project
-  with its best verified settings. Keep every sweep point in a unique output
-  directory.
+- [x] Add a manifest-driven best-tuned selection workflow. It sweeps vstrt
+  `num_streams=2/3/4` and declared VSGAN settings in unique directories, ranks
+  only stable candidates with valid media and model-space evidence, and
+  promotes the next point when a selected winner fails full quality.
+- Run the tuned sweep, full 1000-frame winner quality gate, and rotated winner
+  campaign for both resolutions and workloads. Publish only a machine-verified
+  720p + 1080p matrix, not individual sweep results.
 - Keep CUDA Graph experimental while it captures only the TensorRT call and
   provides no measured benefit on current heavy models.
 - Repeat the headline workload on a short live-action clip with substantial

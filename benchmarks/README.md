@@ -13,7 +13,10 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
 - `scripts/quality/` - model-space and final-output quality gates.
+- `scripts/tuning/` - candidate sweep, deterministic selection, and
+  cross-resolution publication checks.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
+- `tuning/candidates.json` - predeclared tuned candidates and selection policy.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
 - [`results/`](results/README.md) - committed benchmark tables and
   machine-readable sanitized snapshots; large raw artifacts remain under
@@ -121,9 +124,31 @@ make -C benchmarks plan-vsgan \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-For tuned experiments, pass implementation-specific values through
-`VSTRT_ARGS` or `VSGAN_ARGS`. Tuned values must first be selected by a documented
-sweep and then frozen before a measured campaign.
+The canonical tuned workflow is manifest-driven:
+
+```bash
+make -C benchmarks run-tuned-sweep \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+make -C benchmarks run-tuned-quality \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+make -C benchmarks run-tuned-campaign \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+`benchmarks/tuning/candidates.json` predeclares every candidate and the
+selection rule. The sweep requires full media validation and model-space parity
+for each point, ranks only eligible points by stable median end-to-end FPS, and
+stores every candidate in a unique directory. The full 1000-frame
+product-output gate runs only for the selected pair. A candidate-specific
+failure disqualifies that point and promotes the next eligible candidate.
+
+Run the same three commands independently for 720p. A single-resolution tuned
+campaign is evidence, not a publication unit. `verify-tuned-matrix` grants
+publication status only when both 720p and 1080p campaigns and full quality
+reports match the same workload, revision, and GPU contract.
 
 Every profile has isolated artifact directories. A rotated campaign stores an
 immutable `campaign.config.json` and rejects `RESUME=1` if the selected profile
@@ -136,25 +161,11 @@ make -C benchmarks run-comparative \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-A tuned campaign uses the same command with `VAPOURSYNTH_MODE=tuned` and frozen
-`VSTRT_ARGS` plus `VSGAN_ARGS`. The runner requires explicit requests, streams,
-VapourSynth threads, and CUDA Graph state for each implementation.
-
 `upstream-default` is not automatically the fastest vstrt configuration:
 upstream keeps one TensorRT stream and recommends increasing it when the GPU is
-not saturated. Select tuned vstrt settings with separate sweep runs, including
-at least streams `2`, `3`, and `4`. Every point must use a unique directory:
-
-```bash
-make -C benchmarks run-vstrt \
-  VAPOURSYNTH_MODE=tuned \
-  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSTRT_OUTPUT_DIR=artefacts/benchmarks/sweeps/vstrt/s3 \
-  VSTRT_ARGS="--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph"
-```
-
-Benchmark suites refuse non-empty output directories instead of overwriting
-earlier evidence.
+not saturated. The canonical contract therefore includes vstrt streams `2`,
+`3`, and `4`. Manual `VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not
+replace the manifest-driven selection report.
 
 ## Assets
 

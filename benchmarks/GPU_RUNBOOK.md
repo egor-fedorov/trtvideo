@@ -170,6 +170,9 @@ ceiling.
 This section is required only for a publishable `run-comparative` campaign. Skip
 it for `run-project`; running `quality-gates` always processes
 `ai-media-enhancer`, vstrt, and VSGAN.
+For a tuned campaign, do not run this section before candidate selection.
+Section 8 runs the same full gates automatically only for the selected pair at
+each resolution.
 
 Run both independent quality jobs. The first compares model input/output FP32
 RGB tensors. The second retains one canonical MP4 per product, performs complete
@@ -343,7 +346,53 @@ Do not publish sequential execution of independent suites as the final
 comparison. Raw manifests, logs, and NVML samples are not committed before
 sanitization and review.
 
-## 8. TensorRT Diagnostic Ceiling
+## 8. Tuned Candidate Selection
+
+Run the manifest-declared sweep, full winner quality gate, and rotated winner
+campaign separately for 1080p and 720p. The example below is RealESRGAN 1080p:
+
+```bash
+make -C benchmarks run-tuned-sweep \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+
+make -C benchmarks run-tuned-quality \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+
+make -C benchmarks run-tuned-campaign \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+```
+
+Use `TUNING_RESUME=1` only for the sweep and `RESUME=1` only for the final
+campaign. A partial candidate directory is never overwritten; remove only the
+reported partial directory before retrying. `run-tuned-quality` preserves a
+failed winner attempt, records candidate-specific disqualifications, reranks,
+and tries the next eligible point.
+
+Repeat with `VARIANT=720p` and the 720p engine paths. Then require both
+resolutions as one publication unit:
+
+```bash
+make -C benchmarks verify-tuned-matrix
+```
+
+For SPAN, add
+`MANIFEST=benchmarks/workloads/liveaction_span_sintel.json` and use the
+corresponding SPAN engines on every command. Do not reuse a RealESRGAN
+`TUNING_DIR`; the default directory is derived from the workload manifest and
+resolution.
+
+The sweep's short eligibility checks prove that every ranked setting executes
+the same model and produces a valid media stream. They do not replace the full
+1000-frame product-output gate, which is run only for the selected pair at each
+resolution.
+
+## 9. TensorRT Diagnostic Ceiling
 
 Run the canonical `trtexec` suite separately for each TRT11 engine. It measures
 inference without video decode, color conversion, encode, or mux and is used to
@@ -383,7 +432,7 @@ warmup. Results are kept separately under
 The diagnostic uses the TRT11 engine shared by `ai-media-enhancer` and vstrt.
 The separate TRT10 VSGAN engine is not an input to this measurement.
 
-## 9. Nsight Systems Pipeline Diagnostic
+## 10. Nsight Systems Pipeline Diagnostic
 
 Nsight Systems is already included in the TensorRT benchmark image. First
 inspect the generated command without a GPU:

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "selection": {
+    "metric": "median_end_to_end_fps",
+    "max_relative_spread": 0.05,
+    "require_complete_sweep": true,
+    "tie_breaker": "candidate_id"
+  },
+  "project_profile": {
+    "backend": "nvcodec",
+    "cuda_graph": false
+  },
+  "candidates": [
+    {
+      "id": "vstrt-s2-g0",
+      "implementation": "vstrt",
+      "requests": "auto",
+      "num_streams": 2,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vstrt-s3-g0",
+      "implementation": "vstrt",
+      "requests": "auto",
+      "num_streams": 3,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vstrt-s4-g0",
+      "implementation": "vstrt",
+      "requests": "auto",
+      "num_streams": 4,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s4-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 4,
+      "vapoursynth_threads": 4,
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s4-g1",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 4,
+      "vapoursynth_threads": 4,
+      "cuda_graph": true
+    }
+  ]
+}
