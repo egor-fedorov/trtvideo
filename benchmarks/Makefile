@@ -33,7 +33,7 @@ CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(VAPOURSYNTH_MODE)/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
 CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
-MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space-$(WORKLOAD_NAME)-$(VARIANT)
+MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
 MODEL_SPACE_ARGS ?=
 PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
 QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
@@ -298,6 +298,7 @@ capture-model-ai-media:
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
+			--execution-profile $(VAPOURSYNTH_MODE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/ai-media \
 			$(MODEL_SPACE_ARGS)
 
@@ -318,8 +319,9 @@ capture-model-vstrt:
 			--engine /app/$(ENGINE) \
 			--script /app/benchmarks/vstrt/upscale.vpy \
 			--gpu-id $(GPU_ID) \
+			--mode $(VAPOURSYNTH_MODE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/vstrt \
-			$(MODEL_SPACE_ARGS)
+			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
 
 capture-model-vsgan:
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
@@ -339,8 +341,9 @@ capture-model-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--script /app/benchmarks/vsgan/upscale.vpy \
 			--gpu-id $(GPU_ID) \
+			--mode $(VAPOURSYNTH_MODE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/vsgan \
-			$(MODEL_SPACE_ARGS)
+			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
 
 compare-model-space:
 	docker run --rm --user "$$(id -u):$$(id -g)" \

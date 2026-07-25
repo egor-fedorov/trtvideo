@@ -524,6 +524,11 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     validate_config(config)
     root = (root or Path.cwd()).resolve()
     config.output_dir.mkdir(parents=True, exist_ok=True)
+    if any(config.output_dir.iterdir()):
+        raise BenchmarkError(
+            "Benchmark output directory is not empty; remove it or choose "
+            f"a unique path: {config.output_dir}"
+        )
     sidecar, sidecar_path = load_engine_contract(config.engine)
     assets, workload_id = collect_assets(config, sidecar, sidecar_path, root)
     sampler = NvmlSampler(config.gpu_id, config.sample_interval_ms)

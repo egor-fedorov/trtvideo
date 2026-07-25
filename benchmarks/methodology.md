@@ -112,7 +112,7 @@ The vstrt and VSGAN runners expose the same three scheduling profiles:
 | Mode | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
 |---|---:|---:|---:|---:|
 | vstrt `parity` | 1 | 1 | runtime default | off |
-| VSGAN `parity` | 1 | 1 | 8 | off |
+| VSGAN `parity` | 1 | 1 | runtime default | off |
 | vstrt `upstream-default` | auto | 1 | runtime default | off |
 | VSGAN `upstream-default` | auto | 4 | 4 | off |
 | either `tuned` | explicit | explicit | explicit | explicit |
@@ -127,6 +127,12 @@ Preset modes reject conflicting scheduling overrides. Tuned mode requires
 explicit values for requests, TensorRT streams, VapourSynth threads, and CUDA
 Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
 value is written to the plan and measured-run manifest.
+
+`upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
+In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
+Before publishing a vstrt throughput comparison for a light workload, tuned
+selection must sweep at least `num_streams=2/3/4` under otherwise fixed
+conditions.
 
 Each profile has separate standalone, product-output, and campaign directories.
 A campaign stores its profile and exact vstrt/VSGAN argument strings in an
@@ -236,9 +242,11 @@ versioned contract.
 
 Run the gate with `make -C benchmarks model-space-parity`. It writes capture
 manifests, raw tensors, logs, and `model-space-parity.json` under the ignored
-`artefacts/benchmarks/comparative/quality/` tree. A valid report is required in
-addition to the product-output quality report before campaign results can be
-published.
+`artefacts/benchmarks/comparative/quality/model-space/<profile>/` tree. Captures
+use the same requests, streams, threads, and CUDA Graph settings as the selected
+campaign profile. The report and campaign aggregator reject mixed profile
+evidence. A valid report is required in addition to the product-output quality
+report before campaign results can be published.
 
 Product-output parity uses one separate canonical retained-output run per
 implementation. These runs use 100 warmup and 1000 output frames but are not

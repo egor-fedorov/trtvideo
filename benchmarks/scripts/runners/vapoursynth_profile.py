@@ -56,7 +56,7 @@ _PRESETS: dict[tuple[Implementation, Mode], VapourSynthExecutionProfile] = {
         mode="parity",
         requests=1,
         num_streams=1,
-        vapoursynth_threads=8,
+        vapoursynth_threads=None,
         cuda_graph=False,
     ),
     ("vsgan", "upstream-default"): VapourSynthExecutionProfile(

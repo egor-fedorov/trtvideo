@@ -57,7 +57,7 @@
         "parity": {
           "vspipe_requests": 1,
           "num_streams": 1,
-          "vapoursynth_threads": 8,
+          "vapoursynth_threads": "auto",
           "cuda_graph": false
         },
         "upstream-default": {

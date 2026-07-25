@@ -140,6 +140,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Isolated comparative and product-output artifacts by execution profile.
   Rotated campaigns now persist immutable runner settings and reject mixed
   scheduling contracts during resume, quality validation, and aggregation.
+- Model-space captures now use and record the selected execution profile,
+  including CUDA Graph, and are stored in profile-specific directories.
+  Benchmark suites reject non-empty output directories to preserve sweep data.
+- Aligned single-stream parity on runtime-default VapourSynth thread counts for
+  both external runners.
 - Comparative campaign stability now uses the full spread for three rounds and,
   after an automatic extension to five, accepts an explicit four-of-five
   consensus within the same 5% threshold. Raw values and headline medians still

@@ -27,6 +27,13 @@ from benchmarks.scripts.runners.common import (
     load_json,
     validate_static_engine_contract,
 )
+from benchmarks.scripts.runners.vapoursynth_profile import (
+    VapourSynthExecutionProfile,
+    add_execution_profile_arguments,
+    comparison_class,
+    resolve_execution_profile,
+    validate_declared_profile,
+)
 from benchmarks.scripts.runners.vsgan import _validate_parity_engine
 from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
 
@@ -53,31 +60,39 @@ def build_capture_command(
     output_path: Path,
     frame_index: int,
     stage: str,
+    profile: VapourSynthExecutionProfile | None = None,
 ) -> list[str]:
     """Build one raw RGBS vspipe capture command."""
+    profile = profile or resolve_execution_profile(args, args.implementation)
     command = [
         "vspipe",
         "--start",
         str(frame_index),
         "--end",
         str(frame_index),
-        "--requests",
-        "1",
-        "--arg",
-        f"source={input_path}",
-        "--arg",
-        f"engine={args.engine}",
-        "--arg",
-        f"gpu_id={args.gpu_id}",
-        "--arg",
-        "cuda_graph=0",
-        "--arg",
-        "num_streams=1",
-        "--arg",
-        f"model_space_stage={stage}",
     ]
-    if args.implementation == "vsgan":
-        command.extend(["--arg", f"vs_threads={args.vs_threads}"])
+    if profile.requests is not None:
+        command.extend(["--requests", str(profile.requests)])
+    command.extend(
+        [
+            "--arg",
+            f"source={input_path}",
+            "--arg",
+            f"engine={args.engine}",
+            "--arg",
+            f"gpu_id={args.gpu_id}",
+            "--arg",
+            f"cuda_graph={int(profile.cuda_graph)}",
+            "--arg",
+            f"num_streams={profile.num_streams}",
+            "--arg",
+            f"model_space_stage={stage}",
+        ]
+    )
+    if profile.vapoursynth_threads is not None:
+        command.extend(
+            ["--arg", f"vs_threads={profile.vapoursynth_threads}"]
+        )
     command.extend([args.script, str(output_path)])
     return command
 
@@ -137,10 +152,12 @@ def normalize_vapoursynth_rgbs(
 
 def capture(args: argparse.Namespace) -> Path:
     """Capture selected RGBS frames before and after the vstrt model node."""
+    profile = resolve_execution_profile(args, args.implementation)
     root = Path(args.root).resolve()
     manifest = load_manifest(Path(args.manifest))
     implementations = load_json(Path(args.implementations))
     implementation = implementation_config(implementations, args.implementation)
+    validate_declared_profile(implementation, profile)
     clip_variant = find_variant(manifest, args.variant)
     model_variant = find_model_variant(manifest, args.variant)
     input_path = repo_path(root, clip_variant["path"])
@@ -190,6 +207,7 @@ def capture(args: argparse.Namespace) -> Path:
                 output_path=raw_path,
                 frame_index=frame_index,
                 stage=stage,
+                profile=profile,
             )
             _run_capture(command, log_path)
             normalize_vapoursynth_rgbs(
@@ -216,7 +234,10 @@ def capture(args: argparse.Namespace) -> Path:
             if args.implementation == "vstrt"
             else "VSGAN-tensorrt-docker"
         ),
-        comparison_class=str(implementation["comparison_class"]),
+        comparison_class=comparison_class(
+            str(implementation["comparison_class"]),
+            profile,
+        ),
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),
@@ -225,6 +246,7 @@ def capture(args: argparse.Namespace) -> Path:
         image=collect_image_identity(
             default_reference=str(implementation["image"]),
         ),
+        execution_profile=profile.as_parameters(),
         artifacts=artifacts,
     )
     return manifest_path
@@ -244,7 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--root", default="/app")
     parser.add_argument("--gpu-id", type=int, default=0)
-    parser.add_argument("--vs-threads", type=int, default=8)
+    add_execution_profile_arguments(parser)
     parser.add_argument(
         "--frame-indices",
         default=None,
@@ -256,8 +278,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     try:
         args = build_parser().parse_args()
-        if args.vs_threads <= 0:
-            raise ModelSpaceError("--vs-threads must be positive")
         manifest_path = capture(args)
     except (
         BenchmarkError,

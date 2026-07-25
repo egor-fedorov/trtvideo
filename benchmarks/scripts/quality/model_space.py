@@ -10,8 +10,8 @@ from typing import Any
 
 from ai_media.benchmarking.environment import environment_errors, sha256_file
 
-CAPTURE_SCHEMA_VERSION = 1
-REPORT_SCHEMA_VERSION = 2
+CAPTURE_SCHEMA_VERSION = 2
+REPORT_SCHEMA_VERSION = 3
 TENSOR_DTYPE = "float32"
 TENSOR_LAYOUT = "CHW"
 TENSOR_CHANNEL_ORDER = "RGB"
@@ -151,6 +151,7 @@ class CaptureManifest:
     onnx_sha256: str
     engine_sha256: str
     image: dict[str, str]
+    execution_profile: dict[str, Any]
     artifacts: tuple[TensorArtifact, ...]
 
     @classmethod
@@ -178,6 +179,9 @@ class CaptureManifest:
             image_value = value["environment"]["image"]
             if not isinstance(image_value, dict):
                 raise TypeError("environment.image must be an object")
+            execution_profile = value["execution_profile"]
+            if not isinstance(execution_profile, dict):
+                raise TypeError("execution_profile must be an object")
             manifest = cls(
                 implementation=str(value["implementation"]),
                 comparison_class=str(value["comparison_class"]),
@@ -190,6 +194,7 @@ class CaptureManifest:
                     str(key): str(item)
                     for key, item in image_value.items()
                 },
+                execution_profile=dict(execution_profile),
                 artifacts=tuple(
                     TensorArtifact.from_dict(artifact) for artifact in artifacts_value
                 ),
@@ -204,6 +209,12 @@ class CaptureManifest:
             raise ModelSpaceError("Capture implementation identity is required")
         if not self.workload_id or not self.variant:
             raise ModelSpaceError("Capture workload identity is required")
+        if self.execution_profile.get("mode") not in {
+            "parity",
+            "upstream-default",
+            "tuned",
+        }:
+            raise ModelSpaceError("Capture execution profile is invalid")
         identity_errors = environment_errors({"image": self.image})
         if identity_errors:
             raise ModelSpaceError(
@@ -297,6 +308,7 @@ def write_capture_manifest(
     onnx_sha256: str,
     engine_sha256: str,
     image: dict[str, str],
+    execution_profile: dict[str, Any],
     artifacts: list[TensorArtifact],
 ) -> None:
     """Write one deterministic model-space capture manifest."""
@@ -307,6 +319,7 @@ def write_capture_manifest(
         "comparison_class": comparison_class,
         "workload_id": workload_id,
         "variant": variant,
+        "execution_profile": execution_profile,
         "tensor_contract": {
             "dtype": TENSOR_DTYPE,
             "layout": TENSOR_LAYOUT,
@@ -412,6 +425,10 @@ def compare_captures(
                 candidate.image["repository_revision"],
                 reference.image["repository_revision"],
             ),
+            "execution profile mode": (
+                candidate.execution_profile.get("mode"),
+                reference.execution_profile.get("mode"),
+            ),
             "tensor set": (
                 set(candidate.artifact_map()),
                 set(reference_artifacts),
@@ -464,6 +481,7 @@ def compare_captures(
                 "comparison_class": candidate.comparison_class,
                 "engine_sha256": candidate.engine_sha256,
                 "image": candidate.image,
+                "execution_profile": candidate.execution_profile,
                 "status": "valid" if not candidate_errors else "invalid",
                 "errors": candidate_errors,
                 "tensors": tensors,
@@ -480,11 +498,13 @@ def compare_captures(
         "publishable": not report_errors,
         "workload_id": reference.workload_id,
         "variant": reference.variant,
+        "execution_profile": reference.execution_profile["mode"],
         "frame_indices": frame_indices,
         "reference": {
             "implementation": reference.implementation,
             "engine_sha256": reference.engine_sha256,
             "image": reference.image,
+            "execution_profile": reference.execution_profile,
         },
         "assets": {
             "input_sha256": reference.input_sha256,

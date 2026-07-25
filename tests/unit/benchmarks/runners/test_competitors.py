@@ -189,7 +189,7 @@ def test_vsgan_command_uses_pinned_script_and_explicit_nvenc_contract() -> None:
     assert "--progress" in vspipe
     assert "num_streams=1" in vspipe
     assert "cuda_graph=0" in vspipe
-    assert "vs_threads=8" in vspipe
+    assert not any(value.startswith("vs_threads=") for value in vspipe)
     assert vspipe[-2] == "/app/benchmarks/vsgan/upscale.vpy"
     assert ffmpeg[ffmpeg.index("-rc") + 1] == "cbr"
     assert ffmpeg[ffmpeg.index("-b:v") + 1] == "60000000"

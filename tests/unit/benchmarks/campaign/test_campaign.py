@@ -176,7 +176,7 @@ def _campaign(
                         "mode": "parity",
                         "vspipe_requests": 1,
                         "num_streams": 1,
-                        "vapoursynth_threads": 8,
+                        "vapoursynth_threads": "auto",
                         "cuda_graph": False,
                     }
                 )
@@ -229,6 +229,7 @@ def _model_space_report(root: Path) -> Path:
             "publishable": True,
             "workload_id": "workload-v1",
             "variant": "1080p",
+            "execution_profile": "parity",
             "frame_indices": [0, 499, 999],
             "assets": {
                 "input_sha256": "input-sha",
@@ -237,6 +238,10 @@ def _model_space_report(root: Path) -> Path:
             "reference": {
                 "implementation": "ai-media-enhancer",
                 "engine_sha256": "shared-engine",
+                "execution_profile": {
+                    "mode": "parity",
+                    "cuda_graph": False,
+                },
                 "image": {
                     "id": "ai-media-image",
                     "repository_revision": "revision-1",
@@ -248,6 +253,13 @@ def _model_space_report(root: Path) -> Path:
                     "implementation": "vs-mlrt",
                     "status": "valid",
                     "engine_sha256": "shared-engine",
+                    "execution_profile": {
+                        "mode": "parity",
+                        "vspipe_requests": 1,
+                        "num_streams": 1,
+                        "vapoursynth_threads": "auto",
+                        "cuda_graph": False,
+                    },
                     "image": {
                         "id": "vstrt-image",
                         "repository_revision": "revision-1",
@@ -258,6 +270,13 @@ def _model_space_report(root: Path) -> Path:
                     "implementation": "VSGAN-tensorrt-docker",
                     "status": "valid",
                     "engine_sha256": "vsgan-engine",
+                    "execution_profile": {
+                        "mode": "parity",
+                        "vspipe_requests": 1,
+                        "num_streams": 1,
+                        "vapoursynth_threads": "auto",
+                        "cuda_graph": False,
+                    },
                     "image": {
                         "id": "vsgan-image",
                         "repository_revision": "revision-1",
@@ -316,7 +335,7 @@ def _product_output_report(root: Path) -> Path:
                     "mode": "parity",
                     "vspipe_requests": 1,
                     "num_streams": 1,
-                    "vapoursynth_threads": 8,
+                    "vapoursynth_threads": "auto",
                     "cuda_graph": False,
                 }
             )
@@ -564,6 +583,33 @@ def test_aggregate_campaign_rejects_model_space_engine_drift(
     _write_json(report_path, report)
 
     with pytest.raises(CampaignError, match="VSGAN-tensorrt-docker engine"):
+        aggregate_campaign(
+            campaign_dir,
+            root=tmp_path,
+            idle_seconds=10,
+            model_space_report=report_path,
+        )
+
+
+def test_aggregate_campaign_rejects_model_space_profile_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {
+            "ai-media": [10.0, 10.1, 9.9],
+            "vstrt": [9.0, 9.1, 8.9],
+            "vsgan": [8.8, 8.9, 8.7],
+        },
+    )
+    report_path = _model_space_report(tmp_path)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["comparisons"][0]["execution_profile"]["num_streams"] = 2
+    _write_json(report_path, report)
+
+    with pytest.raises(CampaignError, match="vs-mlrt execution profile"):
         aggregate_campaign(
             campaign_dir,
             root=tmp_path,

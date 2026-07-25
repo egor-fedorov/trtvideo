@@ -288,6 +288,10 @@ def _validate_model_space_report(
         "publishable": (report.get("publishable"), True),
         "workload": (report.get("workload_id"), contract["workload_id"]),
         "variant": (report.get("variant"), contract["variant"]),
+        "execution profile": (
+            report.get("execution_profile"),
+            contract["execution_profile"],
+        ),
         "input SHA256": (
             report.get("assets", {}).get("input_sha256"),
             contract["input_sha256"],
@@ -322,6 +326,13 @@ def _validate_model_space_report(
             ),
             "0",
         ),
+        "reference execution profile": (
+            report.get("reference", {}).get("execution_profile"),
+            {
+                "mode": contract["execution_profile"],
+                "cuda_graph": False,
+            },
+        ),
     }
     for label, (actual, expected) in checks.items():
         if actual != expected:
@@ -337,15 +348,21 @@ def _validate_model_space_report(
     }
     expected_contracts = {
         "vs-mlrt": (
+            "vstrt",
             contract["engine_hashes"]["vstrt"],
             contract["image_ids"]["vstrt"],
         ),
         "VSGAN-tensorrt-docker": (
+            "vsgan",
             contract["engine_hashes"]["vsgan"],
             contract["image_ids"]["vsgan"],
         ),
     }
-    for implementation, (engine_sha256, image_id) in expected_contracts.items():
+    for implementation, (
+        campaign_implementation,
+        engine_sha256,
+        image_id,
+    ) in expected_contracts.items():
         comparison = by_implementation.get(implementation)
         if not isinstance(comparison, dict):
             raise CampaignError(
@@ -358,6 +375,13 @@ def _validate_model_space_report(
         if comparison.get("engine_sha256") != engine_sha256:
             raise CampaignError(
                 f"Model-space report changed {implementation} engine"
+            )
+        if (
+            comparison.get("execution_profile")
+            != contract["execution_profiles"][campaign_implementation]
+        ):
+            raise CampaignError(
+                f"Model-space report changed {implementation} execution profile"
             )
         image = comparison.get("image", {})
         if not isinstance(image, dict):

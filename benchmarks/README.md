@@ -140,6 +140,22 @@ A tuned campaign uses the same command with `VAPOURSYNTH_MODE=tuned` and frozen
 `VSTRT_ARGS` plus `VSGAN_ARGS`. The runner requires explicit requests, streams,
 VapourSynth threads, and CUDA Graph state for each implementation.
 
+`upstream-default` is not automatically the fastest vstrt configuration:
+upstream keeps one TensorRT stream and recommends increasing it when the GPU is
+not saturated. Select tuned vstrt settings with separate sweep runs, including
+at least streams `2`, `3`, and `4`. Every point must use a unique directory:
+
+```bash
+make -C benchmarks run-vstrt \
+  VAPOURSYNTH_MODE=tuned \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  VSTRT_OUTPUT_DIR=artefacts/benchmarks/sweeps/vstrt/s3 \
+  VSTRT_ARGS="--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph"
+```
+
+Benchmark suites refuse non-empty output directories instead of overwriting
+earlier evidence.
+
 ## Assets
 
 RealESRGAN is the default workload:
@@ -241,12 +257,12 @@ The command captures canonical frames `0`, `499`, and `999` from the project,
 TRT11 vstrt, and pinned VSGAN. It compares normalized FP32 CHW RGB tensors before
 and after TensorRT using thresholds fixed in the workload manifest. Raw tensors
 and `model-space-parity.json` are written under
-`artefacts/benchmarks/comparative/quality/model-space-<workload>-<variant>/`.
+`artefacts/benchmarks/comparative/quality/model-space/<profile>/<workload>-<variant>/`.
 Run the exact 720p and SPAN commands from `GPU_RUNBOOK.md`. This gate is not
 included in FPS timing. When the report exists at the canonical path,
-`aggregate-campaign` verifies its workload, input, ONNX, and engine hashes plus
-the exact image IDs and clean repository revision, then removes the model-space
-publication gap.
+`aggregate-campaign` verifies its execution profile, workload, input, ONNX, and
+engine hashes plus the exact image IDs and clean repository revision, then
+removes the model-space publication gap.
 
 Run both quality gates together:
 

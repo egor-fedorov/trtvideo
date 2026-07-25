@@ -31,6 +31,7 @@ def _write_capture(
     engine_sha256: str,
     input_value: float,
     output_value: float,
+    execution_profile: dict[str, object] | None = None,
 ) -> Path:
     root.mkdir(parents=True)
     artifacts = []
@@ -61,6 +62,11 @@ def _write_capture(
             "id": f"{implementation}-image",
             "repository_revision": "revision-1",
             "source_dirty": "0",
+        },
+        execution_profile=execution_profile
+        or {
+            "mode": "parity",
+            "cuda_graph": False,
         },
         artifacts=artifacts,
     )
@@ -129,6 +135,7 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
 
     assert report["status"] == "valid"
     assert report["publishable"] is True
+    assert report["execution_profile"] == "parity"
     assert report["frame_indices"] == [0]
     assert report["comparisons"][0]["status"] == "valid"
 
@@ -161,6 +168,43 @@ def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
     assert any("output frame 0" in error for error in report["errors"])
 
 
+def test_compare_captures_rejects_mixed_execution_profiles(
+    tmp_path: Path,
+) -> None:
+    reference = _write_capture(
+        tmp_path / "reference",
+        implementation="ai-media-enhancer",
+        comparison_class="reference",
+        engine_sha256="3" * 64,
+        input_value=0.25,
+        output_value=0.5,
+    )
+    candidate = _write_capture(
+        tmp_path / "candidate",
+        implementation="vs-mlrt",
+        comparison_class="tuned",
+        engine_sha256="3" * 64,
+        input_value=0.25,
+        output_value=0.5,
+        execution_profile={
+            "mode": "tuned",
+            "vspipe_requests": "auto",
+            "num_streams": 3,
+            "vapoursynth_threads": 6,
+            "cuda_graph": True,
+        },
+    )
+
+    report = compare_captures(
+        reference,
+        [candidate],
+        thresholds=_thresholds(),
+    )
+
+    assert report["status"] == "invalid"
+    assert any("execution profile mode differs" in error for error in report["errors"])
+
+
 def test_maximum_error_is_diagnostic_not_an_acceptance_limit() -> None:
     errors = evaluate_metrics(
         {
@@ -186,7 +230,11 @@ def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
         implementation="vsgan",
         engine="/app/models/model.engine",
         gpu_id=0,
-        vs_threads=8,
+        mode="parity",
+        requests=None,
+        num_streams=None,
+        vs_threads=None,
+        cuda_graph=None,
         script="/app/benchmarks/vsgan/upscale.vpy",
     )
 
@@ -201,8 +249,37 @@ def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
     assert "--container" not in command
     assert command[command.index("--start") + 1] == "499"
     assert "model_space_stage=output" in command
-    assert "vs_threads=8" in command
+    assert not any(value.startswith("vs_threads=") for value in command)
     assert command[-1] == str(tmp_path / "output.f32")
+
+
+def test_vspipe_capture_command_uses_tuned_execution_profile(
+    tmp_path: Path,
+) -> None:
+    args = argparse.Namespace(
+        implementation="vstrt",
+        engine="/app/models/model.engine",
+        gpu_id=0,
+        mode="tuned",
+        requests="auto",
+        num_streams=3,
+        vs_threads=6,
+        cuda_graph=True,
+        script="/app/benchmarks/vstrt/upscale.vpy",
+    )
+
+    command = build_capture_command(
+        args,
+        input_path=Path("/app/videos/input.mp4"),
+        output_path=tmp_path / "output.f32",
+        frame_index=499,
+        stage="output",
+    )
+
+    assert "--requests" not in command
+    assert "num_streams=3" in command
+    assert "cuda_graph=1" in command
+    assert "vs_threads=6" in command
 
 
 def test_vapoursynth_gbr_planes_are_normalized_to_rgb(tmp_path: Path) -> None:

@@ -469,6 +469,11 @@ def run_external_video_suite(
     workload = config.workload
     implementation = config.implementation
     workload.output_dir.mkdir(parents=True, exist_ok=True)
+    if any(workload.output_dir.iterdir()):
+        raise CompetitorError(
+            "Benchmark output directory is not empty; remove it or choose "
+            f"a unique path: {workload.output_dir}"
+        )
     assets = {
         name: _asset_record(name, path, root) for name, path in workload.assets.items()
     }

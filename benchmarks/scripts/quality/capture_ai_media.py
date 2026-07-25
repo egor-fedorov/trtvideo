@@ -222,6 +222,10 @@ def capture(args: argparse.Namespace) -> Path:
         onnx_sha256=sha256_file(onnx_path),
         engine_sha256=sha256_file(engine_path),
         image=collect_image_identity(),
+        execution_profile={
+            "mode": args.execution_profile,
+            "cuda_graph": False,
+        },
         artifacts=artifacts,
     )
     return manifest_path
@@ -235,6 +239,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--root", default="/app")
     parser.add_argument("--gpu-id", type=int, default=0)
+    parser.add_argument(
+        "--execution-profile",
+        choices=["parity", "upstream-default", "tuned"],
+        default="parity",
+    )
     parser.add_argument(
         "--frame-indices",
         default=None,
