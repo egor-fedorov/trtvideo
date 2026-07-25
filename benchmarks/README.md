@@ -27,14 +27,30 @@ make -C benchmarks help
 ```
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
-Only the optional rotated `run-campaign` coordinator runs on the host and
-requires Python `>=3.10,<3.13`. Override its executable when needed:
+Only the optional rotated comparative coordinator runs on the host and requires
+Python `>=3.10,<3.13`. Override its executable when needed:
 
 ```bash
-make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
+make -C benchmarks run-comparative HOST_PYTHON=/usr/bin/python3.12 ...
 ```
 
-## Matrix
+## Workflows
+
+The public benchmark interface has three independent workflows:
+
+- `run-project` - project-only regression measurement used before and after a
+  code or dependency change;
+- `run-comparative` - canonical rotated project/vstrt/VSGAN comparison used for
+  public performance claims;
+- `run-trtexec`, `profile-nsight`, and per-stage profiling - diagnostics that
+  are never rows in the competitor table.
+
+All workflows reuse the same project runner and validation contract. Raw
+artifacts are separated under `artefacts/benchmarks/project/`,
+`artefacts/benchmarks/comparative/`, and
+`artefacts/benchmarks/diagnostics/`.
+
+## Comparison Matrix
 
 - `run-vstrt` - technical parity with the same TensorRT 11 engine.
 - `run-vsgan` - stock product comparison from the same ONNX but with a separate
@@ -47,11 +63,11 @@ make -C benchmarks run-campaign HOST_PYTHON=/usr/bin/python3.12 ...
 - `product-output-parity` - retain one canonical MP4 per product, run complete
   PSNR/SSIM decode comparisons, and generate visual crops.
 - `quality-gates` - run both quality jobs.
-- `run-campaign` - canonical rotation of project/vstrt/VSGAN by round and
+- `run-comparative` - canonical rotation of project/vstrt/VSGAN by round and
   generation of a shared acceptance table.
 
 `run-trtexec` stores each suite under
-`artefacts/benchmarks/diagnostic-trtexec-<workload>-<variant>/`, preventing
+`artefacts/benchmarks/diagnostics/trtexec/<workload>-<variant>/`, preventing
 results for different models at the same resolution from overwriting each
 other.
 
@@ -184,12 +200,12 @@ The command captures canonical frames `0`, `499`, and `999` from the project,
 TRT11 vstrt, and stock VSGAN. It compares normalized FP32 CHW RGB tensors before
 and after TensorRT using thresholds fixed in the workload manifest. Raw tensors
 and `model-space-parity.json` are written under
-`artefacts/benchmarks/quality/model-space-<workload>-<variant>/`. Repeat for
-720p and for SPAN with the same manifest/engine overrides used by the campaign.
-This gate is not included in FPS timing. When the report exists at the canonical
-path, `aggregate-campaign` verifies its workload, input, ONNX, and engine hashes
-plus the exact image IDs and clean repository revision, then removes the
-model-space publication gap.
+`artefacts/benchmarks/comparative/quality/model-space-<workload>-<variant>/`.
+Run the exact 720p and SPAN commands from `GPU_RUNBOOK.md`. This gate is not
+included in FPS timing. When the report exists at the canonical path,
+`aggregate-campaign` verifies its workload, input, ONNX, and engine hashes plus
+the exact image IDs and clean repository revision, then removes the model-space
+publication gap.
 
 Run both quality gates together:
 
@@ -204,29 +220,30 @@ The product-output job performs one separate canonical retained-output run per
 implementation. It does not contribute FPS values to the rotated campaign.
 `product-output-parity.json`, FFmpeg metric logs, retained MP4s, and visual PNG
 crops are written under
-`artefacts/benchmarks/quality/product-output-<workload>-<variant>/`. The fixed
-gate requires 1000 compared frames, average PSNR of at least 35 dB, and overall
-SSIM of at least 0.95. Repeat `quality-gates` for 720p and both SPAN variants.
-The aggregator reloads the retained-output run manifests and requires the same
-images, revision, encoder, assets, and engines as the measured campaign.
+`artefacts/benchmarks/comparative/quality/product-output-<workload>-<variant>/`.
+The fixed gate requires 1000 compared frames, average PSNR of at least 35 dB,
+and overall SSIM of at least 0.95. The aggregator reloads the retained-output
+run manifests and requires the same images, revision, encoder, assets, and
+engines as the measured campaign.
 
 Run the canonical campaign after smoke tests:
 
 ```bash
-make -C benchmarks run-campaign \
+make -C benchmarks run-comparative \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
 Results are written to
-`artefacts/benchmarks/campaigns/realesrgan_x2plus_sintel-1080p/`: raw manifests,
-`campaign.events.jsonl`, `campaign.json`, and `results.md`. The event log records
-the actual order, start/end time, and observed pause for each run; the aggregator
-rejects results without a complete log. The main table contains median FPS, wall
-time, CPU cores, GPU utilization, power, VRAM, bitrate, and size. A separate
-lifecycle table contains median startup, steady-state frame loop, and
-finalize/mux durations, which sum to the same full-process wall time.
+`artefacts/benchmarks/comparative/campaigns/realesrgan_x2plus_sintel-1080p/`:
+raw manifests, `campaign.events.jsonl`, `campaign.json`, and `results.md`. The
+event log records the actual order, start/end time, and observed pause for each
+run; the aggregator rejects results without a complete log. The main table
+contains median FPS, wall time, CPU cores, GPU utilization, power, VRAM,
+bitrate, and size. A separate lifecycle table contains median startup,
+steady-state frame loop, and finalize/mux durations, which sum to the same
+full-process wall time.
 
 The production image contains neither NVML nor external benchmark tools. The
 complete GPU workflow is documented in `GPU_RUNBOOK.md`.

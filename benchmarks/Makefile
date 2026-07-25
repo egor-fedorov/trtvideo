@@ -14,9 +14,6 @@ ENGINE ?=
 PLAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_$(VARIANT).engine
 VSGAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_$(VARIANT).engine
 ONNX ?= models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_$(VARIANT)_fp16.onnx
-OUTPUT_DIR ?= artefacts/benchmarks/ai-media-$(VARIANT)
-VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/parity-vstrt-$(VARIANT)
-VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/product-vsgan-$(VARIANT)
 GPU_ID ?= 0
 ARGS ?=
 TRTEXEC_ARGS ?=
@@ -24,21 +21,25 @@ VSTRT_ARGS ?=
 VSGAN_ARGS ?=
 NSIGHT_ARGS ?=
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
-TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostic-trtexec-$(WORKLOAD_NAME)-$(VARIANT)
+PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
+AI_MEDIA_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
+VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
+VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
+TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_FRAMES ?= 120
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
-CAMPAIGN_DIR ?= artefacts/benchmarks/campaigns/$(CAMPAIGN_NAME)
+CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
 CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
-MODEL_SPACE_DIR ?= artefacts/benchmarks/quality/model-space-$(WORKLOAD_NAME)-$(VARIANT)
+MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space-$(WORKLOAD_NAME)-$(VARIANT)
 MODEL_SPACE_ARGS ?=
-PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/quality/product-output-$(WORKLOAD_NAME)-$(VARIANT)
+PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output-$(WORKLOAD_NAME)-$(VARIANT)
 QUALITY_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-vsgan-engine prepare verify
-.PHONY: run-ai-media plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
+.PHONY: run-project run-ai-media plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
 .PHONY: profile-nsight
 .PHONY: capture-model-ai-media capture-model-vstrt capture-model-vsgan
@@ -46,7 +47,7 @@ RESUME ?= 0
 .PHONY: capture-output-ai-media capture-output-vstrt capture-output-vsgan
 .PHONY: compare-product-output product-output-parity quality-gates
 .PHONY: campaign-preflight campaign-ai-media campaign-vstrt campaign-vsgan
-.PHONY: aggregate-campaign run-campaign
+.PHONY: aggregate-campaign run-campaign run-comparative
 
 help:
 	@printf '%s\n' \
@@ -57,7 +58,9 @@ help:
 		'prepare             Download and prepare the selected workload assets' \
 		'verify              Verify the selected workload assets' \
 		'dry-run             Print diagnostic, parity and VSGAN product plans' \
-		'run-ai-media        Run the project benchmark suite (ENGINE required)' \
+		'run-project         Run the project-only regression benchmark' \
+		'run-comparative     Run/resume the canonical rotated comparison' \
+		'run-ai-media        Run the low-level project implementation suite' \
 		'run-vstrt           Run strict TensorRT 11 parity (ENGINE required)' \
 		'run-vsgan           Run stock VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
@@ -66,7 +69,7 @@ help:
 		'model-space-parity  Compare pre/post-TensorRT RGB float tensors' \
 		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
 		'quality-gates       Run model-space and product-output parity gates' \
-		'run-campaign        Run/resume the canonical rotated parity campaign' \
+		'run-campaign        Low-level comparative campaign coordinator' \
 		'aggregate-campaign  Rebuild campaign.json and results.md from raw runs'
 
 build:
@@ -122,9 +125,12 @@ verify:
 		$(IMAGE) python3 -m benchmarks.scripts.workloads.prepare verify \
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
+run-project:
+	$(MAKE) run-ai-media AI_MEDIA_OUTPUT_DIR="$(PROJECT_OUTPUT_DIR)"
+
 run-ai-media:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(OUTPUT_DIR)"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(AI_MEDIA_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
 		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
@@ -136,7 +142,7 @@ run-ai-media:
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/$(OUTPUT_DIR) \
+			--output-dir /app/$(AI_MEDIA_OUTPUT_DIR) \
 			$(ARGS)
 
 plan-trtexec:
@@ -167,7 +173,7 @@ plan-vstrt:
 			--variant $(VARIANT) \
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/parity-vstrt-$(VARIANT) \
+			--output-dir /app/$(VSTRT_OUTPUT_DIR) \
 			--dry-run $(ARGS) $(VSTRT_ARGS)
 
 plan-vsgan:
@@ -182,7 +188,7 @@ plan-vsgan:
 			--variant $(VARIANT) \
 			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/artefacts/benchmarks/product-vsgan-$(VARIANT) \
+			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
 			--dry-run $(ARGS) $(VSGAN_ARGS)
 
 dry-run: plan-trtexec plan-vstrt plan-vsgan
@@ -350,7 +356,7 @@ model-space-parity:
 
 capture-output-ai-media:
 	$(MAKE) run-ai-media \
-		OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/ai-media" \
+		AI_MEDIA_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/ai-media" \
 		ARGS="$(QUALITY_RUN_ARGS)"
 
 capture-output-vstrt:
@@ -385,10 +391,10 @@ quality-gates: model-space-parity product-output-parity
 
 campaign-preflight:
 	@command -v "$(HOST_PYTHON)" >/dev/null 2>&1 || \
-		(echo "ERROR: run-campaign requires host Python >= 3.10,<3.13; not found: $(HOST_PYTHON)" >&2; exit 2)
+		(echo "ERROR: comparative campaign requires host Python >= 3.10,<3.13; not found: $(HOST_PYTHON)" >&2; exit 2)
 	@"$(HOST_PYTHON)" -c \
 		'import sys; version = sys.version_info[:2]; raise SystemExit(0 if (3, 10) <= version < (3, 13) else 1)' || \
-		(echo "ERROR: run-campaign requires host Python >= 3.10,<3.13 ($(HOST_PYTHON))" >&2; exit 2)
+		(echo "ERROR: comparative campaign requires host Python >= 3.10,<3.13 ($(HOST_PYTHON))" >&2; exit 2)
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
 	@test -f "$(ROOT)/$(ENGINE)" || (echo "ERROR: ENGINE not found: $(ENGINE)" >&2; exit 2)
@@ -418,7 +424,7 @@ campaign-ai-media:
 	elif test -e "$$output"; then \
 		echo "ERROR: partial ai-media round $(ROUND); remove $$output before resume" >&2; exit 2; \
 	else \
-		$(MAKE) run-ai-media OUTPUT_DIR="$(CAMPAIGN_DIR)/ai-media/round-$(ROUND)" \
+		$(MAKE) run-ai-media AI_MEDIA_OUTPUT_DIR="$(CAMPAIGN_DIR)/ai-media/round-$(ROUND)" \
 			ARGS="$(CAMPAIGN_RUN_ARGS)"; \
 	fi
 
@@ -469,3 +475,5 @@ run-campaign: campaign-preflight
 		--benchmarks-dir "$(ROOT)/benchmarks" \
 		--idle-seconds "$(CAMPAIGN_IDLE_SECONDS)" \
 		$(if $(filter 1,$(RESUME)),--resume,)
+
+run-comparative: run-campaign

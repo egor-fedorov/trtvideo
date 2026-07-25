@@ -23,6 +23,25 @@ FPS cannot support a same-model performance claim.
 The project's primary backend is `nvcodec`. The `ffmpeg` backend remains a
 diagnostic baseline and does not replace the GPU-resident result.
 
+## Workflow Separation
+
+Benchmark execution is divided by purpose:
+
+1. `project-only regression` runs only `ai-media-enhancer` through the same
+   external timer, validation, and resource accounting used by comparisons. It
+   supports before/after engineering decisions but cannot establish a
+   competitor advantage.
+2. `comparative campaign` rotates project, vstrt, and VSGAN runs by round and
+   combines them only after both quality gates pass. This is the sole source of
+   publishable competitor claims.
+3. `diagnostics` includes `trtexec`, Nsight Systems, and per-stage profiling.
+   Diagnostic timings are never mixed into project or competitor FPS tables.
+
+The project implementation runner is shared rather than duplicated. Raw output
+is isolated under `artefacts/benchmarks/project/`,
+`artefacts/benchmarks/comparative/`, and
+`artefacts/benchmarks/diagnostics/`.
+
 ## Workloads
 
 Two x2 models are mandatory:
@@ -173,8 +192,9 @@ versioned contract.
 
 Run the gate with `make -C benchmarks model-space-parity`. It writes capture
 manifests, raw tensors, logs, and `model-space-parity.json` under the ignored
-`artefacts/benchmarks/quality/` tree. A valid report is required in addition to
-the product-output quality report before campaign results can be published.
+`artefacts/benchmarks/comparative/quality/` tree. A valid report is required in
+addition to the product-output quality report before campaign results can be
+published.
 
 Product-output parity uses one separate canonical retained-output run per
 implementation. These runs use 100 warmup and 1000 output frames but are not

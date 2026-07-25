@@ -51,6 +51,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Split benchmark orchestration into explicit `run-project`,
+  `run-comparative`, and diagnostic workflows with collision-free artifact
+  namespaces. The GPU runbook now contains concrete 720p quality, campaign, and
+  `trtexec` commands for both canonical models.
 - Added a reproducible `make -C benchmarks profile-nsight` diagnostic for one
   SPAN 1080p `nvcodec` run. Opt-in NVTX ranges label the GPU pipeline, while the
   runner captures CUDA/NvVideo reports and validates the profiled output without

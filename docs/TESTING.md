@@ -100,16 +100,17 @@ On a GPU host, first run a short runner and validation smoke test:
 
 ```bash
 make -C benchmarks build
-make -C benchmarks run-ai-media \
+make -C benchmarks run-project \
   VARIANT=720p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
   ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
 ```
 
 Competitor Docker images, dry runs, and GPU acceptance commands are documented
-in `benchmarks/GPU_RUNBOOK.md`. The full 3+2 benchmark belongs to Stage 3. A
-valid run must pass full decode, media/timestamp validation, and NVML validity
-checks. `nvidia-ml-py` is installed only in the optional
+in `benchmarks/GPU_RUNBOOK.md`. `run-project` is a project-only regression
+measurement; only the rotated `run-comparative` workflow can produce a
+competitor claim. A valid run must pass full decode, media/timestamp validation,
+and NVML validity checks. `nvidia-ml-py` is installed only in the optional
 `ai-media-enhancer:benchmark` image and is not part of the production runtime.
 
 The one-off `profile-nsight` diagnostic is also GPU-only, but it is not a

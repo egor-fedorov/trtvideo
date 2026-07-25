@@ -10,6 +10,11 @@ confirmation, Nsight Systems trace, live-action confirmation, and best-tuned
 campaign remain pending, so this snapshot is not yet the final multi-workload
 release claim.
 
+This snapshot remains valid for its recorded revision. It does not represent
+the later media-preservation implementation, which changed the measured
+finalize/mux path and therefore requires a current-release rebaseline rather
+than retroactive modification of these results.
+
 ## Environment
 
 - GPU: NVIDIA GeForce RTX 3090, 24 GiB, compute capability 8.6.

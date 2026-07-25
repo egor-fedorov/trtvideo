@@ -8,7 +8,7 @@ implemented. A publishable result still requires the quality-parity gates from
 The host requires Docker, GNU Make, Git, and Python `>=3.10,<3.13`. Python is
 used only by the rotated campaign coordinator; measured workloads and result
 aggregation run in pinned Docker images. Set `HOST_PYTHON=/path/to/python` on
-`run-campaign` when `python3` is not the intended interpreter.
+`run-comparative` when `python3` is not the intended interpreter.
 
 ## 1. Build And Assets
 
@@ -128,7 +128,11 @@ ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine
 VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine
 SMOKE="--frames 120 --warmup-frames 24 --runs 1 --extra-runs 0 --idle-seconds 0"
 
-make -C benchmarks run-ai-media VARIANT=720p ENGINE="$ENGINE" ARGS="$SMOKE"
+make -C benchmarks run-project \
+  VARIANT=720p \
+  ENGINE="$ENGINE" \
+  PROJECT_OUTPUT_DIR=artefacts/benchmarks/project/smoke-realesrgan-720p \
+  ARGS="$SMOKE"
 make -C benchmarks run-vstrt VARIANT=720p ENGINE="$ENGINE" ARGS="$SMOKE"
 make -C benchmarks run-vsgan VARIANT=720p \
   VSGAN_ENGINE="$VSGAN_ENGINE" ARGS="$SMOKE"
@@ -155,7 +159,16 @@ make -C benchmarks quality-gates \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-Repeat at 720p. Then run both resolutions for SPAN:
+Run the RealESRGAN 720p gate explicitly:
+
+```bash
+make -C benchmarks quality-gates \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine
+```
+
+Then run both resolutions for SPAN:
 
 ```bash
 make -C benchmarks quality-gates \
@@ -165,12 +178,20 @@ make -C benchmarks quality-gates \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
-Use the corresponding 720p engine paths for the final run. Each command must
-finish with both `Model-space parity valid` and `Product-output parity valid`.
+```bash
+make -C benchmarks quality-gates \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine \
+  VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_720p.engine
+```
+
+Each command must finish with both `Model-space parity valid` and
+`Product-output parity valid`.
 Inspect
-`artefacts/benchmarks/quality/model-space-<workload>-<variant>/model-space-parity.json`
+`artefacts/benchmarks/comparative/quality/model-space-<workload>-<variant>/model-space-parity.json`
 and
-`artefacts/benchmarks/quality/product-output-<workload>-<variant>/product-output-parity.json`
+`artefacts/benchmarks/comparative/quality/product-output-<workload>-<variant>/product-output-parity.json`
 before deleting raw tensors or retained MP4s. Review the PNG crop matrix
 manually. Any threshold failure is a quality-contract failure, not benchmark
 noise, and must be investigated before the campaign can be published. The
@@ -179,46 +200,101 @@ paths and verifies that their evidence, asset, and engine hashes match the
 measured campaign. It also rejects quality evidence produced by different
 Docker image IDs, a different repository revision, or a dirty build.
 
-## 6. Rotated Acceptance Campaign
+## 6. Project-Only Regression Benchmark
+
+Use `run-project` for before/after measurements of `ai-media-enhancer` without
+building or running competitors. It uses the same external timer, validation,
+NVML sampling, warmup, and 3+2 run policy as the project row in a comparison:
+
+```bash
+make -C benchmarks run-project \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
+
+make -C benchmarks run-project \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine
+
+make -C benchmarks run-project \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=1080p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
+
+make -C benchmarks run-project \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine
+```
+
+Raw results are isolated under
+`artefacts/benchmarks/project/<workload>-<variant>/`. They are regression
+evidence, not a competitor comparison. Record only measured before/after
+effects in `docs/PERFORMANCE_LOG.md`.
+
+## 7. Rotated Comparative Campaign
 
 Commit all changes and rebuild all three benchmark images before the campaign.
 Preflight rejects a dirty worktree or an image not built from the current
 commit.
+
+The published RTX 3090 1080p snapshot remains valid for its recorded revision.
+Run 1080p again for a current-release claim because media preservation changed
+the measured process startup and finalize/mux path after that snapshot. Run the
+pending 720p confirmation in the same session, on the same physical GPU, power
+state, commit, and image set.
 
 Canonical defaults are 100 warmup frames, 1000 measured frames, three rotated
 rounds, and two additional rounds when the spread of any implementation exceeds
 5%:
 
 ```bash
-make -C benchmarks run-campaign \
+make -C benchmarks run-comparative \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-For SPAN:
+The explicit RealESRGAN 720p confirmation is:
 
 ```bash
-make -C benchmarks run-campaign \
+make -C benchmarks run-comparative \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
+  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine
+```
+
+For SPAN 1080p:
+
+```bash
+make -C benchmarks run-comparative \
   MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine \
   VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
 ```
 
-Repeat both commands with 720p paths. After a safe interruption, continue the
-same campaign with `RESUME=1`. Resume is valid only when the commit, images,
-workload assets, and engines are unchanged. A partial or invalid round is
-retained for diagnosis and requires manual removal of only its own directory. If
-the process was interrupted after a run completed but before its event was
-recorded, its manifest is considered untracked and its directory must also be
-removed before resuming.
+The explicit SPAN 720p confirmation is:
+
+```bash
+make -C benchmarks run-comparative \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine \
+  VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_720p.engine
+```
+
+After a safe interruption, continue the same command with `RESUME=1`. Resume is
+valid only when the commit, images, workload assets, and engines are unchanged.
+A partial or invalid round is retained for diagnosis and requires manual
+removal of only its own directory. If the process was interrupted after a run
+completed but before its event was recorded, its manifest is considered
+untracked and its directory must also be removed before resuming.
 
 The campaign stores raw manifests, append-only `campaign.events.jsonl`, and
 shared `campaign.json`/`results.md` files in
-`artefacts/benchmarks/campaigns/<name>/`. The event log is mandatory evidence of
-actual rotation and idle intervals. Until the quality gates are complete, the
-aggregator sets `publishable: false` even for a valid campaign.
+`artefacts/benchmarks/comparative/campaigns/<name>/`. The event log is mandatory
+evidence of actual rotation and idle intervals. Until the quality gates are
+complete, the aggregator sets `publishable: false` even for a valid campaign.
 
 Individual `run-ai-media`, `run-vstrt`, and `run-vsgan` targets remain available
 for smoke tests and diagnosis. `run-trtexec` remains a separate inference
@@ -228,7 +304,7 @@ Do not publish sequential execution of independent suites as the final
 comparison. Raw manifests, logs, and NVML samples are not committed before
 sanitization and review.
 
-## 7. TensorRT Diagnostic Ceiling
+## 8. TensorRT Diagnostic Ceiling
 
 Run the canonical `trtexec` suite separately for each TRT11 engine. It measures
 inference without video decode, color conversion, encode, or mux and is used to
@@ -247,16 +323,28 @@ make -C benchmarks run-trtexec \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 ```
 
-Repeat both commands at 720p with the corresponding engine paths. Canonical
-defaults are 1000 measured iterations, three runs, two additional runs when
-spread exceeds 5%, ten seconds between runs, and a 1000 ms `trtexec` warmup.
-Results are kept separately under
-`artefacts/benchmarks/diagnostic-trtexec-<workload>-<variant>/`.
+Run both 720p ceilings explicitly:
+
+```bash
+make -C benchmarks run-trtexec \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine
+
+make -C benchmarks run-trtexec \
+  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  VARIANT=720p \
+  ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine
+```
+
+Canonical defaults are 1000 measured iterations, three runs, two additional
+runs when spread exceeds 5%, ten seconds between runs, and a 1000 ms `trtexec`
+warmup. Results are kept separately under
+`artefacts/benchmarks/diagnostics/trtexec/<workload>-<variant>/`.
 
 The diagnostic uses the TRT11 engine shared by `ai-media-enhancer` and vstrt.
 The separate TRT10 VSGAN engine is not an input to this measurement.
 
-## 8. Nsight Systems Pipeline Diagnostic
+## 9. Nsight Systems Pipeline Diagnostic
 
 Nsight Systems is already included in the TensorRT benchmark image. First
 inspect the generated command without a GPU:
@@ -276,6 +364,12 @@ make -C benchmarks profile-nsight \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 ```
+
+Build this engine on the same physical GPU immediately before capture. A
+TensorRT device-mismatch warning makes the trace diagnostic-only and requires a
+clean replacement. One representative SPAN 1080p trace is sufficient; a
+separate 720p Nsight capture is not required unless the 720p campaign exposes a
+different bottleneck.
 
 The runner uses the normal non-`--profile` pipeline with CUDA Graph disabled,
 enables NVTX only for this subprocess, and requests CUDA, NVTX, OS-runtime,

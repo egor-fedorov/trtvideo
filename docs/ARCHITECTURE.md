@@ -235,6 +235,12 @@ calls in the per-frame hot path. After timing ends, the output is fully decoded
 and checked with FFmpeg/ffprobe, so validation and hashing do not affect
 end-to-end FPS.
 
+The same project runner powers two orchestration modes. `run-project` measures
+standalone regressions, while `run-comparative` schedules that runner alongside
+vstrt and VSGAN in rotated rounds. They share timing and validation code but
+write to separate `project/` and `comparative/` artifact namespaces.
+`trtexec`, Nsight, and per-stage profiles remain under `diagnostics/`.
+
 The benchmark runtime is an optional Docker target. The production image
 contains the main CLI but does not install `nvidia-ml-py` or copy benchmark
 runner scripts. Reproducible measurements use

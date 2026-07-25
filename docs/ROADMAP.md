@@ -95,8 +95,10 @@ with completed quality gates is publishable.
 ## Stage 3. Parity Campaign
 
 Status: the validated RTX 3090 `1080p -> 4K` campaigns for RealESRGAN and SPAN
-are published in `benchmarks/results/rtx-3090/1080p/`. The
-`720p -> 1440p` confirmation remains pending.
+remain a valid historical baseline for revision `49ae95a` and are published in
+`benchmarks/results/rtx-3090/1080p/`. Media preservation changed the
+full-process finalize/mux path after that revision, so a current-release 1080p
+rebaseline and the `720p -> 1440p` confirmation remain pending.
 
 - Run 100 warmup and 1000 measured frames, at least three runs, and two
   additional runs when spread exceeds 5%.
@@ -118,9 +120,11 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-Status: 1080p `trtexec` ceilings and pipeline efficiency are published. Nsight
-capture tooling is implemented, but the GPU trace and its analysis remain
-pending together with best-tuned and live-action confirmation runs.
+Status: 1080p `trtexec` ceilings and pipeline efficiency are published. The
+first Nsight trace confirmed a GPU-resident, compute-saturated steady state, but
+TensorRT reported that its engine was built for a different device model. A
+clean trace with an engine rebuilt on the profiling GPU remains pending,
+together with best-tuned and live-action confirmation runs.
 
 - [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
   from the product table for the 1080p baseline.

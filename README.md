@@ -304,10 +304,10 @@ on the selected benchmark GPU:
 make -C benchmarks build
 ```
 
-Canonical run:
+Canonical project-only regression run:
 
 ```bash
-make -C benchmarks run-ai-media \
+make -C benchmarks run-project \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 ```
@@ -321,7 +321,7 @@ process exit.
 Run a short infrastructure check before the full benchmark:
 
 ```bash
-make -C benchmarks run-ai-media \
+make -C benchmarks run-project \
   VARIANT=720p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
   ARGS="--runs 1 --extra-runs 0 --frames 120 --warmup-frames 24 --idle-seconds 0"
@@ -356,10 +356,16 @@ machine-readable JSON. Per-stage timings are collected separately with
 `upscale --profile` or `upscale --profile-json` and are not treated as the
 end-to-end benchmark.
 
-The isolated runners in `benchmarks/` separate TensorRT 11
-`vs-mlrt/vstrt` technical parity, stock `VSGAN-tensorrt-docker` product
-comparison, and the diagnostic `trtexec` ceiling. The complete GPU-host
-preparation and smoke sequence is documented in
+The benchmark workflows are deliberately separate:
+
+- `run-project` measures only `ai-media-enhancer` for before/after regression
+  checks;
+- `run-comparative` runs the rotated project/vstrt/VSGAN campaign used for
+  public performance claims;
+- `run-trtexec` and `profile-nsight` are non-competitive diagnostics.
+
+The complete GPU-host preparation, quality gates, 720p/1080p comparative
+commands, and artifact layout are documented in
 [GPU Benchmark Runbook](benchmarks/GPU_RUNBOOK.md).
 
 ## CLI Reference
