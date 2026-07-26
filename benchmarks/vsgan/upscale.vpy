@@ -3,7 +3,9 @@
 import vapoursynth as vs
 
 core = vs.core
-core.num_threads = int(vs_threads)
+configured_threads = globals().get("vs_threads")
+if configured_threads is not None:
+    core.num_threads = int(configured_threads)
 core.std.LoadPlugin(path="/usr/local/lib/libvstrt.so")
 model_space_stage = globals().get("model_space_stage", "video")
 if model_space_stage not in {"video", "input", "output"}:

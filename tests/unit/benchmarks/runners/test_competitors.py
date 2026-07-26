@@ -200,6 +200,20 @@ def test_vsgan_command_uses_pinned_script_and_explicit_nvenc_contract() -> None:
     assert ffmpeg[ffmpeg.index("-bf") + 1] == "0"
 
 
+@pytest.mark.parametrize(
+    "script",
+    (
+        "benchmarks/vstrt/upscale.vpy",
+        "benchmarks/vsgan/upscale.vpy",
+    ),
+)
+def test_vapoursynth_scripts_accept_runtime_default_threads(script: str) -> None:
+    source = Path(script).read_text(encoding="utf-8")
+
+    assert 'configured_threads = globals().get("vs_threads")' in source
+    assert "if configured_threads is not None:" in source
+
+
 def test_vsgan_plan_is_single_stream_parity() -> None:
     plan, _ = build_vsgan_plan(common_args())
     vspipe, _ = plan["commands"]["measured"]

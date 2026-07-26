@@ -215,6 +215,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- VSGAN benchmark scripts now treat an omitted `vs_threads` argument as the
+  VapourSynth runtime default instead of failing before warmup.
 - The comparative campaign coordinator now reads the generated campaign status
   instead of expecting GNU Make to preserve a sentinel exit code. Campaigns
   whose initial three rounds exceed the spread threshold now automatically run
