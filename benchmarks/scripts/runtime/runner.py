@@ -66,6 +66,7 @@ class BenchmarkConfig:
     crf: int = 18
     cuda_graph: bool = False
     keep_outputs: bool = False
+    validate_bitrate: bool = True
     workload_manifest: Path | None = None
     variant: str | None = None
 
@@ -361,6 +362,7 @@ def run_one(
             "bitrate_mbps": config.bitrate_mbps,
             "crf": config.crf if config.backend == "ffmpeg" else None,
             "cuda_graph": config.cuda_graph,
+            "bitrate_validation": config.validate_bitrate,
             "nvml_sample_interval_ms": config.sample_interval_ms,
             "encoder": encoder_parameters,
         },
@@ -443,7 +445,7 @@ def run_one(
                 config,
                 sidecar,
                 frames=config.frames,
-                enforce_bitrate=True,
+                enforce_bitrate=config.validate_bitrate,
             ),
         )
         if measured_output.is_file()

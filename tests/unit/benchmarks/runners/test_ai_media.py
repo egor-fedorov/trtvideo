@@ -301,6 +301,7 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
         idle_seconds=None,
         cuda_graph=False,
         keep_outputs=False,
+        skip_bitrate_validation=False,
     )
 
     command = build_command(args, manifest)
@@ -334,6 +335,7 @@ def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() ->
         idle_seconds=None,
         cuda_graph=False,
         keep_outputs=False,
+        skip_bitrate_validation=False,
     )
 
     command = build_command(args, manifest)
@@ -341,3 +343,31 @@ def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() ->
     assert command[command.index("--warmup-frames") + 1] == "0"
     assert command[command.index("--frames") + 1] == "0"
     assert command[command.index("--runs") + 1] == "0"
+
+
+def test_canonical_runner_can_skip_bitrate_validation_for_smoke() -> None:
+    manifest = json.loads(
+        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    args = argparse.Namespace(
+        manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
+        variant="720p",
+        engine="models/model.engine",
+        output_dir="artefacts/results",
+        json=None,
+        gpu_id=0,
+        frames=120,
+        warmup_frames=24,
+        runs=1,
+        extra_runs=0,
+        idle_seconds=0,
+        cuda_graph=False,
+        keep_outputs=False,
+        skip_bitrate_validation=True,
+    )
+
+    command = build_command(args, manifest)
+
+    assert "--skip-bitrate-validation" in command

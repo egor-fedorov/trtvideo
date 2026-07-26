@@ -286,7 +286,9 @@ make -C benchmarks dry-run \
 Frame/run parameters may be reduced only for smoke tests. Such a suite can be
 valid, but it receives `scope: acceptance` and `publishable: false`. The same
 restriction applies to a canonical individual suite: comparisons may be
-published only from the shared rotated campaign.
+published only from the shared rotated campaign. Canonical workflow smoke runs
+record actual bitrate without enforcing the 10% average-bitrate threshold;
+full campaigns and product-output quality runs continue to enforce it.
 
 All video runners use one explicit NVENC contract: H.264 P4/HQ, CBR,
 target=min=max bitrate, a two-second VBV buffer with 50% initial occupancy,

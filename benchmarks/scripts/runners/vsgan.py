@@ -170,6 +170,7 @@ def build_plan(
             "full_frame": True,
             "tiling": False,
             "bitrate_mbps": variant["benchmark_output"]["bitrate_mbps"],
+            "bitrate_validation": not args.skip_bitrate_validation,
             "encoder": encoder.as_dict(),
             "max_compute_processes": 2,
             "max_graphics_processes": 0,
@@ -257,7 +258,7 @@ def main() -> None:
                     manifest,
                     variant,
                     frames=parameters["frames"],
-                    enforce_bitrate=True,
+                    enforce_bitrate=parameters["bitrate_validation"],
                 ),
                 benchmark_contract=manifest["benchmark"],
                 assets={

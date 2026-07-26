@@ -223,6 +223,11 @@ def add_common_arguments(parser: argparse.ArgumentParser, *, engine: bool) -> No
     parser.add_argument("--runs", type=int, default=None)
     parser.add_argument("--extra-runs", type=int, default=None)
     parser.add_argument("--idle-seconds", type=float, default=None)
+    parser.add_argument(
+        "--skip-bitrate-validation",
+        action="store_true",
+        help="Record but do not enforce average bitrate (short smoke runs only)",
+    )
     parser.add_argument("--dry-run", action="store_true")
 
 

@@ -94,6 +94,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Keep valid warmup and measured MP4 files",
     )
     parser.add_argument(
+        "--skip-bitrate-validation",
+        action="store_true",
+        help="Record but do not enforce average bitrate (short smoke runs only)",
+    )
+    parser.add_argument(
         "--workload-manifest",
         default=None,
         help="Optional canonical workload manifest for asset verification",
@@ -125,6 +130,7 @@ def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         crf=args.crf,
         cuda_graph=args.cuda_graph,
         keep_outputs=args.keep_outputs,
+        validate_bitrate=not args.skip_bitrate_validation,
         workload_manifest=(
             Path(args.workload_manifest) if args.workload_manifest is not None else None
         ),

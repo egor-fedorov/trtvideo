@@ -54,6 +54,11 @@ def test_project_goal_covers_complete_selected_matrix_without_competitors() -> N
     assert targets.count("prepare") == 2
     assert targets.count("build-project-engine") == 4
     assert targets.count("run-project") == 8
+    smoke_steps = [step for step in plan if step.key.startswith("smoke:")]
+    assert all(
+        any("--skip-bitrate-validation" in argument for argument in step.command)
+        for step in smoke_steps
+    )
     assert "build-vsgan" not in targets
     assert "quality-gates" not in targets
 

@@ -105,6 +105,12 @@ The output lists every image build, asset operation, engine build, smoke,
 quality gate, and campaign in execution order. It does not execute commands or
 create workflow state.
 
+Smoke runs validate complete decode, media structure, timestamps, color,
+keyframes, and the declared encoder settings. They record but do not enforce
+average bitrate because 120 frames are not a representative CBR averaging
+window. Full campaigns and product-output quality gates retain the fixed 10%
+bitrate tolerance.
+
 Use another declarative matrix only when intentionally testing different
 artifact paths:
 

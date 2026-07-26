@@ -17,7 +17,7 @@ GOALS = ("project", "comparative", "tuned", "diagnostics")
 COMPARISON_MODES = ("parity", "upstream-default")
 SMOKE_ARGS = (
     "--frames 120 --warmup-frames 24 --runs 1 "
-    "--extra-runs 0 --idle-seconds 0"
+    "--extra-runs 0 --idle-seconds 0 --skip-bitrate-validation"
 )
 
 

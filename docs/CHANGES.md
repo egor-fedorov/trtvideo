@@ -215,6 +215,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Short benchmark smoke runs now record actual bitrate without applying the
+  full-campaign average-bitrate threshold. Canonical campaigns and
+  product-output quality gates continue to enforce the fixed 10% tolerance.
 - VSGAN benchmark scripts now treat an omitted `vs_threads` argument as the
   VapourSynth runtime default instead of failing before warmup.
 - The comparative campaign coordinator now reads the generated campaign status

@@ -68,6 +68,7 @@ def common_args(**overrides) -> argparse.Namespace:
         "num_streams": 1,
         "mode": "parity",
         "vs_threads": None,
+        "skip_bitrate_validation": False,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -229,6 +230,12 @@ def test_vsgan_plan_is_single_stream_parity() -> None:
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
+
+
+def test_external_smoke_plan_can_skip_bitrate_validation() -> None:
+    plan, _ = build_vstrt_plan(common_args(skip_bitrate_validation=True))
+
+    assert plan["parameters"]["bitrate_validation"] is False
 
 
 def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:

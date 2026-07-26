@@ -206,6 +206,10 @@ PyNvVideoCodec may produce a lower actual bitrate for the same target. Reports
 must publish actual bitrate and output size, retain the fixed 10% bitrate
 tolerance, and disclose confirmed filler behavior. The project output is not
 padded or assigned a content-dependent target solely to equalize file sizes.
+The tolerance is enforced for full campaigns and product-output quality runs.
+Reduced 120-frame smoke runs record actual bitrate but do not enforce an
+average-bitrate threshold: the short encoder window is not rate-control
+evidence and is never publishable.
 
 An output is valid only after a complete decode and validation of resolution,
 codec, pixel format, color tags, FPS, duration, frame count, B-frames, keyframe
