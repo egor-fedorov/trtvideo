@@ -3,9 +3,9 @@
   "id": "realesrgan-x2plus-sintel-v4",
   "lock_path": "models/benchmarks/realesrgan-x2plus-sintel-v4.assets.json",
   "benchmark": {
-    "contract_version": 2,
+    "contract_version": 3,
     "warmup_frames": 30,
-    "measured_frames": 400,
+    "measured_frames": 1000,
     "initial_runs": 3,
     "extra_runs_on_spread": 2,
     "spread_threshold": 0.05,

@@ -147,10 +147,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   collection, and suite policy out of the production Python package. The
   `benchmark-upscale` wrapper now exists only in benchmark/check images, while
   campaign aggregation and tuned selection share one evidence-contract layer.
-- Reduced the RealESRGAN performance contract from 100 warmup and 1000 measured
-  frames to 30 and 400 after verifying startup remains below 10% for every
-  implementation. SPAN and the full 1000-frame product-output quality gate are
-  unchanged.
+- Reduced the RealESRGAN warmup from 100 to 30 frames while retaining the
+  1000-frame measured window. A trial 400-frame contract stayed below the
+  startup-share limit but failed the fixed output-bitrate gate because the
+  PyNvVideoCodec encoder cannot request NVENC filler-data insertion. SPAN and
+  the full 1000-frame product-output quality gate are unchanged.
 
 - Reclassified the published RTX 3090 comparison as a single-stream parity
   baseline. The result now explicitly records the one-request/one-stream

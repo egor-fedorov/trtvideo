@@ -317,13 +317,16 @@ Canonical frame budgets are workload-specific:
 
 | Workload contract | Warmup frames | Measured frames |
 |---|---:|---:|
-| RealESRGAN_x2plus v2 | 30 | 400 |
+| RealESRGAN_x2plus v3 | 30 | 1000 |
 | LiveAction SPAN v1 | 100 | 1000 |
 
-RealESRGAN uses a shorter fixed window because the model-bound frame loop
-dominates wall time. In the RTX 3090 baseline, the worst projected startup share
-at 400 frames was 4.95%, below the preselected 10% limit. SPAN remains unchanged
-because startup already accounts for 12.79% of the project's 720p wall time.
+RealESRGAN retains a 1000-frame measured window because the project's
+PyNvVideoCodec encoder cannot request NVENC filler-data insertion. A trial
+400-frame contract stayed below the preselected 10% startup-share limit but
+failed the fixed output-bitrate acceptance gate. The shorter 30-frame warmup is
+retained because it is a separate discarded process and was sufficient to
+stabilize the measured workload. SPAN remains unchanged because startup already
+accounts for 12.79% of the project's 720p wall time.
 
 For a canonical run:
 
