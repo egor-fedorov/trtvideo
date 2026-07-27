@@ -431,3 +431,9 @@ make check
 ```
 
 The test-layer architecture is documented in `docs/TESTING.md`.
+
+## License
+
+The source code and documentation in this repository are licensed under the
+[Apache License 2.0](LICENSE). Third-party dependencies, model weights, and
+media assets retain their own licenses and are not relicensed by this project.

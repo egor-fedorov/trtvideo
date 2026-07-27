@@ -51,6 +51,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Licensed the project source code and documentation under Apache License 2.0,
+  with third-party dependencies, models, and media remaining under their own
+  licenses.
 - Published a revision-bound RTX 3090 upstream-default and best-tuned
   comparison for RealESRGAN and SPAN at both canonical resolutions, including
   complete tuning curves, winner quality evidence, resource metrics, and
