@@ -4,6 +4,7 @@
     {
       "key": "realesrgan",
       "manifest": "benchmarks/workloads/realesrgan_x2plus_sintel.json",
+      "tuning_contract": "benchmarks/tuning/candidates.json",
       "variants": {
         "720p": {
           "onnx": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx",
@@ -20,6 +21,7 @@
     {
       "key": "span",
       "manifest": "benchmarks/workloads/liveaction_span_sintel.json",
+      "tuning_contract": "benchmarks/tuning/span_candidates.json",
       "variants": {
         "720p": {
           "onnx": "models/benchmarks/liveaction-span/onnx/liveaction_span_720p_fp16.onnx",

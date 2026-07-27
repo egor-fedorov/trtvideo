@@ -319,6 +319,9 @@ def _tuned_steps(
     ):
         for selection in selections:
             variables = list(_selection_variables(selection, options.gpu_id))
+            variables.append(
+                f"TUNING_CONTRACT={selection.workload.tuning_contract}"
+            )
             if stage == "sweep":
                 variables.append(f"TUNING_RESUME={int(options.resume)}")
             elif stage == "campaign":
@@ -548,10 +551,10 @@ def run_plan(
     for index, step in enumerate(plan, start=1):
         prefix = f"[{index}/{len(plan)}]"
         if step.key in completed:
-            print(f"{prefix} SKIP {step.label}")
+            print(f"{prefix} SKIP {step.label}", flush=True)
             continue
-        print(f"{prefix} {step.label}")
-        print(f"  {_format_command(step.command)}")
+        print(f"{prefix} {step.label}", flush=True)
+        print(f"  {_format_command(step.command)}", flush=True)
         if dry_run:
             continue
         executor(step.command, root)

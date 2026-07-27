@@ -190,12 +190,13 @@ def main() -> None:
         print(
             f"Workflow: {options.goal}; "
             f"matrix: {', '.join(selection_keys)}; "
-            f"steps: {len(plan)}"
+            f"steps: {len(plan)}",
+            flush=True,
         )
         if args.dry_run:
-            print("Dry run: no commands or state changes will be made")
+            print("Dry run: no commands or state changes will be made", flush=True)
         else:
-            print(f"State: {state_path}")
+            print(f"State: {state_path}", flush=True)
         run_plan(
             plan,
             root=root,
@@ -210,7 +211,7 @@ def main() -> None:
     ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)
-    print("Workflow completed successfully")
+    print("Workflow completed successfully", flush=True)
 
 
 if __name__ == "__main__":

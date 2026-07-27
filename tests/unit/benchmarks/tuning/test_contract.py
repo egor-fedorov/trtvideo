@@ -27,6 +27,15 @@ def test_repository_tuning_contract_declares_required_vstrt_sweep() -> None:
     }
 
 
+def test_span_tuning_contract_contains_measured_interior_peak_range() -> None:
+    contract = load_tuning_contract(Path("benchmarks/tuning/span_candidates.json"))
+
+    assert {
+        candidate.num_streams
+        for candidate in contract.for_implementation("vstrt")
+    } == {2, 3, 4, 5, 6}
+
+
 def test_candidate_arguments_are_explicit_and_deterministic() -> None:
     contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
 

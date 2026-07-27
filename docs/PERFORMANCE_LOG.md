@@ -90,6 +90,13 @@ Results:
 | Process CPU load | one hot core | about 2% on average |
 | Output decode validation | passed | passed |
 
+The process-load row is an OS-observed value from that profiling session, not
+the later benchmark runner's `getrusage(RUSAGE_CHILDREN)` `average_cores`
+metric. It is therefore not directly comparable with current campaign CPU
+results. The current pipeline also synchronizes once per decoded batch before
+PyNvVideoCodec may reuse its NVDEC surfaces; that correctness synchronization
+was added later and was not part of this measurement.
+
 Benchmark after moving NVENC to the runtime CUDA stream:
 
 | Input | Metric | `26.06` baseline | After stream fix | Change |

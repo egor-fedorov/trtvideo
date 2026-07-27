@@ -31,6 +31,10 @@ class TuningWorkflowError(RuntimeError):
     """Raised when a tuned workflow cannot preserve its evidence contract."""
 
 
+def _progress(message: str) -> None:
+    print(message, flush=True)
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -243,11 +247,20 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
 
     reference_root = paths.sweep_dir / "reference" / "model-space"
     reference_manifest = reference_root / "ai-media" / "manifest.json"
-    if _require_clean_destination(
+    capture_reference = _require_clean_destination(
         reference_root,
         marker=reference_manifest,
         resume=args.resume,
-    ):
+    )
+    _progress(
+        "[tuned sweep] "
+        + (
+            "Capture project model-space reference"
+            if capture_reference
+            else "SKIP project model-space reference"
+        )
+    )
+    if capture_reference:
         runner.run(
             "capture-model-ai-media",
             {
@@ -256,16 +269,26 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             },
         )
 
-    for candidate in contract.candidates:
+    candidate_count = len(contract.candidates)
+    for candidate_index, candidate in enumerate(contract.candidates, start=1):
+        prefix = (
+            f"[tuned sweep candidate {candidate_index}/{candidate_count}] "
+            f"{candidate.candidate_id}"
+        )
         candidate_root = candidate_directory(paths.sweep_dir, candidate)
         variables = _candidate_variables(candidate, base)
         performance_dir = candidate_root / "performance"
         suite_path = performance_dir / "suite.json"
-        if _require_clean_destination(
+        run_performance = _require_clean_destination(
             performance_dir,
             marker=suite_path,
             resume=args.resume,
-        ):
+        )
+        _progress(
+            f"{prefix}: "
+            + ("performance suite" if run_performance else "SKIP performance suite")
+        )
+        if run_performance:
             output_variable = (
                 "VSTRT_OUTPUT_DIR"
                 if candidate.implementation == "vstrt"
@@ -285,11 +308,20 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         capture_manifest = (
             capture_root / candidate.implementation / "manifest.json"
         )
-        if _require_clean_destination(
+        capture_model_space = _require_clean_destination(
             capture_root,
             marker=capture_manifest,
             resume=args.resume,
-        ):
+        )
+        _progress(
+            f"{prefix}: "
+            + (
+                "model-space capture"
+                if capture_model_space
+                else "SKIP model-space capture"
+            )
+        )
+        if capture_model_space:
             runner.run(
                 f"capture-model-{candidate.implementation}",
                 {
@@ -303,6 +335,14 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             raise TuningWorkflowError(
                 f"Evidence already exists; use --resume: {report_path}"
             )
+        _progress(
+            f"{prefix}: "
+            + (
+                "model-space comparison"
+                if not report_path.is_file()
+                else "SKIP model-space comparison"
+            )
+        )
         if not report_path.is_file():
             runner.run(
                 "compare-model-space-candidate",
@@ -326,6 +366,13 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         raise TuningWorkflowError(
             f"Tuned selection is invalid; inspect {paths.sweep_dir / 'selection.json'}"
         )
+    _progress(
+        "[tuned sweep] Selected "
+        + ", ".join(
+            f"{implementation}={winner['candidate_id']}"
+            for implementation, winner in sorted(report["winners"].items())
+        )
+    )
     return report
 
 
@@ -425,7 +472,7 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
     runner = MakeRunner(paths, executable=args.make)
     disqualifications_path = paths.sweep_dir / "disqualifications.json"
 
-    for _ in range(len(contract.candidates)):
+    for attempt in range(1, len(contract.candidates) + 1):
         selection = _write_selection(
             contract=contract,
             workload=workload,
@@ -435,6 +482,13 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
         )
         winners = _selected_candidates(selection, contract)
         signature = _winner_signature(winners)
+        _progress(
+            f"[tuned quality attempt {attempt}] "
+            + ", ".join(
+                f"{implementation}={candidate.candidate_id}"
+                for implementation, candidate in sorted(winners.items())
+            )
+        )
         attempt_root = paths.sweep_dir / "winner-quality" / signature
         model_space_dir = attempt_root / "model-space"
         product_output_dir = attempt_root / "product-output"
@@ -459,6 +513,7 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             "MODEL_SPACE_DIR": paths.relative(model_space_dir),
             "PRODUCT_OUTPUT_DIR": paths.relative(product_output_dir),
         }
+        _progress(f"[tuned quality attempt {attempt}] Model-space gate")
         model_result = runner.run(
             "model-space-parity",
             variables,
@@ -480,6 +535,7 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             )
             continue
 
+        _progress(f"[tuned quality attempt {attempt}] Product-output gate")
         product_result = runner.run(
             "product-output-parity",
             variables,
@@ -526,6 +582,7 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             },
         }
         _write_json(paths.sweep_dir / "final-quality.json", final_report)
+        _progress(f"[tuned quality attempt {attempt}] Winner quality valid")
         return final_report
     raise TuningWorkflowError("No tuned candidate pair passed the full quality gate")
 
@@ -576,6 +633,13 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         "CAMPAIGN_DIR": paths.relative(campaign_dir),
         "RESUME": "1" if args.resume else "0",
     }
+    _progress(
+        "[tuned campaign] "
+        + ", ".join(
+            f"{implementation}={candidate.candidate_id}"
+            for implementation, candidate in sorted(winners.items())
+        )
+    )
     MakeRunner(paths, executable=args.make).run("run-comparative", variables)
     campaign_path = campaign_dir / "campaign.json"
     campaign = _load_json(campaign_path)
@@ -677,7 +741,8 @@ def main() -> None:
         sys.exit(2)
     print(
         f"{report['document_type']} {report['status']}: "
-        f"{report['workload_id']} {report['variant']}"
+        f"{report['workload_id']} {report['variant']}",
+        flush=True,
     )
 
 

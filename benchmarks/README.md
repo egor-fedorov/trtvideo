@@ -23,7 +23,9 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
   cross-resolution publication checks.
 - `scripts/workflow/` - complete goal planning, execution, and resume state.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
-- `tuning/candidates.json` - predeclared tuned candidates and selection policy.
+- `tuning/candidates.json` - RealESRGAN tuned candidates and selection policy.
+- `tuning/span_candidates.json` - extended SPAN candidates with the measured
+  `num_streams=5` interior peak and `num_streams=6` boundary point.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
 - [`results/`](results/README.md) - committed benchmark tables and
   machine-readable sanitized snapshots; large raw artifacts remain under
@@ -175,12 +177,14 @@ make -C benchmarks run-tuned-campaign \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-`benchmarks/tuning/candidates.json` predeclares every candidate and the
-selection rule. The sweep requires full media validation and model-space parity
-for each point, ranks only eligible points by stable median end-to-end FPS, and
-stores every candidate in a unique directory. The full 1000-frame
-product-output gate runs only for the selected pair. A candidate-specific
-failure disqualifies that point and promotes the next eligible candidate.
+The canonical workflow matrix selects a predeclared tuning contract for each
+workload. RealESRGAN uses `benchmarks/tuning/candidates.json`; SPAN uses the
+extended `benchmarks/tuning/span_candidates.json`. The sweep requires full
+media validation and model-space parity for each point, ranks only eligible
+points by stable median end-to-end FPS, and stores every candidate in a unique
+directory. The full 1000-frame product-output gate runs only for the selected
+pair. A candidate-specific failure disqualifies that point and promotes the
+next eligible candidate.
 
 Run the same three commands independently for 720p. A single-resolution tuned
 campaign is evidence, not a publication unit. `verify-tuned-matrix` grants
@@ -200,9 +204,11 @@ make -C benchmarks run-comparative \
 
 `upstream-default` is not automatically the fastest vstrt configuration:
 upstream keeps one TensorRT stream and recommends increasing it when the GPU is
-not saturated. The canonical contract therefore includes vstrt streams `2`,
-`3`, and `4`. Manual `VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not
-replace the manifest-driven selection report.
+not saturated. RealESRGAN therefore tests vstrt streams `2/3/4`. The lighter
+SPAN workload tests `2/3/4/5/6`: boundary measurements found the maximum at
+`5`, while `6` confirmed that throughput no longer increased. Manual
+`VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not replace the
+manifest-driven selection report.
 
 ## Assets
 

@@ -134,10 +134,11 @@ pending.
   from the product table for both resolutions and workloads.
 - [x] Collect one representative Nsight Systems trace and inspect H2D/D2H
   copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
-- [x] Add a manifest-driven best-tuned selection workflow. It sweeps vstrt
-  `num_streams=2/3/4` and declared VSGAN settings in unique directories, ranks
-  only stable candidates with valid media and model-space evidence, and
-  promotes the next point when a selected winner fails full quality.
+- [x] Add a manifest-driven best-tuned selection workflow. It uses
+  workload-specific vstrt ranges (`2/3/4` for RealESRGAN and `2/3/4/5/6` for
+  SPAN) plus declared VSGAN settings in unique directories, ranks only stable
+  candidates with valid media and model-space evidence, and promotes the next
+  point when a selected winner fails full quality.
 - Run the tuned sweep, full 1000-frame winner quality gate, and rotated winner
   campaign for both resolutions and workloads. Publish only a machine-verified
   720p + 1080p matrix, not individual sweep results.
@@ -145,6 +146,11 @@ pending.
   provides no measured benefit on current heavy models.
 - Repeat the headline workload on a short live-action clip with substantial
   motion and fine detail.
+- Attribute the current project's measured CPU use with `perf` or `py-spy`,
+  separating production orchestration and muxing from CUDA runtime polling at
+  the required once-per-decoder-batch surface-lifetime synchronization. Do not
+  remove that synchronization without full output and frame-integrity
+  validation.
 - If the timeline confirms idle periods, investigate double buffering, multiple
   execution contexts, and overlap of `decode N+1`, `inference N`, and
   `encode N-1`.

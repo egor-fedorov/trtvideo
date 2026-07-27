@@ -130,13 +130,16 @@ value is written to the plan and measured-run manifest.
 
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
-Before publishing a vstrt throughput comparison for a light workload, tuned
-selection must sweep at least `num_streams=2/3/4` under otherwise fixed
-conditions.
+Tuned candidate grids are workload-specific and selected by the canonical
+workflow matrix. RealESRGAN tests `num_streams=2/3/4`. SPAN tests
+`num_streams=2/3/4/5/6`; an initial `2/3/4` sweep ended at an increasing upper
+boundary, and pre-publication boundary runs found an interior maximum at `5`
+with lower throughput at `6`.
 
-Tuned selection is a two-stage protocol. The candidate set and winner rule are
-fixed in `benchmarks/tuning/candidates.json` before measurement. Every declared
-candidate receives a collision-free directory and must provide:
+Tuned selection is a two-stage protocol. The workload-specific candidate set
+and common winner rule are fixed in the contract selected by
+`benchmarks/workflows/canonical.json` before the canonical measurement. Every
+declared candidate receives a collision-free directory and must provide:
 
 1. a stable canonical performance suite;
 2. unchanged workload, input, ONNX, engine, image, encoder, and revision hashes;
@@ -403,6 +406,15 @@ in the measured pipeline. It excludes the discarded warmup, benchmark
 controller, NVML sampler, and unrelated host processes. Unrelated CPU activity
 can still increase wall time, so the canonical campaign runs without parallel
 load and with identical CPU affinity.
+
+This is an aggregate consumption metric, not a profiler attribution. For the
+project runner it includes production orchestration, decoder callbacks,
+compressed-bitstream writes, CUDA runtime/driver CPU time, and final FFmpeg
+muxing. A value near `1.0` does not by itself prove that Python or the benchmark
+harness keeps one core busy, nor does it distinguish useful host work from
+runtime polling. `perf`, `py-spy`, or Nsight Systems must be used to attribute
+that CPU time. Lifecycle scopes divide wall time only; they do not currently
+divide CPU time by pipeline stage.
 
 ## Metrics
 

@@ -29,6 +29,12 @@ def test_canonical_matrix_contains_two_models_and_two_resolutions() -> None:
     matrix = load_workflow_matrix(MATRIX_PATH)
 
     assert matrix.workload_keys == ("realesrgan", "span")
+    assert {
+        workload.key: workload.tuning_contract for workload in matrix.workloads
+    } == {
+        "realesrgan": "benchmarks/tuning/candidates.json",
+        "span": "benchmarks/tuning/span_candidates.json",
+    }
     assert [selection.key for selection in matrix.select(
         workload_key=None,
         variant_name=None,
@@ -108,6 +114,16 @@ def test_tuned_goal_runs_each_phase_then_verifies_both_model_matrices() -> None:
     last_sweep = len(targets) - 1 - targets[::-1].index("run-tuned-sweep")
     first_campaign = targets.index("run-tuned-campaign")
     assert last_sweep < first_quality < first_campaign
+    tuned_steps = [step for step in plan if step.key.startswith("tuned:")]
+    for step in tuned_steps:
+        if step.key.endswith(":realesrgan") or step.key.endswith(":span"):
+            continue
+        expected_contract = (
+            "benchmarks/tuning/span_candidates.json"
+            if ":span-" in step.key
+            else "benchmarks/tuning/candidates.json"
+        )
+        assert f"TUNING_CONTRACT={expected_contract}" in step.command
 
 
 def test_diagnostics_goal_runs_all_ceilings_and_one_nsight_trace() -> None:

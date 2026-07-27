@@ -37,6 +37,7 @@ class Workload:
 
     key: str
     manifest: str
+    tuning_contract: str
     variants: tuple[Variant, ...]
 
     def variant(self, name: str) -> Variant:
@@ -153,6 +154,10 @@ def load_workflow_matrix(path: Path) -> WorkflowMatrix:
                 manifest=_relative_path(
                     workload_value.get("manifest"),
                     label=f"{key}.manifest",
+                ),
+                tuning_contract=_relative_path(
+                    workload_value.get("tuning_contract"),
+                    label=f"{key}.tuning_contract",
                 ),
                 variants=tuple(variants),
             )
