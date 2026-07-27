@@ -201,7 +201,7 @@ def _smoke_steps(
                     benchmark_dir,
                     "run-project",
                     *variables,
-                    f"PROJECT_OUTPUT_DIR={output_root}/ai-media",
+                    f"PROJECT_OUTPUT_DIR={output_root}/trtvideo",
                     f"ARGS={SMOKE_ARGS}",
                 ),
             )

@@ -20,7 +20,7 @@ Unit tests must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 Tests are grouped by the subsystem under test:
 
 ```text
-tests/unit/ai_media/    # CLI, video helpers, and model/engine tooling
+tests/unit/trtvideo/    # CLI, video helpers, and model/engine tooling
 tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaigns
 ```
 
@@ -48,11 +48,11 @@ copied into this image only for test parity with the benchmark target; it is not
 installed as a production project script.
 
 ```bash
-docker run --rm ai-media-enhancer:dev upscale --help
-docker run --rm ai-media-enhancer:dev benchmark-upscale --help
-docker run --rm ai-media-enhancer:dev export-onnx --help
-docker run --rm ai-media-enhancer:dev prepare-onnx --help
-docker run --rm ai-media-enhancer:dev build-engine --help
+docker run --rm trtvideo:dev upscale --help
+docker run --rm trtvideo:dev benchmark-upscale --help
+docker run --rm trtvideo:dev export-onnx --help
+docker run --rm trtvideo:dev prepare-onnx --help
+docker run --rm trtvideo:dev build-engine --help
 ```
 
 ### GPU Smoke
@@ -116,7 +116,7 @@ low-level test and troubleshooting interface. `project` is a project-only
 regression measurement; only the rotated `comparative` or validated `tuned`
 workflow can produce a competitor claim. A valid run must pass full decode,
 media/timestamp validation, and NVML validity checks. `nvidia-ml-py` is
-installed only in the optional `ai-media-enhancer:benchmark` image and is not
+installed only in the optional `trtvideo:benchmark` image and is not
 part of the production runtime.
 
 The one-off `profile-nsight` diagnostic is also GPU-only, but it is not a

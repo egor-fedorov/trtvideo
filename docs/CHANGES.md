@@ -114,7 +114,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Moved `benchmark-upscale` to an external end-to-end timer, a 3+2 run suite,
   NVML sampling, sanitized run manifests, and automatic FFmpeg output
   validation.
-- Added the canonical `make -C benchmarks run-ai-media` command for the
+- Added the canonical `make -C benchmarks run-trtvideo` command for the
   RealESRGAN_x2plus/Sintel workload.
 - Isolated the benchmark runner and `nvidia-ml-py` in the optional `benchmark`
   Docker target. The production image does not receive benchmark-only
@@ -153,6 +153,14 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Standardized the project, Python distribution, import package, Docker images,
+  build-provenance environment variables, benchmark implementation keys, and
+  developer commands on the `trtvideo` name. The import package also moved from
+  the root-level `trtvideo/` directory to the standard `src/trtvideo/` layout.
+  This is a breaking migration without compatibility aliases; ignored campaign
+  artifacts created with an older benchmark contract cannot be resumed.
+- Normalized the published RTX 3090 snapshots to the `trtvideo` identity while
+  preserving their measured values, revisions, image IDs, and asset hashes.
 - Moved benchmark process orchestration, CPU/NVML sampling, environment
   collection, and suite policy out of the production Python package. The
   `benchmark-upscale` wrapper now exists only in benchmark/check images, while
@@ -189,7 +197,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   apparently successful partial output. Chapters are omitted for
   `--max-frames` runs because original chapter timestamps may exceed the
   shortened output.
-- Benchmark progress now identifies the project as `ai-media-enhancer` instead
+- Benchmark progress now identifies the project as `trtvideo` instead
   of exposing its selected `nvcodec` backend. `trtexec` artifact directories
   now include the workload name to prevent cross-model overwrites.
 - Versioned the RealESRGAN and SPAN benchmark workloads after the first RTX 3090
@@ -347,11 +355,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
-- Renamed the project to `ai-media-enhancer`.
-- Renamed the Python package from `upscaler` to `ai_media`.
+- Established the project and Python package as `trtvideo`.
 - Selected a root package layout without an additional `src/` layer.
-- Renamed the Docker virtual environment to `/opt/ai-media-enhancer`.
-- Updated Docker image examples to `ai-media-enhancer:latest`.
+- Renamed the Docker virtual environment to `/opt/trtvideo`.
+- Updated Docker image examples to `trtvideo:latest`.
 
 ### Docs
 

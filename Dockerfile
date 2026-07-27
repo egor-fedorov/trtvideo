@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore \
     UV_LINK_MODE=copy \
     UV_NO_MANAGED_PYTHON=1 \
-    VIRTUAL_ENV=/opt/ai-media-enhancer \
+    VIRTUAL_ENV=/opt/trtvideo \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
@@ -40,12 +40,12 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
 
 ARG VCS_REF=unknown
 ARG VCS_DIRTY=unknown
-ENV AI_MEDIA_BASE_IMAGE="${BASE_IMAGE}" \
-    AI_MEDIA_BUILD_REVISION="${VCS_REF}" \
-    AI_MEDIA_BUILD_DIRTY="${VCS_DIRTY}"
+ENV TRTVIDEO_BASE_IMAGE="${BASE_IMAGE}" \
+    TRTVIDEO_BUILD_REVISION="${VCS_REF}" \
+    TRTVIDEO_BUILD_DIRTY="${VCS_DIRTY}"
 LABEL org.opencontainers.image.revision="${VCS_REF}"
 
-COPY ai_media/ ai_media/
+COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 

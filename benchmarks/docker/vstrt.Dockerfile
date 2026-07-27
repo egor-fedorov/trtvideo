@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=ai-media-enhancer:benchmark
+ARG BASE_IMAGE=trtvideo:benchmark
 FROM ${BASE_IMAGE}
 
 ARG VSTR_REVISION=885e8bb827fc431fce8e3109e7d60b0c38aa2035

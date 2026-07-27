@@ -294,7 +294,7 @@ class NvmlSampler:
         except ModuleNotFoundError as exc:
             raise NvmlError(
                 "nvidia-ml-py is not installed; use the benchmark optional extra "
-                "or the ai-media-enhancer:benchmark Docker image"
+                "or the trtvideo:benchmark Docker image"
             ) from exc
         try:
             nvml.nvmlInit()

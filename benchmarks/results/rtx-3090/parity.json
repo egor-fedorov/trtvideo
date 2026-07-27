@@ -115,7 +115,7 @@
       "base_image": "nvcr.io/nvidia/tensorrt:26.06-py3",
       "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
       "software": {
-        "ai_media_enhancer": "0.3.1",
+        "trtvideo": "0.3.1",
         "cuda": "13.0",
         "cvcuda": "0.16.0",
         "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
@@ -133,7 +133,7 @@
         "implementation": {
           "bestsource_version": "19.0",
           "comparison_class": "single-stream-parity",
-          "image": "ai-media-enhancer:benchmark-vstrt",
+          "image": "trtvideo:benchmark-vstrt",
           "notes": "Technical single-stream parity target built against the same TensorRT 11 base and engine as the project; not an upstream-default or best-tuned throughput result.",
           "role": "parity",
           "source": "https://github.com/AmusementClub/vs-mlrt",
@@ -152,7 +152,7 @@
           "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
           "exact_engine_match": false,
           "exact_model_match": true,
-          "image": "ai-media-enhancer:benchmark-vsgan",
+          "image": "trtvideo:benchmark-vsgan",
           "notes": "Pinned upstream VSGAN inference environment measured with benchmark parity settings requests=1, num_streams=1, and CUDA Graph disabled rather than its upstream-default throughput configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine.",
           "role": "parity",
           "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
@@ -201,8 +201,8 @@
             "vbv_initial_delay_bits": 35000000
           },
           "implementations": {
-            "ai-media": {
-              "product": "ai-media-enhancer",
+            "trtvideo": {
+              "product": "trtvideo",
               "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
               "engine_sha256": "af46681cb9365adf13584bdfc4d42736e22e540d320c1c448b97e8dbae6dfa30",
               "statistics": {
@@ -236,7 +236,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": 0.0
+              "relative_to_trtvideo_percent": 0.0
             },
             "vsgan": {
               "product": "VSGAN-tensorrt-docker",
@@ -273,7 +273,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -12.734079012429
+              "relative_to_trtvideo_percent": -12.734079012429
             },
             "vstrt": {
               "product": "vs-mlrt",
@@ -310,7 +310,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -13.866911236019487
+              "relative_to_trtvideo_percent": -13.866911236019487
             }
           },
           "quality": {
@@ -400,8 +400,8 @@
             "vbv_initial_delay_bits": 60000000
           },
           "implementations": {
-            "ai-media": {
-              "product": "ai-media-enhancer",
+            "trtvideo": {
+              "product": "trtvideo",
               "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
               "engine_sha256": "def446ccb37c92037574e9778b813023d7a0af251f79223379ac24f94fefee1a",
               "statistics": {
@@ -435,7 +435,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": 0.0
+              "relative_to_trtvideo_percent": 0.0
             },
             "vsgan": {
               "product": "VSGAN-tensorrt-docker",
@@ -472,7 +472,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -16.802251913705557
+              "relative_to_trtvideo_percent": -16.802251913705557
             },
             "vstrt": {
               "product": "vs-mlrt",
@@ -509,7 +509,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -16.966020490434865
+              "relative_to_trtvideo_percent": -16.966020490434865
             }
           },
           "quality": {
@@ -604,8 +604,8 @@
             "vbv_initial_delay_bits": 35000000
           },
           "implementations": {
-            "ai-media": {
-              "product": "ai-media-enhancer",
+            "trtvideo": {
+              "product": "trtvideo",
               "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
               "engine_sha256": "8ae963ed5be462c2f45efd53a4741aa153e4fde816ff029749f50821f7ebc4d5",
               "statistics": {
@@ -639,7 +639,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": 0.0
+              "relative_to_trtvideo_percent": 0.0
             },
             "vsgan": {
               "product": "VSGAN-tensorrt-docker",
@@ -676,7 +676,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -59.320904678643636
+              "relative_to_trtvideo_percent": -59.320904678643636
             },
             "vstrt": {
               "product": "vs-mlrt",
@@ -713,7 +713,7 @@
                 "consensus": null,
                 "outlier": null
               },
-              "relative_to_ai_media_percent": -60.302881373066384
+              "relative_to_trtvideo_percent": -60.302881373066384
             }
           },
           "quality": {
@@ -805,8 +805,8 @@
             "vbv_initial_delay_bits": 60000000
           },
           "implementations": {
-            "ai-media": {
-              "product": "ai-media-enhancer",
+            "trtvideo": {
+              "product": "trtvideo",
               "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
               "engine_sha256": "0f40707d2074f5fb5790b7029cf0de27ae347827b2ace3db204d1cd8b6d36dea",
               "statistics": {
@@ -842,7 +842,7 @@
                 "status": "stable",
                 "threshold": 0.05
               },
-              "relative_to_ai_media_percent": 0.0
+              "relative_to_trtvideo_percent": 0.0
             },
             "vsgan": {
               "product": "VSGAN-tensorrt-docker",
@@ -881,7 +881,7 @@
                 "status": "stable",
                 "threshold": 0.05
               },
-              "relative_to_ai_media_percent": -64.07729848713409
+              "relative_to_trtvideo_percent": -64.07729848713409
             },
             "vstrt": {
               "product": "vs-mlrt",
@@ -939,7 +939,7 @@
                 "status": "stable-with-one-outlier",
                 "threshold": 0.05
               },
-              "relative_to_ai_media_percent": -62.761438341207175
+              "relative_to_trtvideo_percent": -62.761438341207175
             }
           },
           "quality": {

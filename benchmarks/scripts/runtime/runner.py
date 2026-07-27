@@ -12,15 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.lifecycle import (
-    LifecycleTimingError,
-    load_frame_markers,
-    summarize_lifecycle,
-)
-from ai_media.benchmarking.validation import OutputContract, validate_output
-from ai_media.video.fps import gop_size_for_one_second
-from ai_media.video.info import get_video_info
-from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
@@ -38,8 +29,17 @@ from benchmarks.scripts.runtime.suite import (
     report_publishability_errors,
     suite_publishability_errors,
 )
+from trtvideo.benchmarking.lifecycle import (
+    LifecycleTimingError,
+    load_frame_markers,
+    summarize_lifecycle,
+)
+from trtvideo.benchmarking.validation import OutputContract, validate_output
+from trtvideo.video.fps import gop_size_for_one_second
+from trtvideo.video.info import get_video_info
+from trtvideo.video.nvenc import NvencCbrContract
 
-PRODUCT_NAME = "ai-media-enhancer"
+PRODUCT_NAME = "trtvideo"
 
 
 class BenchmarkError(RuntimeError):

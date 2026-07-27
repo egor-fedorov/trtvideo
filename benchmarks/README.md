@@ -77,7 +77,7 @@ state.
 
 The goals are intentionally separate:
 
-- `project` measures only `ai-media-enhancer` for regression work;
+- `project` measures only `trtvideo` for regression work;
 - `comparative` runs quality gates and rotated project/vstrt/VSGAN campaigns
   using `parity` or `upstream-default`;
 - `tuned` runs candidate sweeps, winner quality gates, final campaigns, and

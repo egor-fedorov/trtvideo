@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the internal architecture of `ai-media-enhancer`.
+This document describes the internal architecture of `trtvideo`.
 Public commands and model-preparation instructions are in
 [`README.md`](../README.md), the testing strategy is in
 [`TESTING.md`](TESTING.md), and measured performance results are in
@@ -8,14 +8,15 @@ Public commands and model-preparation instructions are in
 
 ## Project Scope
 
-The project provides CLI tools for TensorRT-based AI media processing. Video
-upscaling is currently implemented, while the structure allows additional media
-workflows and runtime backends to be added later.
+The project provides CLI tools for TensorRT-based video processing. Full-video
+upscaling is currently implemented, while the structure allows additional video
+workflows and runtime backends to be added later. Standalone image processing
+and frame interpolation are outside the current scope.
 
 The main component boundaries are:
 
 ```text
-ai_media/
+src/trtvideo/
   cli/          argument parsing and command/backend selection
   demo/         pinned quick-demo assets, orchestration, and media validation
   diagnostics/  opt-in markers for external profilers
@@ -33,7 +34,7 @@ passes a static TensorRT engine through `--engine`.
 
 The `upscale` command builds the shared parser, selects
 `--backend ffmpeg|nvcodec`, and passes the parsed arguments to the corresponding
-pipeline. `BasePipeline` in `ai_media/pipelines/base.py` owns the common
+pipeline. `BasePipeline` in `src/trtvideo/pipelines/base.py` owns the common
 lifecycle:
 
 1. Verify that `--engine` and `--input` exist.
@@ -58,7 +59,7 @@ and cleanup implementations remain in backend classes.
 
 ## Model Contract And TensorRT Runtime
 
-`TensorRTRuntime` in `ai_media/runtime/tensorrt.py`:
+`TensorRTRuntime` in `src/trtvideo/runtime/tensorrt.py`:
 
 - deserializes the TensorRT engine and creates an execution context;
 - reads input/output tensor names, shapes, and data types;
@@ -79,7 +80,7 @@ The experimental `--cuda-graph` option captures the TensorRT enqueue operation
 for a static-shape engine. If capture fails, the runtime records the reason and
 falls back to regular `execute_async_v3`.
 
-The internal `AI_MEDIA_NVTX=1` diagnostic switch adds Nsight Systems ranges
+The internal `TRTVIDEO_NVTX=1` diagnostic switch adds Nsight Systems ranges
 around pipeline lifecycle and `nvcodec` GPU stages. It is set only by benchmark
 diagnostic tooling. Ordinary inference does not enter the per-stage NVTX path,
 and Nsight collection is never part of a measured benchmark campaign.
@@ -104,7 +105,7 @@ frame transfers, and encode.
 
 ### `ffmpeg` Backend
 
-File: `ai_media/pipelines/ffmpeg.py`.
+File: `src/trtvideo/pipelines/ffmpeg.py`.
 
 ```text
 ffmpeg decode (CPU) -> RGB raw pipe -> numpy -> torch CUDA -> TensorRT
@@ -129,7 +130,7 @@ copies and CPU load. Quality is controlled by the real x264 `--crf` option.
 
 ### `nvcodec` Backend
 
-File: `ai_media/pipelines/nvcodec.py`.
+File: `src/trtvideo/pipelines/nvcodec.py`.
 
 ```text
 NVDEC -> NV12 GPU surface -> CV-CUDA RGB -> TensorRT
@@ -252,7 +253,7 @@ validation, but it does not install `nvidia-ml-py`, expose
 `benchmark-upscale`, or copy the benchmark harness. Process orchestration,
 NVML sampling, environment capture, suite policy, and evidence contracts live
 under `benchmarks/scripts/`. Reproducible measurements use
-`ai-media-enhancer:benchmark`.
+`trtvideo:benchmark`.
 
 ## Static And Dynamic Shapes
 

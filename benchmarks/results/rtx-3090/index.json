@@ -19,7 +19,7 @@
     {
       "id": "single-stream-parity",
       "file": "parity.json",
-      "sha256": "a15715e62f09a9df5f7015219bb600a21ff6aaa374a8cfec2c1a6c24c2873f33",
+      "sha256": "6fc65411e0c5bdc5c69d0d5d6cb42b8285f3b516970c51c2da7c2d68ef8654bc",
       "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
       "date_utc": "2026-07-25",
       "status": "valid",
@@ -28,7 +28,7 @@
     {
       "id": "upstream-default",
       "file": "upstream-default.json",
-      "sha256": "a86990c6ed2ff257602569ca01c75ea4dbc6df20541e028b29d7c9b911e18f57",
+      "sha256": "cd78c24191c8cd83b942db55f03a7ab91b8a6ddfb459a0e0fbd4fbfa3f689f30",
       "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
       "date_utc": "2026-07-27",
       "status": "valid",
@@ -37,7 +37,7 @@
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "3d99df5cd80587867f7aa40964abc5e6878539f14b77515caa1cf8c44525267a",
+      "sha256": "d40fb1144b98e2cfd16c528031d4dd78ae1d1dd88a7bb7f510573cb5ba73607b",
       "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
       "date_utc": "2026-07-27",
       "status": "valid",
@@ -46,7 +46,7 @@
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "2eb7b41a3d9e1d75f83dcd7c98e935ded0af1865e970f51671d7dcf06839e88f",
+      "sha256": "a6f3ea7c9980ebda9046bc4ee8413eec1b5ac7913354ddd2a0b62b79ae7bcf04",
       "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
       "date_utc": "2026-07-25",
       "status": "valid",

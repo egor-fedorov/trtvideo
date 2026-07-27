@@ -45,14 +45,15 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     vspipe --version
 
 WORKDIR /app
-COPY ai_media/ ai_media/
+COPY src/ src/
 COPY benchmarks/ benchmarks/
 
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
-    AI_MEDIA_BASE_IMAGE=${BASE_IMAGE} \
-    AI_MEDIA_VSGAN_FFMPEG_PACKAGE=${FFMPEG_VERSION} \
-    AI_MEDIA_BUILD_REVISION=${VCS_REF} \
-    AI_MEDIA_BUILD_DIRTY=${VCS_DIRTY}
+ENV PYTHONPATH=/app/src \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
+    TRTVIDEO_BASE_IMAGE=${BASE_IMAGE} \
+    TRTVIDEO_VSGAN_FFMPEG_PACKAGE=${FFMPEG_VERSION} \
+    TRTVIDEO_BUILD_REVISION=${VCS_REF} \
+    TRTVIDEO_BUILD_DIRTY=${VCS_DIRTY}
 
 LABEL org.opencontainers.image.source="https://github.com/styler00dollar/VSGAN-tensorrt-docker" \
       org.opencontainers.image.revision="f4c06ed08e0d09952cf8671ec453f53c029c2158"

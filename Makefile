@@ -1,5 +1,5 @@
-IMAGE ?= ai-media-enhancer:latest
-DEV_IMAGE ?= ai-media-enhancer:dev
+IMAGE ?= trtvideo:latest
+DEV_IMAGE ?= trtvideo:dev
 DOCKER_RUN ?= docker run --rm -v "$$PWD:/app"
 DEMO_DIR := $(CURDIR)/.demo
 DEMO_GPU_ID ?= 0
@@ -26,7 +26,7 @@ demo: build
 		--user "$$(id -u):$$(id -g)" \
 		-e HOME=/tmp \
 		-v "$(DEMO_DIR):/app/.demo" \
-		$(IMAGE) python3 -m ai_media.cli.demo \
+		$(IMAGE) python3 -m trtvideo.cli.demo \
 			--root /app/.demo \
 			--gpu-id "$(DEMO_GPU_ID)" $(DEMO_FORCE_ARG)
 	@printf 'Validated output: %s/output/demo_1440p.mkv\n' "$(DEMO_DIR)"
@@ -43,7 +43,7 @@ typecheck:
 	$(DOCKER_RUN) $(DEV_IMAGE) mypy
 
 compile:
-	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q ai_media benchmarks tests
+	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q src/trtvideo benchmarks tests
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m py_compile \
 		benchmarks/vstrt/upscale.vpy benchmarks/vsgan/upscale.vpy
 
@@ -56,7 +56,7 @@ test-media-integration:
 cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) upscale --help
 	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-upscale --help
-	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m ai_media.cli.demo --help
+	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) build-engine --help

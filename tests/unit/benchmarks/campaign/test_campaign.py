@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.campaign.aggregate import (
     IMPLEMENTATIONS,
     MODEL_SPACE_GAP,
@@ -30,6 +29,7 @@ from benchmarks.scripts.campaign.core import (
 )
 from benchmarks.scripts.campaign.run import CampaignRunError, run_campaign
 from benchmarks.scripts.runtime.environment import sha256_file
+from trtvideo.video.nvenc import NvencCbrContract
 
 
 def _write_json(path: Path, value: dict) -> None:
@@ -242,14 +242,14 @@ def _model_space_report(root: Path) -> Path:
                 "onnx_sha256": "onnx-sha",
             },
             "reference": {
-                "implementation": "ai-media-enhancer",
+                "implementation": "trtvideo",
                 "engine_sha256": "shared-engine",
                 "execution_profile": {
                     "mode": "parity",
                     "cuda_graph": False,
                 },
                 "image": {
-                    "id": "ai-media-image",
+                    "id": "trtvideo-image",
                     "repository_revision": "revision-1",
                     "source_dirty": "0",
                 },
@@ -376,9 +376,9 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
         return path.relative_to(root).as_posix(), sha256_file(path)
 
     reference_manifest, reference_manifest_sha = run_manifest(
-        "ai-media/run-01/manifest.json",
-        product="ai-media-enhancer",
-        implementation="ai-media",
+        "trtvideo/run-01/manifest.json",
+        product="trtvideo",
+        implementation="trtvideo",
         engine_sha256="shared-engine",
     )
     comparisons = []
@@ -421,7 +421,7 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
 
     visual_crops = {}
     for implementation, directory in (
-        ("ai-media-enhancer", "ai-media"),
+        ("trtvideo", "trtvideo"),
         ("vs-mlrt", "vstrt"),
         ("VSGAN-tensorrt-docker", "vsgan"),
     ):
@@ -460,7 +460,7 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
                 "onnx_sha256": "onnx-sha",
             },
             "reference": {
-                "implementation": "ai-media-enhancer",
+                "implementation": "trtvideo",
                 "engine_sha256": "shared-engine",
                 "run_manifest": reference_manifest,
                 "run_manifest_sha256": reference_manifest_sha,
@@ -476,11 +476,11 @@ def test_aggregate_campaign_builds_acceptance_table(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -505,14 +505,14 @@ def test_aggregate_campaign_builds_acceptance_table(
         "vapoursynth_threads": "auto",
         "cuda_graph": False,
     }
-    assert summary["implementations"]["ai-media"]["statistics"]["median_fps"] == 10.0
-    assert summary["implementations"]["ai-media"]["statistics"]["median_cpu_cores"] == 1.0
+    assert summary["implementations"]["trtvideo"]["statistics"]["median_fps"] == 10.0
+    assert summary["implementations"]["trtvideo"]["statistics"]["median_cpu_cores"] == 1.0
     assert (
-        summary["implementations"]["ai-media"]["statistics"]["median_startup_sec"]
+        summary["implementations"]["trtvideo"]["statistics"]["median_startup_sec"]
         == 2.0
     )
     assert summary["implementations"]["vstrt"][
-        "relative_to_ai_media_percent"
+        "relative_to_trtvideo_percent"
     ] == pytest.approx(-10.0)
 
 
@@ -520,11 +520,11 @@ def test_aggregate_campaign_accepts_matching_model_space_report(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -545,11 +545,11 @@ def test_aggregate_campaign_is_publishable_with_both_quality_reports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -576,11 +576,11 @@ def test_product_output_quality_keeps_full_clip_for_shorter_campaign(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -610,11 +610,11 @@ def test_aggregate_campaign_rejects_model_space_engine_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -637,11 +637,11 @@ def test_aggregate_campaign_rejects_model_space_profile_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -664,11 +664,11 @@ def test_aggregate_campaign_rejects_model_space_image_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -691,11 +691,11 @@ def test_aggregate_campaign_rejects_product_output_image_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -722,11 +722,11 @@ def test_aggregate_campaign_rejects_product_output_profile_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -753,11 +753,11 @@ def test_aggregate_campaign_requests_two_extra_rounds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 12.0, 8.0],
+            "trtvideo": [10.0, 12.0, 8.0],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -767,18 +767,18 @@ def test_aggregate_campaign_requests_two_extra_rounds(
 
     assert summary["status"] == "needs-extra-runs"
     assert summary["needs_extra_runs"] is True
-    assert summary["unstable_implementations"] == ["ai-media"]
+    assert summary["unstable_implementations"] == ["trtvideo"]
 
 
 def test_aggregate_campaign_rejects_mixed_revisions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -796,11 +796,11 @@ def test_aggregate_campaign_rejects_mixed_benchmark_contract_versions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -818,11 +818,11 @@ def test_aggregate_campaign_rejects_mixed_execution_profiles(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -840,11 +840,11 @@ def test_aggregate_campaign_rejects_requested_profile_mismatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -863,11 +863,11 @@ def test_aggregate_campaign_rejects_different_cpu_accounting(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -885,11 +885,11 @@ def test_aggregate_campaign_requires_execution_log(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -904,11 +904,11 @@ def test_aggregate_campaign_rejects_unobserved_idle_interval(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -929,11 +929,11 @@ def test_aggregate_campaign_rejects_declared_order_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9],
+            "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
             "vsgan": [8.8, 8.9, 8.7],
         },
@@ -954,11 +954,11 @@ def test_aggregate_campaign_accepts_complete_five_round_log(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9, 10.0, 10.1],
+            "trtvideo": [10.0, 10.1, 9.9, 10.0, 10.1],
             "vstrt": [9.0, 9.1, 8.9, 9.0, 9.1],
             "vsgan": [8.8, 8.9, 8.7, 8.8, 8.9],
         },
@@ -968,14 +968,14 @@ def test_aggregate_campaign_accepts_complete_five_round_log(
 
     assert summary["status"] == "valid"
     assert summary["parameters"]["rounds"] == 5
-    assert summary["rounds"][3]["order"] == ["vsgan", "vstrt", "ai-media"]
+    assert summary["rounds"][3]["order"] == ["vsgan", "vstrt", "trtvideo"]
 
 
 def test_aggregate_campaign_accepts_four_of_five_consensus(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     vstrt_fps = [
         9.206078920416692,
         9.776448783606835,
@@ -986,7 +986,7 @@ def test_aggregate_campaign_accepts_four_of_five_consensus(
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [25.1, 25.0, 24.9, 25.1, 25.0],
+            "trtvideo": [25.1, 25.0, 24.9, 25.1, 25.0],
             "vstrt": vstrt_fps,
             "vsgan": [9.3, 9.2, 9.1, 9.3, 9.2],
         },
@@ -1026,11 +1026,11 @@ def test_aggregate_campaign_rejects_five_runs_without_consensus(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("AI_MEDIA_BUILD_REVISION", raising=False)
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
         tmp_path,
         {
-            "ai-media": [10.0, 10.1, 9.9, 10.0, 10.1],
+            "trtvideo": [10.0, 10.1, 9.9, 10.0, 10.1],
             "vstrt": [8.0, 9.0, 10.0, 11.0, 12.0],
             "vsgan": [8.8, 8.9, 8.7, 8.8, 8.9],
         },

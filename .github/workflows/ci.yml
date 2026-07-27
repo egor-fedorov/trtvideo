@@ -25,7 +25,7 @@ jobs:
           context: .
           file: docker/checks.Dockerfile
           load: true
-          tags: ai-media-enhancer:dev
+          tags: trtvideo:dev
           cache-from: type=gha,scope=checks
           cache-to: type=gha,mode=max,scope=checks
 

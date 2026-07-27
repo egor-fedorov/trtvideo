@@ -4,18 +4,18 @@ from pathlib import Path
 
 import pytest
 
-from ai_media.demo.config import (
+from trtvideo.demo.config import (
     DEMO_INPUT_HEIGHT,
     DEMO_INPUT_WIDTH,
     DemoPaths,
     DemoVideoContract,
 )
-from ai_media.demo.media import (
+from trtvideo.demo.media import (
     build_demo_input_command,
     validate_demo_video,
     write_demo_media_assets,
 )
-from ai_media.video.preservation import (
+from trtvideo.video.preservation import (
     MediaPreservationError,
     ffmpeg_preservation_args,
     validate_media_preservation,

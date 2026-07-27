@@ -1,10 +1,10 @@
-# AI Media Enhancer - Agent Guidelines
+# trtvideo - Agent Guidelines
 
 ## Project Context
 
-`ai-media-enhancer` is a Docker-first collection of CLI tools for TensorRT-based
-AI media processing. The currently implemented workflow is video upscaling
-through either the `ffmpeg` or `NVDEC/NVENC` backend.
+`trtvideo` is a Docker-first collection of CLI tools for TensorRT-based video
+processing. The currently implemented workflow is video upscaling through
+either the `ffmpeg` or `NVDEC/NVENC` backend.
 
 The production runtime uses Python 3.12 from the
 `nvcr.io/nvidia/tensorrt:26.06-py3` base TensorRT Docker image. Development is

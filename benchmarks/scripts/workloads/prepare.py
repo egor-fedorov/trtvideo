@@ -71,7 +71,7 @@ def download_source(source: dict[str, Any], destination: Path, *, force: bool) -
             return
 
     offset = partial.stat().st_size if partial.exists() else 0
-    headers = {"User-Agent": "ai-media-enhancer-benchmark/1"}
+    headers = {"User-Agent": "trtvideo-benchmark/1"}
     if offset:
         headers["Range"] = f"bytes={offset}-"
         print(f"Resuming {destination.name} at {offset} bytes")

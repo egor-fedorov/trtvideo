@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.runners.common import CommandSpec, command_spec
+from trtvideo.video.nvenc import NvencCbrContract
 
 
 @dataclass(frozen=True)

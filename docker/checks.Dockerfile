@@ -9,7 +9,7 @@ FROM ${BASE_IMAGE}
 ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_NO_MANAGED_PYTHON=1 \
-    VIRTUAL_ENV=/opt/ai-media-enhancer
+    VIRTUAL_ENV=/opt/trtvideo
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-COPY ai_media/ ai_media/
+COPY src/ src/
 COPY benchmarks/ benchmarks/
 COPY tests/ tests/
 COPY --chmod=755 benchmarks/bin/benchmark-upscale /usr/local/bin/benchmark-upscale

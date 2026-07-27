@@ -14,12 +14,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from ai_media.benchmarking.lifecycle import (
-    FrameLifecycleMarkers,
-    LifecycleTimingError,
-    summarize_lifecycle,
-)
-from ai_media.benchmarking.validation import OutputContract, validate_output
 from benchmarks.scripts.runners.common import CommandSpec, CompetitorError
 from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
 from benchmarks.scripts.runtime.environment import (
@@ -38,6 +32,12 @@ from benchmarks.scripts.runtime.suite import (
     report_publishability_errors,
     suite_publishability_errors,
 )
+from trtvideo.benchmarking.lifecycle import (
+    FrameLifecycleMarkers,
+    LifecycleTimingError,
+    summarize_lifecycle,
+)
+from trtvideo.benchmarking.validation import OutputContract, validate_output
 
 CommandFactory = Callable[[Path, int], CommandSpec]
 _VSPipe_FRAME_PATTERN = re.compile(rb"Frame:\s*(\d+)/(\d+)")
@@ -229,12 +229,12 @@ def _environment(config: ExternalVideoSuiteConfig, gpu: dict[str, Any]) -> dict[
     environment = collect_environment(gpu)
     environment["image"] = {
         "reference": os.environ.get(
-            "AI_MEDIA_IMAGE_REF", config.implementation.metadata["image"]
+            "TRTVIDEO_IMAGE_REF", config.implementation.metadata["image"]
         ),
-        "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
-        "base_reference": os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown"),
-        "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
-        "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
+        "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
+        "base_reference": os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown"),
+        "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
+        "source_dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
     }
     environment["implementation"] = config.implementation.metadata
     return environment

@@ -112,7 +112,7 @@ def test_capture_manifest_detects_changed_tensor(tmp_path: Path) -> None:
 def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     reference = _write_capture(
         tmp_path / "reference",
-        implementation="ai-media-enhancer",
+        implementation="trtvideo",
         comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
@@ -143,7 +143,7 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
 def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
     reference = _write_capture(
         tmp_path / "reference",
-        implementation="ai-media-enhancer",
+        implementation="trtvideo",
         comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
@@ -173,7 +173,7 @@ def test_compare_captures_rejects_mixed_execution_profiles(
 ) -> None:
     reference = _write_capture(
         tmp_path / "reference",
-        implementation="ai-media-enhancer",
+        implementation="trtvideo",
         comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,

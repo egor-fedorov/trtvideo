@@ -359,8 +359,8 @@ def test_vsgan_engine_rejects_different_base_image(
         "tensorrt_version": "101600",
         "builder_base_image": "old-image@sha256:old",
     }
-    monkeypatch.setenv("AI_MEDIA_BASE_IMAGE", "new-image@sha256:new")
-    monkeypatch.setenv("AI_MEDIA_VSGAN_FFMPEG_PACKAGE", "ffmpeg-version")
+    monkeypatch.setenv("TRTVIDEO_BASE_IMAGE", "new-image@sha256:new")
+    monkeypatch.setenv("TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "ffmpeg-version")
 
     with pytest.raises(CompetitorError, match="different base image"):
         _validate_parity_engine(

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_media.benchmarking.lifecycle import (
+from trtvideo.benchmarking.lifecycle import (
     FrameLifecycleMarkers,
     LifecycleTimingError,
     load_frame_markers,

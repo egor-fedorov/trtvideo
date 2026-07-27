@@ -1,9 +1,10 @@
-# AI Media Enhancer
+# trtvideo
 
-CLI tools for TensorRT-based AI media processing. Video upscaling is the
-currently implemented workflow. Model preparation supports `.pth` checkpoints
-and existing ONNX files; inference runs with an explicitly selected TensorRT
-engine.
+Docker-first CLI tools for TensorRT-based video processing. The implemented
+workflow is full-video upscaling through `ffmpeg` or a GPU-resident
+NVDEC/CV-CUDA/TensorRT/NVENC pipeline. Model preparation supports `.pth`
+checkpoints and existing ONNX files; inference runs with an explicitly selected
+TensorRT engine.
 
 Docker is the recommended workflow. The image contains runtime dependencies for
 TensorRT inference, NVDEC/NVENC inference, ONNX preparation, and model export.
@@ -38,7 +39,7 @@ GPU runs require a host with the following components already configured:
 make build
 ```
 
-The default image is `ai-media-enhancer:latest`. Use
+The default image is `trtvideo:latest`. Use
 `make build IMAGE=example/name:tag` to select another name.
 
 The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
@@ -116,7 +117,7 @@ arguments to export only selected resolutions.
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest export-onnx \
+  trtvideo:latest export-onnx \
   --model_path models/pretrained/RealESRGAN_x2plus.pth \
   --size 1280x720
 ```
@@ -133,7 +134,7 @@ input shapes. Without `--size`, the command creates default variants for
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest prepare-onnx \
+  trtvideo:latest prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720
 ```
@@ -144,7 +145,7 @@ builder flag. Create the mixed-precision variant during this step:
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest prepare-onnx \
+  trtvideo:latest prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720 \
   --precision fp16
@@ -163,7 +164,7 @@ TensorRT version and GPU class.
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest build-engine \
+  trtvideo:latest build-engine \
   models/onnx/model_720p.onnx \
   -o models/engines/model_720p.engine \
   --timing-cache models/cache/trt.cache
@@ -185,7 +186,7 @@ precision flags in `build-engine`:
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest build-engine \
+  trtvideo:latest build-engine \
   models/onnx/model_720p_fp16.onnx \
   -o models/engines/model_720p_fp16.engine \
   --timing-cache models/cache/trt.cache
@@ -203,7 +204,7 @@ profile is provided:
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
-  ai-media-enhancer:latest build-engine \
+  trtvideo:latest build-engine \
   models/onnx/model.onnx \
   -o models/engines/model_dynamic_720p.engine \
   --min-shape input:1x3x360x640 \
@@ -228,7 +229,7 @@ inference runs on the GPU:
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest upscale \
+  trtvideo:latest upscale \
   --backend ffmpeg \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -241,7 +242,7 @@ encode remain on the GPU:
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest upscale \
+  trtvideo:latest upscale \
   --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --bitrate-mbps 35 \
@@ -270,7 +271,7 @@ Select a specific CUDA device:
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  ai-media-enhancer:latest upscale \
+  trtvideo:latest upscale \
   --backend nvcodec \
   --gpu-id 1 \
   --engine models/engines/model_720p.engine \
@@ -342,7 +343,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  ai-media-enhancer:benchmark benchmark-upscale \
+  trtvideo:benchmark benchmark-upscale \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4 \
   --backend nvcodec \
@@ -358,7 +359,7 @@ end-to-end benchmark.
 
 The benchmark workflows are deliberately separate:
 
-- `run-project` measures only `ai-media-enhancer` for before/after regression
+- `run-project` measures only `trtvideo` for before/after regression
   checks;
 - `run-comparative` runs the rotated project/vstrt/VSGAN campaign used for
   public performance claims;
@@ -383,11 +384,11 @@ benchmark-upscale
 Use `--help` to view all arguments:
 
 ```bash
-docker run --rm ai-media-enhancer:latest upscale --help
-docker run --rm ai-media-enhancer:benchmark benchmark-upscale --help
-docker run --rm ai-media-enhancer:latest export-onnx --help
-docker run --rm ai-media-enhancer:latest prepare-onnx --help
-docker run --rm ai-media-enhancer:latest build-engine --help
+docker run --rm trtvideo:latest upscale --help
+docker run --rm trtvideo:benchmark benchmark-upscale --help
+docker run --rm trtvideo:latest export-onnx --help
+docker run --rm trtvideo:latest prepare-onnx --help
+docker run --rm trtvideo:latest build-engine --help
 ```
 
 ## Encoding

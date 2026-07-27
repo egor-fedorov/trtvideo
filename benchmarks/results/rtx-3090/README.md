@@ -20,11 +20,9 @@ images used clean measurement revision
 `0fc30377046d2c40207d143b1239d8f24e46e7d4`, which includes the media
 preservation path.
 
-The Git commit containing this file is the publication revision. Commits
-between the measurement and publication changed benchmark orchestration,
-documentation, and tests, not the production `ai_media` runtime. The measured
-image identity remains `0fc3037`; relabeling it with a later commit would break
-reproducibility.
+The Git commit containing this file is the publication revision. The measured
+image identity remains `0fc3037`; later publication commits do not change the
+revision attached to the measurement.
 
 Both `720p -> 1440p` and `1080p -> 4K` campaigns are valid and
 publication-ready under
@@ -66,7 +64,7 @@ where the VapourSynth runners reached only about 37% GPU utilization.
 
 ### End-To-End Results
 
-| Workload | Input | ai-media | vs-mlrt | VSGAN |
+| Workload | Input | trtvideo | vs-mlrt | VSGAN |
 |---|---|---:|---:|---:|
 | RealESRGAN_x2plus | 1080p | **2.884 FPS** | 2.394 FPS | 2.399 FPS |
 | RealESRGAN_x2plus | 720p | **6.277 FPS** | 5.406 FPS | 5.477 FPS |
@@ -89,7 +87,7 @@ They are not a product claim against tuned or upstream-default VSGAN settings.
 
 | Implementation | Median FPS | Wall, s | CPU cores | GPU util, % | Power, W | J/frame | Peak VRAM, MiB | Bitrate, Mbps |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ai-media-enhancer | **2.884** | **346.79** | **1.003** | 98.59 | 345.04 | **119.65** | 4280.1 | 56.575 |
+| trtvideo | **2.884** | **346.79** | **1.003** | 98.59 | 345.04 | **119.65** | 4280.1 | 56.575 |
 | vs-mlrt | 2.394 | 417.65 | 1.064 | 82.35 | 309.02 | 129.06 | 4209.1 | 60.436 |
 | VSGAN-tensorrt-docker | 2.399 | 416.83 | 1.060 | 83.43 | 311.71 | 129.93 | **4207.1** | 60.436 |
 
@@ -97,7 +95,7 @@ They are not a product claim against tuned or upstream-default VSGAN settings.
 
 | Implementation | Median FPS | Wall, s | CPU cores | GPU util, % | Power, W | J/frame | Peak VRAM, MiB | Bitrate, Mbps |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ai-media-enhancer | **6.277** | **159.32** | **1.006** | 97.03 | 341.17 | **54.39** | **2143.4** | 32.562 |
+| trtvideo | **6.277** | **159.32** | **1.006** | 97.03 | 341.17 | **54.39** | **2143.4** | 32.562 |
 | vs-mlrt | 5.406 | 184.97 | 1.063 | 84.65 | 307.93 | 56.96 | 2234.4 | 34.906 |
 | VSGAN-tensorrt-docker | 5.477 | 182.57 | 1.064 | 85.68 | 310.84 | 56.75 | 2232.4 | 34.906 |
 
@@ -105,7 +103,7 @@ They are not a product claim against tuned or upstream-default VSGAN settings.
 
 | Implementation | Median FPS | Wall, s | CPU cores | GPU util, % | Power, W | J/frame | Peak VRAM, MiB | Bitrate, Mbps |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ai-media-enhancer | **25.104** | **39.83** | **0.489** | 89.62 | 322.57 | **12.84** | 2664.1 | 56.206 |
+| trtvideo | **25.104** | **39.83** | **0.489** | 89.62 | 322.57 | **12.84** | 2664.1 | 56.206 |
 | vs-mlrt | 9.348 | 106.97 | 1.240 | 37.75 | 178.77 | 19.12 | 2607.1 | 60.461 |
 | VSGAN-tensorrt-docker | 9.018 | 110.89 | 1.224 | 36.64 | 175.64 | 19.48 | **2605.1** | 60.461 |
 
@@ -118,7 +116,7 @@ use all five runs.
 
 | Implementation | Median FPS | Wall, s | CPU cores | GPU util, % | Power, W | J/frame | Peak VRAM, MiB | Bitrate, Mbps |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ai-media-enhancer | **49.941** | **20.02** | **0.591** | 79.70 | 298.88 | **5.98** | 1511.7 | 32.860 |
+| trtvideo | **49.941** | **20.02** | **0.591** | 79.70 | 298.88 | **5.98** | 1511.7 | 32.860 |
 | vs-mlrt | 19.825 | 50.44 | 1.245 | 36.84 | 173.41 | 8.75 | 1496.4 | 35.533 |
 | VSGAN-tensorrt-docker | 20.315 | 49.22 | 1.255 | 37.23 | 175.39 | 8.63 | **1494.4** | 35.533 |
 
@@ -140,7 +138,7 @@ runs.
 ### Quality Gates
 
 All model-space and product-output gates passed. Product-output metrics compare
-all 1000 decoded MP4 frames against the `ai-media-enhancer` output.
+all 1000 decoded MP4 frames against the `trtvideo` output.
 
 | Workload | Input | Candidate | PSNR, dB | SSIM | Status |
 |---|---|---|---:|---:|---|
@@ -192,7 +190,7 @@ runtime-default VapourSynth threads, and no CUDA Graph. VSGAN uses automatic
 requests, four TensorRT streams, four VapourSynth threads, and no CUDA Graph.
 The project uses its regular `nvcodec` path with CUDA Graph disabled.
 
-| Workload | Input | ai-media | vs-mlrt | VSGAN | Project vs fastest external |
+| Workload | Input | trtvideo | vs-mlrt | VSGAN | Project vs fastest external |
 |---|---|---:|---:|---:|---:|
 | RealESRGAN_x2plus | 720p | 6.134 FPS | 5.739 FPS | **6.198 FPS** | -1.02% |
 | RealESRGAN_x2plus | 1080p | 2.817 FPS | 2.448 FPS | **2.817 FPS** | -0.01% |
@@ -239,7 +237,7 @@ selection result on SPAN.
 
 ### Tuned End-To-End Results
 
-| Workload | Input | ai-media | vs-mlrt | VSGAN | Project vs fastest external |
+| Workload | Input | trtvideo | vs-mlrt | VSGAN | Project vs fastest external |
 |---|---|---:|---:|---:|---:|
 | RealESRGAN_x2plus | 720p | 6.130 FPS | **6.305 FPS** | 6.195 FPS | -2.78% |
 | RealESRGAN_x2plus | 1080p | 2.810 FPS | **2.850 FPS** | 2.814 FPS | -1.40% |
@@ -253,16 +251,16 @@ implementation. SPAN 720p is a confirmed tuned `vs-mlrt` advantage.
 
 | Workload | Input | Implementation | FPS | CPU cores | GPU util | Power | J/frame | Peak VRAM | Bitrate |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| RealESRGAN | 720p | ai-media | 6.130 | 1.008 | 97.50% | 335.65 W | 54.78 | 2251.7 MiB | 32.562 Mbps |
+| RealESRGAN | 720p | trtvideo | 6.130 | 1.008 | 97.50% | 335.65 W | 54.78 | 2251.7 MiB | 32.562 Mbps |
 | RealESRGAN | 720p | vs-mlrt | **6.305** | 2.125 | 98.21% | 337.51 W | **53.53** | 3764.4 MiB | 34.906 Mbps |
 | RealESRGAN | 720p | VSGAN | 6.195 | 3.945 | 97.16% | 336.22 W | 54.26 | 6792.4 MiB | 34.906 Mbps |
-| RealESRGAN | 1080p | ai-media | 2.810 | 1.004 | 98.73% | 339.30 W | 120.77 | **4282.1 MiB** | 56.575 Mbps |
+| RealESRGAN | 1080p | trtvideo | 2.810 | 1.004 | 98.73% | 339.30 W | 120.77 | **4282.1 MiB** | 56.575 Mbps |
 | RealESRGAN | 1080p | vs-mlrt | **2.850** | 2.134 | 99.13% | 340.26 W | **119.39** | 7625.1 MiB | 60.436 Mbps |
 | RealESRGAN | 1080p | VSGAN | 2.814 | 4.003 | 98.83% | 339.62 W | 120.68 | 14461.1 MiB | 60.436 Mbps |
-| SPAN | 720p | ai-media | 49.850 | **0.596** | 82.20% | 294.54 W | 5.90 | **1507.7 MiB** | 32.860 Mbps |
+| SPAN | 720p | trtvideo | 49.850 | **0.596** | 82.20% | 294.54 W | 5.90 | **1507.7 MiB** | 32.860 Mbps |
 | SPAN | 720p | vs-mlrt | **56.554** | 6.472 | 90.71% | 309.49 W | **5.47** | 4762.4 MiB | 35.533 Mbps |
 | SPAN | 720p | VSGAN | 49.612 | 4.179 | 81.66% | 297.41 W | 5.99 | 3936.4 MiB | 35.533 Mbps |
-| SPAN | 1080p | ai-media | 24.752 | **0.491** | 90.14% | 314.90 W | 12.72 | **2666.1 MiB** | 56.206 Mbps |
+| SPAN | 1080p | trtvideo | 24.752 | **0.491** | 90.14% | 314.90 W | 12.72 | **2666.1 MiB** | 56.206 Mbps |
 | SPAN | 1080p | vs-mlrt | **25.559** | 6.558 | 93.99% | 320.14 W | **12.52** | 9905.1 MiB | 60.461 Mbps |
 | SPAN | 1080p | VSGAN | 21.342 | 4.196 | 82.48% | 294.38 W | 13.79 | 8087.1 MiB | 60.461 Mbps |
 

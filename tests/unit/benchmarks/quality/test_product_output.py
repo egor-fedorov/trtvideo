@@ -141,11 +141,11 @@ def test_crop_geometry_and_command_use_one_decode(tmp_path: Path) -> None:
 def test_output_evidence_rejects_changed_file(tmp_path: Path) -> None:
     manifest_path = _write_run_manifest(
         tmp_path,
-        name="ai-media",
-        product="ai-media-enhancer",
+        name="trtvideo",
+        product="trtvideo",
         engine_sha256="3" * 64,
     )
-    output_path = tmp_path / "artefacts/quality/ai-media/run-01/output.mp4"
+    output_path = tmp_path / "artefacts/quality/trtvideo/run-01/output.mp4"
     output_path.write_bytes(b"changed")
 
     with pytest.raises(ProductOutputError, match="SHA256 changed"):
@@ -156,8 +156,8 @@ def test_validate_evidence_requires_same_encoder(tmp_path: Path) -> None:
     reference = OutputEvidence.load(
         _write_run_manifest(
             tmp_path,
-            name="ai-media",
-            product="ai-media-enhancer",
+            name="trtvideo",
+            product="trtvideo",
             engine_sha256="3" * 64,
         ),
         root=tmp_path,
@@ -192,8 +192,8 @@ def test_compare_product_outputs_builds_valid_report(
 ) -> None:
     reference = _write_run_manifest(
         tmp_path,
-        name="ai-media",
-        product="ai-media-enhancer",
+        name="trtvideo",
+        product="trtvideo",
         engine_sha256="3" * 64,
     )
     candidates = [

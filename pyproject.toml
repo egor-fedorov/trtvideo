@@ -1,7 +1,7 @@
 [project]
-name = "ai-media-enhancer"
+name = "trtvideo"
 version = "0.3.1"
-description = "AI media enhancer via TensorRT with video upscale workflows"
+description = "TensorRT video processing with GPU-resident upscale pipelines"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "numpy>=2.0,<3",
@@ -48,13 +48,14 @@ dev = [
 ]
 
 [project.scripts]
-upscale = "ai_media.cli.upscale:main"
-export-onnx = "ai_media.cli.export_onnx:main"
-prepare-onnx = "ai_media.cli.prepare_onnx:main"
-build-engine = "ai_media.cli.build_engine:main"
+upscale = "trtvideo.cli.upscale:main"
+export-onnx = "trtvideo.cli.export_onnx:main"
+prepare-onnx = "trtvideo.cli.prepare_onnx:main"
+build-engine = "trtvideo.cli.build_engine:main"
 
 [tool.setuptools.packages.find]
-include = ["ai_media*"]
+where = ["src"]
+include = ["trtvideo*"]
 
 
 [tool.pytest.ini_options]
@@ -97,7 +98,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["ai_media", "benchmarks"]
+files = ["src/trtvideo", "benchmarks"]
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true

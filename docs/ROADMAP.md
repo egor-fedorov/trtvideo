@@ -1,6 +1,6 @@
 # Roadmap
 
-The goal of the next cycle is to determine whether `ai-media-enhancer` has a
+The goal of the next cycle is to determine whether `trtvideo` has a
 measurable advantage as an NVIDIA/TensorRT video upscaler and to prepare
 defensible performance claims for an open-source release.
 
@@ -14,7 +14,7 @@ The architectural claim under test is:
 
 Results are divided into independent classes:
 
-1. Single-stream parity: `ai-media-enhancer` against locally built
+1. Single-stream parity: `trtvideo` against locally built
    `VapourSynth/vstrt` and a pinned upstream VSGAN runtime with one vspipe
    request, one TensorRT stream, and CUDA Graph disabled.
 2. Product-default/tuned: future campaigns with documented upstream defaults or
@@ -184,4 +184,3 @@ confirmation and CPU attribution remain pending.
   `nb_frames`.
 - Add P010/HDR metadata passthrough, tonemap, and color management.
 - Consider a VapourSynth backend as a product feature.
-- Consider RIFE/frame interpolation after stabilizing the video contract.

@@ -132,8 +132,8 @@ def validate_evidence_set(
     expected_frames: int,
 ) -> None:
     """Require identical source/model/encoder contracts for all outputs."""
-    if reference.product != "ai-media-enhancer":
-        raise ProductOutputError("Product-output reference must be ai-media-enhancer")
+    if reference.product != "trtvideo":
+        raise ProductOutputError("Product-output reference must be trtvideo")
     if reference.frames != expected_frames:
         raise ProductOutputError("Reference output does not contain canonical frames")
     expected_products = {"vs-mlrt", "VSGAN-tensorrt-docker"}
@@ -422,7 +422,7 @@ def compare_product_outputs(
     crop_artifacts = {
         reference.product: generate_visual_crops(
             reference,
-            output_dir=output_dir / "crops" / "ai-media",
+            output_dir=output_dir / "crops" / "trtvideo",
             frame_indices=frame_indices,
             crops=quality["crops"],
             output_width=int(variant["benchmark_output"]["width"]),

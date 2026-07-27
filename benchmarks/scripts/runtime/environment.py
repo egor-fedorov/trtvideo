@@ -89,14 +89,14 @@ def _torch_cuda_version() -> str | None:
 def collect_image_identity(*, default_reference: str = "unknown") -> dict[str, str]:
     """Collect the immutable build identity shared by benchmark evidence."""
     return {
-        "reference": os.environ.get("AI_MEDIA_IMAGE_REF", default_reference),
-        "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
+        "reference": os.environ.get("TRTVIDEO_IMAGE_REF", default_reference),
+        "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
         "base_reference": os.environ.get(
-            "AI_MEDIA_BASE_IMAGE",
+            "TRTVIDEO_BASE_IMAGE",
             "nvcr.io/nvidia/tensorrt:26.06-py3",
         ),
-        "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
-        "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
+        "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
+        "source_dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
     }
 
 
@@ -110,7 +110,7 @@ def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
         },
         "software": {
             "python": platform.python_version(),
-            "ai_media_enhancer": _package_version("ai-media-enhancer"),
+            "trtvideo": _package_version("trtvideo"),
             "torch": _package_version("torch"),
             "cuda": _torch_cuda_version(),
             "tensorrt": _package_version("tensorrt"),

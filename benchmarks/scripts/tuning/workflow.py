@@ -246,7 +246,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     )
 
     reference_root = paths.sweep_dir / "reference" / "model-space"
-    reference_manifest = reference_root / "ai-media" / "manifest.json"
+    reference_manifest = reference_root / "trtvideo" / "manifest.json"
     capture_reference = _require_clean_destination(
         reference_root,
         marker=reference_manifest,
@@ -262,7 +262,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     )
     if capture_reference:
         runner.run(
-            "capture-model-ai-media",
+            "capture-model-trtvideo",
             {
                 **base,
                 "MODEL_SPACE_DIR": paths.relative(reference_root),

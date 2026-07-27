@@ -34,7 +34,7 @@
       "base_image": "nvcr.io/nvidia/tensorrt:26.06-py3",
       "image_id": "sha256:de0240b84a00593716f6950c2235b9c283f20e9c61ea1695ad5e5979f4d056e5",
       "software": {
-        "ai_media_enhancer": "0.3.1",
+        "trtvideo": "0.3.1",
         "cuda": "13.0",
         "cvcuda": "0.16.0",
         "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
@@ -52,7 +52,7 @@
         "implementation": {
           "bestsource_version": "19.0",
           "comparison_class": "single-stream-parity",
-          "image": "ai-media-enhancer:benchmark-vstrt",
+          "image": "trtvideo:benchmark-vstrt",
           "notes": "Technical single-stream parity target built against the same TensorRT 11 base and engine as the project; not an upstream-default or best-tuned throughput result.",
           "role": "parity",
           "source": "https://github.com/AmusementClub/vs-mlrt",
@@ -71,7 +71,7 @@
           "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
           "exact_engine_match": false,
           "exact_model_match": true,
-          "image": "ai-media-enhancer:benchmark-vsgan",
+          "image": "trtvideo:benchmark-vsgan",
           "notes": "Pinned upstream VSGAN inference environment measured with benchmark parity settings requests=1, num_streams=1, and CUDA Graph disabled rather than its upstream-default throughput configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine.",
           "role": "parity",
           "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",

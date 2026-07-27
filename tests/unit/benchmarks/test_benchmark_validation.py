@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 
-from ai_media.benchmarking.validation import OutputContract, validate_output_probe
+from trtvideo.benchmarking.validation import OutputContract, validate_output_probe
 
 
 def canonical_probe(frames: int = 48) -> tuple[dict, list[dict]]:

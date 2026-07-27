@@ -33,7 +33,7 @@ diagnostic baseline and does not replace the GPU-resident result.
 
 Benchmark execution is divided by purpose:
 
-1. `project-only regression` runs only `ai-media-enhancer` through the same
+1. `project-only regression` runs only `trtvideo` through the same
    external timer, validation, and resource accounting used by comparisons. It
    supports before/after engineering decisions but cannot establish a
    competitor advantage.
@@ -429,7 +429,7 @@ The single-stream parity table contains:
 `trtexec` is published separately. Its diagnostic metric is:
 
 ```text
-pipeline efficiency = ai-media-enhancer end-to-end FPS / trtexec QPS
+pipeline efficiency = trtvideo end-to-end FPS / trtexec QPS
 ```
 
 One representative run includes an Nsight Systems trace for checking H2D/D2H

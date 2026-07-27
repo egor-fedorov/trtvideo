@@ -11,16 +11,16 @@ from typing import Any
 _UTC = timezone.utc  # noqa: UP017 - campaign orchestration supports host Python 3.10.
 
 IMPLEMENTATIONS = {
-    "ai-media": "ai-media-enhancer",
+    "trtvideo": "trtvideo",
     "vstrt": "vs-mlrt",
     "vsgan": "VSGAN-tensorrt-docker",
 }
 ROUND_ORDERS = {
-    1: ("ai-media", "vstrt", "vsgan"),
-    2: ("vstrt", "vsgan", "ai-media"),
-    3: ("vsgan", "ai-media", "vstrt"),
-    4: ("vsgan", "vstrt", "ai-media"),
-    5: ("ai-media", "vsgan", "vstrt"),
+    1: ("trtvideo", "vstrt", "vsgan"),
+    2: ("vstrt", "vsgan", "trtvideo"),
+    3: ("vsgan", "trtvideo", "vstrt"),
+    4: ("vsgan", "vstrt", "trtvideo"),
+    5: ("trtvideo", "vsgan", "vstrt"),
 }
 EVENT_LOG_NAME = "campaign.events.jsonl"
 CONFIG_NAME = "campaign.config.json"

@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_media.video.nvenc import NvencCbrContract
 from benchmarks.scripts.runners.common import (
     CommandSpec,
     CompetitorError,
@@ -42,6 +41,7 @@ from benchmarks.scripts.runners.vapoursynth_profile import (
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
 from benchmarks.scripts.runtime.runner import load_engine_contract, write_summary_target
 from benchmarks.scripts.runtime.suite import SuitePolicy
+from trtvideo.video.nvenc import NvencCbrContract
 
 VSGAN_SCRIPT = "/app/benchmarks/vsgan/upscale.vpy"
 
@@ -97,14 +97,14 @@ def _validate_parity_engine(
     if not version.startswith("1016"):
         raise CompetitorError("Pinned VSGAN engine must be built by TensorRT 10.16")
     builder_base_image = sidecar.get("builder_base_image")
-    runtime_base_image = os.environ.get("AI_MEDIA_BASE_IMAGE", "unknown")
+    runtime_base_image = os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown")
     if runtime_base_image != expected_base_image:
         raise CompetitorError(
             "VSGAN runtime does not match the pinned implementation "
             f"({runtime_base_image!r} != {expected_base_image!r}); rebuild the image"
         )
     runtime_ffmpeg_package = os.environ.get(
-        "AI_MEDIA_VSGAN_FFMPEG_PACKAGE", "unknown"
+        "TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "unknown"
     )
     if runtime_ffmpeg_package != expected_ffmpeg_package:
         raise CompetitorError(

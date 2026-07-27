@@ -298,8 +298,8 @@ def _validate_model_space_report(
             ),
             execution_profile=contract["execution_profile"],
             frame_indices=contract["model_space_frame_indices"],
-            reference_engine_sha256=contract["engine_hashes"]["ai-media"],
-            reference_image_id=contract["image_ids"]["ai-media"],
+            reference_engine_sha256=contract["engine_hashes"]["trtvideo"],
+            reference_image_id=contract["image_ids"]["trtvideo"],
             reference_revision=contract["repository_revision"],
             reference_source_dirty="0",
             reference_execution_profile={
@@ -417,7 +417,7 @@ def _validate_product_output_report(
         ),
         "reference engine": (
             report.get("reference", {}).get("engine_sha256"),
-            contract["engine_hashes"]["ai-media"],
+            contract["engine_hashes"]["trtvideo"],
         ),
     }
     for label, (actual, expected) in checks.items():
@@ -436,8 +436,8 @@ def _validate_product_output_report(
     )
     _validate_quality_run_manifest(
         reference_manifest,
-        implementation="ai-media",
-        product="ai-media-enhancer",
+        implementation="trtvideo",
+        product="trtvideo",
         contract=contract,
     )
 
@@ -513,7 +513,7 @@ def _validate_product_output_report(
     if not isinstance(visual_crops, dict):
         raise CampaignError("Product-output report has no visual crops")
     expected_products = {
-        "ai-media-enhancer",
+        "trtvideo",
         "vs-mlrt",
         "VSGAN-tensorrt-docker",
     }
@@ -584,7 +584,7 @@ def _validate_common_contract(
     idle_seconds: float,
     execution_profile: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    first = rounds[0]["ai-media"]
+    first = rounds[0]["trtvideo"]
     first_identity = extract_run_identity(first)
     workload_id = first_identity.workload_id
     variant = first_identity.variant
@@ -599,7 +599,7 @@ def _validate_common_contract(
     contract_version = first_identity.benchmark_contract_version
     cpu_contract = _cpu_contract(first)
     lifecycle_contract = _lifecycle_contract(first)
-    expected_revision = os.environ.get("AI_MEDIA_BUILD_REVISION")
+    expected_revision = os.environ.get("TRTVIDEO_BUILD_REVISION")
     if expected_revision and expected_revision != "unknown" and revision != expected_revision:
         raise CampaignError(
             "Campaign repository revision does not match the aggregator image"
@@ -672,8 +672,8 @@ def _validate_common_contract(
                         f"{implementation} execution profile changed between rounds"
                     )
 
-    if engine_hashes["ai-media"] != engine_hashes["vstrt"]:
-        raise CampaignError("ai-media and vstrt must use the same serialized engine")
+    if engine_hashes["trtvideo"] != engine_hashes["vstrt"]:
+        raise CampaignError("trtvideo and vstrt must use the same serialized engine")
 
     workload_asset = first.get("assets", {}).get("workload_manifest", {})
     workload_path = root / str(workload_asset.get("path", ""))
@@ -835,7 +835,7 @@ def _markdown(summary: dict[str, Any]) -> str:
         f"`{'yes' if summary['publication']['ready'] else 'no'}`.",
         f"Execution profile: `{summary['comparison_profile']}`.",
         "",
-        "| Implementation | Runs | Median FPS | vs ai-media | Median wall, s | "
+        "| Implementation | Runs | Median FPS | vs trtvideo | Median wall, s | "
         "CPU cores | CPU capacity, % | GPU util, % | Power, W | J/frame | "
         "Peak VRAM, MiB | Bitrate, Mbps | Size, MiB |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -845,7 +845,7 @@ def _markdown(summary: dict[str, Any]) -> str:
         stats = result["statistics"]
         lines.append(
             f"| {result['product']} | {summary['parameters']['rounds']} | "
-            f"{stats['median_fps']:.3f} | {result['relative_to_ai_media_percent']:+.2f}% | "
+            f"{stats['median_fps']:.3f} | {result['relative_to_trtvideo_percent']:+.2f}% | "
             f"{stats['median_wall_time_sec']:.2f} | "
             f"{stats['median_cpu_cores']:.3f} | "
             f"{stats['median_cpu_capacity_percent']:.2f} | "
@@ -980,10 +980,12 @@ def aggregate_campaign(
             "stability": stability.as_dict(),
         }
 
-    ai_fps = implementation_results["ai-media"]["statistics"]["median_fps"]
+    trtvideo_fps = implementation_results["trtvideo"]["statistics"]["median_fps"]
     for result in implementation_results.values():
         median_fps = result["statistics"]["median_fps"]
-        result["relative_to_ai_media_percent"] = (median_fps / ai_fps - 1) * 100
+        result["relative_to_trtvideo_percent"] = (
+            median_fps / trtvideo_fps - 1
+        ) * 100
 
     unstable = [
         name

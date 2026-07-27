@@ -36,8 +36,8 @@
       "pynvvideocodec": "2.1.0"
     },
     "implementations": {
-      "ai-media": {
-        "product": "ai-media-enhancer",
+      "trtvideo": {
+        "product": "trtvideo",
         "upstream_default_image_id": "sha256:aadbe7b3d175f20e4cecc18f7bd41d32f1356a576530d3647225d269d9a8a4c4",
         "tuned_image_id": "sha256:7ec6aa36627e9924bddf3c4b03a949227641b49952ace9c7588eea9a8d58de6a"
       },
@@ -154,7 +154,7 @@
       },
       "results": [
         {
-          "implementation": "ai-media",
+          "implementation": "trtvideo",
           "engine_sha256": "df9850d2fbbf464ce40a263be6854939e203f68c0ae2b50f537632a56a4aad06",
           "fps_median": 6.130363503696808,
           "fps_runs": [
@@ -237,7 +237,7 @@
       },
       "results": [
         {
-          "implementation": "ai-media",
+          "implementation": "trtvideo",
           "engine_sha256": "b7c962500d02e62e39da7817580c0cf947a0ac0de8f6a165cbb7fe61ea1905d4",
           "fps_median": 2.81009666802116,
           "fps_runs": [
@@ -320,7 +320,7 @@
       },
       "results": [
         {
-          "implementation": "ai-media",
+          "implementation": "trtvideo",
           "engine_sha256": "3518c5f8fce620a8e73a13643c5caa70d639cc72ba4284c18a4fc19ee8125e74",
           "fps_median": 49.849831167210965,
           "fps_runs": [
@@ -403,7 +403,7 @@
       },
       "results": [
         {
-          "implementation": "ai-media",
+          "implementation": "trtvideo",
           "engine_sha256": "a86c3e292bc6d19e8b09e9b5abd8fcf0d5676067488f83790d1362c193ef1143",
           "fps_median": 24.752370641800763,
           "fps_runs": [

@@ -96,11 +96,11 @@ def _implementation_environment(
 ) -> dict[str, Any]:
     environment = collect_environment(gpu)
     environment["image"] = {
-        "reference": os.environ.get("AI_MEDIA_IMAGE_REF", implementation["image"]),
-        "id": os.environ.get("AI_MEDIA_IMAGE_ID", "unknown"),
-        "base_reference": os.environ.get("AI_MEDIA_BASE_IMAGE", implementation["source"]),
-        "repository_revision": os.environ.get("AI_MEDIA_BUILD_REVISION", "unknown"),
-        "source_dirty": os.environ.get("AI_MEDIA_BUILD_DIRTY", "unknown"),
+        "reference": os.environ.get("TRTVIDEO_IMAGE_REF", implementation["image"]),
+        "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
+        "base_reference": os.environ.get("TRTVIDEO_BASE_IMAGE", implementation["source"]),
+        "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
+        "source_dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
     }
     environment["implementation"] = implementation
     return environment

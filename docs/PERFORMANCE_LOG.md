@@ -18,7 +18,7 @@ rounds. RealESRGAN used 30 warmup frames; SPAN used 100. Selected tuned
 configurations passed the complete model-space and 1000-frame product-output
 quality gates.
 
-| Workload | Input | ai-media | tuned vs-mlrt | tuned VSGAN |
+| Workload | Input | trtvideo | tuned vs-mlrt | tuned VSGAN |
 |---|---|---:|---:|---:|
 | RealESRGAN_x2plus | 720p | 6.130 FPS | **6.305 FPS** | 6.195 FPS |
 | RealESRGAN_x2plus | 1080p | 2.810 FPS | **2.850 FPS** | 2.814 FPS |
@@ -41,7 +41,7 @@ quality evidence, hashes, and claim boundaries are published in the
 
 ## 2026-07-25 - RTX 3090 multi-resolution single-stream parity baseline
 
-The current single-stream baseline compares `ai-media-enhancer`, TensorRT 11
+The current single-stream baseline compares `trtvideo`, TensorRT 11
 `vs-mlrt`, and a pinned upstream TensorRT 10.16 VSGAN runtime on
 RealESRGAN_x2plus and SPAN at `720p -> 1440p` and `1080p -> 4K`. Both
 VapourSynth runners used one vspipe request, one TensorRT stream, and disabled
@@ -54,7 +54,7 @@ policy. No reduced GPU power limit was applied: the RTX 3090 used its default
 
 Key results:
 
-| Workload | Input | ai-media | vs-mlrt | VSGAN | trtexec |
+| Workload | Input | trtvideo | vs-mlrt | VSGAN | trtexec |
 |---|---|---:|---:|---:|---:|
 | RealESRGAN_x2plus | 1080p | 2.884 FPS | 2.394 FPS | 2.399 FPS | 2.921 QPS |
 | RealESRGAN_x2plus | 720p | 6.277 FPS | 5.406 FPS | 5.477 FPS | 6.458 QPS |
@@ -281,7 +281,7 @@ Conclusion:
 
 Changes:
 
-* Added a per-job `FrameBufferPool` in `ai_media/pipelines/nvcodec.py`.
+* Added a per-job `FrameBufferPool` in `src/trtvideo/pipelines/nvcodec.py`.
 * The `NV12->RGB` and `RGB->NV12` CV-CUDA conversions now write into preallocated
   buffers.
 * `TensorRTRuntime.infer_rgb_tensor_into(...)` writes output into a preallocated
@@ -417,7 +417,7 @@ Changes:
 * Dev-only dependencies are defined in `[dependency-groups].dev` and installed
   with `--group dev` when `--build-arg INSTALL_DEV=1` is set.
 * Before application code is copied, the Dockerfile installs dependencies into
-  the `/opt/ai-media-enhancer` virtual environment with
+  the `/opt/trtvideo` virtual environment with
   `--system-site-packages`.
 * The virtual environment can access packages preinstalled in the TensorRT base
   image without modifying managed `/usr`.

@@ -1,10 +1,10 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 HOST_PYTHON ?= python3
-IMAGE ?= ai-media-enhancer:latest
-BENCHMARK_IMAGE ?= ai-media-enhancer:benchmark
-VSTRT_IMAGE ?= ai-media-enhancer:benchmark-vstrt
-VSGAN_IMAGE ?= ai-media-enhancer:benchmark-vsgan
+IMAGE ?= trtvideo:latest
+BENCHMARK_IMAGE ?= trtvideo:benchmark
+VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
+VSGAN_IMAGE ?= trtvideo:benchmark-vsgan
 VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef
 
 MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_sintel.json
@@ -24,7 +24,7 @@ NSIGHT_ARGS ?=
 VAPOURSYNTH_MODE ?= parity
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
-AI_MEDIA_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
+TRTVIDEO_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
 VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
 VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
@@ -51,15 +51,15 @@ MODEL_SPACE_REPORT ?=
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-project-engine build-vsgan-engine prepare verify
-.PHONY: run-project run-ai-media plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
+.PHONY: run-project run-trtvideo plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
 .PHONY: profile-nsight
-.PHONY: capture-model-ai-media capture-model-vstrt capture-model-vsgan
+.PHONY: capture-model-trtvideo capture-model-vstrt capture-model-vsgan
 .PHONY: compare-model-space model-space-parity
 .PHONY: compare-model-space-candidate
-.PHONY: capture-output-ai-media capture-output-vstrt capture-output-vsgan
+.PHONY: capture-output-trtvideo capture-output-vstrt capture-output-vsgan
 .PHONY: compare-product-output product-output-parity quality-gates
-.PHONY: campaign-preflight campaign-ai-media campaign-vstrt campaign-vsgan
+.PHONY: campaign-preflight campaign-trtvideo campaign-vstrt campaign-vsgan
 .PHONY: aggregate-campaign run-campaign run-comparative
 .PHONY: run-tuned-sweep rank-tuned run-tuned-quality run-tuned-campaign
 .PHONY: verify-tuned-matrix
@@ -76,7 +76,7 @@ help:
 		'dry-run             Print diagnostic and selected-profile plans' \
 		'run-project         Run the project-only regression benchmark' \
 		'run-comparative     Run/resume the selected-profile rotation' \
-		'run-ai-media        Run the low-level project implementation suite' \
+		'run-trtvideo        Run the low-level project implementation suite' \
 		'run-vstrt           Run vstrt with VAPOURSYNTH_MODE (ENGINE required)' \
 		'run-vsgan           Run pinned VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
@@ -128,8 +128,8 @@ build-project-engine:
 build-vsgan-engine:
 	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
 		-v "$(ROOT)/models:/app/models" \
 		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.workloads.build_vsgan_engine \
 			--manifest /app/$(MANIFEST) \
@@ -158,23 +158,23 @@ verify:
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
 run-project:
-	$(MAKE) run-ai-media AI_MEDIA_OUTPUT_DIR="$(PROJECT_OUTPUT_DIR)"
+	$(MAKE) run-trtvideo TRTVIDEO_OUTPUT_DIR="$(PROJECT_OUTPUT_DIR)"
 
-run-ai-media:
+run-trtvideo:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(AI_MEDIA_OUTPUT_DIR)"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(TRTVIDEO_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.ai_media \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.trtvideo \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/$(AI_MEDIA_OUTPUT_DIR) \
+			--output-dir /app/$(TRTVIDEO_OUTPUT_DIR) \
 			$(ARGS)
 
 plan-trtexec:
@@ -230,8 +230,8 @@ dry-run: plan-trtexec plan-vstrt plan-vsgan
 plan-nsight:
 	mkdir -p "$(ROOT)/artefacts/benchmarks"
 	docker run --rm --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.diagnostics.nsight \
 			--manifest /app/$(MANIFEST) \
@@ -246,8 +246,8 @@ run-trtexec:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/$(TRTEXEC_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.runners.trtexec \
@@ -263,8 +263,8 @@ run-vstrt:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(VSTRT_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VSTRT_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(VSTRT_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
@@ -282,8 +282,8 @@ run-vsgan:
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(VSGAN_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
@@ -301,8 +301,8 @@ profile-nsight:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(NSIGHT_OUTPUT_DIR)"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
@@ -315,30 +315,30 @@ profile-nsight:
 			--output-dir /app/$(NSIGHT_OUTPUT_DIR) \
 			$(NSIGHT_ARGS)
 
-capture-model-ai-media:
+capture-model-trtvideo:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/ai-media"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/trtvideo"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(BENCHMARK_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.capture_ai_media \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.capture_trtvideo \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(VAPOURSYNTH_MODE) \
-			--output-dir /app/$(MODEL_SPACE_DIR)/ai-media \
+			--output-dir /app/$(MODEL_SPACE_DIR)/trtvideo \
 			$(MODEL_SPACE_ARGS)
 
 capture-model-vstrt:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vstrt"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VSTRT_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(VSTRT_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
@@ -358,8 +358,8 @@ capture-model-vsgan:
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
 	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vsgan"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e AI_MEDIA_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e AI_MEDIA_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
@@ -382,7 +382,7 @@ compare-model-space:
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_model_space \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
-			--reference /app/$(MODEL_SPACE_DIR)/ai-media/manifest.json \
+			--reference /app/$(MODEL_SPACE_DIR)/trtvideo/manifest.json \
 			--candidate /app/$(MODEL_SPACE_DIR)/vstrt/manifest.json \
 			--candidate /app/$(MODEL_SPACE_DIR)/vsgan/manifest.json \
 			--output /app/$(MODEL_SPACE_DIR)/model-space-parity.json
@@ -401,14 +401,14 @@ compare-model-space-candidate:
 			--output /app/$(MODEL_SPACE_REPORT)
 
 model-space-parity:
-	$(MAKE) capture-model-ai-media
+	$(MAKE) capture-model-trtvideo
 	$(MAKE) capture-model-vstrt
 	$(MAKE) capture-model-vsgan
 	$(MAKE) compare-model-space
 
-capture-output-ai-media:
-	$(MAKE) run-ai-media \
-		AI_MEDIA_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/ai-media" \
+capture-output-trtvideo:
+	$(MAKE) run-trtvideo \
+		TRTVIDEO_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/trtvideo" \
 		ARGS="$(QUALITY_RUN_ARGS)"
 
 capture-output-vstrt:
@@ -427,14 +427,14 @@ compare-product-output:
 		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_product_output \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
-			--reference /app/$(PRODUCT_OUTPUT_DIR)/ai-media/run-01/manifest.json \
+			--reference /app/$(PRODUCT_OUTPUT_DIR)/trtvideo/run-01/manifest.json \
 			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vstrt/run-01/manifest.json \
 			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vsgan/run-01/manifest.json \
 			--output /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json \
 			--root /app
 
 product-output-parity:
-	$(MAKE) capture-output-ai-media
+	$(MAKE) capture-output-trtvideo
 	$(MAKE) capture-output-vstrt
 	$(MAKE) capture-output-vsgan
 	$(MAKE) compare-product-output
@@ -513,23 +513,23 @@ campaign-preflight:
 	@revision="$$(git -C "$(ROOT)" rev-parse HEAD)"; \
 	for image in "$(BENCHMARK_IMAGE)" "$(VSTRT_IMAGE)" "$(VSGAN_IMAGE)"; do \
 		docker run --rm -e EXPECTED_REVISION="$$revision" "$$image" sh -c \
-			'test "$$AI_MEDIA_BUILD_REVISION" = "$$EXPECTED_REVISION" && test "$$AI_MEDIA_BUILD_DIRTY" = "0"' || { \
+			'test "$$TRTVIDEO_BUILD_REVISION" = "$$EXPECTED_REVISION" && test "$$TRTVIDEO_BUILD_DIRTY" = "0"' || { \
 			echo "ERROR: $$image was not built from clean revision $$revision" >&2; \
 			exit 2; \
 		}; \
 	done
 
-campaign-ai-media:
-	@output="$(ROOT)/$(CAMPAIGN_DIR)/ai-media/round-$(ROUND)"; \
+campaign-trtvideo:
+	@output="$(ROOT)/$(CAMPAIGN_DIR)/trtvideo/round-$(ROUND)"; \
 	manifest="$$output/run-01/manifest.json"; \
 	if test -f "$$manifest"; then \
 		test "$(RESUME)" = "1" || exit 2; \
 		grep -q '"status": "valid"' "$$manifest" || { echo "ERROR: invalid existing $$manifest" >&2; exit 2; }; \
-		echo "Resume: ai-media round $(ROUND) is already valid"; \
+		echo "Resume: trtvideo round $(ROUND) is already valid"; \
 	elif test -e "$$output"; then \
-		echo "ERROR: partial ai-media round $(ROUND); remove $$output before resume" >&2; exit 2; \
+		echo "ERROR: partial trtvideo round $(ROUND); remove $$output before resume" >&2; exit 2; \
 	else \
-		$(MAKE) run-ai-media AI_MEDIA_OUTPUT_DIR="$(CAMPAIGN_DIR)/ai-media/round-$(ROUND)" \
+		$(MAKE) run-trtvideo TRTVIDEO_OUTPUT_DIR="$(CAMPAIGN_DIR)/trtvideo/round-$(ROUND)" \
 			ARGS="$(CAMPAIGN_RUN_ARGS)"; \
 	fi
 

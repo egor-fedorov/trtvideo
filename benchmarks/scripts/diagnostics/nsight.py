@@ -12,8 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ai_media.benchmarking.validation import validate_output
-from ai_media.diagnostics.nvtx import NVTX_ENV
 from benchmarks.scripts.runners.common import (
     asset_requirement,
     find_variant,
@@ -37,6 +35,8 @@ from benchmarks.scripts.runtime.runner import (
     output_contract,
     validate_config,
 )
+from trtvideo.benchmarking.validation import validate_output
+from trtvideo.diagnostics.nvtx import NVTX_ENV
 
 TRACE_APIS = "cuda,nvtx,osrt,nvvideo"
 STATS_REPORTS = (
@@ -80,9 +80,9 @@ class NsightPaths:
     def create(cls, output_dir: Path) -> NsightPaths:
         return cls(
             output_dir=output_dir,
-            trace_base=output_dir / "ai-media",
-            trace=output_dir / "ai-media.nsys-rep",
-            sqlite=output_dir / "ai-media.sqlite",
+            trace_base=output_dir / "trtvideo",
+            trace=output_dir / "trtvideo.nsys-rep",
+            sqlite=output_dir / "trtvideo.sqlite",
             video=output_dir / "output.mp4",
             manifest=output_dir / "manifest.json",
             stdout=output_dir / "nsys.stdout.log",
@@ -186,11 +186,11 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     paths = NsightPaths.create(Path(args.output_dir))
     command = build_nsight_command(args, manifest, paths=paths)
     plan = plan_document(
-        product="ai-media-enhancer",
+        product="trtvideo",
         backend="nvcodec/Nsight Systems",
         comparison_class="diagnostic",
         implementation={
-            "image": os.environ.get("AI_MEDIA_IMAGE_REF", "ai-media-enhancer:benchmark"),
+            "image": os.environ.get("TRTVIDEO_IMAGE_REF", "trtvideo:benchmark"),
             "profiler": "Nsight Systems",
         },
         manifest=manifest,
@@ -214,7 +214,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
         limitations=[
             "Profiler overhead makes trace FPS non-publishable.",
             "CPU IP sampling and scheduler context-switch tracing are disabled.",
-            "This diagnostic covers only the ai-media-enhancer nvcodec pipeline.",
+            "This diagnostic covers only the trtvideo nvcodec pipeline.",
         ],
     )
     return plan, manifest
@@ -446,7 +446,7 @@ def run_diagnostic(
         "scope": "diagnostic",
         "publishable": False,
         "status": "valid" if not errors else "invalid",
-        "product": "ai-media-enhancer",
+        "product": "trtvideo",
         "backend": "nvcodec",
         "workload_id": workload_id,
         "benchmark_contract_version": manifest["benchmark"]["contract_version"],
@@ -523,7 +523,7 @@ def run_diagnostic(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Capture one Nsight Systems trace of ai-media-enhancer",
+        description="Capture one Nsight Systems trace of trtvideo",
     )
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--variant", choices=["720p", "1080p"], default="1080p")
