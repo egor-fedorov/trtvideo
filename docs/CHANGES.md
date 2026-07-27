@@ -51,6 +51,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Published a revision-bound RTX 3090 upstream-default and best-tuned
+  comparison for RealESRGAN and SPAN at both canonical resolutions, including
+  complete tuning curves, winner quality evidence, resource metrics, and
+  explicit claim boundaries. Machine-readable results are composed by
+  methodology class (`parity`, `upstream-default`, `tuned`, and `diagnostics`)
+  through a hashed hardware-level index.
 - Added workload-specific tuned benchmark contracts. RealESRGAN retains the
   bounded `num_streams=2/3/4` search, while SPAN extends through `5/6` after
   boundary measurements found its throughput peak at five streams. Tuned

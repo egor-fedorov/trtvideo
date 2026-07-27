@@ -121,12 +121,14 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-Status: parity diagnostics are complete. All four `trtexec` ceilings and
-pipeline-efficiency values are published. A clean SPAN 1080p Nsight trace used
-an engine rebuilt on the profiled RTX 3090 and confirmed a GPU-resident,
-continuously kernel-active frame loop without material per-frame host/device
-transfers. Product-default/tuned and live-action confirmation runs remain
-pending.
+Status: parity diagnostics and the upstream-default/tuned matrix are complete.
+All four `trtexec` ceilings and pipeline-efficiency values are published. A
+clean SPAN 1080p Nsight trace used an engine rebuilt on the profiled RTX 3090
+and confirmed a GPU-resident, continuously kernel-active frame loop without
+material per-frame host/device transfers. The validated RTX 3090
+single-stream, upstream-default, and tuned result classes are published
+together without merging their revision-bound contracts. Live-action
+confirmation and CPU attribution remain pending.
 
 - [x] Add isolated `parity`, `upstream-default`, and `tuned` campaign classes
   with immutable scheduling configuration and aggregate-time contract checks.
@@ -139,7 +141,7 @@ pending.
   SPAN) plus declared VSGAN settings in unique directories, ranks only stable
   candidates with valid media and model-space evidence, and promotes the next
   point when a selected winner fails full quality.
-- Run the tuned sweep, full 1000-frame winner quality gate, and rotated winner
+- [x] Run the tuned sweep, full 1000-frame winner quality gate, and rotated winner
   campaign for both resolutions and workloads. Publish only a machine-verified
   720p + 1080p matrix, not individual sweep results.
 - Keep CUDA Graph experimental while it captures only the TensorRT call and

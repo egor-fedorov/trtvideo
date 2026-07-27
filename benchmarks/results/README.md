@@ -8,11 +8,24 @@ needed to interpret the published tables.
 Large raw outputs, tensor captures, engines, models, and profiler time series
 remain outside Git.
 
-## Baselines
+Each hardware directory contains one human-readable summary, a machine-readable
+index, and one self-contained JSON file per methodology result class. Result
+sets are not divided by measurement date and are never aggregated across
+different contracts or revisions.
 
-- [RTX 3090 multi-resolution single-stream parity baseline](rtx-3090/README.md) -
-  validated `720p -> 1440p` and `1080p -> 4K` RealESRGAN_x2plus and SPAN
-  campaigns measured on runtime revision
-  `0fc30377046d2c40207d143b1239d8f24e46e7d4`, including quality gates,
-  TensorRT ceilings, and an Nsight diagnostic. It does not represent
-  upstream-default or best-tuned competitor throughput.
+## Results
+
+- [RTX 3090 comparative benchmark](rtx-3090/README.md) - complete validated
+  `720p -> 1440p` and `1080p -> 4K` RealESRGAN_x2plus and SPAN matrix.
+
+The RTX 3090 publication contains four result sets:
+
+- single-stream parity as a controlled historical baseline;
+- documented upstream-default scheduling;
+- workload-specific tuned sweeps and independent winner campaigns;
+- separate `trtexec` and Nsight diagnostics.
+
+Upstream-default and tuned results are complete for both models and both
+resolutions; the publication is not limited to the single-stream baseline.
+Every result set retains its own measurement revision, contract, quality
+evidence, and machine-readable JSON.

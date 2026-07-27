@@ -9,6 +9,36 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
+## 2026-07-27 - RTX 3090 upstream-default and tuned comparison
+
+Validated upstream-default and bounded best-tuned campaigns were measured on
+clean revision `7aa3d6e` with an RTX 3090 at its active 350 W board limit and an
+AMD Ryzen 5 5600. Every workload used 1000 measured frames and three rotated
+rounds. RealESRGAN used 30 warmup frames; SPAN used 100. Selected tuned
+configurations passed the complete model-space and 1000-frame product-output
+quality gates.
+
+| Workload | Input | ai-media | tuned vs-mlrt | tuned VSGAN |
+|---|---|---:|---:|---:|
+| RealESRGAN_x2plus | 720p | 6.130 FPS | **6.305 FPS** | 6.195 FPS |
+| RealESRGAN_x2plus | 1080p | 2.810 FPS | **2.850 FPS** | 2.814 FPS |
+| SPAN | 720p | 49.850 FPS | **56.554 FPS** | 49.612 FPS |
+| SPAN | 1080p | 24.752 FPS | **25.559 FPS** | 21.342 FPS |
+
+RealESRGAN and SPAN 1080p are within the predeclared +/-5% parity band relative
+to the fastest tuned external implementation. SPAN 720p is 11.85% slower than
+tuned `vs-mlrt`. Relative to tuned VSGAN, the project is within 1.1% at
+RealESRGAN 720p/1080p and SPAN 720p, and 15.98% faster at SPAN 1080p.
+
+Tuned `vs-mlrt` selected two streams for RealESRGAN and five streams for SPAN.
+It improves throughput at the cost of higher CPU and VRAM use: SPAN used about
+6.5 CPU cores and 4.8/9.9 GiB VRAM, while the project used about 0.6/0.5 cores
+and 1.5/2.7 GiB at 720p/1080p.
+
+The complete upstream-default tables, tuning curves, final campaign resources,
+quality evidence, hashes, and claim boundaries are published in the
+[RTX 3090 comparative benchmark](../benchmarks/results/rtx-3090/README.md).
+
 ## 2026-07-25 - RTX 3090 multi-resolution single-stream parity baseline
 
 The current single-stream baseline compares `ai-media-enhancer`, TensorRT 11

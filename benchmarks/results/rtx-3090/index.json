@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "document_type": "published_result_index",
+  "status": "valid",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_memory_mib": 24576,
+    "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+    "logical_cpus": 12
+  },
+  "composition": {
+    "unit": "methodology result class",
+    "self_contained_result_files": true,
+    "cross_contract_aggregation": false,
+    "human_summary": "README.md",
+    "notes": "Dates and measurement revisions belong to result sets, not directory names. A result file may be replaced only by a newly validated snapshot of the same methodology class."
+  },
+  "result_sets": [
+    {
+      "id": "single-stream-parity",
+      "file": "parity.json",
+      "sha256": "a15715e62f09a9df5f7015219bb600a21ff6aaa374a8cfec2c1a6c24c2873f33",
+      "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
+      "date_utc": "2026-07-25",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "upstream-default",
+      "file": "upstream-default.json",
+      "sha256": "a86990c6ed2ff257602569ca01c75ea4dbc6df20541e028b29d7c9b911e18f57",
+      "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
+      "date_utc": "2026-07-27",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "tuned",
+      "file": "tuned.json",
+      "sha256": "3d99df5cd80587867f7aa40964abc5e6878539f14b77515caa1cf8c44525267a",
+      "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
+      "date_utc": "2026-07-27",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "diagnostics",
+      "file": "diagnostics.json",
+      "sha256": "2eb7b41a3d9e1d75f83dcd7c98e935ded0af1865e970f51671d7dcf06839e88f",
+      "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
+      "date_utc": "2026-07-25",
+      "status": "valid",
+      "publishable": true
+    }
+  ]
+}

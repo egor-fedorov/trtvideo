@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "document_type": "published_benchmark_snapshot",
+  "document_type": "published_parity_results",
   "status": "valid",
   "publishable": true,
   "scope": {
@@ -23,7 +23,6 @@
       }
     },
     "pending": [
-      "best-tuned campaign",
       "live-action confirmation"
     ]
   },
@@ -314,24 +313,6 @@
               "relative_to_ai_media_percent": -13.866911236019487
             }
           },
-          "diagnostic_trtexec": {
-            "status": "valid",
-            "publishable": true,
-            "statistics": {
-              "max_fps": 6.45873,
-              "median_fps": 6.45846,
-              "min_fps": 6.45758,
-              "relative_spread": 0.00017806102383540108,
-              "values_fps": [
-                6.45873,
-                6.45758,
-                6.45846
-              ]
-            },
-            "pipeline_efficiency_percent": 97.18496940750553,
-            "cuda_graph": false,
-            "data_transfers": false
-          },
           "quality": {
             "model_space": {
               "status": "valid",
@@ -530,24 +511,6 @@
               },
               "relative_to_ai_media_percent": -16.966020490434865
             }
-          },
-          "diagnostic_trtexec": {
-            "status": "valid",
-            "publishable": true,
-            "statistics": {
-              "max_fps": 2.92329,
-              "median_fps": 2.92071,
-              "min_fps": 2.92068,
-              "relative_spread": 0.0008936183325288108,
-              "values_fps": [
-                2.92329,
-                2.92071,
-                2.92068
-              ]
-            },
-            "pipeline_efficiency_percent": 98.72883912239857,
-            "cuda_graph": false,
-            "data_transfers": false
           },
           "quality": {
             "model_space": {
@@ -752,24 +715,6 @@
               },
               "relative_to_ai_media_percent": -60.302881373066384
             }
-          },
-          "diagnostic_trtexec": {
-            "status": "valid",
-            "publishable": true,
-            "statistics": {
-              "max_fps": 62.9076,
-              "median_fps": 62.8463,
-              "min_fps": 62.8249,
-              "relative_spread": 0.0013159088124520084,
-              "values_fps": [
-                62.9076,
-                62.8463,
-                62.8249
-              ]
-            },
-            "pipeline_efficiency_percent": 79.46494643533164,
-            "cuda_graph": false,
-            "data_transfers": false
           },
           "quality": {
             "model_space": {
@@ -997,24 +942,6 @@
               "relative_to_ai_media_percent": -62.761438341207175
             }
           },
-          "diagnostic_trtexec": {
-            "status": "valid",
-            "publishable": true,
-            "statistics": {
-              "max_fps": 28.538,
-              "median_fps": 28.4903,
-              "min_fps": 28.4109,
-              "relative_spread": 0.00446116748507382,
-              "values_fps": [
-                28.4109,
-                28.4903,
-                28.538
-              ]
-            },
-            "pipeline_efficiency_percent": 88.11276623272279,
-            "cuda_graph": false,
-            "data_transfers": false
-          },
           "quality": {
             "model_space": {
               "status": "valid",
@@ -1071,30 +998,6 @@
           }
         }
       }
-    }
-  },
-  "diagnostics": {
-    "nsight": {
-      "status": "valid",
-      "publishable_as_performance_result": false,
-      "workload_id": "liveaction-span-sintel-v3",
-      "variant": "1080p",
-      "repository_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
-      "frames": 120,
-      "output_validation": true,
-      "findings": {
-          "cuda_kernel_time_coverage_of_frame_loop_percent": 98.16819322790127,
-        "nvdec_overlap_with_cuda_kernels_percent": 91.24737282788095,
-        "nvenc_overlap_with_cuda_kernels_percent": 98.92496005501442,
-        "startup_h2d_mib": 0.797271728515625,
-        "per_frame_d2d_mib": 39.02993138631185,
-        "per_frame_d2d_time_ms": 0.105988325,
-        "material_per_frame_h2d_or_d2h": false
-      },
-      "limitations": [
-        "Profiler overhead makes trace FPS non-publishable.",
-        "CPU IP sampling and scheduler context-switch tracing are disabled."
-      ]
     }
   }
 }
