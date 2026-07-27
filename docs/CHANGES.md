@@ -156,6 +156,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Reordered the published RTX 3090 summary around best-tuned and resource
+  results, added an explicit cross-class repeatability control, and moved the
+  single-stream figures into an analytical section. The SPAN 720p result now
+  identifies startup as a measured optimization target without replacing the
+  recorded tuned loss with a counterfactual value.
 - Standardized the project, Python distribution, import package, Docker images,
   build-provenance environment variables, benchmark implementation keys, and
   developer commands on the `trtvideo` name. The import package also moved from

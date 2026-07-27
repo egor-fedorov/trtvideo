@@ -20,12 +20,14 @@ different contracts or revisions.
 
 The RTX 3090 publication contains four result sets:
 
-- single-stream parity as a controlled historical baseline;
-- documented upstream-default scheduling;
 - workload-specific tuned sweeps and independent winner campaigns;
+- documented upstream-default scheduling;
+- single-stream parity as a controlled historical baseline;
 - separate `trtexec` and Nsight diagnostics.
 
 Upstream-default and tuned results are complete for both models and both
-resolutions; the publication is not limited to the single-stream baseline.
-Every result set retains its own measurement revision, contract, quality
+resolutions. The hardware summary presents tuned results first, includes an
+explicit cross-class repeatability control for the unchanged project execution
+profile, and retains single-stream parity only as an analytical baseline.
+Every result set keeps its own measurement revision, driver, contract, quality
 evidence, and machine-readable JSON.

@@ -17,9 +17,9 @@ Results are divided into independent classes:
 1. Single-stream parity: `trtvideo` against locally built
    `VapourSynth/vstrt` and a pinned upstream VSGAN runtime with one vspipe
    request, one TensorRT stream, and CUDA Graph disabled.
-2. Product-default/tuned: future campaigns with documented upstream defaults or
-   separately selected best-performing settings. These results remain separate
-   from single-stream parity.
+2. Product-default/tuned: completed campaigns with documented upstream defaults
+   and separately selected best-performing settings. These results remain
+   separate from single-stream parity.
 3. Diagnostics: `trtexec`, stage profiling, and Nsight. These are not
    competitors and do not appear as rows in the comparative table.
 
@@ -128,7 +128,8 @@ and confirmed a GPU-resident, continuously kernel-active frame loop without
 material per-frame host/device transfers. The validated RTX 3090
 single-stream, upstream-default, and tuned result classes are published
 together without merging their revision-bound contracts. Live-action
-confirmation and CPU attribution remain pending.
+confirmation, CPU attribution, and SPAN 720p startup optimization remain
+pending.
 
 - [x] Add isolated `parity`, `upstream-default`, and `tuned` campaign classes
   with immutable scheduling configuration and aggregate-time contract checks.
@@ -153,6 +154,11 @@ confirmation and CPU attribution remain pending.
   the required once-per-decoder-batch surface-lifetime synchronization. Do not
   remove that synchronization without full output and frame-integrity
   validation.
+- Diagnose and reduce SPAN 720p startup without removing startup from the
+  end-to-end contract. The tuned run spends 2.569 seconds, or 12.81% of wall
+  time, before steady state; matching the approximately one-second external
+  startup would move the measured result into the predefined +/-5% parity band
+  if frame-loop throughput remains unchanged.
 - If the timeline confirms idle periods, investigate double buffering, multiple
   execution contexts, and overlap of `decode N+1`, `inference N`, and
   `encode N-1`.
@@ -161,7 +167,8 @@ confirmation and CPU attribution remain pending.
 
 ## Stage 5. Open-Source Release
 
-- Add `LICENSE` and audit dependency, model, and media licenses.
+- [x] License project code and documentation under Apache License 2.0.
+- Audit dependency, model, and media licenses.
 - [x] Keep the English README as the primary README and add a one-command
   cached GPU demo covering model download through validated rich-media output.
 - [x] Add CI for Ruff, mypy, pytest, and static Dockerfile validation without
