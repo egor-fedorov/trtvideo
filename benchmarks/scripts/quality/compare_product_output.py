@@ -12,15 +12,14 @@ from benchmarks.scripts.quality.product_output import (
     ProductOutputError,
     compare_product_outputs,
 )
-from benchmarks.scripts.runners.common import find_variant
-from benchmarks.scripts.workloads.manifest import load_manifest
+from benchmarks.scripts.workloads.manifest import find_clip_variant, load_manifest
 
 
 def compare(args: argparse.Namespace) -> dict:
     """Run the product-output gate and persist its report."""
     root = Path(args.root).resolve()
     workload = load_manifest(Path(args.manifest))
-    variant = find_variant(workload, args.variant)
+    variant = find_clip_variant(workload, args.variant)
     output_path = Path(args.output)
     report = compare_product_outputs(
         Path(args.reference),

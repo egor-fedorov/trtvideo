@@ -161,6 +161,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Reorganized the benchmark harness around explicit contract, runtime, product,
+  and VapourSynth adapter boundaries. Engine validation and process helpers are
+  now shared without quality gates or external runners importing product-runner
+  internals.
 - Split the video package by abstraction level. Generic probe, FPS, frame
   iteration, and output-container contracts remain under `trtvideo.video`;
   NVDEC surface lifetime, CV-CUDA processing, bitrate policy, and NVENC settings

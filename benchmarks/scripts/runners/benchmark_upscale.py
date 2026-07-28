@@ -7,13 +7,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from benchmarks.scripts.runtime.nvml import NvmlError
-from benchmarks.scripts.runtime.runner import (
+from benchmarks.scripts.contracts.engine import EngineContractError
+from benchmarks.scripts.runners.trtvideo_suite import (
     BenchmarkConfig,
     BenchmarkError,
     run_suite,
-    write_summary_target,
 )
+from benchmarks.scripts.runtime.io import write_summary_target
+from benchmarks.scripts.runtime.nvml import NvmlError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -128,7 +129,7 @@ def main() -> None:
     try:
         summary, returncode = run_suite(config_from_args(args))
         write_summary_target(args.json, summary)
-    except BenchmarkError as exc:
+    except (BenchmarkError, EngineContractError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     except NvmlError as exc:

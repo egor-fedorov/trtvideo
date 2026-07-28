@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from benchmarks.scripts.runners.common import CommandSpec, command_spec
+from benchmarks.scripts.runtime.command import CommandSpec, command_spec
 from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 

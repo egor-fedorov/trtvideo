@@ -10,6 +10,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from benchmarks.scripts.contracts.benchmark import (
+    CompetitorError,
+    implementation_config,
+    load_json,
+)
+from benchmarks.scripts.contracts.engine import (
+    EngineContractError,
+    load_engine_contract,
+    validate_static_engine_contract,
+    validate_vsgan_engine_contract,
+)
 from benchmarks.scripts.quality.model_space import (
     ModelSpaceError,
     TensorArtifact,
@@ -17,24 +28,20 @@ from benchmarks.scripts.quality.model_space import (
     parse_frame_indices,
     write_capture_manifest,
 )
-from benchmarks.scripts.runners.common import (
-    CompetitorError,
-    find_model_variant,
-    find_variant,
-    implementation_config,
-    load_json,
-    validate_static_engine_contract,
-)
 from benchmarks.scripts.runners.vapoursynth_profile import (
     VapourSynthExecutionProfile,
     add_execution_profile_arguments,
     resolve_execution_profile,
     validate_declared_profile,
 )
-from benchmarks.scripts.runners.vsgan import _validate_vsgan_engine
 from benchmarks.scripts.runtime.environment import collect_image_identity, sha256_file
-from benchmarks.scripts.runtime.runner import BenchmarkError, load_engine_contract
-from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
+from benchmarks.scripts.workloads.manifest import (
+    WorkloadError,
+    find_clip_variant,
+    find_model_variant,
+    load_manifest,
+    repo_path,
+)
 
 
 def _quality_frame_indices(
@@ -157,7 +164,7 @@ def capture(args: argparse.Namespace) -> Path:
     implementations = load_json(Path(args.implementations))
     implementation = implementation_config(implementations, args.implementation)
     validate_declared_profile(implementation, profile)
-    clip_variant = find_variant(manifest, args.variant)
+    clip_variant = find_clip_variant(manifest, args.variant)
     model_variant = find_model_variant(manifest, args.variant)
     input_path = repo_path(root, clip_variant["path"])
     onnx_path = repo_path(root, model_variant["fp16_path"])
@@ -168,7 +175,7 @@ def capture(args: argparse.Namespace) -> Path:
 
     sidecar, _ = load_engine_contract(engine_path)
     if args.implementation == "vsgan":
-        _validate_vsgan_engine(
+        validate_vsgan_engine_contract(
             sidecar,
             manifest,
             args.variant,
@@ -276,11 +283,12 @@ def main() -> None:
         args = build_parser().parse_args()
         manifest_path = capture(args)
     except (
-        BenchmarkError,
         CompetitorError,
+        EngineContractError,
         ModelSpaceError,
         OSError,
         ValueError,
+        WorkloadError,
     ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)

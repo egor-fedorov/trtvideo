@@ -28,6 +28,25 @@ def load_manifest(path: Path) -> dict[str, Any]:
     return manifest
 
 
+def find_clip_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
+    """Return one canonical clip variant by name."""
+    variants = manifest.get("clip", {}).get("variants", [])
+    for variant in variants:
+        if isinstance(variant, dict) and variant.get("name") == name:
+            return variant
+    available = ", ".join(str(item.get("name")) for item in variants)
+    raise WorkloadError(f"Unknown variant {name!r}; available: {available}")
+
+
+def find_model_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
+    """Return one canonical model variant by name."""
+    variants = manifest.get("model", {}).get("variants", [])
+    for variant in variants:
+        if isinstance(variant, dict) and variant.get("name") == name:
+            return variant
+    raise WorkloadError(f"Workload has no model variant {name!r}")
+
+
 def _require_dict(parent: dict[str, Any], key: str) -> dict[str, Any]:
     value = parent.get(key)
     if not isinstance(value, dict):

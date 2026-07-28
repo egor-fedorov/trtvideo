@@ -6,7 +6,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from benchmarks.scripts.runners.common import CompetitorError
+from benchmarks.scripts.contracts.benchmark import CompetitorError
 
 Implementation = Literal["vstrt", "vsgan"]
 Mode = Literal["upstream-default", "tuned"]

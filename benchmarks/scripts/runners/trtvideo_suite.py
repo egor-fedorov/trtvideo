@@ -1,20 +1,18 @@
-"""Process-level benchmark orchestration without per-frame instrumentation."""
+"""Process-level benchmark suite for the trtvideo product."""
 
 from __future__ import annotations
 
 import json
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from benchmarks.scripts.contracts.engine import load_engine_contract
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
     sanitize_command,
-    sha256_file,
-    write_json,
 )
 from benchmarks.scripts.runtime.suite import SuitePolicy
 from benchmarks.scripts.runtime.video_suite import (
@@ -92,27 +90,6 @@ def validate_config(config: BenchmarkConfig) -> None:
         raise BenchmarkError("Benchmark requires explicit positive --bitrate-mbps")
     if (config.workload_manifest is None) != (config.variant is None):
         raise BenchmarkError("--workload-manifest and --variant must be used together")
-
-
-def load_engine_contract(engine: Path) -> tuple[dict[str, Any], Path]:
-    """Load and verify the sidecar emitted by build-engine."""
-    sidecar_path = Path(f"{engine}.json")
-    if not sidecar_path.is_file():
-        raise BenchmarkError(f"Engine sidecar not found: {sidecar_path}")
-    sidecar = load_json(sidecar_path)
-    expected_hash = sidecar.get("engine_sha256")
-    actual_hash = sha256_file(engine)
-    if expected_hash != actual_hash:
-        raise BenchmarkError(
-            f"Engine SHA256 does not match sidecar: expected {expected_hash}, got {actual_hash}"
-        )
-    for tensor_name in ("input", "output"):
-        shape = sidecar.get(tensor_name, {}).get("shape")
-        if not isinstance(shape, list) or len(shape) != 4 or not all(
-            isinstance(value, int) and value > 0 for value in shape
-        ):
-            raise BenchmarkError(f"Engine sidecar has invalid static {tensor_name} shape")
-    return sidecar, sidecar_path
 
 
 def _find_locked_asset(lock: dict[str, Any], *, kind: str, variant: str) -> dict[str, Any]:
@@ -457,14 +434,3 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         ),
         executor_factory,
     )
-
-
-def write_summary_target(path: str | None, summary: dict[str, Any]) -> None:
-    """Optionally mirror the canonical suite summary to a path or stdout."""
-    if path is None:
-        return
-    if path == "-":
-        json.dump(summary, sys.stdout, indent=2, sort_keys=True)
-        sys.stdout.write("\n")
-        return
-    write_json(Path(path), summary)

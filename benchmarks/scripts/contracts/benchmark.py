@@ -1,22 +1,15 @@
-"""Shared workload and command-plan helpers for benchmark runners."""
+"""Shared configuration and plan contracts for benchmark runners."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import shlex
-import sys
 from pathlib import Path
 from typing import Any
-
-from benchmarks.scripts.runtime.environment import sha256_file
 
 
 class CompetitorError(RuntimeError):
     """Raised when an external benchmark contract is invalid."""
-
-
-CommandSpec = list[list[str]]
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -30,25 +23,6 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def find_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
-    """Find a canonical clip variant by name."""
-    variants = manifest.get("clip", {}).get("variants", [])
-    for variant in variants:
-        if isinstance(variant, dict) and variant.get("name") == name:
-            return variant
-    available = ", ".join(str(item.get("name")) for item in variants)
-    raise CompetitorError(f"Unknown variant {name!r}; available: {available}")
-
-
-def find_model_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
-    """Find a canonical model variant by name."""
-    variants = manifest.get("model", {}).get("variants", [])
-    for variant in variants:
-        if isinstance(variant, dict) and variant.get("name") == name:
-            return variant
-    raise CompetitorError(f"Workload has no model variant {name!r}")
-
-
 def implementation_config(config: dict[str, Any], name: str) -> dict[str, Any]:
     """Return one pinned benchmark implementation definition."""
     if config.get("schema_version") != 1:
@@ -57,37 +31,6 @@ def implementation_config(config: dict[str, Any], name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise CompetitorError(f"Implementation config has no {name!r} entry")
     return value
-
-
-def validate_static_engine_contract(
-    sidecar: dict[str, Any],
-    manifest: dict[str, Any],
-    variant_name: str,
-    onnx_path: Path,
-) -> None:
-    """Verify the common tensor contract required by comparative benchmarks."""
-    model_variant = find_model_variant(manifest, variant_name)
-    clip_variant = find_variant(manifest, variant_name)
-    output = clip_variant["benchmark_output"]
-    expected_input = [
-        1,
-        3,
-        model_variant["input_height"],
-        model_variant["input_width"],
-    ]
-    expected_output = [1, 3, output["height"], output["width"]]
-    if sidecar.get("input", {}).get("shape") != expected_input:
-        raise CompetitorError("Engine input shape does not match workload")
-    if sidecar.get("output", {}).get("shape") != expected_output:
-        raise CompetitorError("Engine output shape does not match workload")
-    if sidecar.get("io_precision") != "fp32":
-        raise CompetitorError("Benchmark engine must keep FP32 input/output bindings")
-    if sidecar.get("input_profile") is not None:
-        raise CompetitorError("Benchmark engine must use a static full-frame shape")
-    if not onnx_path.is_file():
-        raise CompetitorError(f"Canonical ONNX not found: {onnx_path}")
-    if sidecar.get("model_sha256") != sha256_file(onnx_path):
-        raise CompetitorError("Engine was not built from the canonical ONNX")
 
 
 def benchmark_value(
@@ -170,18 +113,6 @@ def _fps_numerator(value: str) -> int:
     return max(1, round(numerator / denominator))
 
 
-def command_spec(*commands: list[str]) -> CommandSpec:
-    """Create an argv-only command or pipeline specification."""
-    if not commands or any(not command for command in commands):
-        raise CompetitorError("Command specification cannot be empty")
-    return [list(command) for command in commands]
-
-
-def display_command(spec: CommandSpec) -> str:
-    """Render a command specification for a runbook without changing execution."""
-    return " | ".join(shlex.join(command) for command in spec)
-
-
 def asset_requirement(path: str, kind: str) -> dict[str, Any]:
     """Describe a required container path without requiring it during dry-run."""
     return {
@@ -189,19 +120,6 @@ def asset_requirement(path: str, kind: str) -> dict[str, Any]:
         "path": path,
         "present": Path(path).is_file(),
     }
-
-
-def write_json_target(value: dict[str, Any], target: str | None) -> None:
-    """Write JSON to a file or stdout; dry-run defaults to stdout."""
-    if target is None or target == "-":
-        json.dump(value, sys.stdout, indent=2, sort_keys=True)
-        sys.stdout.write("\n")
-        return
-    path = Path(target)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as output:
-        json.dump(value, output, indent=2, sort_keys=True)
-        output.write("\n")
 
 
 def add_common_arguments(parser: argparse.ArgumentParser, *, engine: bool) -> None:

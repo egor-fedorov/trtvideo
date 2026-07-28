@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
 
 import pytest
 
-from benchmarks.scripts.runners.common import (
+from benchmarks.scripts.contracts.benchmark import (
     CompetitorError,
     benchmark_parameters,
-    validate_static_engine_contract,
 )
-from benchmarks.scripts.runners.external_video_suite import run_command_spec
 from benchmarks.scripts.runners.trtexec import (
     build_plan as build_trtexec_plan,
 )
@@ -24,13 +21,11 @@ from benchmarks.scripts.runners.trtexec import (
 from benchmarks.scripts.runners.vapoursynth_profile import (
     add_execution_profile_arguments,
 )
-from benchmarks.scripts.runners.vsgan import (
-    _validate_vsgan_engine,
-    build_vsgan_command,
-)
+from benchmarks.scripts.runners.vapoursynth_suite import run_command_spec
 from benchmarks.scripts.runners.vsgan import (
     build_plan as build_vsgan_plan,
 )
+from benchmarks.scripts.runners.vsgan import build_vsgan_command
 from benchmarks.scripts.runners.vstrt import (
     build_plan as build_vstrt_plan,
 )
@@ -95,24 +90,6 @@ def test_removed_single_request_profile_is_not_accepted() -> None:
     assert parser.parse_args([]).mode == "upstream-default"
     with pytest.raises(SystemExit):
         parser.parse_args(["--mode", "parity"])
-
-
-def test_static_engine_contract_checks_onnx_and_bindings(tmp_path: Path) -> None:
-    onnx_path = tmp_path / "model.onnx"
-    onnx_path.write_bytes(b"canonical onnx")
-    sidecar = {
-        "model_sha256": hashlib.sha256(b"canonical onnx").hexdigest(),
-        "io_precision": "fp32",
-        "input_profile": None,
-        "input": {"shape": [1, 3, 1080, 1920]},
-        "output": {"shape": [1, 3, 2160, 3840]},
-    }
-
-    validate_static_engine_contract(sidecar, manifest(), "1080p", onnx_path)
-
-    sidecar["io_precision"] = "fp16"
-    with pytest.raises(CompetitorError, match="FP32"):
-        validate_static_engine_contract(sidecar, manifest(), "1080p", onnx_path)
 
 
 def test_trtexec_command_explicitly_matches_cuda_graph_mode() -> None:
@@ -356,35 +333,6 @@ def test_vsgan_engine_build_is_static_strongly_typed() -> None:
     assert "--memPoolSize=workspace:8192MiB" in command
     assert "--skipInference" in command
     assert "--timingCacheFile=/app/models/cache/trt10.cache" in command
-
-
-def test_vsgan_engine_rejects_different_base_image(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    onnx_path = tmp_path / "model.onnx"
-    onnx_path.write_bytes(b"canonical onnx")
-    sidecar = {
-        "model_sha256": hashlib.sha256(b"canonical onnx").hexdigest(),
-        "io_precision": "fp32",
-        "input_profile": None,
-        "input": {"shape": [1, 3, 1080, 1920]},
-        "output": {"shape": [1, 3, 2160, 3840]},
-        "builder_flags": ["stronglyTyped"],
-        "tensorrt_version": "101600",
-        "builder_base_image": "old-image@sha256:old",
-    }
-    monkeypatch.setenv("TRTVIDEO_BASE_IMAGE", "new-image@sha256:new")
-    monkeypatch.setenv("TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "ffmpeg-version")
-
-    with pytest.raises(CompetitorError, match="different base image"):
-        _validate_vsgan_engine(
-            sidecar,
-            manifest(),
-            "1080p",
-            onnx_path,
-            "new-image@sha256:new",
-            "ffmpeg-version",
-        )
 
 
 def test_command_pipeline_executes_without_shell(tmp_path: Path) -> None:

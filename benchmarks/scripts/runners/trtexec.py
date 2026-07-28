@@ -13,16 +13,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.runners.common import (
+from benchmarks.scripts.contracts.benchmark import (
     CompetitorError,
     asset_requirement,
     benchmark_parameters,
-    find_variant,
     implementation_config,
     load_json,
     plan_document,
-    write_json_target,
 )
+from benchmarks.scripts.contracts.engine import EngineContractError, load_engine_contract
 from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
@@ -31,11 +30,8 @@ from benchmarks.scripts.runtime.environment import (
     sha256_file,
     write_json,
 )
+from benchmarks.scripts.runtime.io import write_json_target, write_summary_target
 from benchmarks.scripts.runtime.nvml import NvmlSampler, summarize_samples, write_samples
-from benchmarks.scripts.runtime.runner import (
-    load_engine_contract,
-    write_summary_target,
-)
 from benchmarks.scripts.runtime.suite import (
     SuitePolicy,
     SuiteRunner,
@@ -43,6 +39,7 @@ from benchmarks.scripts.runtime.suite import (
     report_publishability_errors,
     suite_publishability_errors,
 )
+from benchmarks.scripts.workloads.manifest import WorkloadError, find_clip_variant
 
 NUMBER = r"([0-9]+(?:\.[0-9]+)?)"
 
@@ -315,7 +312,7 @@ def _run_suite(
     output_dir.mkdir(parents=True, exist_ok=True)
     engine = Path(args.engine)
     sidecar, sidecar_path = load_engine_contract(engine)
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     expected_output = variant["benchmark_output"]
     if sidecar["output"]["shape"][2:] != [
         expected_output["height"],
@@ -451,7 +448,13 @@ def main() -> None:
             return
         summary, returncode = _run_suite(args, plan, manifest)
         write_summary_target(args.json, summary)
-    except (CompetitorError, OSError, ValueError) as exc:
+    except (
+        CompetitorError,
+        EngineContractError,
+        OSError,
+        ValueError,
+        WorkloadError,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     sys.exit(returncode)

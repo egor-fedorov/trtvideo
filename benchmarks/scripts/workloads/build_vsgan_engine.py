@@ -12,13 +12,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.runners.common import (
+from benchmarks.scripts.contracts.benchmark import (
     CompetitorError,
-    find_model_variant,
-    find_variant,
     load_json,
 )
 from benchmarks.scripts.runtime.environment import sha256_file, write_json
+from benchmarks.scripts.workloads.manifest import (
+    WorkloadError,
+    find_clip_variant,
+    find_model_variant,
+)
 
 TENSORRT_VERSION_RE = re.compile(r"TensorRT[^\n]*v([0-9]+)", re.IGNORECASE)
 
@@ -86,7 +89,7 @@ def write_sidecar(
 ) -> Path:
     """Write the engine contract consumed by the VSGAN benchmark runner."""
     model_variant = find_model_variant(manifest, variant_name)
-    clip_variant = find_variant(manifest, variant_name)
+    clip_variant = find_clip_variant(manifest, variant_name)
     output = clip_variant["benchmark_output"]
     sidecar_path = Path(f"{engine_path}.json")
     sidecar = {
@@ -184,7 +187,7 @@ def main() -> None:
             trtexec_output=output,
         )
         print(f"VSGAN engine contract: {sidecar}")
-    except (CompetitorError, OSError, ValueError) as exc:
+    except (CompetitorError, OSError, ValueError, WorkloadError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 

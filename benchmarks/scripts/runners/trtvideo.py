@@ -4,38 +4,22 @@
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-
-def load_manifest(path: Path) -> dict[str, Any]:
-    """Load the canonical workload manifest."""
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"Cannot read workload manifest {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object in {path}")
-    return value
-
-
-def find_variant(manifest: dict[str, Any], name: str) -> dict[str, Any]:
-    """Return one clip variant or fail with available names."""
-    variants = manifest.get("clip", {}).get("variants", [])
-    for variant in variants:
-        if variant.get("name") == name:
-            return variant
-    available = ", ".join(str(variant.get("name")) for variant in variants)
-    raise ValueError(f"Unknown variant {name!r}; available: {available}")
+from benchmarks.scripts.workloads.manifest import (
+    WorkloadError,
+    find_clip_variant,
+    load_manifest,
+)
 
 
 def build_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[str]:
     """Build the installed benchmark-upscale invocation from pinned workload values."""
     benchmark = manifest["benchmark"]
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     output = variant["benchmark_output"]
     command = [
         "benchmark-upscale",
@@ -109,7 +93,7 @@ def main() -> None:
         manifest = load_manifest(Path(args.manifest))
         command = build_command(args, manifest)
         result = subprocess.run(command, check=False)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, WorkloadError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     sys.exit(result.returncode)

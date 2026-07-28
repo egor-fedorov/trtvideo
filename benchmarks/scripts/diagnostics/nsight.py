@@ -12,12 +12,21 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.runners.common import (
+from benchmarks.scripts.contracts.benchmark import (
     asset_requirement,
-    find_variant,
     load_json,
     plan_document,
-    write_json_target,
+)
+from benchmarks.scripts.contracts.engine import (
+    EngineContractError,
+    load_engine_contract,
+)
+from benchmarks.scripts.runners.trtvideo_suite import (
+    BenchmarkConfig,
+    BenchmarkError,
+    collect_assets,
+    output_contract,
+    validate_config,
 )
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
@@ -26,15 +35,9 @@ from benchmarks.scripts.runtime.environment import (
     sanitize_command,
     write_json,
 )
+from benchmarks.scripts.runtime.io import write_json_target
 from benchmarks.scripts.runtime.nvml import NvmlError, NvmlSampler
-from benchmarks.scripts.runtime.runner import (
-    BenchmarkConfig,
-    BenchmarkError,
-    collect_assets,
-    load_engine_contract,
-    output_contract,
-    validate_config,
-)
+from benchmarks.scripts.workloads.manifest import WorkloadError, find_clip_variant
 from trtvideo.benchmarking.validation import validate_output
 from trtvideo.diagnostics.nvtx import NVTX_ENV
 
@@ -101,7 +104,7 @@ def build_upscale_command(
     output_path: Path,
 ) -> list[str]:
     """Build the ordinary unprofiled pipeline command wrapped by Nsight."""
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     return [
         "upscale",
@@ -353,7 +356,7 @@ def _diagnostic_config(
     manifest: dict[str, Any],
     paths: NsightPaths,
 ) -> BenchmarkConfig:
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     return BenchmarkConfig(
         engine=Path(args.engine),
         input_path=Path(variant["path"]),
@@ -547,7 +550,15 @@ def main() -> None:
             f"Nsight diagnostic {result['status']}: {args.output_dir}",
             file=sys.stderr,
         )
-    except (BenchmarkError, NsightError, NvmlError, OSError, ValueError) as exc:
+    except (
+        BenchmarkError,
+        EngineContractError,
+        NsightError,
+        NvmlError,
+        OSError,
+        ValueError,
+        WorkloadError,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     sys.exit(returncode)

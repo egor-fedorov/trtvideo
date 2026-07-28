@@ -8,27 +8,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.runners.common import (
-    CommandSpec,
+from benchmarks.scripts.contracts.benchmark import (
     CompetitorError,
     add_common_arguments,
     asset_requirement,
     benchmark_parameters,
-    display_command,
-    find_model_variant,
-    find_variant,
     implementation_config,
     load_json,
     output_contract,
     plan_document,
-    validate_static_engine_contract,
-    write_json_target,
 )
-from benchmarks.scripts.runners.external_video_suite import (
-    ExternalImplementation,
-    ExternalVideoSuiteConfig,
-    ExternalVideoWorkload,
-    run_external_video_suite,
+from benchmarks.scripts.contracts.engine import (
+    EngineContractError,
+    load_engine_contract,
+    validate_static_engine_contract,
 )
 from benchmarks.scripts.runners.vapoursynth_profile import (
     VapourSynthExecutionProfile,
@@ -36,9 +29,21 @@ from benchmarks.scripts.runners.vapoursynth_profile import (
     resolve_execution_profile,
     validate_declared_profile,
 )
+from benchmarks.scripts.runners.vapoursynth_suite import (
+    VapourSynthImplementation,
+    VapourSynthSuiteConfig,
+    VapourSynthWorkload,
+    run_vapoursynth_suite,
+)
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
-from benchmarks.scripts.runtime.runner import load_engine_contract, write_summary_target
+from benchmarks.scripts.runtime.command import CommandSpec, display_command
+from benchmarks.scripts.runtime.io import write_json_target, write_summary_target
 from benchmarks.scripts.runtime.suite import SuitePolicy
+from benchmarks.scripts.workloads.manifest import (
+    WorkloadError,
+    find_clip_variant,
+    find_model_variant,
+)
 from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 VSTRt_SCRIPT = "/app/benchmarks/vstrt/upscale.vpy"
@@ -55,7 +60,7 @@ def build_vstrt_command(
 ) -> CommandSpec:
     """Build the vspipe-to-NVENC full video pipeline."""
     profile = profile or resolve_execution_profile(args, "vstrt")
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     fps = manifest["clip"]["fps"]
     fps_num, fps_den = (int(part) for part in fps.split("/", 1))
@@ -97,7 +102,7 @@ def build_plan(
     measured_implementation["comparison_class"] = result_class
     measured_implementation["role"] = "technical"
     parameters = benchmark_parameters(args, manifest)
-    variant = find_variant(manifest, args.variant)
+    variant = find_clip_variant(manifest, args.variant)
     input_path = str(Path("/app") / variant["path"])
     output_dir = Path(args.output_dir)
     warmup = build_vstrt_command(
@@ -181,7 +186,7 @@ def main() -> None:
 
         engine = Path(args.engine)
         sidecar, sidecar_path = load_engine_contract(engine)
-        variant = find_variant(manifest, args.variant)
+        variant = find_clip_variant(manifest, args.variant)
         model_variant = find_model_variant(manifest, args.variant)
         onnx_path = Path(model_variant["fp16_path"])
         validate_static_engine_contract(
@@ -192,8 +197,8 @@ def main() -> None:
         )
         parameters = plan["parameters"]
         input_path = Path("/app") / variant["path"]
-        config = ExternalVideoSuiteConfig(
-            implementation=ExternalImplementation(
+        config = VapourSynthSuiteConfig(
+            implementation=VapourSynthImplementation(
                 product="vs-mlrt",
                 backend="vstrt",
                 comparison_class=plan["comparison_class"],
@@ -201,7 +206,7 @@ def main() -> None:
                 max_compute_processes=parameters["max_compute_processes"],
                 max_graphics_processes=parameters["max_graphics_processes"],
             ),
-            workload=ExternalVideoWorkload(
+            workload=VapourSynthWorkload(
                 workload_id=manifest["id"],
                 variant=args.variant,
                 output_dir=Path(args.output_dir),
@@ -251,9 +256,15 @@ def main() -> None:
             ),
             keep_outputs=args.keep_outputs,
         )
-        summary, returncode = run_external_video_suite(config)
+        summary, returncode = run_vapoursynth_suite(config)
         write_summary_target(args.json, summary)
-    except (CompetitorError, OSError, ValueError) as exc:
+    except (
+        CompetitorError,
+        EngineContractError,
+        OSError,
+        ValueError,
+        WorkloadError,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     sys.exit(returncode)

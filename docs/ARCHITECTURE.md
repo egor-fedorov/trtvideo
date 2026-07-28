@@ -202,7 +202,7 @@ temperature, and throttle state without calls in the per-frame hot path. After
 timing ends, the output is fully decoded and checked with FFmpeg/ffprobe, so
 validation and hashing do not affect end-to-end FPS.
 
-Project and external-video runners share one measurement core for artifact
+Project and VapourSynth runners share one measurement core for artifact
 layout, warmup handling, process timing, child CPU accounting, NVML sampling,
 output validation, reproducibility checks, and suite summaries. They retain
 separate command builders and lifecycle adapters because the project emits

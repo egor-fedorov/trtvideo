@@ -11,11 +11,13 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `implementations.json` - pinned implementations and execution profiles.
 - `docker/` - TensorRT 11 vstrt and pinned VSGAN environments.
 - `bin/run-benchmark.sh` - goal-based host workflow entrypoint.
-- `scripts/contracts/` - shared run and quality evidence contracts used by
-  campaign aggregation and tuned selection.
+- `scripts/contracts/` - benchmark plans, engine metadata, and run/quality
+  evidence contracts shared across runners, gates, aggregation, and tuning.
 - `scripts/runtime/` - process timing, CPU/NVML sampling, environment capture,
-  output validation orchestration, and suite policy.
-- `scripts/runners/` - project, vstrt, VSGAN, and trtexec execution.
+  command execution, JSON output, media validation orchestration, and suite
+  policy.
+- `scripts/runners/` - product, VapourSynth, VSGAN, and trtexec adapters built
+  on the shared runtime.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
 - `scripts/quality/` - model-space and final-output quality gates.
@@ -113,9 +115,8 @@ results for different models at the same resolution from overwriting each
 other.
 
 `profile-nsight` wraps one ordinary unprofiled `upscale` process. It does not
-contribute FPS values to a campaign. The canonical Stage 4
-trace uses SPAN at 1080p because its lighter inference makes pipeline gaps more
-visible:
+contribute FPS values to a campaign. The canonical diagnostic trace uses SPAN
+at 1080p because its lighter inference makes pipeline gaps more visible:
 
 ```bash
 make -C benchmarks plan-nsight \

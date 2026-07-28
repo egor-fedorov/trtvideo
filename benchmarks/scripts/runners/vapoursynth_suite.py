@@ -1,4 +1,4 @@
-"""External process benchmark suite for full-video implementations."""
+"""VapourSynth process benchmark suite for full-video implementations."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from benchmarks.scripts.runners.common import CommandSpec, CompetitorError
+from benchmarks.scripts.contracts.benchmark import CompetitorError
+from benchmarks.scripts.runtime.command import CommandSpec
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
     sanitize_command,
@@ -39,8 +40,8 @@ _VSPipe_FRAME_PATTERN = re.compile(rb"Frame:\s*(\d+)/(\d+)")
 
 
 @dataclass(frozen=True)
-class ExternalImplementation:
-    """Identity and process constraints of one external product."""
+class VapourSynthImplementation:
+    """Identity and process constraints of one VapourSynth implementation."""
 
     product: str
     backend: str
@@ -51,8 +52,8 @@ class ExternalImplementation:
 
 
 @dataclass(frozen=True)
-class ExternalVideoWorkload:
-    """Canonical assets and output contract for one video workload."""
+class VapourSynthWorkload:
+    """Canonical assets and output contract for one VapourSynth workload."""
 
     workload_id: str
     variant: str
@@ -65,11 +66,11 @@ class ExternalVideoWorkload:
 
 
 @dataclass(frozen=True)
-class ExternalVideoSuiteConfig:
-    """Composition root for one external full-video benchmark."""
+class VapourSynthSuiteConfig:
+    """Composition root for one VapourSynth full-video benchmark."""
 
-    implementation: ExternalImplementation
-    workload: ExternalVideoWorkload
+    implementation: VapourSynthImplementation
+    workload: VapourSynthWorkload
     policy: SuitePolicy
     sample_interval_ms: int
     gpu_id: int
@@ -206,7 +207,7 @@ def run_command_spec(
     )
 
 
-def _environment(config: ExternalVideoSuiteConfig, gpu: dict[str, Any]) -> dict[str, Any]:
+def _environment(config: VapourSynthSuiteConfig, gpu: dict[str, Any]) -> dict[str, Any]:
     environment = collect_environment(gpu)
     environment["image"] = {
         "reference": os.environ.get(
@@ -221,7 +222,7 @@ def _environment(config: ExternalVideoSuiteConfig, gpu: dict[str, Any]) -> dict[
     return environment
 
 
-def _contract(config: ExternalVideoSuiteConfig, frames: int, *, bitrate: bool) -> OutputContract:
+def _contract(config: VapourSynthSuiteConfig, frames: int, *, bitrate: bool) -> OutputContract:
     values = dict(config.workload.output_contract)
     values["frames"] = frames
     if not bitrate:
@@ -230,7 +231,7 @@ def _contract(config: ExternalVideoSuiteConfig, frames: int, *, bitrate: bool) -
 
 
 def _run_one(
-    config: ExternalVideoSuiteConfig,
+    config: VapourSynthSuiteConfig,
     *,
     run_index: int,
     sampler: Any,
@@ -327,12 +328,12 @@ def _run_one(
     )
 
 
-def run_external_video_suite(
-    config: ExternalVideoSuiteConfig,
+def run_vapoursynth_suite(
+    config: VapourSynthSuiteConfig,
     *,
     root: Path | None = None,
 ) -> tuple[dict[str, Any], int]:
-    """Run an external full pipeline with the common 3+2 contract."""
+    """Run a VapourSynth full pipeline with the common 3+2 contract."""
     root = (root or Path.cwd()).resolve()
     workload = config.workload
     implementation = config.implementation

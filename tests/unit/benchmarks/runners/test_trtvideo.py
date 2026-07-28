@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 
 from benchmarks.scripts.runners.trtvideo import build_command
-from benchmarks.scripts.runtime.environment import relative_artifact_path, sanitize_command
-from benchmarks.scripts.runtime.runner import (
+from benchmarks.scripts.runners.trtvideo_suite import (
     PRODUCT_NAME,
     BenchmarkConfig,
     BenchmarkError,
     build_upscale_command,
     validate_config,
 )
+from benchmarks.scripts.runtime.environment import relative_artifact_path, sanitize_command
 from benchmarks.scripts.runtime.suite import (
     SuitePolicy,
     SuiteRunner,
