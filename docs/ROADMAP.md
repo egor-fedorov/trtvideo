@@ -1,168 +1,61 @@
 # Roadmap
 
-The goal of the next cycle is to determine whether `trtvideo` has a
-measurable advantage as an NVIDIA/TensorRT video upscaler and to prepare
-defensible performance claims for an open-source release.
+This file lists only incomplete project priorities. Completed implementation
+work belongs in `docs/CHANGES.md`, measured changes in
+`docs/PERFORMANCE_LOG.md`, the benchmark contract in
+`benchmarks/methodology.md`, and published evidence in
+`benchmarks/results/`.
 
-The architectural claim under test is:
+## 1. Current-Revision Benchmark
 
-> The GPU-resident `NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC` pipeline
-> provides high end-to-end throughput without transferring uncompressed frames
-> to the CPU.
+The existing RTX 3090 upstream-default result remains valid evidence for its
+recorded revision. The tuned snapshot is retained for audit but is not a
+publishable best-tuned comparison because its VSGAN search used a restricted
+VapourSynth thread configuration.
 
-## Benchmark Matrix
+Before publishing current performance claims:
 
-Results are divided into independent classes:
+- rebuild all benchmark images and TensorRT engines from one clean revision;
+- rerun the complete upstream-default matrix after the torch-free NVCodec
+  runtime and startup/finalize changes;
+- run the corrected tuned matrix for RealESRGAN and SPAN at 720p and 1080p,
+  including the VSGAN `num_streams=2..6` grid with runtime-default VapourSynth
+  threads;
+- pass profile-scoped model-space and product-output quality gates and rotated
+  campaigns; full tuned quality runs apply only to the selected winners;
+- refresh the four `trtexec` ceilings using the rebuilt engines;
+- repeat the representative SPAN 1080p Nsight diagnostic on the current runtime
+  to confirm that the GPU-resident path still has no material per-frame
+  host/device transfers;
+- replace the withdrawn tuned snapshot only after the complete matrix passes
+  the machine-checked publication contract.
 
-1. Upstream-default: completed campaigns using the scheduling defaults recorded
-   from each pinned external implementation.
-2. Tuned: separately selected best-performing settings with independent quality
-   gates and rotated winner campaigns.
-3. Diagnostics: `trtexec`, stage profiling, and Nsight. These are not
-   competitors and do not appear as rows in the comparative table.
+After the canonical matrix:
 
-Video2X is excluded: version 6.4.0 does not support the universal
-`RealESRGAN_x2plus` used here and runs a different anime model. Comparing its FPS
-would not test pipeline efficiency.
+- run one confirmation workload on a short live-action clip with substantial
+  motion and fine detail;
+- inspect the new SPAN 720p lifecycle intervals. Optimize startup or finalize
+  only if the current-revision measurement still identifies them as material;
+- attribute project CPU use with `perf` or `py-spy` only if the new campaign
+  still shows unexplained sustained CPU consumption.
 
-Mandatory workloads:
+## 2. Open-Source Release
 
-- `RealESRGAN_x2plus` - a heavy, model-bound scenario;
-- `2xLiveActionV1_SPAN` - a light scenario that exposes video-pipeline overhead.
+- audit dependency, model, and benchmark-media licenses and document any
+  redistribution restrictions;
+- perform a repository privacy and Git-history audit;
+- add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates;
+- publish the final methodology, privacy-reviewed result tables, and compact
+  machine-readable evidence;
+- move full production and benchmark image builds to a larger or self-hosted
+  GitHub Actions runner; hosted runners continue to perform static Dockerfile
+  validation;
+- publish the first public versioned GitHub release.
 
-## Stage 0. Rebaseline Tooling
+## 3. Later
 
-Status: implemented offline. `make check`, benchmark/TRT11 vstrt image builds,
-runner dry runs, and the static VSGAN Dockerfile check pass. The complete pinned
-VSGAN image build, TensorRT engines, and runtime smoke tests belong to GPU
-acceptance in Stage 1.
-
-- Remove Video2X from canonical tooling and documentation.
-- Move `trtexec` to the diagnostic/reference class.
-- Add a pinned upstream VSGAN image without changing its internal code.
-- Keep a strict TRT11 `vstrt` runner using the same engine as the project.
-- Add a SPAN workload with verifiable source hash, attribution, and license.
-- Build a TRT10.16 VSGAN engine from the canonical mixed-FP16 ONNX on the
-  benchmark GPU and retain the build log, engine sidecar, and hashes.
-- Define success criteria and the complete inference/output contract in
-  `benchmarks/methodology.md`.
-
-## Stage 1. GPU Acceptance
-
-The target card for the first campaign is one physical GeForce RTX 3090 with
-24 GB of VRAM.
-
-- Record driver, power limit, clocks, thermal state, and immutable image IDs.
-- Build project TRT11 engines and pinned VSGAN TRT10.16 engines for RealESRGAN and
-  SPAN on this GPU. Never reuse engines across TensorRT runtimes.
-- Run a 720p smoke test for every runner: project, TRT11 `vstrt`, pinned VSGAN,
-  and diagnostic `trtexec`. Repeat at 1080p.
-- For each video output, validate complete decode, frame count, timestamps, color
-  tags, GOP/B-frames, bitrate, and size.
-- Any image, engine, model, or setting change invalidates the affected series
-  and requires another smoke test.
-
-## Stage 2. Measurement Gaps
-
-Status: complete for both published RTX 3090 resolutions and workloads. The
-exact NVENC contract, rotated campaign runner, sanitized acceptance table, CPU
-accounting, lifecycle timings, and both quality gates passed.
-
-- [x] Explicit requested NVENC rate-control contract for the project and VSGAN:
-  codec, preset, tuning, RC mode, target/min/max bitrate, VBV, GOP, and B-frames.
-  Actual bitrate and implementation-specific strict-CBR filler are reported
-  separately.
-- [x] CPU utilization for the measured subprocess tree through
-  `RUSAGE_CHILDREN`: user/system CPU seconds, average cores, and
-  affinity-normalized capacity.
-- [x] Separate `startup`, steady-state frame loop, and `finalize + mux` timing
-  scopes with one process/frame boundary contract.
-- [x] Model-space parity on RGB/float frames before YUV conversion and encode.
-  Capture/compare tooling and fixed thresholds passed for both resolutions and
-  workloads on the RTX 3090.
-- [x] Product-output PSNR/SSIM and visual crops after decoding MP4.
-  Retained-output runs, full-decode metrics, crop generation, and aggregator
-  validation passed for both resolutions and workloads.
-- [x] Campaign runner that rotates products by round instead of running grouped
-  suites.
-- [x] Sanitized final acceptance-table generation from raw manifests.
-
-Individual runners remain acceptance/baseline data. Only an aggregated campaign
-with completed quality gates is publishable.
-
-## Stage 3. Diagnostics And Best-Tuned
-
-Status: diagnostics and the upstream-default matrix are complete. All four
-`trtexec` ceilings are published. A clean
-SPAN 1080p Nsight trace used an engine rebuilt on the profiled RTX 3090 and
-confirmed a GPU-resident, continuously kernel-active frame loop without
-material per-frame host/device transfers. The first tuned snapshot is retained
-as historical evidence but withdrawn from performance claims because VSGAN was
-only tested with four VapourSynth threads. A corrected VSGAN
-`num_streams=2..6`, runtime-default-thread sweep is required before tuned
-publication. Live-action confirmation, CPU attribution, and SPAN 720p startup
-optimization remain pending.
-
-- [x] Add isolated `upstream-default` and `tuned` campaign classes with
-  immutable scheduling configuration and aggregate-time contract checks.
-- [x] Publish `trtexec` inference ceilings separately from product tables for
-  both resolutions and workloads.
-- [x] Collect one representative Nsight Systems trace and inspect H2D/D2H
-  copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
-- [x] Add a manifest-driven best-tuned selection workflow. It uses
-  workload-specific vstrt ranges (`2/3/4` for RealESRGAN and `2/3/4/5/6` for
-  SPAN), plus a mandatory VSGAN `2/3/4/5/6` stream grid with runtime-default
-  VapourSynth threads. It ranks only stable candidates with valid media and
-  model-space evidence and promotes the next point when a selected winner fails
-  full quality.
-- Repeat the tuned sweep, full 1000-frame winner quality gate, and rotated
-  winner campaign for both resolutions and workloads using the corrected VSGAN
-  grid. Publish only a machine-verified 720p + 1080p matrix, not individual
-  sweep results.
-- Keep CUDA Graph experimental while it captures only the TensorRT call and
-  provides no measured benefit on current heavy models.
-- Repeat the headline workload on a short live-action clip with substantial
-  motion and fine detail.
-- Attribute the current project's measured CPU use with `perf` or `py-spy`,
-  separating production orchestration and muxing from CUDA runtime polling at
-  the required once-per-decoder-batch surface-lifetime synchronization. Do not
-  remove that synchronization without full output and frame-integrity
-  validation.
-- Measure the new internal lifecycle checkpoints on SPAN 720p and reduce
-  startup/finalize overhead without removing either scope from the end-to-end
-  contract. The tuned baseline spends 2.569 seconds before steady state and
-  0.895 seconds after the frame loop. The frame loop no longer requests an
-  unused decoder batch, and the default NVCodec runtime no longer imports
-  PyTorch or allocates PyTorch tensors. Both effects still require a fixed
-  project-only GPU measurement before any performance claim.
-- If the timeline confirms idle periods, investigate double buffering, multiple
-  execution contexts, and overlap of `decode N+1`, `inference N`, and
-  `encode N-1`.
-- After each change, repeat one fixed benchmark and add only measured effects to
-  `docs/PERFORMANCE_LOG.md`.
-
-## Stage 4. Open-Source Release
-
-- [x] License project code and documentation under Apache License 2.0.
-- Audit dependency, model, and media licenses.
-- [x] Keep the English README as the primary README and add a one-command
-  cached GPU demo covering model download through validated rich-media output.
-- [x] Add CI for Ruff, mypy, pytest, and static Dockerfile validation without
-  requiring a GPU.
-- Move full production and benchmark Docker builds to a larger or self-hosted
-  GitHub Actions runner with enough disk for the 17 GB TensorRT base and 26 GB
-  final images. Standard hosted runners perform static Dockerfile validation
-  only.
-- Add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates.
-- Perform a repository privacy and history audit.
-- [x] Preserve multiple audio streams, subtitles, chapters, attachments, data
-  streams, and metadata. Reject incompatible output containers before
-  inference and expose only atomically completed outputs.
-- Publish the methodology, sanitized raw results, and final tables.
-- Publish a versioned GitHub Release.
-
-## Later
-
-- Improve the media contract: VFR, rotation, SAR/DAR, duration, and missing
-  `nb_frames`.
-- Add P010/HDR metadata passthrough, tonemap, and color management.
+- improve the media contract for VFR, rotation, SAR/DAR, duration, and missing
+  `nb_frames`;
+- add P010/HDR metadata handling, tonemapping, and color management;
+- add runtime dynamic-shape inference if it provides a concrete workflow
+  benefit over static resolution-specific engines.
