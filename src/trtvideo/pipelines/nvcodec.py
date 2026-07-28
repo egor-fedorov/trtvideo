@@ -11,12 +11,15 @@ from typing import Any
 
 from trtvideo.pipelines.base import BasePipeline
 from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
-from trtvideo.video.bitrate import auto_bitrate_from_source
-from trtvideo.video.cvcuda import NvcodecFrameProcessor
-from trtvideo.video.decoder import iter_locked_decode_frames
-from trtvideo.video.fps import format_nvenc_fps, gop_size_for_one_second
-from trtvideo.video.nvenc import NvencCbrContract
-from trtvideo.video.preservation import ffmpeg_preservation_args
+from trtvideo.video.nvcodec.bitrate import auto_bitrate_from_source
+from trtvideo.video.nvcodec.decoder import iter_locked_decode_frames
+from trtvideo.video.nvcodec.encoder import (
+    NvencCbrContract,
+    format_nvenc_fps,
+    gop_size_for_one_second,
+)
+from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
+from trtvideo.video.output import build_ffmpeg_stream_copy_args
 
 
 class NvcodecPipeline(BasePipeline):
@@ -280,12 +283,14 @@ class NvcodecPipeline(BasePipeline):
             "error",
             "-y",
             "-r",
-            self.info["fps_str"],
+            self.info.fps_str,
             "-i",
             self._tmp_raw_path,
             "-i",
             self.args.input,
-            *ffmpeg_preservation_args(preserve_chapters=self.args.max_frames <= 0),
+            *build_ffmpeg_stream_copy_args(
+                preserve_chapters=self.args.max_frames <= 0
+            ),
             *self.ffmpeg_color_metadata_args(),
             *self.ffmpeg_limited_duration_args(),
             *faststart_args,

@@ -1,4 +1,4 @@
-"""Video bitrate estimation helpers."""
+"""NVENC target-bitrate estimation."""
 
 AUTO_BITRATE_COMPLEXITY_EXPONENT = 0.6
 

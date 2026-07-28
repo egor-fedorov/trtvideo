@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from trtvideo.video.cuda_array import nv12_nhwc_view
+from trtvideo.video.nvcodec.surface import nv12_nhwc_view
 
 
 class FakeCudaBuffer:

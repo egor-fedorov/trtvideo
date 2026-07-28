@@ -1,11 +1,11 @@
-"""Shared CV-CUDA frame processing for production and quality capture."""
+"""CV-CUDA frame processing shared by production and quality capture."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from trtvideo.video.cuda_array import nv12_nhwc_view
+from trtvideo.video.nvcodec.surface import nv12_nhwc_view
 
 if TYPE_CHECKING:
     from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime

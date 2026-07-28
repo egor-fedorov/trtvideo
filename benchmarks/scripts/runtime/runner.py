@@ -36,9 +36,8 @@ from trtvideo.benchmarking.lifecycle import (
     summarize_lifecycle,
 )
 from trtvideo.benchmarking.validation import OutputContract, validate_output
-from trtvideo.video.fps import gop_size_for_one_second
-from trtvideo.video.info import get_video_info
-from trtvideo.video.nvenc import NvencCbrContract
+from trtvideo.video.nvcodec.encoder import NvencCbrContract, gop_size_for_one_second
+from trtvideo.video.probe import probe_video
 
 PRODUCT_NAME = "trtvideo"
 
@@ -245,7 +244,7 @@ def output_contract(
     enforce_bitrate: bool,
 ) -> OutputContract:
     """Derive exact output expectations from input metadata and engine sidecar."""
-    info = get_video_info(str(config.input_path))
+    info = probe_video(str(config.input_path))
     input_shape = sidecar["input"]["shape"]
     output_shape = sidecar["output"]["shape"]
     if [info.height, info.width] != [input_shape[2], input_shape[3]]:
@@ -537,7 +536,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     environment = collect_environment(gpu)
     encoder_parameters = None
     assert config.bitrate_mbps is not None
-    info = get_video_info(str(config.input_path))
+    info = probe_video(str(config.input_path))
     encoder_parameters = NvencCbrContract(
         bitrate_bps=int(config.bitrate_mbps * 1_000_000),
         gop_frames=gop_size_for_one_second(info.fps_str),

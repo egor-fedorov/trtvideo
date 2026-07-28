@@ -1,4 +1,4 @@
-"""Video metadata retrieval via ffprobe."""
+"""Video metadata contract and ffprobe adapter."""
 
 import json
 import subprocess
@@ -11,7 +11,7 @@ from trtvideo.video.fps import parse_fps
 
 @dataclass(frozen=True)
 class VideoInfo:
-    """Minimal video metadata contract used by the current pipelines."""
+    """Video stream metadata required by the production pipeline."""
 
     width: int
     height: int
@@ -26,17 +26,6 @@ class VideoInfo:
     video_bit_rate: int | None = None
     container_bit_rate: int | None = None
 
-    def __getitem__(self, key: str) -> Any:
-        """Preserve existing dict-style call sites during the contracts split."""
-        try:
-            return getattr(self, key)
-        except AttributeError as exc:
-            raise KeyError(key) from exc
-
-
-def _parse_fps(value: str) -> float:
-    return parse_fps(value)
-
 
 def _parse_optional_int(value: Any) -> int | None:
     if value in {None, "", "N/A"}:
@@ -48,8 +37,8 @@ def _parse_optional_int(value: Any) -> int | None:
     return parsed if parsed > 0 else None
 
 
-def get_video_info(input_path: str) -> VideoInfo:
-    """Get video metadata via ffprobe.
+def probe_video(input_path: str) -> VideoInfo:
+    """Read the primary video stream metadata through ffprobe.
 
     Args:
         input_path: Path to the video file.
@@ -78,7 +67,7 @@ def get_video_info(input_path: str) -> VideoInfo:
     for stream in info["streams"]:
         if stream["codec_type"] == "video":
             fps_str = stream.get("r_frame_rate", "30/1")
-            fps = _parse_fps(fps_str)
+            fps = parse_fps(fps_str)
 
             nb_frames = int(stream.get("nb_frames") or 0)
             width = int(stream["width"])

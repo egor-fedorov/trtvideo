@@ -127,9 +127,10 @@ def capture(args: argparse.Namespace) -> Path:
     import PyNvVideoCodec as nvc
 
     from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
-    from trtvideo.video.cvcuda import NvcodecFrameProcessor
-    from trtvideo.video.decoder import iter_limited_frames, iter_locked_decode_frames
-    from trtvideo.video.info import get_video_info
+    from trtvideo.video.frames import iter_limited_frames
+    from trtvideo.video.nvcodec.decoder import iter_locked_decode_frames
+    from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
+    from trtvideo.video.probe import probe_video
 
     root = Path(args.root).resolve()
     manifest = load_manifest(Path(args.manifest))
@@ -149,7 +150,7 @@ def capture(args: argparse.Namespace) -> Path:
         args.variant,
         onnx_path,
     )
-    info = get_video_info(str(input_path))
+    info = probe_video(str(input_path))
     expected_dimensions = (
         int(model_variant["input_width"]),
         int(model_variant["input_height"]),

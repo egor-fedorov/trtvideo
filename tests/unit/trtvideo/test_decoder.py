@@ -1,4 +1,5 @@
-from trtvideo.video.decoder import iter_limited_frames, iter_locked_decode_frames
+from trtvideo.video.frames import iter_limited_frames
+from trtvideo.video.nvcodec.decoder import iter_locked_decode_frames
 
 
 def test_decode_batch_is_released_before_fetching_the_next_batch() -> None:

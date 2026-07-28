@@ -15,10 +15,10 @@ from trtvideo.demo.media import (
     validate_demo_video,
     write_demo_media_assets,
 )
-from trtvideo.video.preservation import (
+from trtvideo.video.output import (
     MediaPreservationError,
-    ffmpeg_preservation_args,
-    validate_media_preservation,
+    build_ffmpeg_stream_copy_args,
+    preflight_output_container,
 )
 
 pytestmark = pytest.mark.docker
@@ -146,7 +146,7 @@ def test_mkv_preserves_source_media_contract(tmp_path: Path) -> None:
     source = _create_rich_source(tmp_path)
     output = tmp_path / "output.mkv"
 
-    validate_media_preservation(str(source), str(output), preserve_chapters=True)
+    preflight_output_container(str(source), str(output), preserve_chapters=True)
     _run(
         [
             "ffmpeg",
@@ -160,7 +160,7 @@ def test_mkv_preserves_source_media_contract(tmp_path: Path) -> None:
             "testsrc2=size=128x72:rate=10:duration=1",
             "-i",
             str(source),
-            *ffmpeg_preservation_args(),
+            *build_ffmpeg_stream_copy_args(),
             "-c:v",
             "libx264",
             "-preset",
@@ -223,7 +223,7 @@ def test_mp4_preflight_rejects_unrepresentable_source_streams(tmp_path: Path) ->
     source = _create_rich_source(tmp_path)
 
     with pytest.raises(MediaPreservationError, match=r"Use an \.mkv output"):
-        validate_media_preservation(
+        preflight_output_container(
             str(source),
             str(tmp_path / "output.mp4"),
             preserve_chapters=True,

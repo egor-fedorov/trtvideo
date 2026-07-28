@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarks.scripts.runners.common import CommandSpec, command_spec
-from trtvideo.video.nvenc import NvencCbrContract
+from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 
 @dataclass(frozen=True)

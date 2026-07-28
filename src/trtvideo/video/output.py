@@ -1,4 +1,4 @@
-"""FFmpeg media-preservation and atomic-output helpers."""
+"""Output-container preservation and atomic commit helpers."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ class MediaPreservationError(RuntimeError):
     """Raised when the requested output cannot satisfy the media contract."""
 
 
-def ffmpeg_preservation_args(
+def build_ffmpeg_stream_copy_args(
     *,
     video_input_index: int = 0,
     source_input_index: int = 1,
@@ -54,7 +54,7 @@ def build_container_preflight_command(
         "color=c=black:s=16x16:r=25:d=0.04",
         "-i",
         input_path,
-        *ffmpeg_preservation_args(preserve_chapters=preserve_chapters),
+        *build_ffmpeg_stream_copy_args(preserve_chapters=preserve_chapters),
         "-c:v",
         "libx264",
         "-preset",
@@ -69,7 +69,7 @@ def build_container_preflight_command(
     ]
 
 
-def validate_media_preservation(
+def preflight_output_container(
     input_path: str,
     output_path: str,
     *,
@@ -115,7 +115,7 @@ def validate_media_preservation(
         Path(preflight_path).unlink(missing_ok=True)
 
 
-def create_atomic_output_path(output_path: str) -> Path:
+def create_staging_output(output_path: str) -> Path:
     """Reserve a same-directory temporary path suitable for atomic replacement."""
     output = Path(output_path)
     parent = output.parent

@@ -161,6 +161,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Split the video package by abstraction level. Generic probe, FPS, frame
+  iteration, and output-container contracts remain under `trtvideo.video`;
+  NVDEC surface lifetime, CV-CUDA processing, bitrate policy, and NVENC settings
+  now live under `trtvideo.video.nvcodec`. Ambiguous compatibility imports and
+  dict-style `VideoInfo` access were removed.
 - Replaced PyTorch tensor/stream orchestration in the default `nvcodec` runtime
   with CV-CUDA-owned buffers, CUDA Array Interface views, and direct TensorRT
   bindings. Ordinary GPU-resident inference no longer imports PyTorch; model

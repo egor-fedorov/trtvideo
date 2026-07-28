@@ -12,14 +12,14 @@ from typing import TYPE_CHECKING
 from trtvideo.benchmarking.lifecycle import FrameLifecycleMarkers, write_frame_markers
 from trtvideo.diagnostics.nvtx import NvtxAnnotator
 from trtvideo.runtime import RuntimeEngine
-from trtvideo.video.decoder import iter_limited_frames
-from trtvideo.video.info import VideoInfo, get_video_info
-from trtvideo.video.preservation import (
+from trtvideo.video.frames import iter_limited_frames
+from trtvideo.video.output import (
     MediaPreservationError,
     commit_atomic_output,
-    create_atomic_output_path,
-    validate_media_preservation,
+    create_staging_output,
+    preflight_output_container,
 )
+from trtvideo.video.probe import VideoInfo, probe_video
 
 if TYPE_CHECKING:
     from trtvideo.profiling import ProfileCollector
@@ -45,6 +45,7 @@ class BasePipeline(ABC):
     """
 
     DESCRIPTION: str = "TensorRT Video Upscaler"
+
     def __init__(self, args: argparse.Namespace):
         self.args = args
         self.info = VideoInfo(width=0, height=0, fps=0.0, fps_str="0/1", nb_frames=0)
@@ -197,7 +198,7 @@ class BasePipeline(ABC):
             base, ext = os.path.splitext(args.input)
             args.output = f"{base}_upscaled{ext}"
 
-        self.info = get_video_info(args.input)
+        self.info = probe_video(args.input)
         self._record_lifecycle_phase("video_probed")
         info = self.info
         self.log(
@@ -217,12 +218,12 @@ class BasePipeline(ABC):
         self.engine_path = args.engine
 
         try:
-            validate_media_preservation(
+            preflight_output_container(
                 args.input,
                 args.output,
                 preserve_chapters=args.max_frames <= 0,
             )
-            working_output_path = create_atomic_output_path(args.output)
+            working_output_path = create_staging_output(args.output)
         except MediaPreservationError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)

@@ -1,4 +1,4 @@
-"""Frame-rate parsing and encoder formatting helpers."""
+"""Frame-rate parsing helpers."""
 
 from fractions import Fraction
 
@@ -16,21 +16,3 @@ def parse_fps_fraction(value: str) -> Fraction:
 def parse_fps(value: str) -> float:
     """Parse a frame-rate string into a float for reporting and arithmetic."""
     return float(parse_fps_fraction(value))
-
-
-def format_nvenc_fps(value: str) -> str:
-    """Return a PyNvVideoCodec ``fps`` parameter without integer rounding."""
-    fps = parse_fps_fraction(value)
-    if fps <= 0:
-        raise ValueError(f"invalid frame rate: {value}")
-    if fps.denominator == 1:
-        return str(fps.numerator)
-    return str(float(fps))
-
-
-def gop_size_for_one_second(value: str) -> int:
-    """Return a GOP/IDR interval of roughly one second, measured in frames."""
-    fps = parse_fps_fraction(value)
-    if fps <= 0:
-        raise ValueError(f"invalid frame rate: {value}")
-    return max(1, int(fps + Fraction(1, 2)))

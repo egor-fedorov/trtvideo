@@ -40,7 +40,7 @@ from benchmarks.scripts.runners.vapoursynth_profile import (
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
 from benchmarks.scripts.runtime.runner import load_engine_contract, write_summary_target
 from benchmarks.scripts.runtime.suite import SuitePolicy
-from trtvideo.video.nvenc import NvencCbrContract
+from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 VSTRt_SCRIPT = "/app/benchmarks/vstrt/upscale.vpy"
 

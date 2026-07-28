@@ -1,4 +1,4 @@
-from trtvideo.video.bitrate import (
+from trtvideo.video.nvcodec.bitrate import (
     AUTO_BITRATE_COMPLEXITY_EXPONENT,
     auto_bitrate_from_source,
 )

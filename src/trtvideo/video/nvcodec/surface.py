@@ -1,4 +1,4 @@
-"""Zero-copy CUDA Array Interface views for decoded video surfaces."""
+"""Zero-copy CUDA Array Interface views for NVDEC surfaces."""
 
 from __future__ import annotations
 

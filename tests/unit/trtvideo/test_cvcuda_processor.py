@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from trtvideo.video.cvcuda import NvcodecFrameProcessor
+from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
 
 
 class FakeTensor:

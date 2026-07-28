@@ -22,7 +22,8 @@ src/trtvideo/
   diagnostics/  opt-in markers for external profilers
   pipelines/    decode -> inference -> encode orchestration
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
-  video/        ffprobe metadata, FPS, bitrate, and colorspace helpers
+  video/        generic video metadata, frame iteration, and output contracts
+    nvcodec/     NVDEC surfaces, CV-CUDA processing, and NVENC policy
   models/       model runtime contract (ModelSpec)
   profiling.py  stage timing collection
 ```
@@ -101,8 +102,8 @@ Per-frame processing order:
    and returns an NV12 surface in device memory.
 2. CV-CUDA wraps the decoded surface through its CUDA buffer interface. A
    zero-copy NHWC view crops any pitch padding without copying the frame.
-3. `FrameBufferPool` and `CvcudaTensorRTRuntime` reuse preallocated RGB, NV12,
-   and NCHW CV-CUDA tensors.
+3. `CvcudaFrameBuffers` and `CvcudaTensorRTRuntime` reuse preallocated RGB,
+   NV12, and NCHW CV-CUDA tensors.
 4. CV-CUDA converts NV12 to RGB with an explicit SDR color specification.
 5. RGB is converted to the TensorRT input layout, then inference runs.
 6. CV-CUDA converts the output RGB back to NV12.
@@ -115,6 +116,13 @@ The production pipeline and model-space quality capture share
 `NvcodecFrameProcessor` for surface wrapping, preprocess, TensorRT enqueue, and
 postprocess. The quality job copies only selected normalized input and raw
 output tensors to the host after synchronizing this shared path.
+
+Generic video concerns stay directly under `src/trtvideo/video/`: `probe.py`
+adapts ffprobe into `VideoInfo`, `fps.py` preserves rational frame rates,
+`frames.py` owns implementation-independent iterator limits, and `output.py`
+owns the stream-preservation and atomic-output transaction. NVIDIA-specific
+bitrate, decoder lifetime, encoder policy, CUDA surfaces, and frame processing
+live under `src/trtvideo/video/nvcodec/`.
 
 The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
 use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and

@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from trtvideo.video import info as video_info
+import trtvideo.video.probe as video_probe
 
 
 @dataclass
@@ -36,10 +36,6 @@ def _ffprobe_payload(*, stream_bit_rate: str | None, format_bit_rate: str | None
     return json.dumps(payload)
 
 
-def test_parse_fps_fraction() -> None:
-    assert video_info._parse_fps("60000/1001") == pytest.approx(59.94005994)
-
-
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -52,19 +48,19 @@ def test_parse_fps_fraction() -> None:
     ],
 )
 def test_parse_optional_int(value: object, expected: int | None) -> None:
-    assert video_info._parse_optional_int(value) == expected
+    assert video_probe._parse_optional_int(value) == expected
 
 
-def test_get_video_info_prefers_video_stream_bitrate(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_probe_video_prefers_video_stream_bitrate(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(*_args: object, **_kwargs: object) -> FakeCompletedProcess:
         return FakeCompletedProcess(
             returncode=0,
             stdout=_ffprobe_payload(stream_bit_rate="4100000", format_bit_rate="4500000"),
         )
 
-    monkeypatch.setattr(video_info.subprocess, "run", fake_run)
+    monkeypatch.setattr(video_probe.subprocess, "run", fake_run)
 
-    info = video_info.get_video_info("input.mp4")
+    info = video_probe.probe_video("input.mp4")
 
     assert info.width == 1280
     assert info.height == 720
@@ -74,7 +70,7 @@ def test_get_video_info_prefers_video_stream_bitrate(monkeypatch: pytest.MonkeyP
     assert info.container_bit_rate == 4_500_000
 
 
-def test_get_video_info_keeps_container_bitrate_fallback(
+def test_probe_video_keeps_container_bitrate_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fake_run(*_args: object, **_kwargs: object) -> FakeCompletedProcess:
@@ -83,19 +79,19 @@ def test_get_video_info_keeps_container_bitrate_fallback(
             stdout=_ffprobe_payload(stream_bit_rate=None, format_bit_rate="4500000"),
         )
 
-    monkeypatch.setattr(video_info.subprocess, "run", fake_run)
+    monkeypatch.setattr(video_probe.subprocess, "run", fake_run)
 
-    info = video_info.get_video_info("input.mp4")
+    info = video_probe.probe_video("input.mp4")
 
     assert info.video_bit_rate is None
     assert info.container_bit_rate == 4_500_000
 
 
-def test_get_video_info_exits_when_ffprobe_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_probe_video_exits_when_ffprobe_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(*_args: object, **_kwargs: object) -> FakeCompletedProcess:
         return FakeCompletedProcess(returncode=1, stdout="", stderr="bad input")
 
-    monkeypatch.setattr(video_info.subprocess, "run", fake_run)
+    monkeypatch.setattr(video_probe.subprocess, "run", fake_run)
 
     with pytest.raises(SystemExit):
-        video_info.get_video_info("missing.mp4")
+        video_probe.probe_video("missing.mp4")

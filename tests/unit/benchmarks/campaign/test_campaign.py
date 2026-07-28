@@ -29,7 +29,7 @@ from benchmarks.scripts.campaign.core import (
 )
 from benchmarks.scripts.campaign.run import CampaignRunError, run_campaign
 from benchmarks.scripts.runtime.environment import sha256_file
-from trtvideo.video.nvenc import NvencCbrContract
+from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 
 def _write_json(path: Path, value: dict) -> None:
