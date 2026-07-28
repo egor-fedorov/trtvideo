@@ -15,8 +15,9 @@ different contracts or revisions.
 
 ## Results
 
-- [RTX 3090 comparative benchmark](rtx-3090/README.md) - complete validated
-  `720p -> 1440p` and `1080p -> 4K` RealESRGAN_x2plus and SPAN matrix.
+- [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated
+  `720p -> 1440p` and `1080p -> 4K` upstream-default and single-stream results,
+  plus a retained tuned snapshot pending a corrected VSGAN sweep.
 
 The RTX 3090 publication contains four result sets:
 
@@ -25,9 +26,10 @@ The RTX 3090 publication contains four result sets:
 - single-stream parity as a controlled historical baseline;
 - separate `trtexec` and Nsight diagnostics.
 
-Upstream-default and tuned results are complete for both models and both
-resolutions. The hardware summary presents tuned results first, includes an
-explicit cross-class repeatability control for the unchanged project execution
-profile, and retains single-stream parity only as an analytical baseline.
-Every result set keeps its own measurement revision, driver, contract, quality
-evidence, and machine-readable JSON.
+Upstream-default results are complete for both models and both resolutions.
+The first tuned snapshot used only four VapourSynth threads for VSGAN and is
+therefore non-publishable as a maximum-throughput comparison. Its measurements
+remain available for audit while the corrected `num_streams=2..6`,
+runtime-default-thread sweep is pending. Every result set keeps its own
+measurement revision, driver, contract, quality evidence, and machine-readable
+JSON.

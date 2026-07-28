@@ -161,6 +161,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Expanded both tuned workload contracts with a mandatory VSGAN
+  `num_streams=2..6` sweep using runtime-default VapourSynth threads. Contract
+  validation now rejects an asymmetric grid. The previous RTX 3090 tuned
+  snapshot remains available as historical evidence but is withdrawn from
+  publication claims until the corrected sweep and winner campaigns complete.
 - Reordered the published RTX 3090 summary around best-tuned and resource
   results, added an explicit cross-class repeatability control, and moved the
   single-stream figures into an analytical section. The SPAN 720p result now

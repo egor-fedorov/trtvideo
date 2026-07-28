@@ -139,6 +139,11 @@ def _complete_sweep(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
         "vstrt-s2-g0": 10.0,
         "vstrt-s3-g0": 12.0,
         "vstrt-s4-g0": 11.0,
+        "vsgan-s2-tauto-g0": 8.0,
+        "vsgan-s3-tauto-g0": 8.1,
+        "vsgan-s4-tauto-g0": 8.2,
+        "vsgan-s5-tauto-g0": 8.3,
+        "vsgan-s6-tauto-g0": 8.4,
         "vsgan-s4-g0": 9.0,
         "vsgan-s4-g1": 9.5,
     }

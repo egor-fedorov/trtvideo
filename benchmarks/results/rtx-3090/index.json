@@ -37,11 +37,12 @@
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "d40fb1144b98e2cfd16c528031d4dd78ae1d1dd88a7bb7f510573cb5ba73607b",
+      "sha256": "a8c3a42c39a934cae53538978b255f9f11575e14a57f519d5542485972666611",
       "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
       "date_utc": "2026-07-27",
-      "status": "valid",
-      "publishable": true
+      "status": "withdrawn",
+      "publishable": false,
+      "notes": "Measured values are retained, but the VSGAN candidate grid did not vary runtime-default VapourSynth threads across num_streams=2..6."
     },
     {
       "id": "diagnostics",

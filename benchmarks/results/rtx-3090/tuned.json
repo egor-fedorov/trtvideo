@@ -1,8 +1,13 @@
 {
   "schema_version": 1,
   "document_type": "published_tuned_results",
-  "status": "valid",
-  "publishable": true,
+  "status": "withdrawn",
+  "publishable": false,
+  "publication_review": {
+    "reason": "The VSGAN candidate grid fixed VapourSynth threads and num_streams at four while vstrt used runtime-default threads and a wider stream sweep.",
+    "required_action": "Repeat both workloads and resolutions with the corrected VSGAN num_streams=2..6 runtime-default-thread contract, then rerun winner quality gates and final campaigns.",
+    "measured_values_retained": true
+  },
   "scope": {
     "date_utc": "2026-07-27",
     "measurement_revision": "7aa3d6eea986d5266dbf7a86379e8e4241375335",
@@ -10,7 +15,7 @@
     "comparison_modes": [
       "tuned"
     ],
-    "claim_scope": "End-to-end throughput after bounded workload-specific candidate selection, full winner quality gates, and independent rotated final campaigns."
+    "claim_scope": "Historical bounded-sweep evidence withdrawn from tuned product claims pending a corrected VSGAN scheduling sweep."
   },
   "environment": {
     "gpu": {

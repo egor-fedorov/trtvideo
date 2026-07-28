@@ -1,9 +1,11 @@
 # RTX 3090 Comparative Benchmark
 
-This directory publishes all currently validated RTX 3090 results. The primary
-result is the best-tuned comparison. Upstream-default scheduling follows it,
-while single-stream parity is retained at the end as a controlled analysis of
-pipeline overhead rather than a product-throughput claim.
+This directory retains the current RTX 3090 benchmark evidence.
+Upstream-default scheduling is the primary publishable product comparison,
+while single-stream parity is retained as a controlled analysis of pipeline
+overhead rather than a product-throughput claim. The previous tuned snapshot is
+preserved for audit but withdrawn from publication pending a corrected VSGAN
+sweep.
 
 Result classes remain separate:
 
@@ -18,7 +20,14 @@ upstream-default and tuned used driver 595.84. Numbers are not compared
 row-by-row across classes except for the explicitly labeled repeatability
 control below.
 
-## Best-Tuned Results
+## Withdrawn Tuned Snapshot
+
+This snapshot is not a publishable best-tuned comparison. VSGAN was tested only
+with four VapourSynth threads, while vstrt used the runtime default of 12 on the
+Ryzen 5 5600. The corrected contract sweeps VSGAN `num_streams=2..6` with
+runtime-default VapourSynth threads. The measured values below remain historical
+evidence and must not support tuned product claims until that sweep, winner
+quality gates, and final rotated campaigns are complete.
 
 The tuned campaigns were measured on 2026-07-27 from clean revision
 `7aa3d6eea986d5266dbf7a86379e8e4241375335`. Every accepted manifest records
@@ -43,11 +52,10 @@ RealESRGAN and SPAN 1080p are in parity with the fastest tuned external
 implementation under the predefined +/-5% threshold. SPAN 720p is a confirmed
 tuned `vs-mlrt` advantage.
 
-The tuned matrix does not support a general fastest-product claim. Relative to
-the complete pinned VSGAN product, `trtvideo` is within 1.1% on three rows and
-15.98% faster on SPAN 1080p. `vs-mlrt` is a technical TensorRT/VapourSynth
-target. VSGAN builds its own engine from the same ONNX because TensorRT 10.16
-cannot load the project's TensorRT 11 engine.
+These rows describe the withdrawn bounded grid only. In particular, the SPAN
+1080p delta against VSGAN is not a tuned product claim. VSGAN builds its own
+engine from the same ONNX because TensorRT 10.16 cannot load the project's
+TensorRT 11 engine.
 
 ### Resource Medians
 
@@ -105,8 +113,11 @@ Product-output metrics compare every decoded frame of the 1000-frame outputs.
 
 ### Tuning Sweep
 
-Sweep FPS selects candidates and is not used as the final comparative value.
-Each selected pair advances to a separate quality gate and rotated campaign.
+Sweep FPS selected candidates and was not used as the final comparative value.
+Each selected pair advanced to a separate quality gate and rotated campaign.
+However, the VSGAN grid below varied CUDA Graph only and did not vary
+VapourSynth threads or TensorRT stream count, which is why this snapshot is now
+withdrawn.
 
 #### RealESRGAN_x2plus
 

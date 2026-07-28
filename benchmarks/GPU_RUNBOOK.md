@@ -61,11 +61,16 @@ The default comparative profile is the published single-request/single-stream
 benchmarks/bin/run-benchmark.sh comparative --mode upstream-default
 ```
 
-Tuned candidates and selection rules come from
-[`tuning/candidates.json`](tuning/candidates.json). The tuned workflow evaluates
-all declared candidates, retains disqualifications, runs the full
-product-output quality gate only for selected winners, and verifies that 720p
-and 1080p evidence agree before publication.
+Tuned candidates and selection rules come from the workload-specific contracts
+under [`tuning/`](tuning/). The tuned workflow evaluates all declared
+candidates, retains disqualifications, runs the full product-output quality gate
+only for selected winners, and verifies that 720p and 1080p evidence agree
+before publication. Both canonical contracts require the VSGAN
+`num_streams=2..6`, runtime-default VapourSynth-thread grid.
+
+Do not resume tuned artifacts created with an older candidate contract. Start
+the complete tuned workflow in an empty tuned artifact namespace after
+committing and rebuilding the new revision.
 
 ## Selecting A Subset
 

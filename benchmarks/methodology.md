@@ -131,10 +131,15 @@ value is written to the plan and measured-run manifest.
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
 Tuned candidate grids are workload-specific and selected by the canonical
-workflow matrix. RealESRGAN tests `num_streams=2/3/4`. SPAN tests
-`num_streams=2/3/4/5/6`; an initial `2/3/4` sweep ended at an increasing upper
-boundary, and pre-publication boundary runs found an interior maximum at `5`
-with lower throughput at `6`.
+workflow matrix. For vstrt, RealESRGAN tests `num_streams=2/3/4`, while SPAN
+tests `num_streams=2/3/4/5/6`; an initial `2/3/4` SPAN sweep ended at an
+increasing upper boundary, and boundary runs found an interior maximum at `5`.
+For VSGAN, both workloads test `num_streams=2/3/4/5/6` with automatic vspipe
+requests, runtime-default VapourSynth threads, and CUDA Graph disabled. The
+VSGAN grid also retains its upstream `streams=4`, `threads=4` configuration
+with CUDA Graph disabled and enabled as explicit controls. Contract validation
+rejects either workload unless the complete automatic-thread VSGAN stream grid
+is present.
 
 Tuned selection is a two-stage protocol. The workload-specific candidate set
 and common winner rule are fixed in the contract selected by

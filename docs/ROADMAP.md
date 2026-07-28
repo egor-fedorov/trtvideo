@@ -121,15 +121,16 @@ The success criterion is fixed before measurement:
 
 ## Stage 4. Diagnostics And Best-Tuned
 
-Status: parity diagnostics and the upstream-default/tuned matrix are complete.
-All four `trtexec` ceilings and pipeline-efficiency values are published. A
-clean SPAN 1080p Nsight trace used an engine rebuilt on the profiled RTX 3090
-and confirmed a GPU-resident, continuously kernel-active frame loop without
-material per-frame host/device transfers. The validated RTX 3090
-single-stream, upstream-default, and tuned result classes are published
-together without merging their revision-bound contracts. Live-action
-confirmation, CPU attribution, and SPAN 720p startup optimization remain
-pending.
+Status: parity diagnostics and the upstream-default matrix are complete. All
+four `trtexec` ceilings and pipeline-efficiency values are published. A clean
+SPAN 1080p Nsight trace used an engine rebuilt on the profiled RTX 3090 and
+confirmed a GPU-resident, continuously kernel-active frame loop without
+material per-frame host/device transfers. The first tuned snapshot is retained
+as historical evidence but withdrawn from performance claims because VSGAN was
+only tested with four VapourSynth threads. A corrected VSGAN
+`num_streams=2..6`, runtime-default-thread sweep is required before tuned
+publication. Live-action confirmation, CPU attribution, and SPAN 720p startup
+optimization remain pending.
 
 - [x] Add isolated `parity`, `upstream-default`, and `tuned` campaign classes
   with immutable scheduling configuration and aggregate-time contract checks.
@@ -139,12 +140,14 @@ pending.
   copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
 - [x] Add a manifest-driven best-tuned selection workflow. It uses
   workload-specific vstrt ranges (`2/3/4` for RealESRGAN and `2/3/4/5/6` for
-  SPAN) plus declared VSGAN settings in unique directories, ranks only stable
-  candidates with valid media and model-space evidence, and promotes the next
-  point when a selected winner fails full quality.
-- [x] Run the tuned sweep, full 1000-frame winner quality gate, and rotated winner
-  campaign for both resolutions and workloads. Publish only a machine-verified
-  720p + 1080p matrix, not individual sweep results.
+  SPAN), plus a mandatory VSGAN `2/3/4/5/6` stream grid with runtime-default
+  VapourSynth threads. It ranks only stable candidates with valid media and
+  model-space evidence and promotes the next point when a selected winner fails
+  full quality.
+- Repeat the tuned sweep, full 1000-frame winner quality gate, and rotated
+  winner campaign for both resolutions and workloads using the corrected VSGAN
+  grid. Publish only a machine-verified 720p + 1080p matrix, not individual
+  sweep results.
 - Keep CUDA Graph experimental while it captures only the TensorRT call and
   provides no measured benefit on current heavy models.
 - Repeat the headline workload on a short live-action clip with substantial

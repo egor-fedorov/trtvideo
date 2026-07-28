@@ -13,6 +13,10 @@ AutoOrInt = Literal["auto"] | int
 
 _CANDIDATE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _IMPLEMENTATIONS = ("vstrt", "vsgan")
+_REQUIRED_AUTO_STREAM_SWEEPS = {
+    "vstrt": {2, 3, 4},
+    "vsgan": {2, 3, 4, 5, 6},
+}
 
 
 class TuningContractError(ValueError):
@@ -216,15 +220,24 @@ class TuningContract:
             raise TuningContractError(
                 "Tuning contract must contain vstrt and vsgan candidates"
             )
-        vstrt_streams = {
-            candidate.num_streams
-            for candidate in candidates
-            if candidate.implementation == "vstrt"
-        }
-        if not {2, 3, 4}.issubset(vstrt_streams):
-            raise TuningContractError(
-                "Tuning contract must sweep vstrt num_streams 2, 3, and 4"
-            )
+        for implementation, required_streams in _REQUIRED_AUTO_STREAM_SWEEPS.items():
+            actual_streams = {
+                candidate.num_streams
+                for candidate in candidates
+                if candidate.implementation == implementation
+                and candidate.requests == "auto"
+                and candidate.vapoursynth_threads == "auto"
+                and not candidate.cuda_graph
+            }
+            missing_streams = sorted(required_streams - actual_streams)
+            if missing_streams:
+                required = ", ".join(str(streams) for streams in sorted(required_streams))
+                missing = ", ".join(str(streams) for streams in missing_streams)
+                raise TuningContractError(
+                    f"Tuning contract must sweep {implementation} streams {required} "
+                    "with requests=auto, VapourSynth threads=auto, and CUDA Graph "
+                    f"disabled; missing: {missing}"
+                )
         return cls(
             schema_version=1,
             selection=SelectionPolicy.from_dict(selection_value),

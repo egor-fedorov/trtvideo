@@ -12,13 +12,27 @@ from benchmarks.scripts.tuning.contract import (
 )
 
 
-def test_repository_tuning_contract_declares_required_vstrt_sweep() -> None:
-    contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
+@pytest.mark.parametrize(
+    "path",
+    [
+        Path("benchmarks/tuning/candidates.json"),
+        Path("benchmarks/tuning/span_candidates.json"),
+    ],
+)
+def test_repository_tuning_contract_declares_required_sweeps(path: Path) -> None:
+    contract = load_tuning_contract(path)
 
     assert {
         candidate.num_streams
         for candidate in contract.for_implementation("vstrt")
     } >= {2, 3, 4}
+    assert {
+        candidate.num_streams
+        for candidate in contract.for_implementation("vsgan")
+        if candidate.requests == "auto"
+        and candidate.vapoursynth_threads == "auto"
+        and not candidate.cuda_graph
+    } == {2, 3, 4, 5, 6}
     assert contract.selection.metric == "median_end_to_end_fps"
     assert contract.selection.max_relative_spread == 0.05
     assert contract.project_profile.as_dict() == {
@@ -55,5 +69,25 @@ def test_contract_rejects_incomplete_vstrt_stream_sweep() -> None:
         if candidate["id"] != "vstrt-s3-g0"
     ]
 
-    with pytest.raises(TuningContractError, match="2, 3, and 4"):
+    with pytest.raises(
+        TuningContractError,
+        match="vstrt streams 2, 3, 4.*missing: 3",
+    ):
+        TuningContract.from_dict(value)
+
+
+def test_contract_rejects_incomplete_vsgan_auto_thread_sweep() -> None:
+    value = json.loads(
+        Path("benchmarks/tuning/candidates.json").read_text(encoding="utf-8")
+    )
+    value["candidates"] = [
+        candidate
+        for candidate in value["candidates"]
+        if candidate["id"] != "vsgan-s5-tauto-g0"
+    ]
+
+    with pytest.raises(
+        TuningContractError,
+        match="vsgan streams 2, 3, 4, 5, 6.*VapourSynth threads=auto.*missing: 5",
+    ):
         TuningContract.from_dict(value)

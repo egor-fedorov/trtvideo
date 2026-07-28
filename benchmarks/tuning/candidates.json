@@ -36,6 +36,46 @@
       "cuda_graph": false
     },
     {
+      "id": "vsgan-s2-tauto-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 2,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s3-tauto-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 3,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s4-tauto-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 4,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s5-tauto-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 5,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
+      "id": "vsgan-s6-tauto-g0",
+      "implementation": "vsgan",
+      "requests": "auto",
+      "num_streams": 6,
+      "vapoursynth_threads": "auto",
+      "cuda_graph": false
+    },
+    {
       "id": "vsgan-s4-g0",
       "implementation": "vsgan",
       "requests": "auto",
