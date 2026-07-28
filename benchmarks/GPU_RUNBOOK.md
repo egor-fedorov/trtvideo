@@ -93,6 +93,24 @@ A single-resolution tuned run is useful evidence but is not a publication
 unit. The final tuned matrix check runs only when both resolutions of a
 workload are selected.
 
+To measure the SPAN 720p wrapper regression without running competitors:
+
+```bash
+benchmarks/bin/run-benchmark.sh project \
+  --workload span \
+  --variant 720p
+```
+
+After the run, inspect the median internal lifecycle intervals:
+
+```bash
+jq '.statistics.median_lifecycle_intervals_sec' \
+  artefacts/benchmarks/project/liveaction_span_sintel-720p/suite.json
+```
+
+This diagnostic breakdown does not replace the suite's external end-to-end FPS
+or make a project-only result comparative.
+
 ## Preview
 
 Always review an expensive plan first:

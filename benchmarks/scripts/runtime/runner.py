@@ -32,6 +32,7 @@ from benchmarks.scripts.runtime.suite import (
 from trtvideo.benchmarking.lifecycle import (
     LifecycleTimingError,
     load_frame_markers,
+    median_detailed_phase_intervals,
     summarize_lifecycle,
 )
 from trtvideo.benchmarking.validation import OutputContract, validate_output
@@ -597,6 +598,16 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
 
     run_manifests = list(suite_result.runs)
     statistics_report = suite_result.statistics
+    lifecycle_summaries = [
+        run.get("measured", {}).get("metrics", {}).get("lifecycle")
+        for run in run_manifests
+    ]
+    statistics_report["median_lifecycle_intervals_sec"] = (
+        median_detailed_phase_intervals(lifecycle_summaries)
+        if lifecycle_summaries
+        and all(isinstance(summary, dict) for summary in lifecycle_summaries)
+        else {}
+    )
     spread = statistics_report["relative_spread"]
     suite_errors = list(suite_result.errors)
     status = suite_result.status

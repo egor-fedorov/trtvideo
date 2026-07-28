@@ -154,11 +154,12 @@ pending.
   the required once-per-decoder-batch surface-lifetime synchronization. Do not
   remove that synchronization without full output and frame-integrity
   validation.
-- Diagnose and reduce SPAN 720p startup without removing startup from the
-  end-to-end contract. The tuned run spends 2.569 seconds, or 12.81% of wall
-  time, before steady state; matching the approximately one-second external
-  startup would move the measured result into the predefined +/-5% parity band
-  if frame-loop throughput remains unchanged.
+- Measure the new internal lifecycle checkpoints on SPAN 720p and reduce
+  startup/finalize overhead without removing either scope from the end-to-end
+  contract. The tuned baseline spends 2.569 seconds before steady state and
+  0.895 seconds after the frame loop. The first code change prevents
+  `--max-frames` from requesting an unused decoder batch; its effect still
+  requires a fixed project-only GPU measurement before any performance claim.
 - If the timeline confirms idle periods, investigate double buffering, multiple
   execution contexts, and overlap of `decode N+1`, `inference N`, and
   `encode N-1`.

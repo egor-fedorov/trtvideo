@@ -15,6 +15,7 @@ from trtvideo.diagnostics.nvtx import NvtxAnnotator
 from trtvideo.profiling import ProfileCollector
 from trtvideo.runtime import RuntimeEngine
 from trtvideo.runtime.tensorrt import TensorRTRuntime
+from trtvideo.video.decoder import iter_limited_frames
 from trtvideo.video.info import VideoInfo, get_video_info
 from trtvideo.video.preservation import (
     MediaPreservationError,
@@ -56,7 +57,9 @@ class BasePipeline(ABC):
         self._first_frame_completed_ns: int | None = None
         self._last_frame_completed_ns: int | None = None
         self._working_output_path: Path | None = None
+        self._lifecycle_phase_completed_ns: dict[str, int] = {}
         self._nvtx = NvtxAnnotator.from_environment()
+        self._record_lifecycle_phase("pipeline_created")
 
     # --- Logging helpers ---
 
@@ -193,6 +196,7 @@ class BasePipeline(ABC):
             args.output = f"{base}_upscaled{ext}"
 
         self.info = get_video_info(args.input)
+        self._record_lifecycle_phase("video_probed")
         info = self.info
         self.log(
             f"Input video: {info.width}x{info.height}, "
@@ -221,6 +225,7 @@ class BasePipeline(ABC):
             print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)
         self._working_output_path = working_output_path
+        self._record_lifecycle_phase("preservation_preflight_completed")
 
         frame_times: list[float] = []
         try:
@@ -244,6 +249,7 @@ class BasePipeline(ABC):
                             file=sys.stderr,
                         )
                         raise SystemExit(1)
+                    self._record_lifecycle_phase("runtime_initialized")
 
                     if args.profile or args.profile_json:
                         self.profiler = ProfileCollector(
@@ -253,7 +259,9 @@ class BasePipeline(ABC):
                         )
 
                     self.setup_decoder()
+                    self._record_lifecycle_phase("decoder_initialized")
                     self.setup_encoder()
+                    self._record_lifecycle_phase("encoder_initialized")
 
                     self.log(f"\nProcessing: {self.total_frames} frames")
                     self.log(f"Output: {args.output} ({runtime.output_w}x{runtime.output_h})\n")
@@ -261,18 +269,23 @@ class BasePipeline(ABC):
                 wall_start = time.perf_counter()
                 with self._nvtx.range("trtvideo.frame_loop"):
                     self._run_loop(frame_times)
+                self._record_lifecycle_phase("frame_loop_completed")
                 with self._nvtx.range("trtvideo.finalize"):
                     self.finalize()
+                self._record_lifecycle_phase("pipeline_finalized")
                 wall_total = time.perf_counter() - wall_start
             finally:
                 self.cleanup()
+                self._record_lifecycle_phase("cleanup_completed")
             commit_atomic_output(working_output_path, args.output)
+            self._record_lifecycle_phase("output_committed")
         except BaseException:
             working_output_path.unlink(missing_ok=True)
             raise
         finally:
             self._working_output_path = None
 
+        self._record_lifecycle_phase("reporting_started")
         self._write_benchmark_lifecycle_markers(len(frame_times))
 
         # Profile table
@@ -299,6 +312,12 @@ class BasePipeline(ABC):
             self._first_frame_completed_ns = completed_ns
         self._last_frame_completed_ns = completed_ns
 
+    def _record_lifecycle_phase(self, name: str) -> None:
+        """Record an optional project-specific benchmark lifecycle checkpoint."""
+        if not getattr(self.args, "benchmark_lifecycle_json", None):
+            return
+        self._lifecycle_phase_completed_ns[name] = time.perf_counter_ns()
+
     def _write_benchmark_lifecycle_markers(self, processed_frames: int) -> None:
         path = getattr(self.args, "benchmark_lifecycle_json", None)
         if path is None:
@@ -316,6 +335,7 @@ class BasePipeline(ABC):
                 last_frame_completed_ns=self._last_frame_completed_ns,
                 processed_frames=processed_frames,
                 instrumentation="trtvideo-frame-loop",
+                phase_completed_ns=dict(self._lifecycle_phase_completed_ns),
             ),
         )
 
@@ -374,10 +394,10 @@ class BasePipeline(ABC):
         """Frame loop. Subclasses can override for a tight loop."""
         args = self.args
         frame_idx = 0
-        for raw_frame in self.decode_frames():
-            if args.max_frames > 0 and frame_idx >= args.max_frames:
-                break
-
+        for raw_frame in iter_limited_frames(
+            self.decode_frames(),
+            limit=args.max_frames,
+        ):
             t0 = time.perf_counter()
             self.process_frame(raw_frame)
             t1 = time.perf_counter()

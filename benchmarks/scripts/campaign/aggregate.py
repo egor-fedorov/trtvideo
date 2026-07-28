@@ -45,6 +45,7 @@ from benchmarks.scripts.runtime.environment import (
     write_json,
 )
 from benchmarks.scripts.runtime.suite import compute_suite_statistics
+from trtvideo.benchmarking.lifecycle import median_detailed_phase_intervals
 
 MODEL_SPACE_GAP = "Model-space RGB/float parity is not verified yet"
 PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generated yet"
@@ -779,6 +780,10 @@ def _implementation_statistics(
                     _metric(manifest, "lifecycle", "finalize_mux_sec")
                     for manifest in manifests
                 ]
+            ),
+            "median_lifecycle_intervals_sec": median_detailed_phase_intervals(
+                manifest["measured"]["metrics"]["lifecycle"]
+                for manifest in manifests
             ),
             "median_gpu_utilization_percent": _median(
                 [

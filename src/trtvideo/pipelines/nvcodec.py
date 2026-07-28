@@ -381,6 +381,7 @@ class NvcodecPipeline(BasePipeline):
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None
+        self._record_lifecycle_phase("encoder_flushed")
 
         self.log("\nMuxing output container...")
         faststart_args = (
@@ -413,6 +414,7 @@ class NvcodecPipeline(BasePipeline):
         if result.returncode != 0:
             details = result.stderr.strip() or "ffmpeg returned no error details"
             raise RuntimeError(f"ffmpeg mux failed:\n{details}")
+        self._record_lifecycle_phase("mux_completed")
 
     def cleanup(self) -> None:
         self._cvcuda_stream = None

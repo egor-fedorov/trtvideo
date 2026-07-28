@@ -110,6 +110,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Benchmark manifests and campaign summaries now contain separate lifecycle
   scopes: startup through the first completed frame, steady state through the
   last frame, and finalize/encoder flush/mux through process exit.
+- Project benchmark manifests now divide startup and finalize into internal
+  lifecycle checkpoints for video probing, preservation preflight, runtime and
+  codec setup, encoder flush, mux, cleanup, output commit, and process teardown.
+  Suite and campaign summaries publish median checkpoint intervals without
+  changing the external end-to-end timing contract.
 - Added a reproducible Stage 0 benchmark contract for RealESRGAN_x2plus and
   Sintel, including Docker-first `make -C benchmarks prepare` and
   `make -C benchmarks verify` commands, verifiable source hashes, and media/ONNX
@@ -242,6 +247,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- `--max-frames` no longer asks the NVDEC iterator for another decoder batch
+  after the requested final frame. The iterator closes immediately and releases
+  the current batch before encoder flush and mux.
 - Short benchmark smoke runs now record actual bitrate without applying the
   full-campaign average-bitrate threshold. Canonical campaigns and
   product-output quality gates continue to enforce the fixed 10% tolerance.

@@ -379,6 +379,31 @@ last boundary; the raw Y4M stream is not proxied through Python. The three scope
 exhaustively sum to the same external wall time. Each raw manifest records its
 instrumentation method.
 
+Project runs also record diagnostic checkpoints inside the coarse startup and
+finalize scopes:
+
+```text
+pipeline construction
+-> video probe
+-> media-preservation preflight
+-> TensorRT runtime initialization
+-> decoder initialization
+-> encoder initialization
+-> frame loop
+-> encoder flush
+-> preserved-media mux
+-> cleanup
+-> atomic output commit
+-> reporting
+-> process exit
+```
+
+These checkpoints do not change the external wall-time boundaries or headline
+FPS. Raw run manifests publish them under `metrics.lifecycle.detailed`; project
+suite and campaign summaries publish median checkpoint intervals as
+`median_lifecycle_intervals_sec`. External products retain the common three-scope
+contract because their internal lifecycle is not instrumented by this project.
+
 Per-stage profiling and CUDA events are diagnostics and remain disabled in the
 measured hot path. A successful smoke run with reduced parameters receives
 `status: valid` but `publishable: false`.
