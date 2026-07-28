@@ -43,8 +43,6 @@ def build_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[st
         args.engine,
         "--input",
         variant["path"],
-        "--backend",
-        "nvcodec",
         "--gpu-id",
         str(args.gpu_id),
         "--bitrate-mbps",
@@ -80,8 +78,6 @@ def build_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[st
     ]
     if args.json is not None:
         command.extend(["--json", args.json])
-    if args.cuda_graph:
-        command.append("--cuda-graph")
     if args.keep_outputs:
         command.append("--keep-outputs")
     if args.skip_bitrate_validation:
@@ -102,7 +98,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs", type=int, default=None)
     parser.add_argument("--extra-runs", type=int, default=None)
     parser.add_argument("--idle-seconds", type=float, default=None)
-    parser.add_argument("--cuda-graph", action="store_true")
     parser.add_argument("--keep-outputs", action="store_true")
     parser.add_argument("--skip-bitrate-validation", action="store_true")
     return parser

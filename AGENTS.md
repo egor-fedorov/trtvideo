@@ -3,8 +3,8 @@
 ## Project Context
 
 `trtvideo` is a Docker-first collection of CLI tools for TensorRT-based video
-processing. The currently implemented workflow is video upscaling through
-either the `ffmpeg` or `NVDEC/NVENC` backend.
+processing. The currently implemented workflow is GPU-resident video upscaling
+through NVDEC, CV-CUDA, TensorRT, and NVENC.
 
 The production runtime uses Python 3.12 from the
 `nvcr.io/nvidia/tensorrt:26.06-py3` base TensorRT Docker image. Development is
@@ -14,7 +14,7 @@ or a GPU normally run in Docker on a remote GPU host.
 ## Sources Of Truth
 
 - `README.md` - public Docker workflow, CLI, and model preparation.
-- `docs/ARCHITECTURE.md` - inference, runtime, and backend architecture.
+- `docs/ARCHITECTURE.md` - inference, runtime, and video pipeline architecture.
 - `docs/TESTING.md` - test layers and the Docker-only quality gate.
 - `docs/ROADMAP.md` - concise current plan.
 - `docs/CHANGES.md` - notable changes and versioning rules.

@@ -9,15 +9,15 @@ Public commands and model-preparation instructions are in
 ## Project Scope
 
 The project provides CLI tools for TensorRT-based video processing. Full-video
-upscaling is currently implemented, while the structure allows additional video
-workflows and runtime backends to be added later. Standalone image processing
-and frame interpolation are outside the current scope.
+upscaling is currently implemented, while the structure allows additional
+frame-local video workflows to be added later. Standalone image processing and
+frame interpolation are outside the current scope.
 
 The main component boundaries are:
 
 ```text
 src/trtvideo/
-  cli/          argument parsing and command/backend selection
+  cli/          argument parsing and command entry points
   demo/         pinned quick-demo assets, orchestration, and media validation
   diagnostics/  opt-in markers for external profilers
   pipelines/    decode -> inference -> encode orchestration
@@ -32,10 +32,9 @@ passes a static TensorRT engine through `--engine`.
 
 ## Inference Lifecycle
 
-The `upscale` command builds the shared parser, selects
-`--backend ffmpeg|nvcodec`, and passes the parsed arguments to the corresponding
-pipeline. `BasePipeline` in `src/trtvideo/pipelines/base.py` owns the common
-lifecycle:
+The `upscale` command parses the production video contract and creates
+`NvcodecPipeline`. `BasePipeline` in `src/trtvideo/pipelines/base.py` owns the
+common lifecycle:
 
 1. Verify that `--engine` and `--input` exist.
 2. Use `ffprobe` to read resolution, FPS, frame count, bitrate, and color
@@ -43,53 +42,42 @@ lifecycle:
 3. Reject inputs outside the current media contract.
 4. Preflight source-stream compatibility with the selected output container and
    reserve a same-directory temporary output.
-5. Load the selected engine into `TensorRTRuntime` on the requested `--gpu-id`.
+5. Load the selected engine into `CvcudaTensorRTRuntime` on the requested
+   `--gpu-id`.
 6. Validate the model contract and ensure that the video size matches the
    engine input shape.
-7. Initialize the decoder, encoder, and reusable buffers for the selected
-   backend.
+7. Initialize NVDEC, NVENC, and reusable CV-CUDA buffers.
 8. Process frames sequentially and collect statistics.
 9. Flush the encoder, mux the result when required, and release resources.
 10. Atomically replace the requested output only after every subprocess has
     completed successfully.
 11. Print final throughput and an optional profile.
 
-`BasePipeline` owns lifecycle and shared validation. Decode, preprocess, encode,
-and cleanup implementations remain in backend classes.
+`BasePipeline` owns lifecycle and shared validation. `NvcodecPipeline` owns
+decode, preprocess, encode, and cleanup.
 
 ## Model Contract And TensorRT Runtime
 
-The backends use two adapters around the same TensorRT engine contract:
+`CvcudaTensorRTRuntime` in
+`src/trtvideo/runtime/cvcuda_tensorrt.py` owns the CV-CUDA tensors used by the
+GPU-resident video path and does not import PyTorch. It:
 
-- `TensorRTRuntime` in `src/trtvideo/runtime/tensorrt.py` owns PyTorch tensors
-  for the CPU-frame `ffmpeg` backend;
-- `CvcudaTensorRTRuntime` in
-  `src/trtvideo/runtime/cvcuda_tensorrt.py` owns CV-CUDA tensors for the
-  GPU-resident `nvcodec` backend and does not import PyTorch.
-
-Both runtimes:
-
-- deserialize the TensorRT engine and create an execution context;
-- read input/output tensor names, shapes, and data types;
-- construct `ModelSpec` and, before allocating buffers, verify that the
+- deserializes the TensorRT engine and creates an execution context;
+- reads input/output tensor names, shapes, and data types;
+- constructs `ModelSpec` and, before allocating buffers, verifies that the
   engine represents static, single-frame RGB upscaling with NCHW layout, batch
   size 1, and a uniform integer scale factor;
-- support FP32 and FP16 tensor bindings;
-- preallocate and reuse `gpu_input` and `gpu_output`;
-- bind them to the context with `set_tensor_address`;
-- run inference with `execute_async_v3` on a CUDA stream.
+- supports FP32 and FP16 tensor bindings;
+- preallocates and reuses `gpu_input` and `gpu_output`;
+- binds them to the context with `set_tensor_address`;
+- runs inference with `execute_async_v3` on a CUDA stream.
 
-Each runtime owns one stream. The `ffmpeg` adapter uses `torch.cuda.Stream`; the
-`nvcodec` adapter uses `cvcuda.Stream` and passes its native handle to TensorRT
+The runtime owns one `cvcuda.Stream` and passes its native handle to TensorRT
 and NVENC. This places preprocess, inference, postprocess, and encode work on
 one ordered GPU stream without host-side waits between stages.
 
-The experimental `--cuda-graph` option captures the TensorRT enqueue operation
-only in the PyTorch-backed runtime. The torch-free `nvcodec` runtime rejects
-this option until graph capture is implemented for its CV-CUDA stream.
-
 The internal `TRTVIDEO_NVTX=1` diagnostic switch adds Nsight Systems ranges
-around pipeline lifecycle and `nvcodec` GPU stages. It is set only by benchmark
+around pipeline lifecycle and GPU stages. It is set only by benchmark
 diagnostic tooling. Ordinary inference does not enter the per-stage NVTX path,
 and Nsight collection is never part of a measured benchmark campaign.
 
@@ -98,45 +86,7 @@ the engine after changing to an incompatible TensorRT container or GPU class.
 The `<engine>.json` sidecar stores build metadata but does not participate in
 runtime discovery.
 
-## Backends
-
-Both backends use TensorRT on the GPU. They differ in decode, color conversion,
-frame transfers, and encode.
-
-| Stage | `ffmpeg` | `nvcodec` |
-| --- | --- | --- |
-| Decode | FFmpeg on CPU | NVDEC on GPU |
-| Color conversion | FFmpeg/raw RGB and CPU buffers | CV-CUDA on GPU |
-| TensorRT | GPU | GPU |
-| Encode | `libx264` on CPU | NVENC on GPU |
-| Frame copies through CPU | Yes | No in the main data path |
-
-### `ffmpeg` Backend
-
-File: `src/trtvideo/pipelines/ffmpeg.py`.
-
-```text
-ffmpeg decode (CPU) -> RGB raw pipe -> numpy -> torch CUDA -> TensorRT
--> torch output -> CPU numpy -> RGB raw pipe -> libx264 encode (CPU)
-```
-
-Per-frame processing order:
-
-1. The decoder subprocess writes `rgb24` raw video to `stdout`.
-2. Python reads one complete frame and constructs a
-   `numpy.ndarray [H, W, 3]`.
-3. The runtime transfers RGB to CUDA, converts it to NCHW, and normalizes it to
-   `0..1`.
-4. TensorRT performs inference.
-5. The output is converted to `uint8 RGB` and copied to the CPU.
-6. Python writes the raw frame to the encoder subprocess through `stdin`.
-7. FFmpeg encodes the video with `libx264` and copies the source non-video
-   streams.
-
-This backend has fewer GPU dependencies, but CPU pipes and the CPU codec add
-copies and CPU load. Quality is controlled by the real x264 `--crf` option.
-
-### `nvcodec` Backend
+## GPU-Resident Video Pipeline
 
 File: `src/trtvideo/pipelines/nvcodec.py`.
 
@@ -169,10 +119,10 @@ output tensors to the host after synchronizing this shared path.
 The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
 use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and
 NVENC. This preserves GPU operation order without a per-frame
-`cudaStreamSynchronize`. PyTorch remains available for model export and the
-`ffmpeg` backend, but is not imported by ordinary `nvcodec` inference. The CPU
-remains the orchestration layer and writes the compressed bitstream, but full
-frames do not move between CPU and GPU.
+`cudaStreamSynchronize`. PyTorch remains available for model export but is not
+imported by ordinary video inference. The CPU remains the orchestration layer
+and writes the compressed bitstream, but full frames do not move between CPU
+and GPU.
 
 NVENC uses no B-frames, preserves the source rational FPS, and creates a GOP/IDR
 approximately once per second. This provides monotonic timestamps and a
@@ -189,8 +139,8 @@ file size is required.
 ## Media And Color Contract
 
 The current video path targets SDR 8-bit input. Shared validation rejects HDR
-transfer functions, and `nvcodec` additionally accepts only `yuv420p`/`nv12`.
-HDR, P010, YUV 4:2:2, and YUV 4:4:4 require a separate color policy and tonemap.
+transfer functions and accepts only `yuv420p`/`nv12`. HDR, P010, YUV 4:2:2,
+and YUV 4:4:4 require a separate color policy and tonemap.
 
 When source metadata is absent, the pipeline uses safe SDR defaults: BT.709 for
 HD/UHD and BT.601-compatible metadata for SD. NV12/RGB conversion in CV-CUDA
@@ -201,7 +151,7 @@ populated `color_range`, `color_space`, `color_transfer`, and
 With `--max-frames`, output duration is limited using the exact FPS so audio
 does not continue beyond the last processed video frame.
 
-Both backends share one media-preservation contract:
+The pipeline uses one media-preservation contract:
 
 - the enhanced stream replaces all source video streams;
 - every source audio, subtitle, data, and attachment stream is stream-copied;
@@ -221,15 +171,7 @@ does not overwrite an existing output.
 
 ## Profiling And Benchmarking
 
-`--profile` enables `ProfileCollector`. The `ffmpeg` backend measures:
-
-- reading a decoded frame from the pipe;
-- CPU-to-GPU preprocess;
-- TensorRT inference;
-- GPU-to-CPU postprocess;
-- writing a frame to the encoder pipe.
-
-The `nvcodec` backend measures:
+`--profile` enables `ProfileCollector` and measures:
 
 - NV12 -> RGB through CV-CUDA;
 - TensorRT inference;

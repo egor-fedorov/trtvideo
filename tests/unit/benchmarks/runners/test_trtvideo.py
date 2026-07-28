@@ -299,7 +299,6 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
         runs=None,
         extra_runs=None,
         idle_seconds=None,
-        cuda_graph=False,
         keep_outputs=False,
         skip_bitrate_validation=False,
     )
@@ -333,7 +332,6 @@ def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() ->
         runs=0,
         extra_runs=None,
         idle_seconds=None,
-        cuda_graph=False,
         keep_outputs=False,
         skip_bitrate_validation=False,
     )
@@ -363,7 +361,6 @@ def test_canonical_runner_can_skip_bitrate_validation_for_smoke() -> None:
         runs=1,
         extra_runs=0,
         idle_seconds=0,
-        cuda_graph=False,
         keep_outputs=False,
         skip_bitrate_validation=True,
     )

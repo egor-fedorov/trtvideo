@@ -241,8 +241,6 @@ def upscale_command(paths: DemoPaths, gpu_id: int) -> list[str]:
     """Build the canonical demo inference command."""
     return [
         "upscale",
-        "--backend",
-        "nvcodec",
         "--gpu-id",
         str(gpu_id),
         "--engine",

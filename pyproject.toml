@@ -5,18 +5,13 @@ description = "TensorRT video processing with GPU-resident upscale pipelines"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-dependencies = [
-    "numpy>=2.0,<3",
-]
+dependencies = []
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
-ffmpeg = [
-    "torch>=2.10,<3",
-]
 gpu = [
     "cuda-bindings>=13,<14",
     "pynvvideocodec>=2.1,<3",
@@ -33,6 +28,7 @@ docker = [
     "spandrel>=0.4,<1",
 ]
 benchmark = [
+    "numpy>=2.0,<3",
     "nvidia-ml-py>=13.610,<14",
 ]
 export = [
@@ -45,6 +41,7 @@ export = [
 
 [dependency-groups]
 dev = [
+    "numpy>=2.0,<3",
     "pytest>=8,<9",
     "ruff>=0.11,<1",
     "mypy>=1.15,<2",

@@ -44,14 +44,7 @@ class CvcudaTensorRTRuntime:
         engine_path: str,
         quiet: bool = False,
         gpu_id: int = 0,
-        use_cuda_graph: bool = False,
     ):
-        if use_cuda_graph:
-            raise RuntimeError(
-                "CUDA Graph is not supported by the torch-free NVCodec runtime yet. "
-                "Run without --cuda-graph."
-            )
-
         set_device(gpu_id)
         import cvcuda
 
@@ -59,9 +52,6 @@ class CvcudaTensorRTRuntime:
         self.quiet = quiet
         self.gpu_id = gpu_id
         self.gpu_name = device_name(gpu_id)
-        self.cuda_graph_enabled = False
-        self.cuda_graph_error: str | None = None
-
         self._trt_runtime = trt.Runtime(TRT_LOGGER)
         with open(engine_path, "rb") as engine_file:
             self.engine = self._trt_runtime.deserialize_cuda_engine(engine_file.read())
@@ -150,7 +140,6 @@ class CvcudaTensorRTRuntime:
             print(f"  Input:  {self.input_w}x{self.input_h} {self.model_spec.inputs[0].dtype}")
             print(f"  Output: {self.output_w}x{self.output_h} {self.model_spec.outputs[0].dtype}")
             print(f"  Scale:  {self.model_spec.scale}x")
-            print("  CUDA Graph: disabled")
             print("  Tensor buffers: CV-CUDA (PyTorch-free)")
 
     def execute(self) -> Any:

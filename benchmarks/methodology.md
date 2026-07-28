@@ -26,8 +26,7 @@ Video2X is excluded from the matrix because the available version does not
 support the canonical `RealESRGAN_x2plus` and runs a different anime model. Its
 FPS cannot support a same-model performance claim.
 
-The project's primary backend is `nvcodec`. The `ffmpeg` backend remains a
-diagnostic baseline and does not replace the GPU-resident result.
+The project always uses its production GPU-resident video path.
 
 ## Workflow Separation
 

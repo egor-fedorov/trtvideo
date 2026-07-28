@@ -84,8 +84,8 @@ input command. Engine build and inference still require a GPU host.
 
 The report-first layer writes suite/run JSON, child logs, and raw NVML samples
 without hard-coded FPS thresholds. Thresholds may be introduced only after
-baselines have been collected for a specific GPU, TensorRT version, backend,
-model, and resolution.
+baselines have been collected for a specific GPU, TensorRT version, model, and
+resolution.
 
 Canonical benchmark assets are prepared and verified without a GPU:
 

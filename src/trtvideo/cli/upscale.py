@@ -1,18 +1,11 @@
-"""Unified video upscale CLI."""
+"""GPU-resident video upscale CLI."""
 
 import argparse
-import sys
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create parser for all current upscale backends."""
+    """Create the NVDEC/CV-CUDA/TensorRT/NVENC upscale parser."""
     parser = argparse.ArgumentParser(prog="upscale", description="TensorRT video upscaler")
-    parser.add_argument(
-        "--backend",
-        choices=["ffmpeg", "nvcodec"],
-        default="nvcodec",
-        help="Video IO backend",
-    )
     parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")
     parser.add_argument("--output", default=None, help="Output video")
@@ -33,23 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--cuda-graph",
-        action="store_true",
-        help="Experimental: capture TensorRT enqueue; unsupported by nvcodec",
-    )
-    parser.add_argument(
-        "--crf",
-        type=int,
-        default=None,
-        help="ffmpeg/libx264 CRF quality, default: 18; unsupported by nvcodec",
-    )
-    parser.add_argument(
         "--bitrate-mbps",
         type=float,
         default=None,
         help=(
             "Explicit NVENC target bitrate in Mbps; "
-            "default nvcodec mode estimates it from source bitrate"
+            "the default estimates it from source bitrate"
         ),
     )
     parser.add_argument("--codec", default="h264", choices=["h264", "hevc"], help="NVENC codec")
@@ -59,39 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def validate_args(args: argparse.Namespace) -> None:
-    """Validate cross-backend CLI combinations before importing runtime dependencies."""
-    if args.backend == "nvcodec" and args.crf is not None:
-        print(
-            "ERROR: --crf is only supported by --backend ffmpeg. "
-            "Use --bitrate-mbps for --backend nvcodec.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    if args.backend == "nvcodec" and getattr(args, "cuda_graph", False):
-        print(
-            "ERROR: --cuda-graph is not supported by the torch-free nvcodec runtime.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
 def main() -> None:
     args = build_parser().parse_args()
-    validate_args(args)
-    if args.backend == "ffmpeg":
-        from trtvideo.pipelines.ffmpeg import FfmpegPipeline
+    from trtvideo.pipelines.nvcodec import NvcodecPipeline
 
-        FfmpegPipeline(args).run()
-        return
-    if args.backend == "nvcodec":
-        from trtvideo.pipelines.nvcodec import NvcodecPipeline
-
-        NvcodecPipeline(args).run()
-        return
-
-    print(f"ERROR: unsupported backend: {args.backend}", file=sys.stderr)
-    sys.exit(1)
+    NvcodecPipeline(args).run()
 
 
 if __name__ == "__main__":

@@ -105,8 +105,6 @@ def build_upscale_command(
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     return [
         "upscale",
-        "--backend",
-        "nvcodec",
         "--engine",
         args.engine,
         "--input",
@@ -360,7 +358,6 @@ def _diagnostic_config(
         engine=Path(args.engine),
         input_path=Path(variant["path"]),
         output_dir=paths.output_dir,
-        backend="nvcodec",
         gpu_id=args.gpu_id,
         frames=args.frames,
         warmup_frames=1,
@@ -447,7 +444,6 @@ def run_diagnostic(
         "publishable": False,
         "status": "valid" if not errors else "invalid",
         "product": "trtvideo",
-        "backend": "nvcodec",
         "workload_id": workload_id,
         "benchmark_contract_version": manifest["benchmark"]["contract_version"],
         "variant": args.variant,

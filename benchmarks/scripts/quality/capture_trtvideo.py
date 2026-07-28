@@ -171,7 +171,6 @@ def capture(args: argparse.Namespace) -> Path:
         str(engine_path),
         quiet=True,
         gpu_id=args.gpu_id,
-        use_cuda_graph=False,
     )
     frame_processor = NvcodecFrameProcessor(
         runtime,

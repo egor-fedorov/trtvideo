@@ -729,12 +729,10 @@ wheels = [
 name = "trtvideo"
 version = "0.3.1"
 source = { editable = "." }
-dependencies = [
-    { name = "numpy" },
-]
 
 [package.optional-dependencies]
 benchmark = [
+    { name = "numpy" },
     { name = "nvidia-ml-py" },
 ]
 docker = [
@@ -754,9 +752,6 @@ export = [
     { name = "spandrel" },
     { name = "torch" },
 ]
-ffmpeg = [
-    { name = "torch" },
-]
 gpu = [
     { name = "cuda-bindings" },
     { name = "cvcuda-cu12" },
@@ -766,6 +761,7 @@ gpu = [
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "numpy" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -776,7 +772,7 @@ requires-dist = [
     { name = "cuda-bindings", marker = "extra == 'gpu'", specifier = ">=13,<14" },
     { name = "cvcuda-cu12", marker = "extra == 'docker'", specifier = ">=0.16" },
     { name = "cvcuda-cu12", marker = "extra == 'gpu'", specifier = ">=0.16" },
-    { name = "numpy", specifier = ">=2.0,<3" },
+    { name = "numpy", marker = "extra == 'benchmark'", specifier = ">=2.0,<3" },
     { name = "nvidia-ml-py", marker = "extra == 'benchmark'", specifier = ">=13.610,<14" },
     { name = "onnx", marker = "extra == 'docker'", specifier = ">=1.16,<2" },
     { name = "onnx", marker = "extra == 'export'", specifier = ">=1.16,<2" },
@@ -790,13 +786,13 @@ requires-dist = [
     { name = "spandrel", marker = "extra == 'export'", specifier = ">=0.4,<1" },
     { name = "torch", marker = "extra == 'docker'", specifier = ">=2.10,<3" },
     { name = "torch", marker = "extra == 'export'", specifier = ">=2.10,<3" },
-    { name = "torch", marker = "extra == 'ffmpeg'", specifier = ">=2.10,<3" },
 ]
-provides-extras = ["ffmpeg", "gpu", "docker", "benchmark", "export"]
+provides-extras = ["gpu", "docker", "benchmark", "export"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.15,<2" },
+    { name = "numpy", specifier = ">=2.0,<3" },
     { name = "pytest", specifier = ">=8,<9" },
     { name = "ruff", specifier = ">=0.11,<1" },
 ]

@@ -1,31 +1,9 @@
-import argparse
-
 import pytest
 
-from trtvideo.cli.upscale import build_parser, validate_args
+from trtvideo.cli.upscale import build_parser
 
 
-def test_ffmpeg_accepts_crf() -> None:
-    args = argparse.Namespace(backend="ffmpeg", crf=18)
-
-    validate_args(args)
-
-
-def test_nvcodec_rejects_crf() -> None:
-    args = argparse.Namespace(backend="nvcodec", crf=18)
-
-    with pytest.raises(SystemExit):
-        validate_args(args)
-
-
-def test_nvcodec_rejects_cuda_graph() -> None:
-    args = argparse.Namespace(backend="nvcodec", crf=None, cuda_graph=True)
-
-    with pytest.raises(SystemExit):
-        validate_args(args)
-
-
-def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
+def test_parser_uses_single_gpu_resident_contract() -> None:
     args = build_parser().parse_args(
         [
             "--engine",
@@ -35,8 +13,23 @@ def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
         ]
     )
 
-    assert args.backend == "nvcodec"
-    assert args.crf is None
+    assert args.codec == "h264"
+    assert args.bitrate_mbps is None
+
+
+@pytest.mark.parametrize("removed_option", ["--backend", "--crf", "--cuda-graph"])
+def test_removed_backend_options_are_rejected(removed_option: str) -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "--engine",
+                "models/engines/model.engine",
+                "--input",
+                "videos/input.mp4",
+                removed_option,
+                "nvcodec" if removed_option == "--backend" else "18",
+            ]
+        )
 
 
 def test_engine_is_required() -> None:

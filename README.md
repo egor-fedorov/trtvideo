@@ -1,7 +1,7 @@
 # trtvideo
 
 Docker-first CLI tools for TensorRT-based video processing. The implemented
-workflow is full-video upscaling through `ffmpeg` or a GPU-resident
+workflow is full-video upscaling through a GPU-resident
 NVDEC/CV-CUDA/TensorRT/NVENC pipeline. Model preparation supports `.pth`
 checkpoints and existing ONNX files; inference runs with an explicitly selected
 TensorRT engine.
@@ -14,8 +14,8 @@ The production runtime currently uses Python 3.12 from the
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) - inference, TensorRT runtime, and backend
-  architecture.
+- [Architecture](docs/ARCHITECTURE.md) - inference, TensorRT runtime, and video
+  pipeline architecture.
 - [Testing](docs/TESTING.md) - test layers and the Docker-only quality gate.
 - [Roadmap](docs/ROADMAP.md) - current development directions.
 - [Changes](docs/CHANGES.md) - versioned changes and versioning rules.
@@ -214,42 +214,26 @@ docker run --rm --gpus all \
 ```
 
 The resulting dynamic engine cannot be used by the current video inference
-runtime. `upscale --backend ffmpeg|nvcodec` requires a static ONNX variant from
-`prepare-onnx` and a corresponding static engine.
+runtime. `upscale` requires a static ONNX variant from `prepare-onnx` and a
+corresponding static engine.
 
 ### 4. Upscale Video
 
-`--engine` is required and must match the input video resolution. The runtime
+`--engine` is required and must match the input video resolution. Decode, color
+conversion, TensorRT inference, and encode remain on the GPU. The runtime
 checks the engine input shape and exits on a mismatch.
 
-With the FFmpeg backend, FFmpeg performs decode and encode while TensorRT
-inference runs on the GPU:
-
 ```bash
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   trtvideo:latest upscale \
-  --backend ffmpeg \
-  --engine models/engines/model_720p.engine \
-  --input videos/input.mp4
-```
-
-With the NVDEC/NVENC backend, decode, color conversion, TensorRT inference, and
-encode remain on the GPU:
-
-```bash
-docker run --rm --gpus all \
-  -v "$PWD/models:/app/models" \
-  -v "$PWD/videos:/app/videos" \
-  trtvideo:latest upscale \
-  --backend nvcodec \
   --engine models/engines/model_720p.engine \
   --bitrate-mbps 35 \
   --input videos/input.mp4
 ```
 
-Both backends replace the source video with the enhanced stream and copy every
+The pipeline replaces the source video with the enhanced stream and copies every
 source audio, subtitle, data, and attachment stream without transcoding. Global
 metadata and chapters are retained. Before TensorRT is initialized, a short
 FFmpeg preflight verifies that all copied streams are supported by the selected
@@ -272,7 +256,6 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   trtvideo:latest upscale \
-  --backend nvcodec \
   --gpu-id 1 \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -335,8 +318,7 @@ sanitized environment. After SHA256 and complete FFmpeg validation, valid MP4
 files are deleted while invalid output is retained.
 
 `benchmark-upscale` can also be called directly for an arbitrary video-only
-input. The `nvcodec` path requires an explicit bitrate, one backend, and a
-separate output directory:
+input. It requires an explicit bitrate and a separate output directory:
 
 ```bash
 docker run --rm --gpus all \
@@ -346,7 +328,6 @@ docker run --rm --gpus all \
   trtvideo:benchmark benchmark-upscale \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4 \
-  --backend nvcodec \
   --bitrate-mbps 35 \
   --output-dir artefacts/manual-run \
   --json -
@@ -393,12 +374,10 @@ docker run --rm trtvideo:latest build-engine --help
 
 ## Encoding
 
-The FFmpeg backend uses `libx264` and controls quality through `--crf`, which
-defaults to 18. The NVDEC/NVENC backend does not support `--crf`; select the
-codec with `--codec h264|hevc`.
+Select the NVENC codec with `--codec h264|hevc`.
 
-Without `--bitrate-mbps`, the NVDEC/NVENC backend estimates target bitrate from
-the source video bitrate:
+Without `--bitrate-mbps`, the pipeline estimates target bitrate from the source
+video bitrate:
 
 ```text
 source_bitrate * (pixel_ratio * fps_ratio) ** 0.6
@@ -407,16 +386,15 @@ source_bitrate * (pixel_ratio * fps_ratio) ** 0.6
 This reduces the risk of unexpectedly large output after upscaling. Use an
 explicit `--bitrate-mbps` for fully controlled output size.
 
-If `ffprobe` cannot determine the source bitrate, the NVDEC/NVENC backend
-requires an explicit `--bitrate-mbps` and exits with an error. `--crf` is
-supported only by the FFmpeg backend.
+If `ffprobe` cannot determine the source bitrate, the command requires an
+explicit `--bitrate-mbps` and exits with an error.
 
 ## Media Contract
 
-The current media contract targets SDR 8-bit video. The `nvcodec` backend fails
-fast for inputs other than `yuv420p`/`nv12` and for HDR transfer functions.
-NV12/RGB conversion uses an explicit CV-CUDA color specification, and the output
-receives explicit color tags instead of `unknown`.
+The current media contract targets SDR 8-bit video. The pipeline fails fast for
+inputs other than `yuv420p`/`nv12` and for HDR transfer functions. NV12/RGB
+conversion uses an explicit CV-CUDA color specification, and the output receives
+explicit color tags instead of `unknown`.
 
 ## Quality Checks
 

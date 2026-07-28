@@ -93,7 +93,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added repeatable `export-onnx --size WIDTHxHEIGHT`; omitting it retains the
   existing 720p and 1080p defaults.
 - Added a shared media-preservation contract and Docker FFmpeg integration
-  tests. Both backends now retain all source audio, subtitle, data, attachment,
+  tests. Upscaling now retains all source audio, subtitle, data, attachment,
   chapter, and metadata content when the selected output container supports it.
 - Added an output-container preflight before TensorRT initialization.
   Incompatible stream-copy requests fail early and recommend MKV instead of
@@ -163,10 +163,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 - Replaced PyTorch tensor/stream orchestration in the default `nvcodec` runtime
   with CV-CUDA-owned buffers, CUDA Array Interface views, and direct TensorRT
-  bindings. Ordinary GPU-resident inference no longer imports PyTorch; the
-  `ffmpeg` backend and model export retain their PyTorch implementation.
-  `nvcodec --cuda-graph` now fails explicitly because graph capture has not yet
-  been implemented for the CV-CUDA-owned stream.
+  bindings. Ordinary GPU-resident inference no longer imports PyTorch; model
+  export retains its PyTorch implementation.
 - Expanded both tuned workload contracts with a mandatory VSGAN
   `num_streams=2..6` sweep using runtime-default VapourSynth threads. Contract
   validation now rejects an asymmetric grid. The previous RTX 3090 tuned
@@ -308,6 +306,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Removed
 
+- Removed the CPU-frame video path, its PyTorch runtime adapter, and the
+  `--backend`, `--crf`, and product `--cuda-graph` options. `upscale` now has one
+  production contract: NVDEC, CV-CUDA, TensorRT, and NVENC, followed by FFmpeg
+  stream-copy muxing.
 - Removed `docker-compose.yml` and its duplicate fixed-path backend examples.
   The canonical quick-start path is now `make demo`; normal inference continues
   to use the explicit Docker commands in `README.md`.

@@ -92,10 +92,10 @@ def test_demo_input_is_rich_deterministic_mkv(tmp_path: Path) -> None:
     assert command[-1].endswith("demo_720p.mkv")
 
 
-def test_demo_upscale_uses_nvcodec_and_explicit_engine(tmp_path: Path) -> None:
+def test_demo_upscale_uses_explicit_engine(tmp_path: Path) -> None:
     command = upscale_command(DemoPaths.under(tmp_path), gpu_id=2)
 
-    assert command[command.index("--backend") + 1] == "nvcodec"
+    assert "--backend" not in command
     assert command[command.index("--gpu-id") + 1] == "2"
     assert command[command.index("--bitrate-mbps") + 1] == "12.0"
     assert command[command.index("--output") + 1].endswith("demo_1440p.mkv")

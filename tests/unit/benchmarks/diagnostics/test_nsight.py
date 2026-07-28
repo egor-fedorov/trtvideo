@@ -50,14 +50,15 @@ def args(tmp_path: Path) -> argparse.Namespace:
     )
 
 
-def test_upscale_command_uses_regular_nvcodec_path(tmp_path: Path) -> None:
+def test_upscale_command_uses_regular_production_path(tmp_path: Path) -> None:
     command = build_upscale_command(
         args(tmp_path),
         manifest(),
         output_path=tmp_path / "output.mp4",
     )
 
-    assert command[:3] == ["upscale", "--backend", "nvcodec"]
+    assert command[:2] == ["upscale", "--engine"]
+    assert "--backend" not in command
     assert command[command.index("--max-frames") + 1] == "120"
     assert command[command.index("--bitrate-mbps") + 1] == "60"
     assert "--profile" not in command

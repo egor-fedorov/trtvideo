@@ -1,4 +1,4 @@
-"""Bitrate estimation helpers shared by video backends and tests."""
+"""Video bitrate estimation helpers."""
 
 AUTO_BITRATE_COMPLEXITY_EXPONENT = 0.6
 

@@ -22,8 +22,7 @@ from trtvideo.video.preservation import ffmpeg_preservation_args
 class NvcodecPipeline(BasePipeline):
     """Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC."""
 
-    DESCRIPTION = "TensorRT Video Upscaler (NVDEC/NVENC backend)"
-    BACKEND_NAME = "nvcodec"
+    DESCRIPTION = "TensorRT Video Upscaler"
     _DECODE_BATCH_SIZE = 8
     _GPU_STAGES = [
         "NV12\u2192RGB (cvcuda)",
@@ -49,12 +48,11 @@ class NvcodecPipeline(BasePipeline):
         super().__init__(args)
 
     def create_runtime(self) -> CvcudaTensorRTRuntime:
-        """Create the torch-free TensorRT runtime used by the NVCodec backend."""
+        """Create the torch-free TensorRT runtime."""
         return CvcudaTensorRTRuntime(
             self.engine_path,
             quiet=self.args.quiet,
             gpu_id=self.args.gpu_id,
-            use_cuda_graph=self.args.cuda_graph,
         )
 
     def profile_stage_names(self) -> list[str]:
@@ -86,9 +84,9 @@ class NvcodecPipeline(BasePipeline):
         super().validate_video_input(info)
         if info.pix_fmt not in {"nv12", "yuv420p"}:
             print(
-                "ERROR: nvcodec backend currently supports only 8-bit SDR NV12/yuv420p "
+                "ERROR: upscale currently supports only 8-bit SDR NV12/yuv420p "
                 f"input, got pix_fmt={info.pix_fmt or 'unknown'}. "
-                "Use --backend ffmpeg or transcode/tonemap the input to SDR yuv420p first."
+                "Transcode or tonemap the input to SDR yuv420p first."
             )
             sys.exit(1)
 

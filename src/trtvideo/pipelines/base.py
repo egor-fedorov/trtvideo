@@ -45,8 +45,6 @@ class BasePipeline(ABC):
     """
 
     DESCRIPTION: str = "TensorRT Video Upscaler"
-    BACKEND_NAME: str = "unknown"
-
     def __init__(self, args: argparse.Namespace):
         self.args = args
         self.info = VideoInfo(width=0, height=0, fps=0.0, fps_str="0/1", nb_frames=0)
@@ -141,18 +139,11 @@ class BasePipeline(ABC):
         """Map human-readable profile stage names to stable JSON keys."""
         return {}
 
-    def create_runtime(self) -> RuntimeEngine:
-        """Create the default PyTorch-backed TensorRT runtime."""
-        from trtvideo.runtime.tensorrt import TensorRTRuntime
-
-        return TensorRTRuntime(
-            self.engine_path,
-            quiet=self.args.quiet,
-            gpu_id=self.args.gpu_id,
-            use_cuda_graph=self.args.cuda_graph,
-        )
-
     # --- Abstract hooks ---
+
+    @abstractmethod
+    def create_runtime(self) -> RuntimeEngine:
+        """Create the pipeline runtime."""
 
     @abstractmethod
     def profile_stage_names(self) -> list[str]:
@@ -362,16 +353,12 @@ class BasePipeline(ABC):
         }
 
         report = {
-            "backend": self.BACKEND_NAME,
             "engine": self.engine_path,
             "gpu": runtime.gpu_name,
             "input": self.args.input,
             "output": self.args.output,
             "input_resolution": f"{self.info.width}x{self.info.height}",
             "output_resolution": f"{runtime.output_w}x{runtime.output_h}",
-            "cuda_graph_requested": self.args.cuda_graph,
-            "cuda_graph": runtime.cuda_graph_enabled,
-            "cuda_graph_error": runtime.cuda_graph_error,
             "processed_frames": len(frame_times),
             "frames": profile.get("frames", len(frame_times)),
             "warmup_frames": profile.get("warmup_frames", 0),

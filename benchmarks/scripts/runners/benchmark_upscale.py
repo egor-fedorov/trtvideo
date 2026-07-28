@@ -28,12 +28,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine", required=True, help="Static TensorRT engine path")
     parser.add_argument("--input", required=True, help="Input video path")
     parser.add_argument(
-        "--backend",
-        choices=["ffmpeg", "nvcodec"],
-        default="nvcodec",
-        help="One backend per benchmark suite",
-    )
-    parser.add_argument(
         "--output-dir",
         required=True,
         help="Directory for run manifests, logs and raw NVML samples",
@@ -80,13 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--bitrate-mbps",
         type=float,
         default=None,
-        help="Required explicit H.264 NVENC bitrate for nvcodec",
-    )
-    parser.add_argument("--crf", type=int, default=18, help="Diagnostic ffmpeg CRF")
-    parser.add_argument(
-        "--cuda-graph",
-        action="store_true",
-        help="Enable the experimental TensorRT CUDA Graph path",
+        help="Required explicit H.264 NVENC bitrate",
     )
     parser.add_argument(
         "--keep-outputs",
@@ -117,7 +105,6 @@ def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         engine=Path(args.engine),
         input_path=Path(args.input),
         output_dir=Path(args.output_dir),
-        backend=args.backend,
         gpu_id=args.gpu_id,
         frames=args.frames,
         warmup_frames=args.warmup_frames,
@@ -127,8 +114,6 @@ def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
         idle_seconds=args.idle_seconds,
         sample_interval_ms=args.nvml_sample_ms,
         bitrate_mbps=args.bitrate_mbps,
-        crf=args.crf,
-        cuda_graph=args.cuda_graph,
         keep_outputs=args.keep_outputs,
         validate_bitrate=not args.skip_bitrate_validation,
         workload_manifest=(

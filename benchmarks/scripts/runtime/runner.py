@@ -54,7 +54,6 @@ class BenchmarkConfig:
     engine: Path
     input_path: Path
     output_dir: Path
-    backend: str = "nvcodec"
     gpu_id: int = 0
     frames: int = 1000
     warmup_frames: int = 100
@@ -64,8 +63,6 @@ class BenchmarkConfig:
     idle_seconds: float = 10.0
     sample_interval_ms: int = 100
     bitrate_mbps: float | None = None
-    crf: int = 18
-    cuda_graph: bool = False
     keep_outputs: bool = False
     validate_bitrate: bool = True
     workload_manifest: Path | None = None
@@ -85,8 +82,6 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def validate_config(config: BenchmarkConfig) -> None:
     """Reject configurations that cannot produce comparable measurements."""
-    if config.backend not in {"ffmpeg", "nvcodec"}:
-        raise BenchmarkError(f"Unsupported backend: {config.backend}")
     if not config.engine.is_file():
         raise BenchmarkError(f"Engine not found: {config.engine}")
     if not config.input_path.is_file():
@@ -101,12 +96,8 @@ def validate_config(config: BenchmarkConfig) -> None:
         raise BenchmarkError("--idle-seconds cannot be negative")
     if config.sample_interval_ms <= 0:
         raise BenchmarkError("--nvml-sample-ms must be greater than zero")
-    if config.backend == "nvcodec" and (
-        config.bitrate_mbps is None or config.bitrate_mbps <= 0
-    ):
-        raise BenchmarkError("nvcodec benchmark requires explicit positive --bitrate-mbps")
-    if config.backend == "ffmpeg" and not 0 <= config.crf <= 51:
-        raise BenchmarkError("--crf must be in the range 0..51")
+    if config.bitrate_mbps is None or config.bitrate_mbps <= 0:
+        raise BenchmarkError("Benchmark requires explicit positive --bitrate-mbps")
     if (config.workload_manifest is None) != (config.variant is None):
         raise BenchmarkError("--workload-manifest and --variant must be used together")
 
@@ -225,8 +216,6 @@ def build_upscale_command(
     """Build an unprofiled child command for warmup or measurement."""
     command = [
         "upscale",
-        "--backend",
-        config.backend,
         "--engine",
         str(config.engine),
         "--input",
@@ -238,13 +227,11 @@ def build_upscale_command(
         "--max-frames",
         str(frame_count),
         "--quiet",
+        "--codec",
+        "h264",
+        "--bitrate-mbps",
+        str(config.bitrate_mbps),
     ]
-    if config.backend == "nvcodec":
-        command.extend(["--codec", "h264", "--bitrate-mbps", str(config.bitrate_mbps)])
-    else:
-        command.extend(["--crf", str(config.crf)])
-    if config.cuda_graph:
-        command.append("--cuda-graph")
     if lifecycle_path is not None:
         command.extend(["--benchmark-lifecycle-json", str(lifecycle_path)])
     return command
@@ -266,20 +253,16 @@ def output_contract(
             f"Input video {info.width}x{info.height} does not match engine "
             f"{input_shape[3]}x{input_shape[2]}"
         )
-    gop_frames = (
-        gop_size_for_one_second(info.fps_str) if config.backend == "nvcodec" else None
-    )
+    gop_frames = gop_size_for_one_second(info.fps_str)
     return OutputContract(
         width=output_shape[3],
         height=output_shape[2],
         fps=info.fps_str,
         frames=frames,
-        has_b_frames=0 if config.backend == "nvcodec" else None,
+        has_b_frames=0,
         gop_frames=gop_frames,
-        target_bitrate_mbps=(
-            config.bitrate_mbps if config.backend == "nvcodec" and enforce_bitrate else None
-        ),
-        require_monotonic_pts=config.backend == "nvcodec",
+        target_bitrate_mbps=config.bitrate_mbps if enforce_bitrate else None,
+        require_monotonic_pts=True,
     )
 
 
@@ -351,7 +334,6 @@ def run_one(
         "status": "running",
         "run_index": run_index,
         "product": PRODUCT_NAME,
-        "backend": config.backend,
         "workload_id": workload_id,
         "benchmark_contract_version": benchmark_contract_version,
         "variant": config.variant,
@@ -361,8 +343,7 @@ def run_one(
             "warmup_frames": config.warmup_frames,
             "gpu_id": config.gpu_id,
             "bitrate_mbps": config.bitrate_mbps,
-            "crf": config.crf if config.backend == "ffmpeg" else None,
-            "cuda_graph": config.cuda_graph,
+            "cuda_graph": False,
             "bitrate_validation": config.validate_bitrate,
             "nvml_sample_interval_ms": config.sample_interval_ms,
             "encoder": encoder_parameters,
@@ -555,13 +536,12 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     gpu = sampler.initialize()
     environment = collect_environment(gpu)
     encoder_parameters = None
-    if config.backend == "nvcodec":
-        assert config.bitrate_mbps is not None
-        info = get_video_info(str(config.input_path))
-        encoder_parameters = NvencCbrContract(
-            bitrate_bps=int(config.bitrate_mbps * 1_000_000),
-            gop_frames=gop_size_for_one_second(info.fps_str),
-        ).as_dict()
+    assert config.bitrate_mbps is not None
+    info = get_video_info(str(config.input_path))
+    encoder_parameters = NvencCbrContract(
+        bitrate_bps=int(config.bitrate_mbps * 1_000_000),
+        gop_frames=gop_size_for_one_second(info.fps_str),
+    ).as_dict()
     summary_path = config.output_dir / "suite.json"
     policy = SuitePolicy(
         initial_runs=config.initial_runs,
@@ -620,7 +600,7 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         "idle_seconds": config.idle_seconds,
         "nvml_sample_interval_ms": config.sample_interval_ms,
         "bitrate_mbps": config.bitrate_mbps,
-        "cuda_graph": config.cuda_graph,
+        "cuda_graph": False,
         "encoder": encoder_parameters,
     }
     canonical_errors = canonical_suite_errors(
@@ -644,7 +624,6 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
             "errors": publishability_errors,
         },
         "product": PRODUCT_NAME,
-        "backend": config.backend,
         "workload_id": workload_id,
         "benchmark_contract_version": benchmark_contract_version,
         "variant": config.variant,

@@ -85,7 +85,7 @@ artifacts remain outside Git.
 
 Changes:
 
-* The non-profile `nvcodec` path now uses the explicit `runtime.stream` for the
+* The non-profile production path now uses the explicit `runtime.stream` for the
   GPU chain: `NV12->RGB -> TensorRT -> RGB->NV12`.
 * `PyNvVideoCodec.CreateEncoder` now receives the same CUDA stream through
   `cudastream=int(runtime.stream.cuda_stream)`.
@@ -100,10 +100,10 @@ Benchmark and validation:
 * Benchmark engines:
   `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_720p_fp16.engine`,
   `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16.engine`.
-* Backend: `nvcodec`.
+* Pipeline: NVDEC/CV-CUDA/TensorRT/NVENC.
 * GPU: Quadro RTX 6000.
 * Benchmark command:
-  `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --engine <resolution-specific-engine> --warmup-frames 20 --frames 1000`.
 * Smoke workload: complete 120-second output, 7200 frames.
 * Benchmark workload: 20 warmup frames and 1000 measured frames.
 * Profilers: `py-spy record` and `perf report` for the `upscale` process.
@@ -143,7 +143,7 @@ Benchmark after moving NVENC to the runtime CUDA stream:
 Conclusion:
 
 * Host-side busy-wait on `cuStreamSynchronize` was eliminated for the regular
-  non-profile `nvcodec` run.
+  non-profile run.
 * Smoke output correctness was confirmed by full decoding and the basic ffprobe
   contract.
 * Throughput did not improve on the heavy SPAN model. Results are within
@@ -168,11 +168,11 @@ Benchmark:
 
 * Inputs: `videos/new_york_720p.mp4`, `videos/new_york_1080p.mp4`.
 * Model: `2xLiveActionV1_SPAN_490000`.
-* Backend: `nvcodec`.
+* Pipeline: NVDEC/CV-CUDA/TensorRT/NVENC.
 * GPU: Quadro RTX 6000.
 * Workload: 20 warmup frames and 1000 measured frames.
 * Command:
-  `benchmark-upscale --engine <resolution-specific-engine> --backend nvcodec --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --engine <resolution-specific-engine> --warmup-frames 20 --frames 1000`.
 * The CUDA Graph command additionally uses `--cuda-graph`.
 
 Comparison of `26.04` and `26.06` without CUDA Graph:
@@ -231,7 +231,7 @@ Benchmark:
   engine was rebuilt with the new TensorRT runtime.
 * GPU: Quadro RTX 6000.
 * Command:
-  `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --model models/liveaction-span --engine-io-precision fp16 --warmup-frames 20 --frames 1000`.
 * The CUDA Graph command adds `--cuda-graph`.
 * For 1080p without CUDA Graph, the `26.04` column is the average of two runs.
 
@@ -284,9 +284,9 @@ Changes:
 * Added a per-job `FrameBufferPool` in `src/trtvideo/pipelines/nvcodec.py`.
 * The `NV12->RGB` and `RGB->NV12` CV-CUDA conversions now write into preallocated
   buffers.
-* `TensorRTRuntime.infer_rgb_tensor_into(...)` writes output into a preallocated
+* The TensorRT runtime writes output into a preallocated
   RGB buffer.
-* The `upscale --backend nvcodec` hot path reuses `nv12_in`, `rgb_in`, `nchw_in`,
+* The `upscale` hot path reuses `nv12_in`, `rgb_in`, `nchw_in`,
   `rgb_out`, `rgb_out_float`, and `nv12_out`.
 
 Benchmark:
@@ -296,24 +296,22 @@ Benchmark:
   `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_720p.engine`.
 * GPU: Quadro RTX 6000.
 * Command:
-  `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --model models/liveaction-span --warmup-frames 20 --frames 1000`.
 
 Results:
 
-| Backend | Metric | Before | After | Change |
-| --- | ---: | ---: | ---: | ---: |
-| `nvcodec` | processing FPS | 36.5 | 37.44 | +2.6% |
-| `nvcodec` | avg frame time | 27.4 ms | 26.71 ms | -2.5% |
-| `nvcodec` | `NV12->RGB` stage | 0.8 ms | 0.50 ms | -37.5% |
-| `nvcodec` | `TRT inference` stage | 25.7 ms | 25.49 ms | -0.8% |
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| processing FPS | 36.5 | 37.44 | +2.6% |
+| avg frame time | 27.4 ms | 26.71 ms | -2.5% |
+| `NV12->RGB` stage | 0.8 ms | 0.50 ms | -37.5% |
+| `TRT inference` stage | 25.7 ms | 25.49 ms | -0.8% |
 
 Conclusion:
 
 * The improvement is visible in the `NV12->RGB` CV-CUDA stage.
 * Overall FPS improved moderately because TensorRT inference still dominates the
   720p SPAN run.
-* The benchmark also measures the `ffmpeg` backend, but this optimization did
-  not target `ffmpeg`.
 * Use `throughput_fps` for end-to-end performance and `processing_fps` plus
   `stage_ms` for hot-path analysis.
 
@@ -326,8 +324,7 @@ Changes:
 * Registry selection supports `--engine-io-precision fp16|fp32`.
 * The runtime allocates input and output buffers according to engine binding
   dtypes.
-* The preprocess and postprocess paths support FP16 bindings in
-  `upscale --backend ffmpeg` and `upscale --backend nvcodec`.
+* The preprocess and postprocess paths support FP16 bindings.
 
 Benchmark:
 
@@ -338,30 +335,23 @@ Benchmark:
   `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`.
 * GPU: Quadro RTX 6000.
 * Command:
-  `benchmark-upscale --model models/liveaction-span --backend ffmpeg,nvcodec --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --model models/liveaction-span --warmup-frames 20 --frames 1000`.
 * The FP16 I/O command adds `--engine-io-precision fp16`.
 
 Results:
 
-| Backend | Metric | Default FP16 / FP32 I/O | FP16 I/O | Change |
-| --- | ---: | ---: | ---: | ---: |
-| `ffmpeg` | throughput FPS | 7.61 | 7.84 | +3.0% |
-| `ffmpeg` | processing FPS | 16.27 | 16.66 | +2.4% |
-| `ffmpeg` | avg frame time | 61.48 ms | 60.02 ms | -2.4% |
-| `ffmpeg` | GPU peak memory | 261.84 MB | 143.87 MB | -45.1% |
-| `ffmpeg` | postprocess stage | 1.60 ms | 0.94 ms | -41.3% |
-| `ffmpeg` | TRT stage | 52.80 ms | 52.07 ms | -1.4% |
-| `nvcodec` | throughput FPS | 16.53 | 17.20 | +4.1% |
-| `nvcodec` | processing FPS | 16.80 | 17.51 | +4.2% |
-| `nvcodec` | avg frame time | 59.51 ms | 57.10 ms | -4.1% |
-| `nvcodec` | GPU peak memory | 282.74 MB | 164.90 MB | -41.7% |
-| `nvcodec` | `TRT inference` stage | 58.19 ms | 55.71 ms | -4.3% |
+| Metric | Default FP16 / FP32 I/O | FP16 I/O | Change |
+| --- | ---: | ---: | ---: |
+| throughput FPS | 16.53 | 17.20 | +4.1% |
+| processing FPS | 16.80 | 17.51 | +4.2% |
+| avg frame time | 59.51 ms | 57.10 ms | -4.1% |
+| GPU peak memory | 282.74 MB | 164.90 MB | -41.7% |
+| `TRT inference` stage | 58.19 ms | 55.71 ms | -4.3% |
 
 Conclusion:
 
-* FP16 I/O provides a moderate speedup for 1080p to 4K, especially with
-  `nvcodec`.
-* The main effect is a peak GPU memory reduction of approximately 42-45%.
+* FP16 I/O provides a moderate speedup for 1080p to 4K.
+* The main effect is a peak GPU memory reduction of approximately 42%.
 * TensorRT compute still dominates 1080p SPAN inference.
 * Before making this the production default, separately validate visual
   artifacts, banding or clipping, and compatibility with other models.
@@ -371,9 +361,7 @@ Conclusion:
 Changes:
 
 * Added experimental `--cuda-graph`.
-* The benchmark harness passes `--cuda-graph` to
-  `upscale --backend ffmpeg|nvcodec`.
-* `TensorRTRuntime` attempts to capture TensorRT `execute_async_v3` in a CUDA
+* The legacy runtime attempted to capture TensorRT `execute_async_v3` in a CUDA
   Graph.
 * If capture fails, the runtime falls back to regular TensorRT enqueue.
 
@@ -384,18 +372,18 @@ Benchmark:
   `models/liveaction-span/engines/2xLiveActionV1_SPAN_490000_1080p_fp16io.engine`.
 * GPU: Quadro RTX 6000.
 * Command:
-  `benchmark-upscale --model models/liveaction-span --backend nvcodec --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`.
+  `benchmark-upscale --model models/liveaction-span --engine-io-precision fp16 --cuda-graph --warmup-frames 20 --frames 1000`.
 
 Results:
 
-| Backend | Metric | FP16 I/O | FP16 I/O + CUDA Graph | Change |
-| --- | ---: | ---: | ---: | ---: |
-| `nvcodec` | `cuda_graph` | false | true | capture works |
-| `nvcodec` | processing FPS | 17.51 | 17.86 | +2.0% |
-| `nvcodec` | throughput FPS | 17.20 | 17.15 | -0.3% |
-| `nvcodec` | avg frame time | 57.10 ms | 55.98 ms | -2.0% |
-| `nvcodec` | `TRT inference` stage | 55.71 ms | 54.47 ms | -2.2% |
-| `nvcodec` | GPU peak memory | 164.90 MB | 164.90 MB | unchanged |
+| Metric | FP16 I/O | FP16 I/O + CUDA Graph | Change |
+| --- | ---: | ---: | ---: |
+| `cuda_graph` | false | true | capture works |
+| processing FPS | 17.51 | 17.86 | +2.0% |
+| throughput FPS | 17.20 | 17.15 | -0.3% |
+| avg frame time | 57.10 ms | 55.98 ms | -2.0% |
+| `TRT inference` stage | 55.71 ms | 54.47 ms | -2.2% |
+| GPU peak memory | 164.90 MB | 164.90 MB | unchanged |
 
 Conclusion:
 
@@ -405,6 +393,7 @@ Conclusion:
   dominated by TensorRT compute.
 * End-to-end throughput is effectively within noise, so the production default
   should not change yet.
+* The experimental product option was later removed with the legacy runtime.
 * The next useful measurement is a lightweight or compact model, where CPU
   launch overhead should be more visible.
 

@@ -195,4 +195,3 @@ optimization remain pending.
 - Improve the media contract: VFR, rotation, SAR/DAR, duration, and missing
   `nb_frames`.
 - Add P010/HDR metadata passthrough, tonemap, and color management.
-- Consider a VapourSynth backend as a product feature.
