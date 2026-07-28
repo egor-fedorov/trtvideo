@@ -283,7 +283,6 @@ def _validate_model_space(
                         image_id=identity.image_id,
                         repository_revision=identity.repository_revision,
                         execution_profile=assessment.candidate.execution_profile(),
-                        comparison_class="tuned",
                     ),
                 ),
             ),

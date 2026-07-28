@@ -9,7 +9,7 @@ from typing import Any, Literal
 from benchmarks.scripts.contracts.benchmark import CompetitorError
 
 Implementation = Literal["vstrt", "vsgan"]
-Mode = Literal["upstream-default", "tuned"]
+ExecutionProfileName = Literal["upstream-default", "tuned"]
 AutoOrInt = Literal["auto"] | int
 
 
@@ -17,7 +17,7 @@ AutoOrInt = Literal["auto"] | int
 class VapourSynthExecutionProfile:
     """Resolved scheduling contract for one VapourSynth benchmark process."""
 
-    mode: Mode
+    name: ExecutionProfileName
     requests: int | None
     num_streams: int
     vapoursynth_threads: int | None
@@ -25,7 +25,7 @@ class VapourSynthExecutionProfile:
 
     def as_parameters(self) -> dict[str, str | int | bool]:
         return {
-            "mode": self.mode,
+            "execution_profile": self.name,
             "vspipe_requests": self.requests if self.requests is not None else "auto",
             "num_streams": self.num_streams,
             "vapoursynth_threads": (
@@ -37,16 +37,19 @@ class VapourSynthExecutionProfile:
         }
 
 
-_PRESETS: dict[tuple[Implementation, Mode], VapourSynthExecutionProfile] = {
+_PRESETS: dict[
+    tuple[Implementation, ExecutionProfileName],
+    VapourSynthExecutionProfile,
+] = {
     ("vstrt", "upstream-default"): VapourSynthExecutionProfile(
-        mode="upstream-default",
+        name="upstream-default",
         requests=None,
         num_streams=1,
         vapoursynth_threads=None,
         cuda_graph=False,
     ),
     ("vsgan", "upstream-default"): VapourSynthExecutionProfile(
-        mode="upstream-default",
+        name="upstream-default",
         requests=None,
         num_streams=4,
         vapoursynth_threads=4,
@@ -74,7 +77,7 @@ def _auto_or_positive_int(value: str) -> AutoOrInt:
 def add_execution_profile_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common profile and scheduling options to a runner parser."""
     parser.add_argument(
-        "--mode",
+        "--execution-profile",
         choices=["upstream-default", "tuned"],
         default="upstream-default",
         help="Scheduling profile; tuned requires every scheduling option",
@@ -118,9 +121,9 @@ def _format_auto(value: int | None) -> str:
 def _resolve_preset(
     args: argparse.Namespace,
     implementation: Implementation,
-    mode: Mode,
+    profile_name: ExecutionProfileName,
 ) -> VapourSynthExecutionProfile:
-    profile = _PRESETS[(implementation, mode)]
+    profile = _PRESETS[(implementation, profile_name)]
     requested = (
         ("--requests", args.requests, profile.requests, _normalize_auto),
         ("--num-streams", args.num_streams, profile.num_streams, lambda value: value),
@@ -140,7 +143,7 @@ def _resolve_preset(
                 else str(expected).lower()
             )
             raise CompetitorError(
-                f"{implementation} {mode} requires {option}={expected_value}"
+                f"{implementation} {profile_name} requires {option}={expected_value}"
             )
     return profile
 
@@ -161,7 +164,7 @@ def _resolve_tuned(
             f"{implementation} tuned requires explicit {', '.join(missing)}"
         )
     return VapourSynthExecutionProfile(
-        mode="tuned",
+        name="tuned",
         requests=_normalize_auto(args.requests),
         num_streams=args.num_streams,
         vapoursynth_threads=_normalize_auto(args.vs_threads),
@@ -174,10 +177,10 @@ def resolve_execution_profile(
     implementation: Implementation,
 ) -> VapourSynthExecutionProfile:
     """Resolve CLI overrides into a validated execution profile."""
-    mode: Mode = args.mode
-    if mode == "tuned":
+    profile_name: ExecutionProfileName = args.execution_profile
+    if profile_name == "tuned":
         return _resolve_tuned(args, implementation)
-    return _resolve_preset(args, implementation, mode)
+    return _resolve_preset(args, implementation, profile_name)
 
 
 def validate_declared_profile(
@@ -185,12 +188,12 @@ def validate_declared_profile(
     profile: VapourSynthExecutionProfile,
 ) -> None:
     """Reject drift between executable presets and pinned source metadata."""
-    if profile.mode == "tuned":
+    if profile.name == "tuned":
         return
-    declared = implementation.get("execution_profiles", {}).get(profile.mode)
+    declared = implementation.get("execution_profiles", {}).get(profile.name)
     if not isinstance(declared, dict):
         raise CompetitorError(
-            f"Implementation does not declare the {profile.mode} profile"
+            f"Implementation does not declare the {profile.name} profile"
         )
     actual = profile.as_parameters()
     expected = {

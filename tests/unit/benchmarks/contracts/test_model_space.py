@@ -17,8 +17,7 @@ def test_model_space_contract_rejects_duplicate_implementation() -> None:
         "implementation": "vs-mlrt",
         "status": "valid",
         "engine_sha256": "engine",
-        "execution_profile": {"mode": "tuned"},
-        "comparison_class": "tuned",
+        "execution_profile": {"execution_profile": "tuned"},
         "image": {
             "id": "image",
             "repository_revision": "revision",
@@ -48,8 +47,7 @@ def test_model_space_contract_rejects_duplicate_implementation() -> None:
                 engine_sha256="engine",
                 image_id="image",
                 repository_revision="revision",
-                execution_profile={"mode": "tuned"},
-                comparison_class="tuned",
+                execution_profile={"execution_profile": "tuned"},
             ),
         ),
     )

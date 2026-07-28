@@ -153,7 +153,6 @@ def plan_document(
     *,
     product: str,
     backend: str,
-    comparison_class: str,
     implementation: dict[str, Any],
     manifest: dict[str, Any],
     variant_name: str,
@@ -168,7 +167,6 @@ def plan_document(
         "document_type": "benchmark-plan",
         "product": product,
         "backend": backend,
-        "comparison_class": comparison_class,
         "workload_id": manifest.get("id"),
         "benchmark_contract_version": manifest.get("benchmark", {}).get(
             "contract_version"

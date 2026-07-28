@@ -51,7 +51,6 @@ def _candidate_evidence(
         {
             "status": "valid",
             "product": PRODUCTS[candidate.implementation],
-            "comparison_class": "tuned",
             "workload_id": workload["id"],
             "benchmark_contract_version": workload["benchmark"][
                 "contract_version"
@@ -114,7 +113,6 @@ def _candidate_evidence(
             "comparisons": [
                 {
                     "implementation": PRODUCTS[candidate.implementation],
-                    "comparison_class": "tuned",
                     "execution_profile": profile,
                     "status": "valid" if model_space_valid else "invalid",
                     "engine_sha256": engine_sha,

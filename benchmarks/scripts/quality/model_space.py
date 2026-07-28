@@ -144,7 +144,6 @@ class CaptureManifest:
     """Complete model-space capture from one implementation."""
 
     implementation: str
-    comparison_class: str
     workload_id: str
     variant: str
     input_sha256: str
@@ -184,7 +183,6 @@ class CaptureManifest:
                 raise TypeError("execution_profile must be an object")
             manifest = cls(
                 implementation=str(value["implementation"]),
-                comparison_class=str(value["comparison_class"]),
                 workload_id=str(value["workload_id"]),
                 variant=str(value["variant"]),
                 input_sha256=str(value["assets"]["input_sha256"]),
@@ -205,11 +203,11 @@ class CaptureManifest:
         return manifest
 
     def validate(self, root: Path) -> None:
-        if not self.implementation or not self.comparison_class:
+        if not self.implementation:
             raise ModelSpaceError("Capture implementation identity is required")
         if not self.workload_id or not self.variant:
             raise ModelSpaceError("Capture workload identity is required")
-        if self.execution_profile.get("mode") not in {
+        if self.execution_profile.get("execution_profile") not in {
             "upstream-default",
             "tuned",
         }:
@@ -300,7 +298,6 @@ def write_capture_manifest(
     path: Path,
     *,
     implementation: str,
-    comparison_class: str,
     workload_id: str,
     variant: str,
     input_sha256: str,
@@ -315,7 +312,6 @@ def write_capture_manifest(
         "schema_version": CAPTURE_SCHEMA_VERSION,
         "document_type": "model-space-capture",
         "implementation": implementation,
-        "comparison_class": comparison_class,
         "workload_id": workload_id,
         "variant": variant,
         "execution_profile": execution_profile,
@@ -424,9 +420,9 @@ def compare_captures(
                 candidate.image["repository_revision"],
                 reference.image["repository_revision"],
             ),
-            "execution profile mode": (
-                candidate.execution_profile.get("mode"),
-                reference.execution_profile.get("mode"),
+            "execution profile": (
+                candidate.execution_profile.get("execution_profile"),
+                reference.execution_profile.get("execution_profile"),
             ),
             "tensor set": (
                 set(candidate.artifact_map()),
@@ -477,7 +473,6 @@ def compare_captures(
         comparisons.append(
             {
                 "implementation": candidate.implementation,
-                "comparison_class": candidate.comparison_class,
                 "engine_sha256": candidate.engine_sha256,
                 "image": candidate.image,
                 "execution_profile": candidate.execution_profile,
@@ -497,7 +492,7 @@ def compare_captures(
         "publishable": not report_errors,
         "workload_id": reference.workload_id,
         "variant": reference.variant,
-        "execution_profile": reference.execution_profile["mode"],
+        "execution_profile": reference.execution_profile["execution_profile"],
         "frame_indices": frame_indices,
         "reference": {
             "implementation": reference.implementation,

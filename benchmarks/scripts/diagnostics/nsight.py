@@ -189,8 +189,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     plan = plan_document(
         product="trtvideo",
         backend="nvcodec/Nsight Systems",
-        comparison_class="diagnostic",
         implementation={
+            "role": "diagnostic",
             "image": os.environ.get("TRTVIDEO_IMAGE_REF", "trtvideo:benchmark"),
             "profiler": "Nsight Systems",
         },

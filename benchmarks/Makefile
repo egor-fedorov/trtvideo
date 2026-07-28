@@ -21,22 +21,22 @@ TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
 VSGAN_ARGS ?=
 NSIGHT_ARGS ?=
-VAPOURSYNTH_MODE ?= upstream-default
+EXECUTION_PROFILE ?= upstream-default
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
 TRTVIDEO_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
-VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
-VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/standalone/$(VAPOURSYNTH_MODE)/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
+VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUTION_PROFILE)/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
+VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUTION_PROFILE)/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_FRAMES ?= 120
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
-CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(VAPOURSYNTH_MODE)/$(CAMPAIGN_NAME)
+CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(EXECUTION_PROFILE)/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
 CAMPAIGN_RUN_ARGS = --runs 1 --extra-runs 0 --idle-seconds 0
-MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
+MODEL_SPACE_DIR ?= artefacts/benchmarks/comparative/quality/model-space/$(EXECUTION_PROFILE)/$(WORKLOAD_NAME)-$(VARIANT)
 MODEL_SPACE_ARGS ?=
-PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(VAPOURSYNTH_MODE)/$(WORKLOAD_NAME)-$(VARIANT)
+PRODUCT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/quality/product-output/$(EXECUTION_PROFILE)/$(WORKLOAD_NAME)-$(VARIANT)
 QUALITY_FRAMES ?= 1000
 QUALITY_RUN_ARGS = --frames $(QUALITY_FRAMES) --runs 1 --extra-runs 0 --idle-seconds 0 --keep-outputs
 TUNING_CONTRACT ?= benchmarks/tuning/candidates.json
@@ -77,7 +77,7 @@ help:
 		'run-project         Run the project-only regression benchmark' \
 		'run-comparative     Run/resume the selected-profile rotation' \
 		'run-trtvideo        Run the low-level project implementation suite' \
-		'run-vstrt           Run vstrt with VAPOURSYNTH_MODE (ENGINE required)' \
+		'run-vstrt           Run vstrt with EXECUTION_PROFILE (ENGINE required)' \
 		'run-vsgan           Run pinned VSGAN (VSGAN_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
 		'plan-nsight         Print the project Nsight diagnostic plan' \
@@ -206,7 +206,7 @@ plan-vstrt:
 			--engine /app/$(or $(ENGINE),$(PLAN_ENGINE)) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSTRT_OUTPUT_DIR) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			--dry-run $(ARGS) $(VSTRT_ARGS)
 
 plan-vsgan:
@@ -222,7 +222,7 @@ plan-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			--dry-run $(ARGS) $(VSGAN_ARGS)
 
 dry-run: plan-trtexec plan-vstrt plan-vsgan
@@ -275,7 +275,7 @@ run-vstrt:
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSTRT_OUTPUT_DIR) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			$(ARGS) $(VSTRT_ARGS)
 
 run-vsgan:
@@ -294,7 +294,7 @@ run-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			$(ARGS) $(VSGAN_ARGS)
 
 profile-nsight:
@@ -329,7 +329,7 @@ capture-model-trtvideo:
 			--variant $(VARIANT) \
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--execution-profile $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/trtvideo \
 			$(MODEL_SPACE_ARGS)
 
@@ -350,7 +350,7 @@ capture-model-vstrt:
 			--engine /app/$(ENGINE) \
 			--script /app/benchmarks/vstrt/upscale.vpy \
 			--gpu-id $(GPU_ID) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/vstrt \
 			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
 
@@ -372,7 +372,7 @@ capture-model-vsgan:
 			--engine /app/$(VSGAN_ENGINE) \
 			--script /app/benchmarks/vsgan/upscale.vpy \
 			--gpu-id $(GPU_ID) \
-			--mode $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			--output-dir /app/$(MODEL_SPACE_DIR)/vsgan \
 			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
 
@@ -491,9 +491,9 @@ verify-tuned-matrix:
 		--output "$(TUNING_MATRIX_OUTPUT)"
 
 campaign-preflight:
-	@case "$(VAPOURSYNTH_MODE)" in \
+	@case "$(EXECUTION_PROFILE)" in \
 		upstream-default|tuned) ;; \
-		*) echo "ERROR: unknown VAPOURSYNTH_MODE: $(VAPOURSYNTH_MODE)" >&2; exit 2 ;; \
+		*) echo "ERROR: unknown EXECUTION_PROFILE: $(EXECUTION_PROFILE)" >&2; exit 2 ;; \
 	esac
 	@command -v "$(HOST_PYTHON)" >/dev/null 2>&1 || \
 		(echo "ERROR: comparative campaign requires host Python >= 3.10,<3.13; not found: $(HOST_PYTHON)" >&2; exit 2)
@@ -569,7 +569,7 @@ aggregate-campaign:
 			--campaign-dir /app/$(CAMPAIGN_DIR) \
 			--root /app \
 			--idle-seconds $(CAMPAIGN_IDLE_SECONDS) \
-			--execution-profile $(VAPOURSYNTH_MODE) \
+			--execution-profile $(EXECUTION_PROFILE) \
 			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/model-space-parity.json),--model-space-report /app/$(MODEL_SPACE_DIR)/model-space-parity.json) \
 			$(if $(wildcard $(ROOT)/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json),--product-output-report /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json) \
 			$(ARGS)
@@ -580,7 +580,7 @@ run-campaign: campaign-preflight
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \
 		--idle-seconds "$(CAMPAIGN_IDLE_SECONDS)" \
-		--execution-profile "$(VAPOURSYNTH_MODE)" \
+		--execution-profile "$(EXECUTION_PROFILE)" \
 		--vstrt-arguments="$(VSTRT_ARGS)" \
 		--vsgan-arguments="$(VSGAN_ARGS)" \
 		$(if $(filter 1,$(RESUME)),--resume,)

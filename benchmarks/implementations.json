@@ -4,7 +4,6 @@
     "trtexec": {
       "role": "diagnostic",
       "version": "TensorRT 11.0.0",
-      "comparison_class": "diagnostic",
       "image": "trtvideo:benchmark",
       "source": "nvcr.io/nvidia/tensorrt:26.06-py3",
       "notes": "Inference ceiling for the project engine; not a product competitor."
@@ -12,7 +11,6 @@
     "vstrt": {
       "role": "technical",
       "version": "v15.16",
-      "comparison_class": "upstream-default",
       "image": "trtvideo:benchmark-vstrt",
       "source": "https://github.com/AmusementClub/vs-mlrt",
       "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
@@ -37,7 +35,6 @@
     "vsgan": {
       "role": "product",
       "version": "2026-06-22",
-      "comparison_class": "upstream-default",
       "image": "trtvideo:benchmark-vsgan",
       "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
       "upstream_tag": "latest_no_avx512",

@@ -23,6 +23,7 @@ from benchmarks.scripts.campaign.core import (
     load_events,
     validate_complete_event_log,
 )
+from benchmarks.scripts.campaign.report import render_markdown
 from benchmarks.scripts.contracts.manifest import (
     ManifestContractError as CampaignError,
 )
@@ -304,7 +305,7 @@ def _validate_model_space_report(
             reference_revision=contract["repository_revision"],
             reference_source_dirty="0",
             reference_execution_profile={
-                "mode": contract["execution_profile"],
+                "execution_profile": contract["execution_profile"],
                 "cuda_graph": False,
             },
         ),
@@ -662,7 +663,7 @@ def _validate_common_contract(
                 profile = validate_execution_profile(
                     manifest,
                     implementation=implementation,
-                    expected_mode=execution_profile,
+                    expected_profile=execution_profile,
                 )
                 previous_profile = execution_profiles.setdefault(
                     implementation,
@@ -832,91 +833,6 @@ def _implementation_statistics(
     return statistics_report
 
 
-def _markdown(summary: dict[str, Any]) -> str:
-    lines = [
-        "# Rotated Benchmark Campaign",
-        "",
-        f"Status: `{summary['status']}`. Publication ready: "
-        f"`{'yes' if summary['publication']['ready'] else 'no'}`.",
-        f"Execution profile: `{summary['comparison_profile']}`.",
-        "",
-        "| Implementation | Runs | Median FPS | vs trtvideo | Median wall, s | "
-        "CPU cores | CPU capacity, % | GPU util, % | Power, W | J/frame | "
-        "Peak VRAM, MiB | Bitrate, Mbps | Size, MiB |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ]
-    for name in IMPLEMENTATIONS:
-        result = summary["implementations"][name]
-        stats = result["statistics"]
-        lines.append(
-            f"| {result['product']} | {summary['parameters']['rounds']} | "
-            f"{stats['median_fps']:.3f} | {result['relative_to_trtvideo_percent']:+.2f}% | "
-            f"{stats['median_wall_time_sec']:.2f} | "
-            f"{stats['median_cpu_cores']:.3f} | "
-            f"{stats['median_cpu_capacity_percent']:.2f} | "
-            f"{stats['median_gpu_utilization_percent']:.2f} | "
-            f"{stats['median_power_w']:.2f} | "
-            f"{stats['median_joules_per_frame']:.3f} | "
-            f"{stats['median_peak_vram_mib']:.1f} | "
-            f"{stats['median_output_bitrate_mbps']:.3f} | "
-            f"{stats['median_output_size_mib']:.1f} |"
-        )
-    lines.extend(
-        [
-            "",
-            "| Implementation | Startup, s | Steady-state frame loop, s | "
-            "Finalize + mux, s |",
-            "|---|---:|---:|---:|",
-        ]
-    )
-    for name in IMPLEMENTATIONS:
-        result = summary["implementations"][name]
-        stats = result["statistics"]
-        lines.append(
-            f"| {result['product']} | {stats['median_startup_sec']:.3f} | "
-            f"{stats['median_steady_state_frame_loop_sec']:.3f} | "
-            f"{stats['median_finalize_mux_sec']:.3f} |"
-        )
-    lines.extend(
-        [
-            "",
-            "| Implementation | Stability | Full spread | 4-of-5 spread | "
-            "Outlier | Raw FPS |",
-            "|---|---|---:|---:|---|---|",
-        ]
-    )
-    for name in IMPLEMENTATIONS:
-        result = summary["implementations"][name]
-        stats = result["statistics"]
-        stability = result["stability"]
-        consensus = stability["consensus"]
-        outlier = stability["outlier"]
-        consensus_spread = (
-            f"{consensus['relative_spread']:.2%}" if consensus else "-"
-        )
-        outlier_label = (
-            f"round {outlier['round']}: {outlier['fps']:.3f} FPS"
-            if outlier
-            else "-"
-        )
-        raw_values = ", ".join(f"{value:.3f}" for value in stats["values_fps"])
-        lines.append(
-            f"| {result['product']} | {stability['status']} | "
-            f"{stability['full_relative_spread']:.2%} | {consensus_spread} | "
-            f"{outlier_label} | {raw_values} |"
-        )
-    if summary["publication"]["warnings"]:
-        lines.extend(["", "Publication warnings:"])
-        lines.extend(
-            f"- {warning}" for warning in summary["publication"]["warnings"]
-        )
-    if summary["publication"]["errors"]:
-        lines.extend(["", "Publication gaps:"])
-        lines.extend(f"- {gap}" for gap in summary["publication"]["errors"])
-    lines.append("")
-    return "\n".join(lines)
-
-
 def aggregate_campaign(
     campaign_dir: Path,
     *,
@@ -1022,7 +938,7 @@ def aggregate_campaign(
         "document_type": "benchmark-campaign",
         "status": status,
         "scope": "rotated-campaign",
-        "comparison_profile": execution_profile,
+        "execution_profile": execution_profile,
         "publishable": publication_ready,
         "publication": {
             "ready": publication_ready,
@@ -1141,7 +1057,7 @@ def main() -> None:
             ),
         )
         write_json(json_path, summary)
-        markdown_path.write_text(_markdown(summary), encoding="utf-8")
+        markdown_path.write_text(render_markdown(summary), encoding="utf-8")
     except (CampaignError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)

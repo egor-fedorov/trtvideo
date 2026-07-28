@@ -45,7 +45,6 @@ class VapourSynthImplementation:
 
     product: str
     backend: str
-    comparison_class: str
     metadata: dict[str, Any]
     max_compute_processes: int
     max_graphics_processes: int
@@ -274,7 +273,6 @@ def _run_one(
             manifest_fields={
                 "product": implementation.product,
                 "backend": implementation.backend,
-                "comparison_class": implementation.comparison_class,
                 "workload_id": workload.workload_id,
                 "benchmark_contract_version": workload.benchmark_contract[
                     "contract_version"
@@ -385,7 +383,6 @@ def run_vapoursynth_suite(
                 "document_type": "benchmark-result",
                 "product": implementation.product,
                 "backend": implementation.backend,
-                "comparison_class": implementation.comparison_class,
                 "workload_id": workload.workload_id,
                 "benchmark_contract_version": workload.benchmark_contract[
                     "contract_version"

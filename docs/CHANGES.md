@@ -161,6 +161,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Unified benchmark scheduling terminology around `execution_profile` across
+  Make, runner CLIs, manifests, quality evidence, and campaigns. Comparative
+  manifests no longer duplicate it as `comparison_class`, and individual
+  implementation outputs use the `per-implementation` artifact namespace.
 - Reorganized the benchmark harness around explicit contract, runtime, product,
   and VapourSynth adapter boundaries. Engine validation and process helpers are
   now shared without quality gates or external runners importing product-runner

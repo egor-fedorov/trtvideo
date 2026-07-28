@@ -240,7 +240,6 @@ def capture(args: argparse.Namespace) -> Path:
             if args.implementation == "vstrt"
             else "VSGAN-tensorrt-docker"
         ),
-        comparison_class=profile.mode,
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),

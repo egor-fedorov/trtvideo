@@ -17,7 +17,6 @@ class ModelSpaceComparisonExpectation:
     image_id: str
     repository_revision: str
     execution_profile: dict[str, Any]
-    comparison_class: str | None = None
 
 
 @dataclass(frozen=True)
@@ -128,10 +127,6 @@ def validate_model_space_report(
             "execution profile": (
                 comparison.get("execution_profile"),
                 candidate.execution_profile,
-            ),
-            "comparison class": (
-                comparison.get("comparison_class"),
-                candidate.comparison_class,
             ),
             "image": (
                 comparison.get("image", {}).get("id"),

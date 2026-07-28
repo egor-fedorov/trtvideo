@@ -64,7 +64,7 @@ def common_args(**overrides) -> argparse.Namespace:
         "warmup_ms": 1000,
         "requests": None,
         "num_streams": None,
-        "mode": "upstream-default",
+        "execution_profile": "upstream-default",
         "vs_threads": None,
         "skip_bitrate_validation": False,
     }
@@ -87,9 +87,9 @@ def test_removed_single_request_profile_is_not_accepted() -> None:
     parser = argparse.ArgumentParser()
     add_execution_profile_arguments(parser)
 
-    assert parser.parse_args([]).mode == "upstream-default"
+    assert parser.parse_args([]).execution_profile == "upstream-default"
     with pytest.raises(SystemExit):
-        parser.parse_args(["--mode", "parity"])
+        parser.parse_args(["--execution-profile", "parity"])
 
 
 def test_trtexec_command_explicitly_matches_cuda_graph_mode() -> None:
@@ -112,7 +112,7 @@ def test_trtexec_plan_is_diagnostic() -> None:
 
     plan, _ = build_trtexec_plan(args)
 
-    assert plan["comparison_class"] == "diagnostic"
+    assert plan["implementation"]["role"] == "diagnostic"
     assert plan["benchmark_contract_version"] == 3
     assert "--iterations=1000" in plan["commands"]["measured"][0]
     assert plan["parameters"]["data_transfers"] is False
@@ -159,7 +159,8 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert "-bf" in spec[1]
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
-    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["execution_profile"] == "upstream-default"
+    assert "comparison_class" not in plan
     assert plan["parameters"]["vspipe_requests"] == "auto"
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["batch_size"] == 1
@@ -211,12 +212,12 @@ def test_vsgan_plan_uses_upstream_defaults() -> None:
 
     assert plan["benchmark_contract_version"] == 3
     assert vspipe[vspipe.index("--end") + 1] == "999"
-    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
     assert plan["implementation"]["upstream_tag"] == "latest_no_avx512"
     assert plan["implementation"]["encoder_ffmpeg_package"] == "7:6.1.1-3ubuntu5"
-    assert plan["parameters"]["mode"] == "upstream-default"
+    assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["parameters"]["num_streams"] == 4
     assert plan["parameters"]["vapoursynth_threads"] == 4
     assert plan["parameters"]["max_compute_processes"] == 2
@@ -231,7 +232,7 @@ def test_external_smoke_plan_can_skip_bitrate_validation() -> None:
 
 def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
     args = common_args(
-        mode="upstream-default",
+        execution_profile="upstream-default",
         requests=None,
         num_streams=None,
         cuda_graph=None,
@@ -248,7 +249,7 @@ def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
     assert "--requests" not in vspipe
     assert "num_streams=1" in vspipe
     assert not any(value.startswith("vs_threads=") for value in vspipe)
-    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["commands"]["measured"][0][
         plan["commands"]["measured"][0].index("--end") + 1
     ] == "999"
@@ -258,7 +259,7 @@ def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
 
 def test_vsgan_upstream_default_matches_pinned_configuration() -> None:
     args = common_args(
-        mode="upstream-default",
+        execution_profile="upstream-default",
         requests=None,
         num_streams=None,
         cuda_graph=None,
@@ -275,7 +276,7 @@ def test_vsgan_upstream_default_matches_pinned_configuration() -> None:
     assert "--requests" not in vspipe
     assert "num_streams=4" in vspipe
     assert "vs_threads=4" in vspipe
-    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["commands"]["measured"][0][
         plan["commands"]["measured"][0].index("--end") + 1
     ] == "999"
@@ -287,7 +288,7 @@ def test_tuned_profile_requires_explicit_scheduling_contract() -> None:
     with pytest.raises(CompetitorError, match="tuned requires explicit"):
         build_vsgan_plan(
             common_args(
-                mode="tuned",
+                execution_profile="tuned",
                 requests=None,
                 num_streams=None,
                 vs_threads=None,
@@ -298,7 +299,7 @@ def test_tuned_profile_requires_explicit_scheduling_contract() -> None:
 
 def test_tuned_profile_records_explicit_scheduling_contract() -> None:
     args = common_args(
-        mode="tuned",
+        execution_profile="tuned",
         requests="auto",
         num_streams=3,
         vs_threads=6,
@@ -317,7 +318,8 @@ def test_tuned_profile_records_explicit_scheduling_contract() -> None:
     assert "num_streams=3" in vspipe
     assert "vs_threads=6" in vspipe
     assert "cuda_graph=1" in vspipe
-    assert plan["comparison_class"] == "tuned"
+    assert plan["parameters"]["execution_profile"] == "tuned"
+    assert "comparison_class" not in plan
     assert plan["parameters"]["cuda_graph"] is True
 
 

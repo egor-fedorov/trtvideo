@@ -239,7 +239,6 @@ def capture(args: argparse.Namespace) -> Path:
     write_capture_manifest(
         manifest_path,
         implementation="trtvideo",
-        comparison_class="reference",
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),
@@ -247,7 +246,7 @@ def capture(args: argparse.Namespace) -> Path:
         engine_sha256=sha256_file(engine_path),
         image=collect_image_identity(),
         execution_profile={
-            "mode": args.execution_profile,
+            "execution_profile": args.execution_profile,
             "cuda_graph": False,
         },
         artifacts=artifacts,

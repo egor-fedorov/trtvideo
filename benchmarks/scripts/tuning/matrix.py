@@ -97,7 +97,7 @@ def verify_matrix(
         if (
             campaign.get("status") != "valid"
             or campaign.get("publishable") is not True
-            or campaign.get("comparison_profile") != "tuned"
+            or campaign.get("execution_profile") != "tuned"
         ):
             raise TunedMatrixError(f"{variant} tuned campaign is not publishable")
         if campaign.get("variant") != variant:

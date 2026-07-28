@@ -82,7 +82,7 @@ def _wait_for_idle(previous: CampaignEvent | None, idle_seconds: float) -> float
 
 def _make_profile_arguments(config: CampaignConfig) -> list[str]:
     return [
-        f"VAPOURSYNTH_MODE={config.execution_profile}",
+        f"EXECUTION_PROFILE={config.execution_profile}",
         f"VSTRT_ARGS={config.vstrt_arguments}",
         f"VSGAN_ARGS={config.vsgan_arguments}",
     ]

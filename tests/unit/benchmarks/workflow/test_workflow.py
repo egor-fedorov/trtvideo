@@ -90,7 +90,7 @@ def test_comparative_goal_covers_build_quality_and_campaign() -> None:
     assert "build-vsgan-engine" in targets
     assert "quality-gates" in targets
     assert targets[-1] == "run-comparative"
-    assert "VAPOURSYNTH_MODE=upstream-default" in plan[-1].command
+    assert "EXECUTION_PROFILE=upstream-default" in plan[-1].command
     assert "RESUME=1" in plan[-1].command
 
 

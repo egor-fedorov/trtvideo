@@ -88,7 +88,7 @@ class TunedCandidate:
     def execution_profile(self) -> dict[str, str | int | bool]:
         """Return the exact profile stored by benchmark runners."""
         return {
-            "mode": "tuned",
+            "execution_profile": "tuned",
             "vspipe_requests": self.requests,
             "num_streams": self.num_streams,
             "vapoursynth_threads": self.vapoursynth_threads,

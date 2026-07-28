@@ -96,7 +96,7 @@ adapter are allowed; the upstream inference stack is unchanged.
 
 The vstrt and VSGAN runners expose two scheduling profiles:
 
-| Mode | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
+| Profile | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
 |---|---:|---:|---:|---:|
 | vstrt `upstream-default` | auto | 1 | runtime default | off |
 | VSGAN `upstream-default` | auto | 4 | 4 | off |
@@ -108,10 +108,16 @@ pinned VapourSynth runtime resolve its own default. VSGAN's upstream-default
 stream and thread counts come from its pinned `inference_config.py`; vstrt keeps
 its documented one-stream default.
 
-Preset modes reject conflicting scheduling overrides. Tuned mode requires
+Preset profiles reject conflicting scheduling overrides. Tuned mode requires
 explicit values for requests, TensorRT streams, VapourSynth threads, and CUDA
 Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
 value is written to the plan and measured-run manifest.
+
+`execution_profile` is the canonical scheduling-profile name across Make,
+runner CLIs, manifests, quality evidence, and campaign aggregation. The former
+`comparison_class` field was removed: comparative runs use the execution
+profile, while diagnostic/reference roles are already explicit in document
+types, implementation metadata, and report structure.
 
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
@@ -156,11 +162,12 @@ publication matrix is valid only when both resolutions passed full quality on
 the same workload, repository revision, and GPU contract. This avoids using a
 1080p quality result to justify a 720p performance claim.
 
-Each profile has separate standalone, product-output, and campaign directories.
+Each profile has separate per-implementation, product-output, and campaign
+directories.
 A campaign stores its profile and exact vstrt/VSGAN argument strings in an
 immutable `campaign.config.json`; resume and aggregation reject a changed
 configuration. The aggregator also requires every measured and product-output
-manifest to use the selected mode, comparison class, and unchanged scheduling
+manifest to use the selected execution profile and unchanged scheduling
 parameters. Results from different profiles therefore cannot form one campaign.
 
 External `vspipe | ffmpeg` encoding is normalized to pinned Ubuntu FFmpeg

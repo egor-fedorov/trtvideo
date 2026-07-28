@@ -204,7 +204,7 @@ def _smoke_steps(
         if options.goal in {"comparative", "tuned"}:
             common = (
                 *variables,
-                f"VAPOURSYNTH_MODE={smoke_mode}",
+                f"EXECUTION_PROFILE={smoke_mode}",
                 f"ARGS={SMOKE_ARGS}",
             )
             steps.extend(
@@ -266,7 +266,7 @@ def _comparative_steps(
     for selection in selections:
         variables = (
             *_selection_variables(selection, options.gpu_id),
-            f"VAPOURSYNTH_MODE={COMPARATIVE_PROFILE}",
+            f"EXECUTION_PROFILE={COMPARATIVE_PROFILE}",
         )
         steps.append(
             Step(
@@ -282,7 +282,7 @@ def _comparative_steps(
     for selection in selections:
         variables = (
             *_selection_variables(selection, options.gpu_id),
-            f"VAPOURSYNTH_MODE={COMPARATIVE_PROFILE}",
+            f"EXECUTION_PROFILE={COMPARATIVE_PROFILE}",
             f"RESUME={int(options.resume)}",
         )
         steps.append(

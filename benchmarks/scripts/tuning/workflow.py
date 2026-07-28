@@ -175,7 +175,7 @@ def _base_make_variables(
         "ENGINE": paths.relative(engine),
         "VSGAN_ENGINE": paths.relative(vsgan_engine),
         "GPU_ID": str(gpu_id),
-        "VAPOURSYNTH_MODE": "tuned",
+        "EXECUTION_PROFILE": "tuned",
     }
 
 
@@ -646,7 +646,7 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
     if (
         campaign.get("status") != "valid"
         or campaign.get("publishable") is not True
-        or campaign.get("comparison_profile") != "tuned"
+        or campaign.get("execution_profile") != "tuned"
     ):
         raise TuningWorkflowError(
             f"Tuned winner campaign is not publishable: {campaign_path}"

@@ -143,7 +143,7 @@ question.
 
 ## Execution Profiles
 
-`VAPOURSYNTH_MODE` selects the scheduling contract for both external runners:
+`EXECUTION_PROFILE` selects the scheduling contract for the complete comparison:
 
 - `upstream-default` is the default and uses the settings recorded from each
   pinned upstream;
@@ -154,11 +154,11 @@ For example, these commands only generate plans and do not require a GPU:
 
 ```bash
 make -C benchmarks plan-vstrt \
-  VAPOURSYNTH_MODE=upstream-default \
+  EXECUTION_PROFILE=upstream-default \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 
 make -C benchmarks plan-vsgan \
-  VAPOURSYNTH_MODE=upstream-default \
+  EXECUTION_PROFILE=upstream-default \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
@@ -196,7 +196,7 @@ or either runner argument string changes. For example:
 
 ```bash
 make -C benchmarks run-comparative \
-  VAPOURSYNTH_MODE=upstream-default \
+  EXECUTION_PROFILE=upstream-default \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```

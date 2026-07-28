@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 PROFILE_PARAMETER_KEYS = (
-    "mode",
+    "execution_profile",
     "vspipe_requests",
     "num_streams",
     "vapoursynth_threads",
@@ -78,33 +78,23 @@ def execution_profile(parameters: dict[str, Any]) -> dict[str, Any]:
     return {key: parameters[key] for key in PROFILE_PARAMETER_KEYS}
 
 
-def expected_comparison_class(mode: str) -> str:
-    """Return the comparison class fixed by one execution profile."""
-    return mode
-
-
 def validate_execution_profile(
     manifest: dict[str, Any],
     *,
     implementation: str,
-    expected_mode: str,
+    expected_profile: str,
     expected_values: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Validate scheduling fields and comparison class together."""
+    """Validate scheduling fields against the requested execution profile."""
     parameters = manifest.get("parameters")
     if not isinstance(parameters, dict):
         raise ManifestContractError("Manifest has no parameters")
     profile = execution_profile(parameters)
-    if profile["mode"] != expected_mode:
+    if profile["execution_profile"] != expected_profile:
         raise ManifestContractError(
-            f"{implementation} execution profile is {profile['mode']!r}, "
-            f"expected {expected_mode!r}"
-        )
-    comparison_class = expected_comparison_class(expected_mode)
-    if manifest.get("comparison_class") != comparison_class:
-        raise ManifestContractError(
-            f"{implementation} comparison class does not match "
-            f"{expected_mode} execution profile"
+            f"{implementation} execution profile is "
+            f"{profile['execution_profile']!r}, "
+            f"expected {expected_profile!r}"
         )
     if expected_values is not None and profile != expected_values:
         raise ManifestContractError(
@@ -315,7 +305,9 @@ def validate_run_manifest(
         validate_execution_profile(
             manifest,
             implementation=expectation.implementation,
-            expected_mode=str(expectation.execution_profile["mode"]),
+            expected_profile=str(
+                expectation.execution_profile["execution_profile"]
+            ),
             expected_values=expectation.execution_profile,
         )
     return extract_run_identity(

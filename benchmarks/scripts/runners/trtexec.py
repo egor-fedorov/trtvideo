@@ -145,7 +145,6 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]
     plan = plan_document(
         product="trtexec",
         backend="TensorRT",
-        comparison_class=implementation["comparison_class"],
         implementation=implementation,
         manifest=manifest,
         variant_name=args.variant,
@@ -245,7 +244,6 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
         "run_index": run_index,
         "product": "trtexec",
         "backend": "TensorRT",
-        "comparison_class": context.plan["comparison_class"],
         "workload_id": context.workload["id"],
         "benchmark_contract_version": context.workload["benchmark"][
             "contract_version"
@@ -384,7 +382,6 @@ def _run_suite(
         },
         "product": "trtexec",
         "backend": "TensorRT",
-        "comparison_class": plan["comparison_class"],
         "workload_id": manifest["id"],
         "benchmark_contract_version": manifest["benchmark"]["contract_version"],
         "variant": args.variant,

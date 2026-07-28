@@ -47,7 +47,7 @@ def _resolution_evidence(
         {
             "status": "valid",
             "publishable": True,
-            "comparison_profile": "tuned",
+            "execution_profile": "tuned",
             "workload_id": "workload-v1",
             "benchmark_contract_version": 2,
             "variant": variant,

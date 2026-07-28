@@ -97,8 +97,6 @@ def build_plan(
     implementation = implementation_config(implementations, "vsgan")
     validate_declared_profile(implementation, profile)
     measured_implementation = dict(implementation)
-    result_class = profile.mode
-    measured_implementation["comparison_class"] = result_class
     measured_implementation["role"] = "product"
     parameters = benchmark_parameters(args, manifest)
     variant = find_clip_variant(manifest, args.variant)
@@ -141,7 +139,6 @@ def build_plan(
     plan = plan_document(
         product="VSGAN-tensorrt-docker",
         backend="VapourSynth/vstrt",
-        comparison_class=result_class,
         implementation=measured_implementation,
         manifest=manifest,
         variant_name=args.variant,
@@ -205,7 +202,6 @@ def main() -> None:
             implementation=VapourSynthImplementation(
                 product="VSGAN-tensorrt-docker",
                 backend="VapourSynth/vstrt",
-                comparison_class=plan["comparison_class"],
                 metadata=plan["implementation"],
                 max_compute_processes=parameters["max_compute_processes"],
                 max_graphics_processes=parameters["max_graphics_processes"],

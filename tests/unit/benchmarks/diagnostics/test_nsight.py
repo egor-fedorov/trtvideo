@@ -135,7 +135,7 @@ def test_dry_run_plan_is_explicitly_non_publishable(tmp_path: Path) -> None:
 
     plan, _ = build_plan(parsed)
 
-    assert plan["comparison_class"] == "diagnostic"
+    assert plan["implementation"]["role"] == "diagnostic"
     assert plan["parameters"]["frames"] == 120
     assert plan["parameters"]["gpu_video_trace"] is True
     assert plan["parameters"]["cpu_sampling"] is False

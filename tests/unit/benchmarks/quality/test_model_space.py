@@ -27,7 +27,6 @@ def _write_capture(
     root: Path,
     *,
     implementation: str,
-    comparison_class: str,
     engine_sha256: str,
     input_value: float,
     output_value: float,
@@ -51,7 +50,6 @@ def _write_capture(
     write_capture_manifest(
         manifest_path,
         implementation=implementation,
-        comparison_class=comparison_class,
         workload_id="workload-v1",
         variant="720p",
         input_sha256="1" * 64,
@@ -65,7 +63,7 @@ def _write_capture(
         },
         execution_profile=execution_profile
         or {
-            "mode": "upstream-default",
+            "execution_profile": "upstream-default",
             "cuda_graph": False,
         },
         artifacts=artifacts,
@@ -97,7 +95,6 @@ def test_capture_manifest_detects_changed_tensor(tmp_path: Path) -> None:
     manifest_path = _write_capture(
         tmp_path / "capture",
         implementation="reference",
-        comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
         output_value=0.5,
@@ -113,7 +110,6 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     reference = _write_capture(
         tmp_path / "reference",
         implementation="trtvideo",
-        comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
         output_value=0.5,
@@ -121,7 +117,6 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     candidate = _write_capture(
         tmp_path / "candidate",
         implementation="vs-mlrt",
-        comparison_class="upstream-default",
         engine_sha256="3" * 64,
         input_value=0.2501,
         output_value=0.5001,
@@ -138,13 +133,13 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     assert report["execution_profile"] == "upstream-default"
     assert report["frame_indices"] == [0]
     assert report["comparisons"][0]["status"] == "valid"
+    assert "comparison_class" not in report["comparisons"][0]
 
 
 def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
     reference = _write_capture(
         tmp_path / "reference",
         implementation="trtvideo",
-        comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
         output_value=0.5,
@@ -152,7 +147,6 @@ def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
     candidate = _write_capture(
         tmp_path / "candidate",
         implementation="VSGAN-tensorrt-docker",
-        comparison_class="product",
         engine_sha256="4" * 64,
         input_value=0.25,
         output_value=0.75,
@@ -174,7 +168,6 @@ def test_compare_captures_rejects_mixed_execution_profiles(
     reference = _write_capture(
         tmp_path / "reference",
         implementation="trtvideo",
-        comparison_class="reference",
         engine_sha256="3" * 64,
         input_value=0.25,
         output_value=0.5,
@@ -182,12 +175,11 @@ def test_compare_captures_rejects_mixed_execution_profiles(
     candidate = _write_capture(
         tmp_path / "candidate",
         implementation="vs-mlrt",
-        comparison_class="tuned",
         engine_sha256="3" * 64,
         input_value=0.25,
         output_value=0.5,
         execution_profile={
-            "mode": "tuned",
+            "execution_profile": "tuned",
             "vspipe_requests": "auto",
             "num_streams": 3,
             "vapoursynth_threads": 6,
@@ -202,7 +194,7 @@ def test_compare_captures_rejects_mixed_execution_profiles(
     )
 
     assert report["status"] == "invalid"
-    assert any("execution profile mode differs" in error for error in report["errors"])
+    assert any("execution profile differs" in error for error in report["errors"])
 
 
 def test_maximum_error_is_diagnostic_not_an_acceptance_limit() -> None:
@@ -230,7 +222,7 @@ def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
         implementation="vsgan",
         engine="/app/models/model.engine",
         gpu_id=0,
-        mode="upstream-default",
+        execution_profile="upstream-default",
         requests=None,
         num_streams=None,
         vs_threads=None,
@@ -260,7 +252,7 @@ def test_vspipe_capture_command_uses_tuned_execution_profile(
         implementation="vstrt",
         engine="/app/models/model.engine",
         gpu_id=0,
-        mode="tuned",
+        execution_profile="tuned",
         requests="auto",
         num_streams=3,
         vs_threads=6,

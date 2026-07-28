@@ -19,12 +19,11 @@ def _manifest() -> dict[str, Any]:
         "variant": "1080p",
         "benchmark_contract_version": 2,
         "run_index": 1,
-        "comparison_class": "tuned",
         "parameters": {
             "frames": 400,
             "warmup_frames": 30,
             "encoder": {"codec": "h264"},
-            "mode": "tuned",
+            "execution_profile": "tuned",
             "vspipe_requests": 4,
             "num_streams": 2,
             "vapoursynth_threads": 8,
@@ -61,7 +60,7 @@ def test_validate_run_manifest_returns_complete_performance_identity() -> None:
             run_index=1,
             implementation="vstrt",
             execution_profile={
-                "mode": "tuned",
+                "execution_profile": "tuned",
                 "vspipe_requests": 4,
                 "num_streams": 2,
                 "vapoursynth_threads": 8,
@@ -104,7 +103,7 @@ def test_validate_run_manifest_rejects_execution_profile_drift() -> None:
             expectation=RunExpectation(
                 implementation="vstrt",
                 execution_profile={
-                    "mode": "tuned",
+                    "execution_profile": "tuned",
                     "vspipe_requests": 4,
                     "num_streams": 2,
                     "vapoursynth_threads": 8,
