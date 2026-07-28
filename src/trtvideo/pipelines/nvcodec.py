@@ -1,21 +1,19 @@
-"""GPU-only video upscaling pipeline via PyNvVideoCodec + TensorRT."""
+"""GPU-resident video upscaling via PyNvVideoCodec, CV-CUDA, and TensorRT."""
+
+from __future__ import annotations
 
 import argparse
 import os
 import subprocess
 import sys
 import tempfile
-import types
 from dataclasses import dataclass
 from typing import Any
 
-import cvcuda
-import PyNvVideoCodec as nvc
-import torch
-
 from trtvideo.pipelines.base import BasePipeline
+from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
 from trtvideo.video.bitrate import auto_bitrate_from_source
-from trtvideo.video.colorspace import nv12_to_rgb_into, rgb_to_nv12_into
+from trtvideo.video.cuda_array import nv12_nhwc_view
 from trtvideo.video.decoder import iter_locked_decode_frames
 from trtvideo.video.fps import format_nvenc_fps, gop_size_for_one_second
 from trtvideo.video.nvenc import NvencCbrContract
@@ -24,74 +22,49 @@ from trtvideo.video.preservation import ffmpeg_preservation_args
 
 @dataclass
 class FrameBufferPool:
-    """Per-job GPU buffers reused by the NVDEC/NVENC hot path."""
+    """CV-CUDA buffers reused by every frame in one NVCodec job."""
 
-    nv12_in: torch.Tensor
-    rgb_in: torch.Tensor
-    nchw_in: torch.Tensor
-    rgb_out: torch.Tensor
-    rgb_out_float: torch.Tensor
-    nv12_out: torch.Tensor
+    rgb_in_u8: Any
+    rgb_in_float: Any
+    rgb_out_float: Any
+    rgb_out_u8: Any
+    nv12_out: Any
+    nv12_out_hwc: Any
 
     @classmethod
-    def create(
-        cls,
-        *,
-        input_w: int,
-        input_h: int,
-        output_w: int,
-        output_h: int,
-        device: torch.device,
-        input_dtype: torch.dtype = torch.float32,
-        output_dtype: torch.dtype = torch.float32,
-    ) -> "FrameBufferPool":
+    def create(cls, runtime: CvcudaTensorRTRuntime) -> FrameBufferPool:
+        cvcuda = runtime.cvcuda
+        rgb_in_shape = (1, runtime.input_h, runtime.input_w, 3)
+        rgb_out_shape = (1, runtime.output_h, runtime.output_w, 3)
+        nv12_shape = (1, runtime.output_h * 3 // 2, runtime.output_w, 1)
+        nv12_out = cvcuda.Tensor(nv12_shape, cvcuda.Type.U8, layout="NHWC")
         return cls(
-            nv12_in=torch.empty(input_h * 3 // 2, input_w, dtype=torch.uint8, device=device),
-            rgb_in=torch.empty(input_h, input_w, 3, dtype=torch.uint8, device=device),
-            nchw_in=torch.empty(1, 3, input_h, input_w, dtype=input_dtype, device=device),
-            rgb_out=torch.empty(output_h, output_w, 3, dtype=torch.uint8, device=device),
-            rgb_out_float=torch.empty(output_h, output_w, 3, dtype=output_dtype, device=device),
-            nv12_out=torch.empty(output_h * 3 // 2, output_w, dtype=torch.uint8, device=device),
+            rgb_in_u8=cvcuda.Tensor(rgb_in_shape, cvcuda.Type.U8, layout="NHWC"),
+            rgb_in_float=cvcuda.Tensor(
+                rgb_in_shape,
+                runtime.input_dtype,
+                layout="NHWC",
+            ),
+            rgb_out_float=cvcuda.Tensor(
+                rgb_out_shape,
+                runtime.output_dtype,
+                layout="NHWC",
+            ),
+            rgb_out_u8=cvcuda.Tensor(rgb_out_shape, cvcuda.Type.U8, layout="NHWC"),
+            nv12_out=nv12_out,
+            nv12_out_hwc=nv12_out.reshape(
+                (runtime.output_h * 3 // 2, runtime.output_w, 1),
+                layout="HWC",
+            ),
         )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _patch_dlpack(tensor):
-    """Patch __dlpack__ for PyTorch >= 2.x compatibility with PyNvVideoCodec."""
-
-    def _dlpack(self, *args, **kwargs):
-        return torch.utils.dlpack.to_dlpack(self)
-
-    tensor.__dlpack__ = types.MethodType(_dlpack, tensor)
-    return tensor
-
-
-# ---------------------------------------------------------------------------
-# Pipeline
-# ---------------------------------------------------------------------------
-
-
 class NvcodecPipeline(BasePipeline):
-    """Pipeline: NVDEC -> NV12 -> RGB (cvcuda) -> TRT -> RGB -> NV12 (cvcuda) -> NVENC."""
+    """Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC."""
 
     DESCRIPTION = "TensorRT Video Upscaler (NVDEC/NVENC backend)"
     BACKEND_NAME = "nvcodec"
     _DECODE_BATCH_SIZE = 8
-
-    def __init__(self, args: argparse.Namespace):
-        self._decoder: Any | None = None
-        self._encoder: Any | None = None
-        self._tmp_raw_path: str = ""
-        self._raw_file: Any | None = None
-        self._buffer_pool: FrameBufferPool | None = None
-        self._cvcuda_stream: Any | None = None
-        self._color_spec_name = "bt709"
-        super().__init__(args)
-
     _GPU_STAGES = [
         "NV12\u2192RGB (cvcuda)",
         "TRT inference",
@@ -105,6 +78,26 @@ class NvcodecPipeline(BasePipeline):
         "NVENC encode": "encode",
     }
 
+    def __init__(self, args: argparse.Namespace):
+        self._decoder: Any | None = None
+        self._encoder: Any | None = None
+        self._nvc: Any | None = None
+        self._tmp_raw_path: str = ""
+        self._raw_file: Any | None = None
+        self._buffer_pool: FrameBufferPool | None = None
+        self._color_spec_name = "bt709"
+        self._color_spec: Any | None = None
+        super().__init__(args)
+
+    def create_runtime(self) -> CvcudaTensorRTRuntime:
+        """Create the torch-free TensorRT runtime used by the NVCodec backend."""
+        return CvcudaTensorRTRuntime(
+            self.engine_path,
+            quiet=self.args.quiet,
+            gpu_id=self.args.gpu_id,
+            use_cuda_graph=self.args.cuda_graph,
+        )
+
     def profile_stage_names(self) -> list[str]:
         return self._GPU_STAGES
 
@@ -114,15 +107,21 @@ class NvcodecPipeline(BasePipeline):
     def profile_stage_key_map(self) -> dict[str, str]:
         return self._PROFILE_STAGE_KEYS
 
-    def _require_buffer_pool(self) -> FrameBufferPool:
+    def _runtime(self) -> CvcudaTensorRTRuntime:
+        runtime = self.require_runtime()
+        if not isinstance(runtime, CvcudaTensorRTRuntime):
+            raise RuntimeError("NVCodec pipeline requires CvcudaTensorRTRuntime")
+        return runtime
+
+    def _buffers(self) -> FrameBufferPool:
         if self._buffer_pool is None:
             raise RuntimeError("Frame buffer pool is not initialized")
         return self._buffer_pool
 
-    def _require_cvcuda_stream(self):
-        if self._cvcuda_stream is None:
-            raise RuntimeError("CV-CUDA stream is not initialized")
-        return self._cvcuda_stream
+    def _nvc_module(self) -> Any:
+        if self._nvc is None:
+            raise RuntimeError("PyNvVideoCodec is not initialized")
+        return self._nvc
 
     def validate_video_input(self, info) -> None:
         super().validate_video_input(info)
@@ -136,7 +135,12 @@ class NvcodecPipeline(BasePipeline):
 
     def setup_decoder(self) -> None:
         self.log("Initializing NVDEC...")
+        import PyNvVideoCodec as nvc
+
+        self._nvc = nvc
         self._color_spec_name = self.cvcuda_color_spec_name()
+        runtime = self._runtime()
+        self._color_spec = getattr(runtime.cvcuda.ColorSpec, self._color_spec_name.upper())
         self.log_verbose(f"CV-CUDA color spec: {self._color_spec_name}")
         self._decoder = nvc.ThreadedDecoder(
             enc_file_path=self.args.input,
@@ -149,17 +153,9 @@ class NvcodecPipeline(BasePipeline):
         )
 
     def setup_encoder(self) -> None:
-        runtime = self.require_runtime()
-        self._cvcuda_stream = cvcuda.as_stream(runtime.stream)
-        self._buffer_pool = FrameBufferPool.create(
-            input_w=runtime.input_w,
-            input_h=runtime.input_h,
-            output_w=runtime.output_w,
-            output_h=runtime.output_h,
-            device=torch.device(f"cuda:{self.args.gpu_id}"),
-            input_dtype=runtime.input_dtype,
-            output_dtype=runtime.output_dtype,
-        )
+        runtime = self._runtime()
+        nvc = self._nvc_module()
+        self._buffer_pool = FrameBufferPool.create(runtime)
         bitrate = self._resolve_bitrate(runtime)
         try:
             encoder_fps = format_nvenc_fps(self.info.fps_str)
@@ -187,13 +183,13 @@ class NvcodecPipeline(BasePipeline):
             "NV12",
             False,
             gpu_id=self.args.gpu_id,
-            cudastream=int(runtime.stream.cuda_stream),
+            cudastream=runtime.stream_handle,
             fps=encoder_fps,
             **encoder_contract.pynvcodec_options(),
         )
         self._raw_file = open(self._tmp_raw_path, "wb")
 
-    def _resolve_bitrate(self, runtime) -> int:
+    def _resolve_bitrate(self, runtime: CvcudaTensorRTRuntime) -> int:
         if self.args.bitrate_mbps is not None:
             if self.args.bitrate_mbps <= 0:
                 print("ERROR: --bitrate-mbps must be greater than zero")
@@ -230,8 +226,8 @@ class NvcodecPipeline(BasePipeline):
         sys.exit(1)
 
     def decode_frames(self):
-        """Yield NV12 frames from NVDEC decoder."""
-        runtime = self.require_runtime()
+        """Yield NV12 surfaces while respecting ThreadedDecoder buffer ownership."""
+        runtime = self._runtime()
         fetch_batch = self._decoder.get_batch_frames
         if self._nvtx.enabled:
 
@@ -244,135 +240,115 @@ class NvcodecPipeline(BasePipeline):
         yield from iter_locked_decode_frames(
             fetch_batch,
             batch_size=self._DECODE_BATCH_SIZE,
-            # ThreadedDecoder releases a batch on the next get_batch_frames().
-            # Complete queued reads before its NVDEC surfaces can be reused.
-            release_batch=runtime.stream.synchronize,
+            release_batch=runtime.synchronize,
         )
 
-    def _write_bitstream(self, bs):
-        if bs and self._raw_file:
-            self._raw_file.write(bytearray(bs))
+    def _write_bitstream(self, bitstream) -> None:
+        if bitstream and self._raw_file:
+            self._raw_file.write(bytearray(bitstream))
+
+    def _wrap_nv12(self, raw_frame) -> Any:
+        runtime = self._runtime()
+        source = runtime.cvcuda.as_tensor(raw_frame)
+        view = nv12_nhwc_view(
+            source,
+            height=runtime.input_h,
+            width=runtime.input_w,
+        )
+        return runtime.cvcuda.as_tensor(view, layout="NHWC")
+
+    def _preprocess(self, nv12_input: Any) -> None:
+        runtime = self._runtime()
+        buffers = self._buffers()
+        cvcuda = runtime.cvcuda
+        cvcuda.advcvtcolor_into(
+            buffers.rgb_in_u8,
+            nv12_input,
+            cvcuda.ColorConversion.YUV2RGB_NV12,
+            self._color_spec,
+            stream=runtime.stream,
+        )
+        cvcuda.convertto_into(
+            buffers.rgb_in_float,
+            buffers.rgb_in_u8,
+            scale=1.0 / 255.0,
+            stream=runtime.stream,
+        )
+        cvcuda.reformat_into(
+            runtime.gpu_input,
+            buffers.rgb_in_float,
+            stream=runtime.stream,
+        )
+
+    def _postprocess(self) -> Any:
+        runtime = self._runtime()
+        buffers = self._buffers()
+        cvcuda = runtime.cvcuda
+        cvcuda.reformat_into(
+            buffers.rgb_out_float,
+            runtime.gpu_output,
+            stream=runtime.stream,
+        )
+        cvcuda.convertto_into(
+            buffers.rgb_out_u8,
+            buffers.rgb_out_float,
+            scale=255.0,
+            stream=runtime.stream,
+        )
+        cvcuda.advcvtcolor_into(
+            buffers.nv12_out,
+            buffers.rgb_out_u8,
+            cvcuda.ColorConversion.RGB2YUV_NV12,
+            self._color_spec,
+            stream=runtime.stream,
+        )
+        return buffers.nv12_out_hwc
 
     def process_frame(self, raw_frame) -> None:
-        runtime = self.require_runtime()
-        in_h, in_w = runtime.input_h, runtime.input_w
-        stream = runtime.stream
-
         if self.profiler:
-            with torch.cuda.stream(stream):
-                nv12_tensor = torch.from_dlpack(raw_frame)
-            self._process_frame_profiled(nv12_tensor, in_h, in_w)
-        elif self._nvtx.enabled:
-            self._process_frame_nvtx(raw_frame, in_h, in_w)
-        else:
-            pool = self._require_buffer_pool()
-            cvcuda_stream = self._require_cvcuda_stream()
-            with torch.cuda.stream(stream):
-                nv12_tensor = torch.from_dlpack(raw_frame)
-                rgb = nv12_to_rgb_into(
-                    nv12_tensor,
-                    in_h,
-                    in_w,
-                    pool.rgb_in,
-                    pool.nv12_in,
-                    color_spec=self._color_spec_name,
-                    stream=cvcuda_stream,
-                )
-                upscaled = runtime.infer_rgb_tensor_into(
-                    rgb,
-                    pool.rgb_out,
-                    input_nchw=pool.nchw_in,
-                    output_rgb_float=pool.rgb_out_float,
-                    stream=stream,
-                    synchronize=False,
-                )
-                nv12_out = rgb_to_nv12_into(
-                    upscaled,
-                    pool.nv12_out,
-                    color_spec=self._color_spec_name,
-                    stream=cvcuda_stream,
-                )
-            self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
+            self._process_frame_profiled(raw_frame)
+            return
+        if self._nvtx.enabled:
+            self._process_frame_nvtx(raw_frame)
+            return
 
-    def _process_frame_nvtx(self, raw_frame, in_h: int, in_w: int) -> None:
-        """Run the regular hot path with ranges for an external Nsight trace."""
-        runtime = self.require_runtime()
-        stream = runtime.stream
-        pool = self._require_buffer_pool()
-        cvcuda_stream = self._require_cvcuda_stream()
+        runtime = self._runtime()
+        nv12_input = self._wrap_nv12(raw_frame)
+        self._preprocess(nv12_input)
+        runtime.execute()
+        nv12_output = self._postprocess()
+        self._write_bitstream(self._encoder.Encode(nv12_output))
 
-        with torch.cuda.stream(stream):
-            nv12_tensor = torch.from_dlpack(raw_frame)
-            with self._nvtx.range("trtvideo.nvcodec.nv12_to_rgb"):
-                rgb = nv12_to_rgb_into(
-                    nv12_tensor,
-                    in_h,
-                    in_w,
-                    pool.rgb_in,
-                    pool.nv12_in,
-                    color_spec=self._color_spec_name,
-                    stream=cvcuda_stream,
-                )
-            with self._nvtx.range("trtvideo.nvcodec.tensorrt"):
-                upscaled = runtime.infer_rgb_tensor_into(
-                    rgb,
-                    pool.rgb_out,
-                    input_nchw=pool.nchw_in,
-                    output_rgb_float=pool.rgb_out_float,
-                    stream=stream,
-                    synchronize=False,
-                )
-            with self._nvtx.range("trtvideo.nvcodec.rgb_to_nv12"):
-                nv12_out = rgb_to_nv12_into(
-                    upscaled,
-                    pool.nv12_out,
-                    color_spec=self._color_spec_name,
-                    stream=cvcuda_stream,
-                )
+    def _process_frame_nvtx(self, raw_frame) -> None:
+        runtime = self._runtime()
+        nv12_input = self._wrap_nv12(raw_frame)
+        with self._nvtx.range("trtvideo.nvcodec.nv12_to_rgb"):
+            self._preprocess(nv12_input)
+        with self._nvtx.range("trtvideo.nvcodec.tensorrt"):
+            runtime.execute()
+        with self._nvtx.range("trtvideo.nvcodec.rgb_to_nv12"):
+            nv12_output = self._postprocess()
         with self._nvtx.range("trtvideo.nvcodec.nvenc_encode"):
-            self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
+            self._write_bitstream(self._encoder.Encode(nv12_output))
 
-    def _process_frame_profiled(self, nv12_tensor, in_h, in_w):
-        """Inference with CUDA event profiling on the shared pipeline stream."""
-        e0, e1, e2, e3, e4 = (torch.cuda.Event(enable_timing=True) for _ in range(5))
-        runtime = self.require_runtime()
-        stream = runtime.stream
-        pool = self._require_buffer_pool()
-        cvcuda_stream = self._require_cvcuda_stream()
+    def _process_frame_profiled(self, raw_frame) -> None:
+        runtime = self._runtime()
+        events = tuple(runtime.create_timing_event() for _ in range(5))
+        e0, e1, e2, e3, e4 = events
+        nv12_input = self._wrap_nv12(raw_frame)
 
-        with torch.cuda.stream(stream):
-            e0.record(stream)
-            rgb = nv12_to_rgb_into(
-                nv12_tensor,
-                in_h,
-                in_w,
-                pool.rgb_in,
-                pool.nv12_in,
-                color_spec=self._color_spec_name,
-                stream=cvcuda_stream,
-            )
-            e1.record(stream)
-            upscaled = runtime.infer_rgb_tensor_into(
-                rgb,
-                pool.rgb_out,
-                input_nchw=pool.nchw_in,
-                output_rgb_float=pool.rgb_out_float,
-                stream=stream,
-                synchronize=False,
-            )
-            e2.record(stream)
-            nv12_out = rgb_to_nv12_into(
-                upscaled,
-                pool.nv12_out,
-                color_spec=self._color_spec_name,
-                stream=cvcuda_stream,
-            )
-            e3.record(stream)
-            self._write_bitstream(self._encoder.Encode(_patch_dlpack(nv12_out)))
-            e4.record(stream)
+        e0.record(runtime.stream)
+        self._preprocess(nv12_input)
+        e1.record(runtime.stream)
+        runtime.execute()
+        e2.record(runtime.stream)
+        nv12_output = self._postprocess()
+        e3.record(runtime.stream)
+        self._write_bitstream(self._encoder.Encode(nv12_output))
+        e4.record(runtime.stream)
 
-        stream.synchronize()
-        self.profiler.commit((e0, e1, e2, e3, e4))
+        runtime.synchronize()
+        self.profiler.commit(events)
 
     def finalize(self) -> None:
         """Flush NVENC and mux the generated video with preserved source media."""
@@ -417,7 +393,7 @@ class NvcodecPipeline(BasePipeline):
         self._record_lifecycle_phase("mux_completed")
 
     def cleanup(self) -> None:
-        self._cvcuda_stream = None
+        self._buffer_pool = None
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None

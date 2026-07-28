@@ -1,9 +1,6 @@
-"""Runtime engine protocol used by video pipelines."""
+"""Runtime engine protocols used by video pipelines."""
 
-from collections.abc import Mapping
 from typing import Any, Protocol
-
-import numpy as np
 
 from trtvideo.models.manifest import ModelSpec, TensorSpec
 
@@ -22,6 +19,8 @@ class RuntimeEngine(Protocol):
     input_dtype: Any
     output_dtype: Any
     stream: CudaStream
+    stream_handle: int
+    gpu_name: str
     cuda_graph_enabled: bool
     cuda_graph_error: str | None
     input_w: int
@@ -29,42 +28,22 @@ class RuntimeEngine(Protocol):
     output_w: int
     output_h: int
 
-    def infer(
-        self,
-        inputs: Mapping[str, TensorLike],
-        *,
-        stream: CudaStream | None = None,
-        synchronize: bool | None = None,
-    ) -> dict[str, TensorLike]:
-        """Run raw runtime inference on prepared tensors."""
+    def synchronize(self) -> None:
+        """Wait for work queued on the runtime stream."""
 
-    def infer_rgb_cpu(self, frame_rgb: np.ndarray) -> np.ndarray:
+    def peak_memory_allocated_mb(self) -> float:
+        """Return runtime-tracked peak device memory when available."""
+
+
+class CpuRgbRuntime(RuntimeEngine, Protocol):
+    """Runtime contract required by the FFmpeg CPU-frame pipeline."""
+
+    def infer_rgb_cpu(self, frame_rgb: Any) -> Any:
         """Run full CPU RGB frame -> runtime -> CPU RGB frame inference."""
 
     def infer_rgb_cpu_profiled(
         self,
-        frame_rgb: np.ndarray,
+        frame_rgb: Any,
         events: tuple[CudaStream, CudaStream, CudaStream, CudaStream],
-    ) -> np.ndarray:
+    ) -> Any:
         """Run CPU RGB inference and record preprocess/runtime/postprocess CUDA events."""
-
-    def infer_rgb_tensor(
-        self,
-        rgb_hwc: TensorLike,
-        *,
-        stream: CudaStream | None = None,
-        synchronize: bool | None = None,
-    ) -> TensorLike:
-        """Run GPU RGB HWC tensor -> runtime -> GPU RGB HWC tensor inference."""
-
-    def infer_rgb_tensor_into(
-        self,
-        rgb_hwc: TensorLike,
-        output_rgb_hwc: TensorLike,
-        *,
-        input_nchw: TensorLike | None = None,
-        output_rgb_float: TensorLike | None = None,
-        stream: CudaStream | None = None,
-        synchronize: bool | None = None,
-    ) -> TensorLike:
-        """Run GPU RGB HWC tensor inference into preallocated output buffers."""

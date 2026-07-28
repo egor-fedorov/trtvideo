@@ -1,6 +1,6 @@
 IMAGE ?= trtvideo:latest
 DEV_IMAGE ?= trtvideo:dev
-DOCKER_RUN ?= docker run --rm -v "$$PWD:/app"
+DOCKER_RUN ?= docker run --rm -e PYTHONPATH=/app/src -v "$$PWD:/app"
 DEMO_DIR := $(CURDIR)/.demo
 DEMO_GPU_ID ?= 0
 DEMO_FORCE ?= 0

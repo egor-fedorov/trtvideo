@@ -18,6 +18,13 @@ def test_nvcodec_rejects_crf() -> None:
         validate_args(args)
 
 
+def test_nvcodec_rejects_cuda_graph() -> None:
+    args = argparse.Namespace(backend="nvcodec", crf=None, cuda_graph=True)
+
+    with pytest.raises(SystemExit):
+        validate_args(args)
+
+
 def test_crf_default_is_unset_until_backend_defaults_apply() -> None:
     args = build_parser().parse_args(
         [

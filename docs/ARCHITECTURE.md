@@ -59,26 +59,34 @@ and cleanup implementations remain in backend classes.
 
 ## Model Contract And TensorRT Runtime
 
-`TensorRTRuntime` in `src/trtvideo/runtime/tensorrt.py`:
+The backends use two adapters around the same TensorRT engine contract:
 
-- deserializes the TensorRT engine and creates an execution context;
-- reads input/output tensor names, shapes, and data types;
-- constructs `ModelSpec` and, before allocating buffers, verifies that the
+- `TensorRTRuntime` in `src/trtvideo/runtime/tensorrt.py` owns PyTorch tensors
+  for the CPU-frame `ffmpeg` backend;
+- `CvcudaTensorRTRuntime` in
+  `src/trtvideo/runtime/cvcuda_tensorrt.py` owns CV-CUDA tensors for the
+  GPU-resident `nvcodec` backend and does not import PyTorch.
+
+Both runtimes:
+
+- deserialize the TensorRT engine and create an execution context;
+- read input/output tensor names, shapes, and data types;
+- construct `ModelSpec` and, before allocating buffers, verify that the
   engine represents static, single-frame RGB upscaling with NCHW layout, batch
   size 1, and a uniform integer scale factor;
-- supports FP32 and FP16 tensor bindings;
-- preallocates and reuses `gpu_input` and `gpu_output`;
-- binds them to the context with `set_tensor_address`;
-- runs inference with `execute_async_v3` on a CUDA stream.
+- support FP32 and FP16 tensor bindings;
+- preallocate and reuse `gpu_input` and `gpu_output`;
+- bind them to the context with `set_tensor_address`;
+- run inference with `execute_async_v3` on a CUDA stream.
 
-The runtime creates its own `torch.cuda.Stream`. A caller may provide another
-stream and take responsibility for synchronization. This allows a backend to
-place preprocess, TensorRT, and postprocess operations on one ordered GPU stream
-without host-side waits between stages.
+Each runtime owns one stream. The `ffmpeg` adapter uses `torch.cuda.Stream`; the
+`nvcodec` adapter uses `cvcuda.Stream` and passes its native handle to TensorRT
+and NVENC. This places preprocess, inference, postprocess, and encode work on
+one ordered GPU stream without host-side waits between stages.
 
 The experimental `--cuda-graph` option captures the TensorRT enqueue operation
-for a static-shape engine. If capture fails, the runtime records the reason and
-falls back to regular `execute_async_v3`.
+only in the PyTorch-backed runtime. The torch-free `nvcodec` runtime rejects
+this option until graph capture is implemented for its CV-CUDA stream.
 
 The internal `TRTVIDEO_NVTX=1` diagnostic switch adds Nsight Systems ranges
 around pipeline lifecycle and `nvcodec` GPU stages. It is set only by benchmark
@@ -141,8 +149,10 @@ Per-frame processing order:
 
 1. `PyNvVideoCodec.ThreadedDecoder` decodes the compressed stream through NVDEC
    and returns an NV12 surface in device memory.
-2. `torch.from_dlpack` obtains a GPU tensor without copying the frame to the CPU.
-3. `FrameBufferPool` reuses preallocated NV12, RGB, and NCHW buffers.
+2. CV-CUDA wraps the decoded surface through its CUDA buffer interface. A
+   zero-copy NHWC view crops any pitch padding without copying the frame.
+3. `FrameBufferPool` and `CvcudaTensorRTRuntime` reuse preallocated RGB, NV12,
+   and NCHW CV-CUDA tensors.
 4. CV-CUDA converts NV12 to RGB with an explicit SDR color specification.
 5. RGB is converted to the TensorRT input layout, then inference runs.
 6. CV-CUDA converts the output RGB back to NV12.
@@ -151,12 +161,13 @@ Per-frame processing order:
 9. In `finalize()`, FFmpeg muxes the video bitstream and all supported source
    non-video streams into the selected output container.
 
-The NVDEC DLPack handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly use
-the runtime CUDA stream. CV-CUDA wraps that PyTorch stream through
-`cvcuda.as_stream`, and the same native handle is passed to NVENC through
-`cudastream`. This preserves GPU operation order without a per-frame
-`cudaStreamSynchronize`. The CPU remains the orchestration layer and writes the
-compressed bitstream, but full frames do not move between CPU and GPU.
+The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
+use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and
+NVENC. This preserves GPU operation order without a per-frame
+`cudaStreamSynchronize`. PyTorch remains available for model export and the
+`ffmpeg` backend, but is not imported by ordinary `nvcodec` inference. The CPU
+remains the orchestration layer and writes the compressed bitstream, but full
+frames do not move between CPU and GPU.
 
 NVENC uses no B-frames, preserves the source rational FPS, and creates a GOP/IDR
 approximately once per second. This provides monotonic timestamps and a

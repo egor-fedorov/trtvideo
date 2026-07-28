@@ -7,14 +7,11 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-
-import torch
+from typing import TYPE_CHECKING
 
 from trtvideo.benchmarking.lifecycle import FrameLifecycleMarkers, write_frame_markers
 from trtvideo.diagnostics.nvtx import NvtxAnnotator
-from trtvideo.profiling import ProfileCollector
 from trtvideo.runtime import RuntimeEngine
-from trtvideo.runtime.tensorrt import TensorRTRuntime
 from trtvideo.video.decoder import iter_limited_frames
 from trtvideo.video.info import VideoInfo, get_video_info
 from trtvideo.video.preservation import (
@@ -23,6 +20,9 @@ from trtvideo.video.preservation import (
     create_atomic_output_path,
     validate_media_preservation,
 )
+
+if TYPE_CHECKING:
+    from trtvideo.profiling import ProfileCollector
 
 _UNKNOWN_COLOR_VALUES = {None, "", "unknown", "reserved"}
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
@@ -141,6 +141,17 @@ class BasePipeline(ABC):
         """Map human-readable profile stage names to stable JSON keys."""
         return {}
 
+    def create_runtime(self) -> RuntimeEngine:
+        """Create the default PyTorch-backed TensorRT runtime."""
+        from trtvideo.runtime.tensorrt import TensorRTRuntime
+
+        return TensorRTRuntime(
+            self.engine_path,
+            quiet=self.args.quiet,
+            gpu_id=self.args.gpu_id,
+            use_cuda_graph=self.args.cuda_graph,
+        )
+
     # --- Abstract hooks ---
 
     @abstractmethod
@@ -232,13 +243,7 @@ class BasePipeline(ABC):
             try:
                 with self._nvtx.range("trtvideo.initialization"):
                     self.log("\nInitializing TensorRT...")
-                    torch.cuda.set_device(args.gpu_id)
-                    self.runtime = TensorRTRuntime(
-                        self.engine_path,
-                        quiet=args.quiet,
-                        gpu_id=args.gpu_id,
-                        use_cuda_graph=args.cuda_graph,
-                    )
+                    self.runtime = self.create_runtime()
                     runtime = self.require_runtime()
 
                     if info.width != runtime.input_w or info.height != runtime.input_h:
@@ -252,9 +257,12 @@ class BasePipeline(ABC):
                     self._record_lifecycle_phase("runtime_initialized")
 
                     if args.profile or args.profile_json:
+                        from trtvideo.profiling import ProfileCollector
+
                         self.profiler = ProfileCollector(
                             self.profile_stage_names(),
                             gpu_stages=self.gpu_stage_names(),
+                            synchronize=runtime.synchronize,
                             skip_warmup=args.warmup_frames,
                         )
 
@@ -353,17 +361,10 @@ class BasePipeline(ABC):
             stage_key_map.get(name, name): value for name, value in stage_ms.items()
         }
 
-        try:
-            gpu_name = torch.cuda.get_device_name(self.args.gpu_id)
-            gpu_peak_mem_mb = torch.cuda.max_memory_allocated(self.args.gpu_id) / (1024 * 1024)
-        except RuntimeError:
-            gpu_name = f"cuda:{self.args.gpu_id}"
-            gpu_peak_mem_mb = 0.0
-
         report = {
             "backend": self.BACKEND_NAME,
             "engine": self.engine_path,
-            "gpu": gpu_name,
+            "gpu": runtime.gpu_name,
             "input": self.args.input,
             "output": self.args.output,
             "input_resolution": f"{self.info.width}x{self.info.height}",
@@ -382,7 +383,7 @@ class BasePipeline(ABC):
             "max_frame_ms": profile.get("max_frame_ms", 0.0),
             "wall_total_sec": wall_total,
             "stage_ms": normalized_stage_ms,
-            "gpu_peak_mem_mb": gpu_peak_mem_mb,
+            "gpu_peak_mem_mb": runtime.peak_memory_allocated_mb(),
         }
 
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)

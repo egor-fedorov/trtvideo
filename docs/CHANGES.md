@@ -161,6 +161,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Replaced PyTorch tensor/stream orchestration in the default `nvcodec` runtime
+  with CV-CUDA-owned buffers, CUDA Array Interface views, and direct TensorRT
+  bindings. Ordinary GPU-resident inference no longer imports PyTorch; the
+  `ffmpeg` backend and model export retain their PyTorch implementation.
+  `nvcodec --cuda-graph` now fails explicitly because graph capture has not yet
+  been implemented for the CV-CUDA-owned stream.
 - Expanded both tuned workload contracts with a mandatory VSGAN
   `num_streams=2..6` sweep using runtime-default VapourSynth threads. Contract
   validation now rejects an asymmetric grid. The previous RTX 3090 tuned
@@ -252,6 +258,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Made Docker checks import the mounted `src/trtvideo` working tree instead of
+  a potentially stale package copy installed when the development image was
+  built.
 - `--max-frames` no longer asks the NVDEC iterator for another decoder batch
   after the requested final frame. The iterator closes immediately and releases
   the current batch before encoder flush and mux.

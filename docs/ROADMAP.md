@@ -160,9 +160,10 @@ optimization remain pending.
 - Measure the new internal lifecycle checkpoints on SPAN 720p and reduce
   startup/finalize overhead without removing either scope from the end-to-end
   contract. The tuned baseline spends 2.569 seconds before steady state and
-  0.895 seconds after the frame loop. The first code change prevents
-  `--max-frames` from requesting an unused decoder batch; its effect still
-  requires a fixed project-only GPU measurement before any performance claim.
+  0.895 seconds after the frame loop. The frame loop no longer requests an
+  unused decoder batch, and the default NVCodec runtime no longer imports
+  PyTorch or allocates PyTorch tensors. Both effects still require a fixed
+  project-only GPU measurement before any performance claim.
 - If the timeline confirms idle periods, investigate double buffering, multiple
   execution contexts, and overlap of `decode N+1`, `inference N`, and
   `encode N-1`.

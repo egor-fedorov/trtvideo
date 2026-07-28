@@ -1,8 +1,7 @@
 """CUDA event-based profiling for pipeline stages."""
 
+from collections.abc import Callable
 from typing import Any
-
-import torch
 
 
 class ProfileCollector:
@@ -16,8 +15,8 @@ class ProfileCollector:
             ["decode", "preprocess", "trt", "postprocess", "encode"],
             gpu_stages=["preprocess", "trt", "postprocess"],
         )
-        # In the hot path — only tuple of events:
-        e0, e1, e2, e3 = (torch.cuda.Event(enable_timing=True) for _ in range(4))
+        # In the hot path - only a tuple of runtime-specific CUDA events:
+        e0, e1, e2, e3 = (runtime.create_timing_event() for _ in range(4))
         e0.record(stream); ...; e1.record(stream); ...; e3.record(stream)
         collector.commit((e0, e1, e2, e3))
     """
@@ -26,23 +25,28 @@ class ProfileCollector:
         self,
         stage_names: list[str],
         gpu_stages: list[str],
+        synchronize: Callable[[], None],
         skip_warmup: int = 1,
     ):
         self.stage_names = stage_names
         self.gpu_stages = gpu_stages
+        self._synchronize = synchronize
         self.skip_warmup = skip_warmup
         self._events: list[tuple] = []
         self._wall_times: dict[str, list[float]] = {
             name: [] for name in stage_names if name not in gpu_stages
         }
+        self._summary_cache: dict[str, Any] | None = None
 
     def record_wall_time(self, stage_name: str, duration_s: float) -> None:
         """Record a wall-clock measurement for a CPU-bound stage (in seconds)."""
         self._wall_times[stage_name].append(duration_s)
+        self._summary_cache = None
 
     def commit(self, events: tuple) -> None:
         """Store sequential CUDA events for one frame."""
         self._events.append(events)
+        self._summary_cache = None
 
     @property
     def committed_count(self) -> int:
@@ -50,7 +54,10 @@ class ProfileCollector:
 
     def summary(self, frame_times: list[float]) -> dict[str, Any]:
         """Return machine-readable profiling summary."""
-        torch.cuda.synchronize()
+        if self._summary_cache is not None:
+            return self._summary_cache
+
+        self._synchronize()
 
         n_total = len(self._events)
         skip = self.skip_warmup if n_total > self.skip_warmup else 0
@@ -77,7 +84,7 @@ class ProfileCollector:
         min_frame_sec = min(measured_frame_times) if measured_frame_times else 0.0
         max_frame_sec = max(measured_frame_times) if measured_frame_times else 0.0
         processing_fps = 1.0 / wall_avg_sec if wall_avg_sec > 0 else 0.0
-        return {
+        result = {
             "warmup_frames": skip,
             "frames": len(measured_frame_times),
             "processing_fps": processing_fps,
@@ -87,6 +94,14 @@ class ProfileCollector:
             "max_frame_ms": max_frame_sec * 1000,
             "stage_ms": stage_ms,
         }
+        for frame_events in self._events:
+            for event in frame_events:
+                close = getattr(event, "close", None)
+                if close is not None:
+                    close()
+        self._events.clear()
+        self._summary_cache = result
+        return result
 
     def print_table(
         self,

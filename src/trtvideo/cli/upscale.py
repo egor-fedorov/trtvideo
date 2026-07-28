@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--cuda-graph",
         action="store_true",
-        help="Experimental: capture TensorRT enqueue with CUDA Graph",
+        help="Experimental: capture TensorRT enqueue; unsupported by nvcodec",
     )
     parser.add_argument(
         "--crf",
@@ -65,6 +65,12 @@ def validate_args(args: argparse.Namespace) -> None:
         print(
             "ERROR: --crf is only supported by --backend ffmpeg. "
             "Use --bitrate-mbps for --backend nvcodec.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if args.backend == "nvcodec" and getattr(args, "cuda_graph", False):
+        print(
+            "ERROR: --cuda-graph is not supported by the torch-free nvcodec runtime.",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -121,6 +121,8 @@ class TensorRTRuntime:
 
         # CUDA stream (shared between torch and TRT)
         self.stream = torch.cuda.Stream(device=self.device)
+        self.stream_handle = int(self.stream.cuda_stream)
+        self.gpu_name = torch.cuda.get_device_name(self.device)
 
         if not quiet:
             print(f"  Engine: {engine_path}")
@@ -129,6 +131,14 @@ class TensorRTRuntime:
             print(f"  Output: {self.output_w}x{self.output_h} {self.model_spec.outputs[0].dtype}")
             print(f"  Scale:  {self.model_spec.scale}x")
             print(f"  CUDA Graph: {'enabled' if self.cuda_graph_enabled else 'disabled'}")
+
+    def synchronize(self) -> None:
+        """Wait for work queued on the runtime stream."""
+        self.stream.synchronize()
+
+    def peak_memory_allocated_mb(self) -> float:
+        """Return PyTorch allocator peak memory for profile reports."""
+        return torch.cuda.max_memory_allocated(self.device) / (1024 * 1024)
 
     def infer(
         self,

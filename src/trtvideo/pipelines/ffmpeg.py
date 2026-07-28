@@ -4,11 +4,13 @@ import argparse
 import subprocess
 import time
 from contextlib import suppress
+from typing import cast
 
 import numpy as np
 import torch
 
 from trtvideo.pipelines.base import BasePipeline
+from trtvideo.runtime import CpuRgbRuntime
 from trtvideo.video.preservation import ffmpeg_preservation_args
 
 _GPU_STAGES = [
@@ -52,7 +54,7 @@ class FfmpegPipeline(BasePipeline):
         return self._PROFILE_STAGE_KEYS
 
     def setup_decoder(self) -> None:
-        runtime = self.require_runtime()
+        runtime = cast(CpuRgbRuntime, self.require_runtime())
         self._frame_size_in = runtime.input_w * runtime.input_h * 3
         decode_cmd = [
             "ffmpeg",
@@ -73,7 +75,7 @@ class FfmpegPipeline(BasePipeline):
         )
 
     def setup_encoder(self) -> None:
-        runtime = self.require_runtime()
+        runtime = cast(CpuRgbRuntime, self.require_runtime())
         self._frame_size_out = runtime.output_w * runtime.output_h * 3
         encode_cmd = [
             "ffmpeg",
@@ -121,7 +123,7 @@ class FfmpegPipeline(BasePipeline):
         # Tight loop
         pipe_read = self._decoder.stdout.read
         pipe_write = self._encoder.stdin.write
-        runtime = self.require_runtime()
+        runtime = cast(CpuRgbRuntime, self.require_runtime())
         infer = runtime.infer_rgb_cpu
         frame_size = self._frame_size_in
         in_h, in_w = runtime.input_h, runtime.input_w
@@ -166,7 +168,7 @@ class FfmpegPipeline(BasePipeline):
         pipe_read = self._decoder.stdout.read
         pipe_write = self._encoder.stdin.write
         frame_size = self._frame_size_in
-        runtime = self.require_runtime()
+        runtime = cast(CpuRgbRuntime, self.require_runtime())
         in_h, in_w = runtime.input_h, runtime.input_w
         max_frames = self.args.max_frames
         quiet = self.args.quiet
