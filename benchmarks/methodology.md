@@ -248,6 +248,9 @@ output: RGB immediately after TensorRT, before clipping, YUV conversion, or enco
 ```
 
 The project reference uses its production `NVDEC -> CV-CUDA -> TensorRT` path.
+The model-space capture and the production NVCodec pipeline import the same
+frame processor; capture adds only a synchronized device-to-host copy after the
+shared normalized model input and raw model output boundaries.
 The vstrt and VSGAN captures use `RGBS` immediately before and after
 `core.trt.Model`. VapourSynth's physical `G,B,R` plane serialization is
 normalized to logical RGB CHW after capture. Every raw tensor is size-checked

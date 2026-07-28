@@ -258,6 +258,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Restored the model-space reference contract after the torch-free runtime
+  migration. Production NVCodec inference and project tensor capture now share
+  the same CV-CUDA frame processor instead of capturing through the retired
+  PyTorch runtime path.
 - Made Docker checks import the mounted `src/trtvideo` working tree instead of
   a potentially stale package copy installed when the development image was
   built.

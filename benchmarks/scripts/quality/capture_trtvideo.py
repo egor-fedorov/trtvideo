@@ -50,15 +50,12 @@ def _write_gpu_tensor(
     frame_index: int,
     output_dir: Path,
 ) -> TensorArtifact:
+    import cuda.bindings.runtime as cudart
     import numpy as np
 
     path = output_dir / f"{stage}.frame-{frame_index:06d}.f32"
-    array = tensor.detach().float().cpu().numpy()
-    if array.ndim == 4 and array.shape[0] == 1:
-        array = array[0]
-    if array.ndim != 3 or array.shape[0] != 3:
-        raise ModelSpaceError(f"Unexpected captured {stage} tensor shape: {array.shape}")
-    contiguous = np.ascontiguousarray(array, dtype="<f4")
+    host = _copy_gpu_tensor_to_host(tensor, cudart=cudart, np=np)
+    contiguous = np.ascontiguousarray(host[0], dtype="<f4")
     shape = (
         int(contiguous.shape[0]),
         int(contiguous.shape[1]),
@@ -74,14 +71,64 @@ def _write_gpu_tensor(
     )
 
 
+def _copy_gpu_tensor_to_host(tensor: Any, *, cudart: Any, np: Any) -> Any:
+    """Copy a possibly pitch-padded NCHW CV-CUDA tensor into host memory."""
+    interface = tensor.cuda().__cuda_array_interface__
+    shape = tuple(int(value) for value in interface["shape"])
+    if len(shape) != 4 or shape[0] != 1 or shape[1] != 3:
+        raise ModelSpaceError(f"Unexpected captured tensor shape: {shape}")
+
+    dtype = np.dtype(str(interface["typestr"]))
+    if dtype not in {np.dtype(np.float16), np.dtype(np.float32)}:
+        raise ModelSpaceError(f"Unexpected captured tensor dtype: {dtype}")
+    strides = interface.get("strides")
+    if strides is None:
+        n_stride = shape[1] * shape[2] * shape[3] * dtype.itemsize
+        c_stride = shape[2] * shape[3] * dtype.itemsize
+        h_stride = shape[3] * dtype.itemsize
+        w_stride = dtype.itemsize
+    else:
+        n_stride, c_stride, h_stride, w_stride = (
+            int(value) for value in strides
+        )
+    if w_stride != dtype.itemsize:
+        raise ModelSpaceError(
+            f"Captured tensor width is not contiguous: strides={strides}"
+        )
+
+    device_pointer = int(interface["data"][0])
+    host = np.empty(shape, dtype=dtype)
+    destination_pointer = int(host.ctypes.data)
+    row_bytes = shape[3] * dtype.itemsize
+    for batch_index in range(shape[0]):
+        for channel_index in range(shape[1]):
+            result = cudart.cudaMemcpy2D(
+                destination_pointer
+                + batch_index * host.strides[0]
+                + channel_index * host.strides[1],
+                host.strides[2],
+                device_pointer
+                + batch_index * n_stride
+                + channel_index * c_stride,
+                h_stride,
+                row_bytes,
+                shape[2],
+                cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost,
+            )
+            if result[0] != cudart.cudaError_t.cudaSuccess:
+                raise ModelSpaceError(
+                    f"Failed to copy captured tensor to host: {result[0]}"
+                )
+    return host
+
+
 def capture(args: argparse.Namespace) -> Path:
     """Run the production decode/preprocess/inference path for selected frames."""
-    import cvcuda
     import PyNvVideoCodec as nvc
-    import torch
 
-    from trtvideo.runtime.tensorrt import TensorRTRuntime
-    from trtvideo.video.colorspace import nv12_to_rgb_into
+    from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
+    from trtvideo.video.cvcuda import NvcodecFrameProcessor
+    from trtvideo.video.decoder import iter_limited_frames, iter_locked_decode_frames
     from trtvideo.video.info import get_video_info
 
     root = Path(args.root).resolve()
@@ -120,31 +167,15 @@ def capture(args: argparse.Namespace) -> Path:
             "Model-space capture requires limited-range BT.709 input"
         )
 
-    runtime = TensorRTRuntime(
+    runtime = CvcudaTensorRTRuntime(
         str(engine_path),
         quiet=True,
         gpu_id=args.gpu_id,
         use_cuda_graph=False,
     )
-    cvcuda_stream = cvcuda.as_stream(runtime.stream)
-    device = torch.device(f"cuda:{args.gpu_id}")
-    nv12_buffer = torch.empty(
-        runtime.input_h * 3 // 2,
-        runtime.input_w,
-        dtype=torch.uint8,
-        device=device,
-    )
-    rgb_buffer = torch.empty(
-        runtime.input_h,
-        runtime.input_w,
-        3,
-        dtype=torch.uint8,
-        device=device,
-    )
-    model_input = torch.empty(
-        runtime.input_shape,
-        dtype=runtime.input_dtype,
-        device=device,
+    frame_processor = NvcodecFrameProcessor(
+        runtime,
+        color_spec_name="bt709",
     )
     decoder = nvc.ThreadedDecoder(
         enc_file_path=str(input_path),
@@ -158,51 +189,40 @@ def capture(args: argparse.Namespace) -> Path:
 
     selected = set(frame_indices)
     artifacts: list[TensorArtifact] = []
-    frame_index = 0
-    while frame_index <= frame_indices[-1]:
-        frames = decoder.get_batch_frames(_DECODE_BATCH_SIZE)
-        if not frames:
-            break
-        for raw_frame in frames:
-            if frame_index in selected:
-                with torch.cuda.stream(runtime.stream):
-                    nv12_tensor = torch.from_dlpack(raw_frame)
-                    rgb = nv12_to_rgb_into(
-                        nv12_tensor,
-                        runtime.input_h,
-                        runtime.input_w,
-                        rgb_buffer,
-                        nv12_buffer,
-                        color_spec="bt709",
-                        stream=cvcuda_stream,
-                    )
-                    model_input.copy_(rgb.permute(2, 0, 1).unsqueeze(0))
-                    model_input.div_(255.0)
-                    model_output = runtime.infer(
-                        {runtime.input_name: model_input},
-                        stream=runtime.stream,
-                        synchronize=False,
-                    )[runtime.output_name]
-                runtime.stream.synchronize()
-                artifacts.append(
-                    _write_gpu_tensor(
-                        runtime.gpu_input,
-                        stage="input",
-                        frame_index=frame_index,
-                        output_dir=output_dir,
-                    )
-                )
-                artifacts.append(
-                    _write_gpu_tensor(
-                        model_output,
-                        stage="output",
-                        frame_index=frame_index,
-                        output_dir=output_dir,
-                    )
-                )
-            frame_index += 1
-            if frame_index > frame_indices[-1]:
-                break
+    decoded_frames = iter_locked_decode_frames(
+        decoder.get_batch_frames,
+        batch_size=_DECODE_BATCH_SIZE,
+        release_batch=runtime.synchronize,
+    )
+    for frame_index, raw_frame in enumerate(
+        iter_limited_frames(
+            decoded_frames,
+            limit=frame_indices[-1] + 1,
+        )
+    ):
+        if frame_index not in selected:
+            continue
+        nv12_tensor = frame_processor.wrap_nv12(raw_frame)
+        frame_processor.preprocess(nv12_tensor)
+        runtime.synchronize()
+        artifacts.append(
+            _write_gpu_tensor(
+                runtime.gpu_input,
+                stage="input",
+                frame_index=frame_index,
+                output_dir=output_dir,
+            )
+        )
+        model_output = frame_processor.infer()
+        runtime.synchronize()
+        artifacts.append(
+            _write_gpu_tensor(
+                model_output,
+                stage="output",
+                frame_index=frame_index,
+                output_dir=output_dir,
+            )
+        )
 
     captured_indices = sorted({artifact.frame_index for artifact in artifacts})
     if captured_indices != list(frame_indices):

@@ -161,6 +161,11 @@ Per-frame processing order:
 9. In `finalize()`, FFmpeg muxes the video bitstream and all supported source
    non-video streams into the selected output container.
 
+The production pipeline and model-space quality capture share
+`NvcodecFrameProcessor` for surface wrapping, preprocess, TensorRT enqueue, and
+postprocess. The quality job copies only selected normalized input and raw
+output tensors to the host after synchronizing this shared path.
+
 The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
 use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and
 NVENC. This preserves GPU operation order without a per-frame
