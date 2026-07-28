@@ -79,7 +79,6 @@ def test_comparative_goal_covers_build_quality_and_campaign() -> None:
             goal="comparative",
             workload_key="span",
             variant_name="1080p",
-            mode="upstream-default",
             resume=True,
         ),
     )

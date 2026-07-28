@@ -21,8 +21,11 @@ from benchmarks.scripts.runners.trtexec import (
     build_trtexec_command,
     parse_trtexec_output,
 )
+from benchmarks.scripts.runners.vapoursynth_profile import (
+    add_execution_profile_arguments,
+)
 from benchmarks.scripts.runners.vsgan import (
-    _validate_parity_engine,
+    _validate_vsgan_engine,
     build_vsgan_command,
 )
 from benchmarks.scripts.runners.vsgan import (
@@ -62,11 +65,11 @@ def common_args(**overrides) -> argparse.Namespace:
         "extra_runs": None,
         "idle_seconds": None,
         "dry_run": True,
-        "cuda_graph": False,
+        "cuda_graph": None,
         "warmup_ms": 1000,
-        "requests": 1,
-        "num_streams": 1,
-        "mode": "parity",
+        "requests": None,
+        "num_streams": None,
+        "mode": "upstream-default",
         "vs_threads": None,
         "skip_bitrate_validation": False,
     }
@@ -83,6 +86,15 @@ def test_shared_parameters_accept_smoke_overrides() -> None:
     assert parameters["warmup_frames"] == 24
     assert parameters["initial_runs"] == 1
     assert parameters["extra_runs_on_spread"] == 0
+
+
+def test_removed_single_request_profile_is_not_accepted() -> None:
+    parser = argparse.ArgumentParser()
+    add_execution_profile_arguments(parser)
+
+    assert parser.parse_args([]).mode == "upstream-default"
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--mode", "parity"])
 
 
 def test_static_engine_contract_checks_onnx_and_bindings(tmp_path: Path) -> None:
@@ -170,7 +182,8 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert "-bf" in spec[1]
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
-    assert plan["comparison_class"] == "parity"
+    assert plan["comparison_class"] == "upstream-default"
+    assert plan["parameters"]["vspipe_requests"] == "auto"
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["batch_size"] == 1
     assert plan["parameters"]["tiling"] is False
@@ -188,11 +201,11 @@ def test_vsgan_command_uses_pinned_script_and_explicit_nvenc_contract() -> None:
     )
     vspipe, ffmpeg = spec
 
-    assert vspipe[vspipe.index("--requests") + 1] == "1"
+    assert "--requests" not in vspipe
     assert "--progress" in vspipe
-    assert "num_streams=1" in vspipe
+    assert "num_streams=4" in vspipe
     assert "cuda_graph=0" in vspipe
-    assert not any(value.startswith("vs_threads=") for value in vspipe)
+    assert "vs_threads=4" in vspipe
     assert vspipe[-2] == "/app/benchmarks/vsgan/upscale.vpy"
     assert ffmpeg[ffmpeg.index("-rc") + 1] == "cbr"
     assert ffmpeg[ffmpeg.index("-b:v") + 1] == "60000000"
@@ -215,19 +228,20 @@ def test_vapoursynth_scripts_accept_runtime_default_threads(script: str) -> None
     assert "if configured_threads is not None:" in source
 
 
-def test_vsgan_plan_is_single_stream_parity() -> None:
+def test_vsgan_plan_uses_upstream_defaults() -> None:
     plan, _ = build_vsgan_plan(common_args())
     vspipe, _ = plan["commands"]["measured"]
 
     assert plan["benchmark_contract_version"] == 3
     assert vspipe[vspipe.index("--end") + 1] == "999"
-    assert plan["comparison_class"] == "single-stream-parity"
+    assert plan["comparison_class"] == "upstream-default"
     assert plan["implementation"]["exact_model_match"] is True
     assert plan["implementation"]["exact_engine_match"] is False
     assert plan["implementation"]["upstream_tag"] == "latest_no_avx512"
     assert plan["implementation"]["encoder_ffmpeg_package"] == "7:6.1.1-3ubuntu5"
-    assert plan["parameters"]["mode"] == "parity"
-    assert plan["parameters"]["num_streams"] == 1
+    assert plan["parameters"]["mode"] == "upstream-default"
+    assert plan["parameters"]["num_streams"] == 4
+    assert plan["parameters"]["vapoursynth_threads"] == 4
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
 
@@ -363,7 +377,7 @@ def test_vsgan_engine_rejects_different_base_image(
     monkeypatch.setenv("TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "ffmpeg-version")
 
     with pytest.raises(CompetitorError, match="different base image"):
-        _validate_parity_engine(
+        _validate_vsgan_engine(
             sidecar,
             manifest(),
             "1080p",

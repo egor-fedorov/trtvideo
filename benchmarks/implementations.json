@@ -10,9 +10,9 @@
       "notes": "Inference ceiling for the project engine; not a product competitor."
     },
     "vstrt": {
-      "role": "parity",
+      "role": "technical",
       "version": "v15.16",
-      "comparison_class": "parity",
+      "comparison_class": "upstream-default",
       "image": "trtvideo:benchmark-vstrt",
       "source": "https://github.com/AmusementClub/vs-mlrt",
       "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
@@ -21,12 +21,6 @@
       "bestsource_version": "19.0",
       "tensorrt_version": "11.0.0",
       "execution_profiles": {
-        "parity": {
-          "vspipe_requests": 1,
-          "num_streams": 1,
-          "vapoursynth_threads": "auto",
-          "cuda_graph": false
-        },
         "upstream-default": {
           "vspipe_requests": "auto",
           "num_streams": 1,
@@ -38,12 +32,12 @@
           "configuration": "Explicit requests, num_streams, vapoursynth_threads, and cuda_graph values are required."
         }
       },
-      "notes": "Technical parity target built against the same TensorRT 11 base as the project."
+      "notes": "TensorRT 11 VapourSynth target built against the same base and serialized engine as the project."
     },
     "vsgan": {
-      "role": "parity",
+      "role": "product",
       "version": "2026-06-22",
-      "comparison_class": "single-stream-parity",
+      "comparison_class": "upstream-default",
       "image": "trtvideo:benchmark-vsgan",
       "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
       "upstream_tag": "latest_no_avx512",
@@ -54,12 +48,6 @@
       "exact_model_match": true,
       "exact_engine_match": false,
       "execution_profiles": {
-        "parity": {
-          "vspipe_requests": 1,
-          "num_streams": 1,
-          "vapoursynth_threads": "auto",
-          "cuda_graph": false
-        },
         "upstream-default": {
           "vspipe_requests": "auto",
           "num_streams": 4,
@@ -71,7 +59,7 @@
           "configuration": "Explicit requests, num_streams, vapoursynth_threads, and cuda_graph values are required."
         }
       },
-      "notes": "Pinned upstream VSGAN inference environment measured with the single-stream parity configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+      "notes": "Pinned upstream VSGAN inference environment. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine."
     }
   }
 }

@@ -28,11 +28,10 @@ from benchmarks.scripts.runners.common import (
 from benchmarks.scripts.runners.vapoursynth_profile import (
     VapourSynthExecutionProfile,
     add_execution_profile_arguments,
-    comparison_class,
     resolve_execution_profile,
     validate_declared_profile,
 )
-from benchmarks.scripts.runners.vsgan import _validate_parity_engine
+from benchmarks.scripts.runners.vsgan import _validate_vsgan_engine
 from benchmarks.scripts.runtime.environment import collect_image_identity, sha256_file
 from benchmarks.scripts.runtime.runner import BenchmarkError, load_engine_contract
 from benchmarks.scripts.workloads.manifest import load_manifest, repo_path
@@ -169,7 +168,7 @@ def capture(args: argparse.Namespace) -> Path:
 
     sidecar, _ = load_engine_contract(engine_path)
     if args.implementation == "vsgan":
-        _validate_parity_engine(
+        _validate_vsgan_engine(
             sidecar,
             manifest,
             args.variant,
@@ -234,10 +233,7 @@ def capture(args: argparse.Namespace) -> Path:
             if args.implementation == "vstrt"
             else "VSGAN-tensorrt-docker"
         ),
-        comparison_class=comparison_class(
-            str(implementation["comparison_class"]),
-            profile,
-        ),
+        comparison_class=profile.mode,
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),

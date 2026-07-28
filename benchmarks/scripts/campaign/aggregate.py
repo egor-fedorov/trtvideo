@@ -922,7 +922,7 @@ def aggregate_campaign(
     *,
     root: Path,
     idle_seconds: float,
-    execution_profile: str = "parity",
+    execution_profile: str = "upstream-default",
     model_space_report: Path | None = None,
     product_output_report: Path | None = None,
 ) -> dict[str, Any]:

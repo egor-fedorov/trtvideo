@@ -65,8 +65,7 @@ Scope a run when the complete matrix is not required:
 ```bash
 benchmarks/bin/run-benchmark.sh comparative \
   --workload span \
-  --variant 1080p \
-  --mode upstream-default
+  --variant 1080p
 ```
 
 `--dry-run` prints the complete ordered command plan without Docker or GPU
@@ -79,7 +78,7 @@ The goals are intentionally separate:
 
 - `project` measures only `trtvideo` for regression work;
 - `comparative` runs quality gates and rotated project/vstrt/VSGAN campaigns
-  using `parity` or `upstream-default`;
+  using pinned upstream defaults;
 - `tuned` runs candidate sweeps, winner quality gates, final campaigns, and
   cross-resolution publication checks;
 - `diagnostics` records `trtexec` ceilings for the selection and the canonical
@@ -145,9 +144,8 @@ question.
 
 `VAPOURSYNTH_MODE` selects the scheduling contract for both external runners:
 
-- `parity` is the default and reproduces the published one-request/one-stream
-  baseline;
-- `upstream-default` uses the defaults recorded from each pinned upstream;
+- `upstream-default` is the default and uses the settings recorded from each
+  pinned upstream;
 - `tuned` requires explicit `--requests`, `--num-streams`, `--vs-threads`, and
   `--cuda-graph` or `--no-cuda-graph` values.
 
@@ -350,7 +348,7 @@ make -C benchmarks run-comparative \
 ```
 
 Results are written to
-`artefacts/benchmarks/comparative/campaigns/parity/realesrgan_x2plus_sintel-1080p/`:
+`artefacts/benchmarks/comparative/campaigns/upstream-default/realesrgan_x2plus_sintel-1080p/`:
 raw manifests, `campaign.config.json`, `campaign.events.jsonl`, `campaign.json`,
 and `results.md`. The config fixes scheduling identity; the event log records
 the actual order, start/end time, and observed pause for each run. The aggregator

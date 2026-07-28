@@ -14,12 +14,10 @@ The architectural claim under test is:
 
 Results are divided into independent classes:
 
-1. Single-stream parity: `trtvideo` against locally built
-   `VapourSynth/vstrt` and a pinned upstream VSGAN runtime with one vspipe
-   request, one TensorRT stream, and CUDA Graph disabled.
-2. Product-default/tuned: completed campaigns with documented upstream defaults
-   and separately selected best-performing settings. These results remain
-   separate from single-stream parity.
+1. Upstream-default: completed campaigns using the scheduling defaults recorded
+   from each pinned external implementation.
+2. Tuned: separately selected best-performing settings with independent quality
+   gates and rotated winner campaigns.
 3. Diagnostics: `trtexec`, stage profiling, and Nsight. These are not
    competitors and do not appear as rows in the comparative table.
 
@@ -42,7 +40,7 @@ acceptance in Stage 1.
 - Remove Video2X from canonical tooling and documentation.
 - Move `trtexec` to the diagnostic/reference class.
 - Add a pinned upstream VSGAN image without changing its internal code.
-- Keep a strict TRT11 `vstrt` runner for technical parity.
+- Keep a strict TRT11 `vstrt` runner using the same engine as the project.
 - Add a SPAN workload with verifiable source hash, attribution, and license.
 - Build a TRT10.16 VSGAN engine from the canonical mixed-FP16 ONNX on the
   benchmark GPU and retain the build log, engine sidecar, and hashes.
@@ -92,37 +90,10 @@ accounting, lifecycle timings, and both quality gates passed.
 Individual runners remain acceptance/baseline data. Only an aggregated campaign
 with completed quality gates is publishable.
 
-## Stage 3. Single-Stream Parity Campaign
+## Stage 3. Diagnostics And Best-Tuned
 
-Status: complete. The validated RTX 3090 `1080p -> 4K` and
-`720p -> 1440p` campaigns for RealESRGAN and SPAN include media preservation
-and are published in `benchmarks/results/rtx-3090/`. The measured runtime
-revision is `0fc3037`; the publication commit is tracked separately by Git.
-These results validate the fixed `requests=1`, `streams=1` contract and are not
-upstream-default or maximum-throughput product claims.
-
-- Run 100 warmup and 1000 measured frames, at least three runs, and two
-  additional runs when spread exceeds 5%.
-- Rotate project/vstrt/VSGAN order between rounds.
-- Run `1080p -> 4K` first, followed by confirmation at `720p -> 1440p`.
-- Repeat both resolutions for RealESRGAN and SPAN.
-- Publish median end-to-end FPS, wall time, CPU, average power, joules/frame,
-  peak VRAM, output bitrate, and size.
-- Retain commands, environment, raw values, and hashes. Do not mix results from
-  different commits, images, or thermal/power states.
-
-The success criterion is fixed before measurement:
-
-- more than a 5% median end-to-end FPS advantage is a confirmed speed advantage;
-- a difference within +/-5% is parity, followed by comparison of CPU,
-  energy/frame, VRAM, and UX;
-- losing by more than 5% on both workloads requires profiling and optimization
-  before making a performance claim.
-
-## Stage 4. Diagnostics And Best-Tuned
-
-Status: parity diagnostics and the upstream-default matrix are complete. All
-four `trtexec` ceilings and pipeline-efficiency values are published. A clean
+Status: diagnostics and the upstream-default matrix are complete. All four
+`trtexec` ceilings are published. A clean
 SPAN 1080p Nsight trace used an engine rebuilt on the profiled RTX 3090 and
 confirmed a GPU-resident, continuously kernel-active frame loop without
 material per-frame host/device transfers. The first tuned snapshot is retained
@@ -132,10 +103,10 @@ only tested with four VapourSynth threads. A corrected VSGAN
 publication. Live-action confirmation, CPU attribution, and SPAN 720p startup
 optimization remain pending.
 
-- [x] Add isolated `parity`, `upstream-default`, and `tuned` campaign classes
-  with immutable scheduling configuration and aggregate-time contract checks.
-- [x] Calculate `pipeline efficiency = end-to-end FPS / trtexec QPS` separately
-  from the product table for both resolutions and workloads.
+- [x] Add isolated `upstream-default` and `tuned` campaign classes with
+  immutable scheduling configuration and aggregate-time contract checks.
+- [x] Publish `trtexec` inference ceilings separately from product tables for
+  both resolutions and workloads.
 - [x] Collect one representative Nsight Systems trace and inspect H2D/D2H
   copies, stream occupancy, and NVDEC/TensorRT/NVENC overlap.
 - [x] Add a manifest-driven best-tuned selection workflow. It uses
@@ -170,7 +141,7 @@ optimization remain pending.
 - After each change, repeat one fixed benchmark and add only measured effects to
   `docs/PERFORMANCE_LOG.md`.
 
-## Stage 5. Open-Source Release
+## Stage 4. Open-Source Release
 
 - [x] License project code and documentation under Apache License 2.0.
 - Audit dependency, model, and media licenses.

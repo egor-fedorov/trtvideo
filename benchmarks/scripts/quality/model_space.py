@@ -210,7 +210,6 @@ class CaptureManifest:
         if not self.workload_id or not self.variant:
             raise ModelSpaceError("Capture workload identity is required")
         if self.execution_profile.get("mode") not in {
-            "parity",
             "upstream-default",
             "tuned",
         }:
@@ -439,10 +438,10 @@ def compare_captures(
             for label, (actual, expected) in identity_checks.items()
             if actual != expected
         ]
-        if candidate.comparison_class == "parity" and (
+        if candidate.implementation == "vs-mlrt" and (
             candidate.engine_sha256 != reference.engine_sha256
         ):
-            candidate_errors.append("parity engine SHA256 differs")
+            candidate_errors.append("shared engine SHA256 differs")
 
         tensors = []
         candidate_artifacts = candidate.artifact_map()

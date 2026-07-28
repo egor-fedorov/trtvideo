@@ -21,7 +21,7 @@ TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
 VSGAN_ARGS ?=
 NSIGHT_ARGS ?=
-VAPOURSYNTH_MODE ?= parity
+VAPOURSYNTH_MODE ?= upstream-default
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
 TRTVIDEO_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
@@ -67,7 +67,7 @@ RESUME ?= 0
 help:
 	@printf '%s\n' \
 		'build               Build the project benchmark image' \
-		'build-vstrt         Build the TensorRT 11 VapourSynth parity image' \
+		'build-vstrt         Build the TensorRT 11 VapourSynth image' \
 		'build-vsgan         Build the pinned upstream VSGAN benchmark wrapper' \
 		'build-project-engine  Build one project TRT11 engine (ONNX/ENGINE)' \
 		'build-vsgan-engine  Build a pinned VSGAN TRT10.16 engine (ONNX/VSGAN_ENGINE)' \
@@ -492,7 +492,7 @@ verify-tuned-matrix:
 
 campaign-preflight:
 	@case "$(VAPOURSYNTH_MODE)" in \
-		parity|upstream-default|tuned) ;; \
+		upstream-default|tuned) ;; \
 		*) echo "ERROR: unknown VAPOURSYNTH_MODE: $(VAPOURSYNTH_MODE)" >&2; exit 2 ;; \
 	esac
 	@command -v "$(HOST_PYTHON)" >/dev/null 2>&1 || \

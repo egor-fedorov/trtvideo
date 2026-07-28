@@ -65,7 +65,7 @@ def validate_static_engine_contract(
     variant_name: str,
     onnx_path: Path,
 ) -> None:
-    """Verify the common tensor contract required by parity benchmarks."""
+    """Verify the common tensor contract required by comparative benchmarks."""
     model_variant = find_model_variant(manifest, variant_name)
     clip_variant = find_variant(manifest, variant_name)
     output = clip_variant["benchmark_output"]
@@ -81,9 +81,9 @@ def validate_static_engine_contract(
     if sidecar.get("output", {}).get("shape") != expected_output:
         raise CompetitorError("Engine output shape does not match workload")
     if sidecar.get("io_precision") != "fp32":
-        raise CompetitorError("Parity engine must keep FP32 input/output bindings")
+        raise CompetitorError("Benchmark engine must keep FP32 input/output bindings")
     if sidecar.get("input_profile") is not None:
-        raise CompetitorError("Parity engine must use a static full-frame shape")
+        raise CompetitorError("Benchmark engine must use a static full-frame shape")
     if not onnx_path.is_file():
         raise CompetitorError(f"Canonical ONNX not found: {onnx_path}")
     if sidecar.get("model_sha256") != sha256_file(onnx_path):

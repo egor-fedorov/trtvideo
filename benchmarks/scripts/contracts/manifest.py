@@ -78,11 +78,9 @@ def execution_profile(parameters: dict[str, Any]) -> dict[str, Any]:
     return {key: parameters[key] for key in PROFILE_PARAMETER_KEYS}
 
 
-def expected_comparison_class(implementation: str, mode: str) -> str:
+def expected_comparison_class(mode: str) -> str:
     """Return the comparison class fixed by one execution profile."""
-    if mode != "parity":
-        return mode
-    return "parity" if implementation == "vstrt" else "single-stream-parity"
+    return mode
 
 
 def validate_execution_profile(
@@ -102,7 +100,7 @@ def validate_execution_profile(
             f"{implementation} execution profile is {profile['mode']!r}, "
             f"expected {expected_mode!r}"
         )
-    comparison_class = expected_comparison_class(implementation, expected_mode)
+    comparison_class = expected_comparison_class(expected_mode)
     if manifest.get("comparison_class") != comparison_class:
         raise ManifestContractError(
             f"{implementation} comparison class does not match "

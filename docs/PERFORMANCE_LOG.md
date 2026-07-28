@@ -39,48 +39,6 @@ The complete upstream-default tables, tuning curves, final campaign resources,
 quality evidence, hashes, and claim boundaries are published in the
 [RTX 3090 comparative benchmark](../benchmarks/results/rtx-3090/README.md).
 
-## 2026-07-25 - RTX 3090 multi-resolution single-stream parity baseline
-
-The current single-stream baseline compares `trtvideo`, TensorRT 11
-`vs-mlrt`, and a pinned upstream TensorRT 10.16 VSGAN runtime on
-RealESRGAN_x2plus and SPAN at `720p -> 1440p` and `1080p -> 4K`. Both
-VapourSynth runners used one vspipe request, one TensorRT stream, and disabled
-CUDA Graph; these are parity settings rather than upstream-default or
-best-tuned product settings. Measured revision `0fc3037` includes media
-preservation. Each campaign used 100 warmup frames, 1000 measured frames, and
-three rotated rounds; SPAN 1080p extended to five rounds under the stability
-policy. No reduced GPU power limit was applied: the RTX 3090 used its default
-350 W board limit.
-
-Key results:
-
-| Workload | Input | trtvideo | vs-mlrt | VSGAN | trtexec |
-|---|---|---:|---:|---:|---:|
-| RealESRGAN_x2plus | 1080p | 2.884 FPS | 2.394 FPS | 2.399 FPS | 2.921 QPS |
-| RealESRGAN_x2plus | 720p | 6.277 FPS | 5.406 FPS | 5.477 FPS | 6.458 QPS |
-| SPAN | 1080p | 25.104 FPS | 9.348 FPS | 9.018 FPS | 28.490 QPS |
-| SPAN | 720p | 49.941 FPS | 19.825 FPS | 20.315 FPS | 62.846 QPS |
-
-These values remain valid for the recorded single-stream contract. In
-particular, the SPAN deltas are not a claim against maximum or upstream-default
-VSGAN/vstrt throughput; separate product-default/tuned measurements are
-required.
-
-All eight model-space/product-output gates passed. The SPAN 1080p `vs-mlrt`
-series is valid with one explicit outlier: the full five-run spread is 6.10%,
-while rounds 1, 3, 4, and 5 form a 2.29% consensus. All five runs remain in the
-published median.
-
-The same-GPU SPAN 1080p Nsight trace found that CUDA kernel intervals covered
-98.17% of the frame loop, with no material per-frame H2D/D2H transfer. NVDEC
-and NVENC workloads overlapped CUDA kernels by 91.25% and 98.92%. Profiler FPS
-is not a performance result.
-
-The complete compact result, CPU/resource and lifecycle metrics, quality,
-hashes, stability evidence, and encoder bitrate caveat are published in the
-[RTX 3090 benchmark](../benchmarks/results/rtx-3090/README.md). The ignored raw
-artifacts remain outside Git.
-
 ## 2026-07-12 - NVENC stream synchronization
 
 Changes:

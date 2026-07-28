@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a pinned VSGAN TensorRT 10 engine and write a parity sidecar."""
+"""Build a pinned VSGAN TensorRT 10 engine and write its contract sidecar."""
 
 from __future__ import annotations
 

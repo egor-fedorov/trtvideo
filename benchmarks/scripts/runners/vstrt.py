@@ -33,7 +33,6 @@ from benchmarks.scripts.runners.external_video_suite import (
 from benchmarks.scripts.runners.vapoursynth_profile import (
     VapourSynthExecutionProfile,
     add_execution_profile_arguments,
-    comparison_class,
     resolve_execution_profile,
     validate_declared_profile,
 )
@@ -94,13 +93,9 @@ def build_plan(
     implementation = implementation_config(implementations, "vstrt")
     validate_declared_profile(implementation, profile)
     measured_implementation = dict(implementation)
-    result_class = comparison_class(
-        str(implementation["comparison_class"]),
-        profile,
-    )
+    result_class = profile.mode
     measured_implementation["comparison_class"] = result_class
-    if profile.mode != "parity":
-        measured_implementation["role"] = "technical"
+    measured_implementation["role"] = "technical"
     parameters = benchmark_parameters(args, manifest)
     variant = find_variant(manifest, args.variant)
     input_path = str(Path("/app") / variant["path"])

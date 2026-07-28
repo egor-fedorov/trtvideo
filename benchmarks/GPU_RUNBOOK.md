@@ -54,11 +54,11 @@ and performs the complete ordered lifecycle:
 | `tuned` | Build and smoke the full matrix, sweep declared candidates, validate selected winners, run final campaigns, then verify both-resolution evidence |
 | `diagnostics` | Build project images and TRT11 engines, smoke, run `trtexec` ceilings, and capture the canonical SPAN 1080p Nsight trace when selected |
 
-The default comparative profile is the published single-request/single-stream
-`parity` contract. To measure pinned upstream scheduling defaults:
+The comparative workflow uses the scheduling defaults recorded from each
+pinned upstream:
 
 ```bash
-benchmarks/bin/run-benchmark.sh comparative --mode upstream-default
+benchmarks/bin/run-benchmark.sh comparative
 ```
 
 Tuned candidates and selection rules come from the workload-specific contracts
@@ -83,8 +83,7 @@ benchmarks/bin/run-benchmark.sh project \
 
 benchmarks/bin/run-benchmark.sh comparative \
   --workload span \
-  --variant 720p \
-  --mode upstream-default
+  --variant 720p
 
 benchmarks/bin/run-benchmark.sh diagnostics \
   --workload span \

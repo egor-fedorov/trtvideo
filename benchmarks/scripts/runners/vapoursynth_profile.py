@@ -9,7 +9,7 @@ from typing import Any, Literal
 from benchmarks.scripts.runners.common import CompetitorError
 
 Implementation = Literal["vstrt", "vsgan"]
-Mode = Literal["parity", "upstream-default", "tuned"]
+Mode = Literal["upstream-default", "tuned"]
 AutoOrInt = Literal["auto"] | int
 
 
@@ -38,23 +38,9 @@ class VapourSynthExecutionProfile:
 
 
 _PRESETS: dict[tuple[Implementation, Mode], VapourSynthExecutionProfile] = {
-    ("vstrt", "parity"): VapourSynthExecutionProfile(
-        mode="parity",
-        requests=1,
-        num_streams=1,
-        vapoursynth_threads=None,
-        cuda_graph=False,
-    ),
     ("vstrt", "upstream-default"): VapourSynthExecutionProfile(
         mode="upstream-default",
         requests=None,
-        num_streams=1,
-        vapoursynth_threads=None,
-        cuda_graph=False,
-    ),
-    ("vsgan", "parity"): VapourSynthExecutionProfile(
-        mode="parity",
-        requests=1,
         num_streams=1,
         vapoursynth_threads=None,
         cuda_graph=False,
@@ -89,8 +75,8 @@ def add_execution_profile_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common profile and scheduling options to a runner parser."""
     parser.add_argument(
         "--mode",
-        choices=["parity", "upstream-default", "tuned"],
-        default="parity",
+        choices=["upstream-default", "tuned"],
+        default="upstream-default",
         help="Scheduling profile; tuned requires every scheduling option",
     )
     parser.add_argument(
@@ -192,14 +178,6 @@ def resolve_execution_profile(
     if mode == "tuned":
         return _resolve_tuned(args, implementation)
     return _resolve_preset(args, implementation, mode)
-
-
-def comparison_class(
-    base_class: str,
-    profile: VapourSynthExecutionProfile,
-) -> str:
-    """Return the result class associated with the resolved profile."""
-    return base_class if profile.mode == "parity" else profile.mode
 
 
 def validate_declared_profile(

@@ -261,8 +261,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--gpu-id", type=int, default=0)
     parser.add_argument(
         "--execution-profile",
-        choices=["parity", "upstream-default", "tuned"],
-        default="parity",
+        choices=["upstream-default", "tuned"],
+        default="upstream-default",
     )
     parser.add_argument(
         "--frame-indices",

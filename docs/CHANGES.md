@@ -58,7 +58,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   comparison for RealESRGAN and SPAN at both canonical resolutions, including
   complete tuning curves, winner quality evidence, resource metrics, and
   explicit claim boundaries. Machine-readable results are composed by
-  methodology class (`parity`, `upstream-default`, `tuned`, and `diagnostics`)
+  methodology class (`upstream-default`, `tuned`, and `diagnostics`)
   through a hashed hardware-level index.
 - Added workload-specific tuned benchmark contracts. RealESRGAN retains the
   bounded `num_streams=2/3/4` search, while SPAN extends through `5/6` after
@@ -104,7 +104,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   Regular quality checks no longer require downloading the NVIDIA/TensorRT base
   image.
 - Published a privacy-reviewed multi-resolution benchmark snapshot: validated
-  `720p -> 1440p` and `1080p -> 4K` RealESRGAN and SPAN parity campaigns on an
+  `720p -> 1440p` and `1080p -> 4K` RealESRGAN and SPAN campaigns on an
   RTX 3090, including CPU, GPU, power, energy, VRAM, lifecycle, quality,
   stability, `trtexec`, and compact Nsight results.
 - Benchmark manifests and campaign summaries now contain separate lifecycle
@@ -128,7 +128,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   Docker target. The production image does not receive benchmark-only
   dependencies or scripts.
 - Added pinned Docker environments and separate runners for diagnostic
-  `trtexec`, TensorRT 11 `vs-mlrt/vstrt` parity, and stock
+  `trtexec`, TensorRT 11 `vs-mlrt/vstrt`, and stock
   `VSGAN-tensorrt-docker` product comparison with a shared result schema, NVML
   sampling, output validation, and GPU-free `--dry-run`.
 - Added a GPU benchmark runbook for a future acceptance campaign on RTX 3090.
@@ -176,10 +176,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   snapshot remains available as historical evidence but is withdrawn from
   publication claims until the corrected sweep and winner campaigns complete.
 - Reordered the published RTX 3090 summary around best-tuned and resource
-  results, added an explicit cross-class repeatability control, and moved the
-  single-stream figures into an analytical section. The SPAN 720p result now
-  identifies startup as a measured optimization target without replacing the
-  recorded tuned loss with a counterfactual value.
+  results. The SPAN 720p result now identifies startup as a measured
+  optimization target without replacing the recorded tuned loss with a
+  counterfactual value.
 - Standardized the project, Python distribution, import package, Docker images,
   build-provenance environment variables, benchmark implementation keys, and
   developer commands on the `trtvideo` name. The import package also moved from
@@ -198,11 +197,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   PyNvVideoCodec encoder cannot request NVENC filler-data insertion. SPAN and
   the full 1000-frame product-output quality gate are unchanged.
 
-- Reclassified the published RTX 3090 comparison as a single-stream parity
-  baseline. The result now explicitly records the one-request/one-stream
-  VapourSynth contract and no longer presents SPAN deltas as stock or
-  best-tuned competitor throughput.
-- Added validated `parity`, `upstream-default`, and `tuned` execution profiles
+- Added validated `upstream-default` and `tuned` execution profiles
   to both VapourSynth benchmark runners. Automatic vspipe scheduling now omits
   `--requests`, while tuned runs require every scheduling choice explicitly.
 - Isolated comparative and product-output artifacts by execution profile.
@@ -211,8 +206,6 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Model-space captures now use and record the selected execution profile,
   including CUDA Graph, and are stored in profile-specific directories.
   Benchmark suites reject non-empty output directories to preserve sweep data.
-- Aligned single-stream parity on runtime-default VapourSynth thread counts for
-  both external runners.
 - Comparative campaign stability now uses the full spread for three rounds and,
   after an automatic extension to five, accepts an explicit four-of-five
   consensus within the same 5% threshold. Raw values and headline medians still
@@ -240,9 +233,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Separated per-stage profiling from benchmarking. Stage timings are available
   only through `upscale --profile/--profile-json`; `benchmark-upscale` launches
   the normal unprofiled pipeline in separate warmup and measured processes.
-- Divided the benchmark roadmap into technical parity, stock product
-  comparison, and diagnostics. Quality parity remains a separate gate before a
-  publishable result.
+- Divided the benchmark roadmap into product comparison and diagnostics.
+  Quality parity remains a separate gate before a publishable result.
 - Moved benchmark-specific Make targets to `benchmarks/Makefile`. The root
   `Makefile` now contains only project build and quality-gate targets.
 - Split benchmark tooling and its unit tests by responsibility: runners,
@@ -311,6 +303,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Removed
 
+- Removed the obsolete benchmark execution profile and its historical
+  publication snapshot. Comparative runs now use pinned upstream defaults or
+  a separately selected tuned configuration; model-space and product-output
+  quality gates remain unchanged.
 - Removed the CPU-frame video path, its PyTorch runtime adapter, and the
   `--backend`, `--crf`, and product `--cuda-graph` options. `upscale` now has one
   production contract: NVDEC, CV-CUDA, TensorRT, and NVENC, followed by FFmpeg

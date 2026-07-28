@@ -13,7 +13,7 @@ from benchmarks.scripts.workflow.matrix import (
     load_workflow_matrix,
 )
 from benchmarks.scripts.workflow.orchestrator import (
-    COMPARISON_MODES,
+    COMPARATIVE_PROFILE,
     GOALS,
     WorkflowError,
     WorkflowOptions,
@@ -84,7 +84,7 @@ def _state_path(
         f"{options.workload_key or 'all'}-"
         f"{options.variant_name or 'all'}"
     )
-    profile = options.mode if options.goal == "comparative" else "canonical"
+    profile = COMPARATIVE_PROFILE if options.goal == "comparative" else "canonical"
     return (
         root
         / "artefacts/benchmarks/workflows"
@@ -109,12 +109,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--variant",
         choices=["all", "720p", "1080p"],
         default="all",
-    )
-    parser.add_argument(
-        "--mode",
-        choices=COMPARISON_MODES,
-        default="parity",
-        help="Comparative execution profile",
     )
     parser.add_argument("--gpu-id", type=int, default=0)
     parser.add_argument(
@@ -153,7 +147,6 @@ def main() -> None:
             )
         options = WorkflowOptions(
             goal=args.goal,
-            mode=args.mode,
             workload_key=workload_key,
             variant_name=None if args.variant == "all" else args.variant,
             gpu_id=args.gpu_id,
@@ -168,7 +161,11 @@ def main() -> None:
         revision = "dry-run" if args.dry_run else _repository_revision(root)
         context = {
             "goal": options.goal,
-            "mode": options.mode,
+            "mode": (
+                COMPARATIVE_PROFILE
+                if options.goal == "comparative"
+                else "canonical"
+            ),
             "gpu_id": options.gpu_id,
             "matrix_sha256": _sha256(matrix_path),
             "repository_revision": revision,

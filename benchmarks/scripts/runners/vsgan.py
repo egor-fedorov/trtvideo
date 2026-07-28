@@ -34,7 +34,6 @@ from benchmarks.scripts.runners.external_video_suite import (
 from benchmarks.scripts.runners.vapoursynth_profile import (
     VapourSynthExecutionProfile,
     add_execution_profile_arguments,
-    comparison_class,
     resolve_execution_profile,
     validate_declared_profile,
 )
@@ -82,7 +81,7 @@ def build_vsgan_command(
     ).build(output_path=output_path, frames=frames)
 
 
-def _validate_parity_engine(
+def _validate_vsgan_engine(
     sidecar: dict[str, Any],
     manifest: dict[str, Any],
     variant_name: str,
@@ -92,7 +91,7 @@ def _validate_parity_engine(
 ) -> None:
     validate_static_engine_contract(sidecar, manifest, variant_name, onnx_path)
     if "stronglyTyped" not in sidecar.get("builder_flags", []):
-        raise CompetitorError("VSGAN parity engine must be strongly typed")
+        raise CompetitorError("VSGAN engine must be strongly typed")
     version = str(sidecar.get("tensorrt_version", "")).replace(".", "")
     if not version.startswith("1016"):
         raise CompetitorError("Pinned VSGAN engine must be built by TensorRT 10.16")
@@ -131,13 +130,9 @@ def build_plan(
     implementation = implementation_config(implementations, "vsgan")
     validate_declared_profile(implementation, profile)
     measured_implementation = dict(implementation)
-    result_class = comparison_class(
-        str(implementation["comparison_class"]),
-        profile,
-    )
+    result_class = profile.mode
     measured_implementation["comparison_class"] = result_class
-    if profile.mode != "parity":
-        measured_implementation["role"] = "product"
+    measured_implementation["role"] = "product"
     parameters = benchmark_parameters(args, manifest)
     variant = find_variant(manifest, args.variant)
     input_path = str(Path("/app") / variant["path"])
@@ -227,7 +222,7 @@ def main() -> None:
         variant = find_variant(manifest, args.variant)
         input_path = Path("/app") / variant["path"]
         onnx_path = Path(find_model_variant(manifest, args.variant)["fp16_path"])
-        _validate_parity_engine(
+        _validate_vsgan_engine(
             sidecar,
             manifest,
             args.variant,

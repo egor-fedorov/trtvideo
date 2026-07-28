@@ -24,7 +24,7 @@ ROUND_ORDERS = {
 }
 EVENT_LOG_NAME = "campaign.events.jsonl"
 CONFIG_NAME = "campaign.config.json"
-EXECUTION_PROFILES = ("parity", "upstream-default", "tuned")
+EXECUTION_PROFILES = ("upstream-default", "tuned")
 IDLE_TOLERANCE_SECONDS = 0.05
 
 

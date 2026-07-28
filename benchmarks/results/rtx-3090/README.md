@@ -1,24 +1,19 @@
 # RTX 3090 Comparative Benchmark
 
 This directory retains the current RTX 3090 benchmark evidence.
-Upstream-default scheduling is the primary publishable product comparison,
-while single-stream parity is retained as a controlled analysis of pipeline
-overhead rather than a product-throughput claim. The previous tuned snapshot is
-preserved for audit but withdrawn from publication pending a corrected VSGAN
-sweep.
+Upstream-default scheduling is the primary publishable product comparison. The
+previous tuned snapshot is preserved for audit but withdrawn from publication
+pending a corrected VSGAN sweep.
 
 Result classes remain separate:
 
 - `tuned` and `upstream-default` were measured at revision `7aa3d6e`;
-- `single-stream parity` was measured at revision `0fc3037`;
 - `trtexec` and Nsight diagnostics were measured at revision `0fc3037`.
 
 The classes use the same RTX 3090, Ryzen 5 5600, models, source clips, output
 contract, and acceptance policy. They do not form a before/after series:
-single-stream parity and diagnostics used driver 595.71.05, while
-upstream-default and tuned used driver 595.84. Numbers are not compared
-row-by-row across classes except for the explicitly labeled repeatability
-control below.
+diagnostics used driver 595.71.05, while upstream-default and tuned used driver
+595.84.
 
 ## Withdrawn Tuned Snapshot
 
@@ -74,18 +69,15 @@ TensorRT 11 engine.
 | SPAN | 1080p | vs-mlrt | **25.559** | 6.558 | 93.99% | 320.14 W | **12.52** | 9905.1 MiB | 60.461 Mbps |
 | SPAN | 1080p | VSGAN | 21.342 | 4.196 | 82.48% | 294.38 W | 13.79 | 8087.1 MiB | 60.461 Mbps |
 
-Tuned `vs-mlrt` trades CPU and VRAM for concurrency. `trtvideo` remains close
-to its single-stream resource profile and uses substantially less host CPU and
-device memory.
+Tuned `vs-mlrt` trades CPU and VRAM for concurrency. `trtvideo` uses
+substantially less host CPU and device memory.
 
 ### SPAN 720p Diagnosis
 
 SPAN 720p is the only tuned row outside parity. `trtvideo` reached 49.850 FPS
-at 82.20% GPU utilization. The separate single-stream diagnostic measured a
-62.846 QPS TensorRT ceiling, so the published end-to-end result is about 79% of
-that diagnostic ceiling. This cross-class ratio is directional rather than a
-same-run comparison because the diagnostic used the earlier revision and
-driver.
+at 82.20% GPU utilization. The separate `trtexec` diagnostic measured a 62.846
+QPS TensorRT ceiling. It used an earlier revision and driver and is retained as
+an inference-only reference, not combined with the product campaign.
 
 Startup accounts for 2.569 seconds of the 20.060-second tuned wall time, or
 12.81%. The tuned external runners started in approximately one second. Holding
@@ -168,41 +160,20 @@ The first three rows are parity under the fixed +/-5% criterion. SPAN 1080p is
 a confirmed project advantage over the fastest upstream-default external
 configuration.
 
-## Cross-Class Repeatability Control
-
-The production `trtvideo` execution profile did not change between
-single-stream parity, upstream-default, and tuned: all use the regular
-GPU-resident `nvcodec` path with CUDA Graph disabled. Its independently
-measured median FPS remained within 2.6% across the two measurement revisions
-and driver versions.
-
-| Workload | Parity | Upstream default | Tuned | Max range |
-|---|---:|---:|---:|---:|
-| SPAN 720p | 49.941 | 49.948 | 49.850 | 0.20% |
-| SPAN 1080p | 25.104 | 24.769 | 24.752 | 1.40% |
-| RealESRGAN 720p | 6.277 | 6.134 | 6.130 | 2.34% |
-| RealESRGAN 1080p | 2.884 | 2.817 | 2.810 | 2.57% |
-
-This is a control signal for benchmark repeatability, not permission to merge
-the result classes. Their revisions, image identities, scheduling contracts,
-and drivers remain distinct in the machine-readable snapshots.
-
 ## Diagnostics
 
 ### TensorRT Ceiling
 
 `trtexec` is an inference-only diagnostic, not a product competitor.
 
-| Workload | Input | trtexec median | Pipeline efficiency |
-|---|---|---:|---:|
-| RealESRGAN_x2plus | 1080p | 2.921 QPS | 98.73% |
-| RealESRGAN_x2plus | 720p | 6.458 QPS | 97.18% |
-| SPAN | 1080p | 28.490 QPS | 88.11% |
-| SPAN | 720p | 62.846 QPS | 79.46% |
+| Workload | Input | trtexec median |
+|---|---|---:|
+| RealESRGAN_x2plus | 1080p | 2.921 QPS |
+| RealESRGAN_x2plus | 720p | 6.458 QPS |
+| SPAN | 1080p | 28.490 QPS |
+| SPAN | 720p | 62.846 QPS |
 
-Pipeline efficiency is single-stream project end-to-end FPS divided by
-inference-only `trtexec` QPS. CUDA Graph and data transfers were disabled for
-these diagnostic runs.
+CUDA Graph and data transfers were disabled for these diagnostic runs.
 
 ### Nsight Diagnostic
 
@@ -224,50 +195,6 @@ because the FFmpeg NVENC path inserts filler NAL units for strict CBR while the
 PyNvVideoCodec path does not. This does not invalidate decode or quality gates,
 but it remains visible in the resource tables.
 
-## Single-Stream Parity Analysis
-
-The historical parity snapshot was measured on 2026-07-25 from clean revision
-`0fc30377046d2c40207d143b1239d8f24e46e7d4`, with driver 595.71.05 and the
-same RTX 3090 and Ryzen 5 5600. It deliberately restricts both VapourSynth
-runners to `requests=1`, `num_streams=1`, and disabled CUDA Graph.
-
-The table compares end-to-end pipelines under a reproducible single-stream
-contract. It does not establish maximum or upstream-default VSGAN/vstrt
-throughput. Its purpose is to expose the cost of the single-request
-VapourSynth/BestSource/Y4M path relative to the GPU-resident project pipeline.
-
-| Workload | Input | trtvideo | vs-mlrt | VSGAN |
-|---|---|---:|---:|---:|
-| RealESRGAN_x2plus | 1080p | **2.884 FPS** | 2.394 FPS | 2.399 FPS |
-| RealESRGAN_x2plus | 720p | **6.277 FPS** | 5.406 FPS | 5.477 FPS |
-| SPAN | 1080p | **25.104 FPS** | 9.348 FPS | 9.018 FPS |
-| SPAN | 720p | **49.941 FPS** | 19.825 FPS | 20.315 FPS |
-
-Under this controlled contract, `trtvideo` was 14.59-20.43% faster on
-RealESRGAN and 145.83-178.38% faster on SPAN. The large SPAN deltas are
-analytical pipeline-overhead measurements, not claims against tuned or
-upstream-default external products.
-
-| Workload | Input | Implementation | FPS | CPU cores | GPU util | Power | J/frame | Peak VRAM |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| RealESRGAN | 720p | trtvideo | **6.277** | **1.006** | 97.03% | 341.17 W | **54.39** | **2143.4 MiB** |
-| RealESRGAN | 720p | vs-mlrt | 5.406 | 1.063 | 84.65% | 307.93 W | 56.96 | 2234.4 MiB |
-| RealESRGAN | 720p | VSGAN | 5.477 | 1.064 | 85.68% | 310.84 W | 56.75 | 2232.4 MiB |
-| RealESRGAN | 1080p | trtvideo | **2.884** | **1.003** | 98.59% | 345.04 W | **119.65** | 4280.1 MiB |
-| RealESRGAN | 1080p | vs-mlrt | 2.394 | 1.064 | 82.35% | 309.02 W | 129.06 | 4209.1 MiB |
-| RealESRGAN | 1080p | VSGAN | 2.399 | 1.060 | 83.43% | 311.71 W | 129.93 | **4207.1 MiB** |
-| SPAN | 720p | trtvideo | **49.941** | **0.591** | 79.70% | 298.88 W | **5.98** | 1511.7 MiB |
-| SPAN | 720p | vs-mlrt | 19.825 | 1.245 | 36.84% | 173.41 W | 8.75 | 1496.4 MiB |
-| SPAN | 720p | VSGAN | 20.315 | 1.255 | 37.23% | 175.39 W | 8.63 | **1494.4 MiB** |
-| SPAN | 1080p | trtvideo | **25.104** | **0.489** | 89.62% | 322.57 W | **12.84** | 2664.1 MiB |
-| SPAN | 1080p | vs-mlrt | 9.348 | 1.240 | 37.75% | 178.77 W | 19.12 | 2607.1 MiB |
-| SPAN | 1080p | VSGAN | 9.018 | 1.224 | 36.64% | 175.64 W | 19.48 | **2605.1 MiB** |
-
-All model-space and product-output gates passed. The `vs-mlrt` SPAN 1080p
-result used five runs: rounds 1, 3, 4, and 5 formed an accepted 2.29% consensus,
-while round 2 remains published as an outlier. The headline median and resource
-medians use all five runs.
-
 ## Published Data
 
 [`index.json`](index.json) defines the result-set composition and records each
@@ -281,12 +208,8 @@ evidence hashes measured at revision `7aa3d6e`.
 upstream-default campaigns, resources, lifecycle metrics, and quality evidence
 measured at revision `7aa3d6e`.
 
-[`parity.json`](parity.json) contains the machine-readable single-stream
-campaigns and quality evidence measured at revision `0fc3037`.
-
 [`diagnostics.json`](diagnostics.json) contains the four `trtexec` ceilings,
-pipeline-efficiency values, and compact Nsight findings measured at revision
-`0fc3037`.
+and compact Nsight findings measured at revision `0fc3037`.
 
 Multi-gigabyte MP4 files, FP32 tensor captures, NVML time series, engines,
 models, event logs, and profiler traces remain outside Git. Live-action

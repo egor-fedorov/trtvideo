@@ -17,15 +17,6 @@
   },
   "result_sets": [
     {
-      "id": "single-stream-parity",
-      "file": "parity.json",
-      "sha256": "6fc65411e0c5bdc5c69d0d5d6cb42b8285f3b516970c51c2da7c2d68ef8654bc",
-      "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
-      "date_utc": "2026-07-25",
-      "status": "valid",
-      "publishable": true
-    },
-    {
       "id": "upstream-default",
       "file": "upstream-default.json",
       "sha256": "cd78c24191c8cd83b942db55f03a7ab91b8a6ddfb459a0e0fbd4fbfa3f689f30",
@@ -47,7 +38,7 @@
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "a6f3ea7c9980ebda9046bc4ee8413eec1b5ac7913354ddd2a0b62b79ae7bcf04",
+      "sha256": "4e806a958b3ab5481d181e4ce214c13509a98bb52ff44cea995c9d2efa9e8693",
       "measurement_revision": "0fc30377046d2c40207d143b1239d8f24e46e7d4",
       "date_utc": "2026-07-25",
       "status": "valid",

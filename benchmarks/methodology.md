@@ -8,18 +8,11 @@ across the complete path from compressed input to a valid MP4 output.
 
 The following result classes are kept separate:
 
-1. `single-stream vstrt parity` - the project and a locally built
-   VapourSynth/vstrt use the same TensorRT 11 engine with one vspipe request and
-   one TensorRT stream. This compares integration and video pipelines under a
-   fixed, reproducible external scheduling contract.
-2. `single-stream VSGAN parity` - the project is compared with a pinned upstream
-   VSGAN-tensorrt-docker runtime under the same one-request/one-stream contract.
-   Both use the same ONNX, but separate native engines because VSGAN runs
-   TensorRT 10.16 while the project runs TensorRT 11.
-3. `product-default/tuned` - future campaigns use documented upstream defaults
-   or separately selected best-performing settings. These results must not be
-   mixed with the single-stream baseline.
-4. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
+1. `upstream-default` - each external product uses the scheduling defaults
+   recorded from its pinned upstream version.
+2. `tuned` - each external product uses a workload-specific configuration
+   selected by the declared candidate sweep and independent quality gate.
+3. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
    encode, or mux.
 
 Video2X is excluded from the matrix because the available version does not
@@ -76,7 +69,7 @@ published separately from Sintel.
 
 ## Inference Contract
 
-The published single-stream parity baseline requires:
+Every comparative campaign requires:
 
 ```text
 engine SHA256 identical
@@ -85,33 +78,25 @@ static input/output shape identical
 batch size = 1
 full-frame processing
 tiling disabled
-requests = 1
-TensorRT streams = 1
-CUDA Graph disabled
+execution profile recorded
+requests/streams/threads recorded
+CUDA Graph state recorded
 ```
 
-The pinned VSGAN runtime cannot load a TRT11 engine. For VSGAN parity, both
-engines are built from the same canonical ONNX on the same GPU, with matching
-shape, dtype, batch, and builder intent. Engine hashes and TensorRT runtimes
-differ and must be shown explicitly. VSGAN is pinned by immutable image digest
-and source revision. Only `.vpy` configuration, model/engine mounts, and the
-encoder adapter are allowed; the upstream inference stack is unchanged.
-
-The pinned VSGAN image is an upstream runtime, but the published baseline is not
-an upstream-default throughput configuration: its `.vpy` adapter deliberately
-uses one vspipe request and one TensorRT stream. Likewise, the vstrt runner does
-not use vspipe's automatic multi-request default. The baseline therefore
-supports only single-stream parity claims, not claims about stock or maximum
-competitor throughput.
+The project and vstrt use the same TensorRT 11 serialized engine. The pinned
+VSGAN runtime cannot load that engine, so its TensorRT 10.16 engine is built
+from the same canonical ONNX on the same GPU, with matching shape, dtype,
+batch, and builder intent. Engine hashes and TensorRT runtimes differ and must
+be shown explicitly. VSGAN is pinned by immutable image digest and source
+revision. Only `.vpy` configuration, model/engine mounts, and the encoder
+adapter are allowed; the upstream inference stack is unchanged.
 
 ## VapourSynth Execution Profiles
 
-The vstrt and VSGAN runners expose the same three scheduling profiles:
+The vstrt and VSGAN runners expose two scheduling profiles:
 
 | Mode | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
 |---|---:|---:|---:|---:|
-| vstrt `parity` | 1 | 1 | runtime default | off |
-| VSGAN `parity` | 1 | 1 | runtime default | off |
 | vstrt `upstream-default` | auto | 1 | runtime default | off |
 | VSGAN `upstream-default` | auto | 4 | 4 | off |
 | either `tuned` | explicit | explicit | explicit | explicit |
@@ -182,9 +167,9 @@ External `vspipe | ffmpeg` encoding is normalized to pinned Ubuntu FFmpeg
 which are unavailable on the benchmark host. This adapter is recorded in
 implementation metadata; changing VSGAN internals constitutes a fork.
 
-CUDA Graph is disabled for the parity baseline. The current project
-implementation captures only the TensorRT call and remains experimental. A
-graph-enabled configuration is evaluated separately in the best-tuned campaign.
+CUDA Graph is disabled for upstream-default. The current project implementation
+does not expose CUDA Graph; external graph-enabled configurations may be
+evaluated only as explicit tuned candidates.
 
 ## Output Contract
 
@@ -207,8 +192,9 @@ single-pass CBR: target/min/max are equal, the VBV buffer holds two seconds of
 bitrate, initial occupancy is one second, and lookahead plus spatial/temporal AQ
 are disabled.
 
-Parity applies to the requested encoder settings, not to implementation-specific
-strict-CBR padding. FFmpeg NVENC may insert filler NAL units while
+The output contract applies to requested encoder settings, not to
+implementation-specific strict-CBR padding. FFmpeg NVENC may insert filler NAL
+units while
 PyNvVideoCodec may produce a lower actual bitrate for the same target. Reports
 must publish actual bitrate and output size, retain the fixed 10% bitrate
 tolerance, and disclose confirmed filler behavior. The project output is not
@@ -254,9 +240,9 @@ The vstrt and VSGAN captures use `RGBS` immediately before and after
 `core.trt.Model`. VapourSynth's physical `G,B,R` plane serialization is
 normalized to logical RGB CHW after capture. Every raw tensor is size-checked
 and hashed. The report also requires identical input-video and ONNX hashes;
-technical vstrt parity requires the exact same serialized engine as the
-project. The pinned VSGAN runtime uses its native TRT10.16 engine built from the
-same ONNX.
+the vstrt comparison requires the exact same serialized engine as the project.
+The pinned VSGAN runtime uses its native TRT10.16 engine built from the same
+ONNX.
 Each capture records its immutable Docker image ID, clean repository revision,
 and source state. Captures from different revisions cannot form a valid report.
 
@@ -277,11 +263,11 @@ millions of tensor elements and differs between NVDEC/CV-CUDA and
 BestSource/zimg chroma reconstruction. Non-finite values always fail the gate.
 
 The v2 gate originally used `max_abs` as a hard limit and input p99 `2/255`.
-The first RTX 3090 acceptance run showed high aggregate parity (input/output
-PSNR `50–54 dB`, RMSE within limits, and valid final-MP4 parity) while isolated
-decoder/colorspace edge pixels exceeded that maximum. The affected campaigns
-remain evidence for the rejected v2 methodology and are not reused by this
-versioned contract.
+The first RTX 3090 acceptance run showed high aggregate equivalence
+(input/output PSNR `50–54 dB`, RMSE within limits, and valid final-MP4
+comparisons) while isolated decoder/colorspace edge pixels exceeded that
+maximum. The affected campaigns remain evidence for the rejected v2
+methodology and are not reused by this versioned contract.
 
 Run the gate with `make -C benchmarks model-space-parity`. It writes capture
 manifests, raw tensors, logs, and `model-space-parity.json` under the ignored
@@ -450,7 +436,7 @@ divide CPU time by pipeline stage.
 
 ## Metrics
 
-The single-stream parity table contains:
+Comparative tables contain:
 
 - median end-to-end FPS and wall time;
 - median average CPU cores and share of available CPU capacity;
@@ -458,11 +444,8 @@ The single-stream parity table contains:
 - peak VRAM;
 - output size and actual bitrate.
 
-`trtexec` is published separately. Its diagnostic metric is:
-
-```text
-pipeline efficiency = trtvideo end-to-end FPS / trtexec QPS
-```
+`trtexec` QPS is published separately as an inference-only ceiling and is not
+combined with a product campaign from another revision or execution contract.
 
 One representative run includes an Nsight Systems trace for checking H2D/D2H
 copies, stream gaps, CPU waits, PCIe traffic, and NVDEC/TensorRT/NVENC overlap.

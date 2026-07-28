@@ -29,7 +29,7 @@ def gop_size_for_one_second(value: str) -> int:
 
 @dataclass(frozen=True)
 class NvencCbrContract:
-    """Exact single-pass NVENC CBR settings used by parity benchmarks."""
+    """Exact single-pass NVENC CBR settings used by comparative benchmarks."""
 
     bitrate_bps: int
     gop_frames: int

@@ -53,7 +53,7 @@ def test_nvenc_cbr_contract_matches_pynvcodec_and_ffmpeg() -> None:
     assert ffmpeg[ffmpeg.index("-multipass") + 1] == "disabled"
 
 
-def test_nvenc_cbr_contract_serializes_all_parity_fields() -> None:
+def test_nvenc_cbr_contract_serializes_all_comparative_fields() -> None:
     values = NvencCbrContract(
         bitrate_bps=35_000_000,
         gop_frames=30,

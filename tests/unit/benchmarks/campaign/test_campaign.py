@@ -22,6 +22,7 @@ from benchmarks.scripts.campaign.core import (
     EVENT_LOG_NAME,
     CampaignConfig,
     CampaignEvent,
+    CampaignEventError,
     append_event,
     campaign_steps,
     load_events,
@@ -35,6 +36,15 @@ from trtvideo.video.nvcodec.encoder import NvencCbrContract
 def _write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value), encoding="utf-8")
+
+
+def test_removed_execution_profile_is_rejected() -> None:
+    with pytest.raises(CampaignEventError, match="Unknown campaign"):
+        CampaignConfig.create(
+            execution_profile="parity",
+            vstrt_arguments="",
+            vsgan_arguments="",
+        )
 
 
 def _campaign(
@@ -80,7 +90,7 @@ def _campaign(
     write_campaign_config(
         campaign_dir / CONFIG_NAME,
         CampaignConfig.create(
-            execution_profile="parity",
+            execution_profile="upstream-default",
             vstrt_arguments="",
             vsgan_arguments="",
         ),
@@ -165,24 +175,24 @@ def _campaign(
                 },
             }
             if implementation == "vstrt":
-                manifest["comparison_class"] = "parity"
+                manifest["comparison_class"] = "upstream-default"
                 manifest["parameters"].update(
                     {
-                        "mode": "parity",
-                        "vspipe_requests": 1,
+                        "mode": "upstream-default",
+                        "vspipe_requests": "auto",
                         "num_streams": 1,
                         "vapoursynth_threads": "auto",
                         "cuda_graph": False,
                     }
                 )
             elif implementation == "vsgan":
-                manifest["comparison_class"] = "single-stream-parity"
+                manifest["comparison_class"] = "upstream-default"
                 manifest["parameters"].update(
                     {
-                        "mode": "parity",
-                        "vspipe_requests": 1,
-                        "num_streams": 1,
-                        "vapoursynth_threads": "auto",
+                        "mode": "upstream-default",
+                        "vspipe_requests": "auto",
+                        "num_streams": 4,
+                        "vapoursynth_threads": 4,
                         "cuda_graph": False,
                     }
                 )
@@ -235,7 +245,7 @@ def _model_space_report(root: Path) -> Path:
             "publishable": True,
             "workload_id": "workload-v1",
             "variant": "1080p",
-            "execution_profile": "parity",
+            "execution_profile": "upstream-default",
             "frame_indices": [0, 499, 999],
             "assets": {
                 "input_sha256": "input-sha",
@@ -245,7 +255,7 @@ def _model_space_report(root: Path) -> Path:
                 "implementation": "trtvideo",
                 "engine_sha256": "shared-engine",
                 "execution_profile": {
-                    "mode": "parity",
+                    "mode": "upstream-default",
                     "cuda_graph": False,
                 },
                 "image": {
@@ -260,8 +270,8 @@ def _model_space_report(root: Path) -> Path:
                     "status": "valid",
                     "engine_sha256": "shared-engine",
                     "execution_profile": {
-                        "mode": "parity",
-                        "vspipe_requests": 1,
+                        "mode": "upstream-default",
+                        "vspipe_requests": "auto",
                         "num_streams": 1,
                         "vapoursynth_threads": "auto",
                         "cuda_graph": False,
@@ -277,10 +287,10 @@ def _model_space_report(root: Path) -> Path:
                     "status": "valid",
                     "engine_sha256": "vsgan-engine",
                     "execution_profile": {
-                        "mode": "parity",
-                        "vspipe_requests": 1,
-                        "num_streams": 1,
-                        "vapoursynth_threads": "auto",
+                        "mode": "upstream-default",
+                        "vspipe_requests": "auto",
+                        "num_streams": 4,
+                        "vapoursynth_threads": 4,
                         "cuda_graph": False,
                     },
                     "image": {
@@ -324,24 +334,24 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
         }
         comparison_class = None
         if implementation == "vstrt":
-            comparison_class = "parity"
+            comparison_class = "upstream-default"
             parameters.update(
                 {
-                    "mode": "parity",
-                    "vspipe_requests": 1,
+                    "mode": "upstream-default",
+                    "vspipe_requests": "auto",
                     "num_streams": 1,
                     "vapoursynth_threads": "auto",
                     "cuda_graph": False,
                 }
             )
         elif implementation == "vsgan":
-            comparison_class = "single-stream-parity"
+            comparison_class = "upstream-default"
             parameters.update(
                 {
-                    "mode": "parity",
-                    "vspipe_requests": 1,
-                    "num_streams": 1,
-                    "vapoursynth_threads": "auto",
+                    "mode": "upstream-default",
+                    "vspipe_requests": "auto",
+                    "num_streams": 4,
+                    "vapoursynth_threads": 4,
                     "cuda_graph": False,
                 }
             )
@@ -496,11 +506,11 @@ def test_aggregate_campaign_builds_acceptance_table(
         PRODUCT_OUTPUT_GAP,
     ]
     assert summary["needs_extra_runs"] is False
-    assert summary["comparison_profile"] == "parity"
+    assert summary["comparison_profile"] == "upstream-default"
     assert summary["parameters"]["rounds"] == 3
     assert summary["parameters"]["execution_profiles"]["vstrt"] == {
-        "mode": "parity",
-        "vspipe_requests": 1,
+        "mode": "upstream-default",
+        "vspipe_requests": "auto",
         "num_streams": 1,
         "vapoursynth_threads": "auto",
         "cuda_graph": False,
@@ -1058,7 +1068,7 @@ def test_campaign_coordinator_records_actual_rotation(
 
     def fake_make(command: list[str], *, check: bool) -> subprocess.CompletedProcess:
         assert check is False
-        assert "VAPOURSYNTH_MODE=parity" in command
+        assert "VAPOURSYNTH_MODE=upstream-default" in command
         target = command[3]
         if target == "aggregate-campaign":
             _write_json(campaign_dir / "campaign.json", {"status": "valid"})
@@ -1084,7 +1094,7 @@ def test_campaign_coordinator_records_actual_rotation(
         benchmarks_dir=str(benchmarks_dir),
         idle_seconds=0.0,
         make_command="make",
-        execution_profile="parity",
+        execution_profile="upstream-default",
         vstrt_arguments="",
         vsgan_arguments="",
         resume=False,
@@ -1098,7 +1108,7 @@ def test_campaign_coordinator_records_actual_rotation(
     ]
     assert all(event.status == "completed" for event in events)
     config = json.loads((campaign_dir / CONFIG_NAME).read_text(encoding="utf-8"))
-    assert config["execution_profile"] == "parity"
+    assert config["execution_profile"] == "upstream-default"
 
 
 def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
@@ -1140,7 +1150,7 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
         benchmarks_dir=str(benchmarks_dir),
         idle_seconds=0.0,
         make_command="make",
-        execution_profile="parity",
+        execution_profile="upstream-default",
         vstrt_arguments="",
         vsgan_arguments="",
         resume=False,

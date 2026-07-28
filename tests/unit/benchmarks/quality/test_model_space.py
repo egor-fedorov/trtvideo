@@ -65,7 +65,7 @@ def _write_capture(
         },
         execution_profile=execution_profile
         or {
-            "mode": "parity",
+            "mode": "upstream-default",
             "cuda_graph": False,
         },
         artifacts=artifacts,
@@ -121,7 +121,7 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     candidate = _write_capture(
         tmp_path / "candidate",
         implementation="vs-mlrt",
-        comparison_class="parity",
+        comparison_class="upstream-default",
         engine_sha256="3" * 64,
         input_value=0.2501,
         output_value=0.5001,
@@ -135,7 +135,7 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
 
     assert report["status"] == "valid"
     assert report["publishable"] is True
-    assert report["execution_profile"] == "parity"
+    assert report["execution_profile"] == "upstream-default"
     assert report["frame_indices"] == [0]
     assert report["comparisons"][0]["status"] == "valid"
 
@@ -230,7 +230,7 @@ def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
         implementation="vsgan",
         engine="/app/models/model.engine",
         gpu_id=0,
-        mode="parity",
+        mode="upstream-default",
         requests=None,
         num_streams=None,
         vs_threads=None,
@@ -249,7 +249,7 @@ def test_vspipe_capture_command_outputs_raw_rgbs(tmp_path: Path) -> None:
     assert "--container" not in command
     assert command[command.index("--start") + 1] == "499"
     assert "model_space_stage=output" in command
-    assert not any(value.startswith("vs_threads=") for value in command)
+    assert "vs_threads=4" in command
     assert command[-1] == str(tmp_path / "output.f32")
 
 

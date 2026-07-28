@@ -14,7 +14,7 @@ from typing import Any
 from benchmarks.scripts.workflow.matrix import Selection, WorkflowMatrix
 
 GOALS = ("project", "comparative", "tuned", "diagnostics")
-COMPARISON_MODES = ("parity", "upstream-default")
+COMPARATIVE_PROFILE = "upstream-default"
 SMOKE_ARGS = (
     "--frames 120 --warmup-frames 24 --runs 1 "
     "--extra-runs 0 --idle-seconds 0 --skip-bitrate-validation"
@@ -30,7 +30,6 @@ class WorkflowOptions:
     """User-selected workflow scope."""
 
     goal: str
-    mode: str = "parity"
     workload_key: str | None = None
     variant_name: str | None = None
     gpu_id: int = 0
@@ -39,10 +38,6 @@ class WorkflowOptions:
     def validate(self) -> None:
         if self.goal not in GOALS:
             raise WorkflowError(f"Unknown workflow goal: {self.goal}")
-        if self.mode not in COMPARISON_MODES:
-            raise WorkflowError(f"Unknown comparison mode: {self.mode}")
-        if self.goal != "comparative" and self.mode != "parity":
-            raise WorkflowError("--mode applies only to the comparative goal")
         if self.gpu_id < 0:
             raise WorkflowError("GPU id must be non-negative")
 
@@ -186,7 +181,7 @@ def _smoke_steps(
 ) -> list[Step]:
     benchmark_dir = root / "benchmarks"
     steps = []
-    smoke_mode = options.mode if options.goal == "comparative" else "parity"
+    smoke_mode = COMPARATIVE_PROFILE
     for selection in selections:
         variables = _selection_variables(selection, options.gpu_id)
         output_root = (
@@ -271,12 +266,12 @@ def _comparative_steps(
     for selection in selections:
         variables = (
             *_selection_variables(selection, options.gpu_id),
-            f"VAPOURSYNTH_MODE={options.mode}",
+            f"VAPOURSYNTH_MODE={COMPARATIVE_PROFILE}",
         )
         steps.append(
             Step(
-                key=f"quality:{options.mode}:{selection.key}",
-                label=f"Run {options.mode} quality gates on {selection.key}",
+                key=f"quality:{COMPARATIVE_PROFILE}:{selection.key}",
+                label=f"Run {COMPARATIVE_PROFILE} quality gates on {selection.key}",
                 command=_make(
                     benchmark_dir,
                     "quality-gates",
@@ -287,13 +282,13 @@ def _comparative_steps(
     for selection in selections:
         variables = (
             *_selection_variables(selection, options.gpu_id),
-            f"VAPOURSYNTH_MODE={options.mode}",
+            f"VAPOURSYNTH_MODE={COMPARATIVE_PROFILE}",
             f"RESUME={int(options.resume)}",
         )
         steps.append(
             Step(
-                key=f"campaign:{options.mode}:{selection.key}",
-                label=f"Run {options.mode} comparative campaign on {selection.key}",
+                key=f"campaign:{COMPARATIVE_PROFILE}:{selection.key}",
+                label=f"Run {COMPARATIVE_PROFILE} comparative campaign on {selection.key}",
                 command=_make(
                     benchmark_dir,
                     "run-comparative",

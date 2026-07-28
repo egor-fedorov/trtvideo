@@ -44,44 +44,6 @@
         "tensorrt": "11.0.0.114",
         "torch": "2.11.0"
       }
-    },
-    "comparison_images": {
-      "vstrt": {
-        "base_image": "nvcr.io/nvidia/tensorrt:26.06-py3",
-        "image_id": "sha256:a2d6b3c97fb8af447e5e1afbaef5a4a796afcc3f4e85afbed0a8482c9e5f96e2",
-        "implementation": {
-          "bestsource_version": "19.0",
-          "comparison_class": "single-stream-parity",
-          "image": "trtvideo:benchmark-vstrt",
-          "notes": "Technical single-stream parity target built against the same TensorRT 11 base and engine as the project; not an upstream-default or best-tuned throughput result.",
-          "role": "parity",
-          "source": "https://github.com/AmusementClub/vs-mlrt",
-          "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
-          "tensorrt_version": "11.0.0",
-          "vapoursynth_headers_revision": "325756ed04588b31840fdb74479537cddcba4bf7",
-          "vapoursynth_version": "77",
-          "version": "v15.16"
-        }
-      },
-      "vsgan": {
-        "base_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
-        "image_id": "sha256:8a3e9c6cdce45198a7dadc623a9d050e04b972c021fb32f52871163a4e416e03",
-        "implementation": {
-          "comparison_class": "single-stream-parity",
-          "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
-          "exact_engine_match": false,
-          "exact_model_match": true,
-          "image": "trtvideo:benchmark-vsgan",
-          "notes": "Pinned upstream VSGAN inference environment measured with benchmark parity settings requests=1, num_streams=1, and CUDA Graph disabled rather than its upstream-default throughput configuration. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine.",
-          "role": "parity",
-          "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
-          "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
-          "tensorrt_version": "10.16",
-          "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
-          "upstream_tag": "latest_no_avx512",
-          "version": "2026-06-22"
-        }
-      }
     }
   },
   "methodology": {
@@ -130,8 +92,7 @@
           6.45846
         ]
       },
-      "pipeline_efficiency_percent": 97.18496940750553,
-      "cuda_graph": false,
+    "cuda_graph": false,
       "data_transfers": false
     },
     {
@@ -155,8 +116,7 @@
           2.92068
         ]
       },
-      "pipeline_efficiency_percent": 98.72883912239857,
-      "cuda_graph": false,
+    "cuda_graph": false,
       "data_transfers": false
     },
     {
@@ -180,8 +140,7 @@
           62.8249
         ]
       },
-      "pipeline_efficiency_percent": 79.46494643533164,
-      "cuda_graph": false,
+    "cuda_graph": false,
       "data_transfers": false
     },
     {
@@ -205,8 +164,7 @@
           28.538
         ]
       },
-      "pipeline_efficiency_percent": 88.11276623272279,
-      "cuda_graph": false,
+    "cuda_graph": false,
       "data_transfers": false
     }
   ],

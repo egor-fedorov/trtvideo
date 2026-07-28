@@ -158,7 +158,7 @@ def validate_evidence_set(
         if candidate.product == "vs-mlrt" and (
             candidate.engine_sha256 != reference.engine_sha256
         ):
-            raise ProductOutputError("vs-mlrt changed the parity engine")
+            raise ProductOutputError("vs-mlrt changed the shared engine")
 
 
 def build_metric_command(
