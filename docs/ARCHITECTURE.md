@@ -202,8 +202,12 @@ temperature, and throttle state without calls in the per-frame hot path. After
 timing ends, the output is fully decoded and checked with FFmpeg/ffprobe, so
 validation and hashing do not affect end-to-end FPS.
 
-The same project runner powers standalone regression and rotated competitor
-campaigns. The goal coordinator under `benchmarks/scripts/workflow/` reads a
+Project and external-video runners share one measurement core for artifact
+layout, warmup handling, process timing, child CPU accounting, NVML sampling,
+output validation, reproducibility checks, and suite summaries. They retain
+separate command builders and lifecycle adapters because the project emits
+native frame markers while VapourSynth exposes progress and producer-exit
+boundaries. The goal coordinator under `benchmarks/scripts/workflow/` reads a
 strict workload/resolution matrix and expands `project`, `comparative`, `tuned`,
 or `diagnostics` into ordered low-level Make targets. Successful high-level
 steps are recorded against the exact repository revision, matrix hash, profile,

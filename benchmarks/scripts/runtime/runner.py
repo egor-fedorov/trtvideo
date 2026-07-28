@@ -6,36 +6,29 @@ import json
 import subprocess
 import sys
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.runtime.cpu import snapshot_child_cpu, summarize_child_cpu
 from benchmarks.scripts.runtime.environment import (
     collect_environment,
-    environment_errors,
-    relative_artifact_path,
     sanitize_command,
     sha256_file,
     write_json,
 )
-from benchmarks.scripts.runtime.nvml import NvmlSampler, summarize_samples, write_samples
-from benchmarks.scripts.runtime.suite import (
-    SuitePolicy,
-    SuiteRunner,
-    canonical_suite_errors,
-    report_publishability_errors,
-    suite_publishability_errors,
+from benchmarks.scripts.runtime.suite import SuitePolicy
+from benchmarks.scripts.runtime.video_suite import (
+    ProcessInvocation,
+    ProcessResult,
+    VideoRunPaths,
+    VideoRunSpec,
+    VideoSuiteSpec,
+    asset_record,
+    run_video_measurement,
+    run_video_suite,
 )
-from trtvideo.benchmarking.lifecycle import (
-    LifecycleTimingError,
-    load_frame_markers,
-    median_detailed_phase_intervals,
-    summarize_lifecycle,
-)
-from trtvideo.benchmarking.validation import OutputContract, validate_output
+from trtvideo.benchmarking.lifecycle import load_frame_markers
+from trtvideo.benchmarking.validation import OutputContract
 from trtvideo.video.nvcodec.encoder import NvencCbrContract, gop_size_for_one_second
 from trtvideo.video.probe import probe_video
 
@@ -122,17 +115,6 @@ def load_engine_contract(engine: Path) -> tuple[dict[str, Any], Path]:
     return sidecar, sidecar_path
 
 
-def _asset_record(kind: str, path: Path, root: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise BenchmarkError(f"Required {kind} asset not found: {path}")
-    return {
-        "kind": kind,
-        "path": relative_artifact_path(path, root),
-        "sha256": sha256_file(path),
-        "size_bytes": path.stat().st_size,
-    }
-
-
 def _find_locked_asset(lock: dict[str, Any], *, kind: str, variant: str) -> dict[str, Any]:
     for asset in lock.get("assets", []):
         if asset.get("kind") == kind and asset.get("variant") == variant:
@@ -147,10 +129,16 @@ def collect_assets(
     root: Path,
 ) -> tuple[dict[str, Any], str | None]:
     """Hash required assets and verify optional canonical workload metadata."""
+    def record(kind: str, path: Path) -> dict[str, Any]:
+        try:
+            return asset_record(kind, path, root)
+        except FileNotFoundError as exc:
+            raise BenchmarkError(str(exc)) from exc
+
     assets = {
-        "input": _asset_record("input", config.input_path, root),
-        "engine": _asset_record("engine", config.engine, root),
-        "engine_manifest": _asset_record("engine_manifest", sidecar_path, root),
+        "input": record("input", config.input_path),
+        "engine": record("engine", config.engine),
+        "engine_manifest": record("engine_manifest", sidecar_path),
     }
     workload_id: str | None = None
     if config.workload_manifest is None or config.variant is None:
@@ -191,12 +179,13 @@ def collect_assets(
 
     weights_path = root / str(manifest.get("model", {}).get("weights_path", ""))
     onnx_path = root / str(onnx_lock.get("path", ""))
-    assets["weights"] = _asset_record("weights", weights_path, root)
-    assets["onnx"] = _asset_record("onnx", onnx_path, root)
-    assets["workload_manifest"] = _asset_record(
-        "workload_manifest", config.workload_manifest, root
+    assets["weights"] = record("weights", weights_path)
+    assets["onnx"] = record("onnx", onnx_path)
+    assets["workload_manifest"] = record(
+        "workload_manifest",
+        config.workload_manifest,
     )
-    assets["asset_lock"] = _asset_record("asset_lock", lock_path, root)
+    assets["asset_lock"] = record("asset_lock", lock_path)
     expected_weights_hash = manifest.get("model", {}).get("source", {}).get("sha256")
     if assets["weights"]["sha256"] != expected_weights_hash:
         raise BenchmarkError("Weights SHA256 does not match workload manifest")
@@ -265,28 +254,29 @@ def output_contract(
     )
 
 
-def run_child(command: list[str], stdout_path: Path, stderr_path: Path) -> int:
+def run_child(
+    command: list[str],
+    stdout_path: Path,
+    stderr_path: Path,
+) -> ProcessResult:
     """Run one child process while keeping terminal output out of timed measurements."""
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
+    started_ns = time.perf_counter_ns()
     try:
         with (
             stdout_path.open("w", encoding="utf-8") as stdout,
             stderr_path.open("w", encoding="utf-8") as stderr,
         ):
             process = subprocess.Popen(command, stdout=stdout, stderr=stderr, text=True)
-            return process.wait()
+            returncode = process.wait()
     except OSError as exc:
         stderr_path.write_text(f"Failed to start child process: {exc}\n", encoding="utf-8")
-        return 127
-
-
-def _cleanup_valid_output(path: Path, keep_outputs: bool) -> None:
-    if not keep_outputs and path.exists():
-        path.unlink()
-
-
-def _hash_if_present(path: Path, kind: str, root: Path) -> dict[str, Any] | None:
-    return _asset_record(kind, path, root) if path.is_file() else None
+        returncode = 127
+    return ProcessResult(
+        returncode=returncode,
+        process_started_ns=started_ns,
+        process_finished_ns=time.perf_counter_ns(),
+    )
 
 
 def run_one(
@@ -299,209 +289,86 @@ def run_one(
     benchmark_contract_version: int | None,
     environment: dict[str, Any],
     encoder_parameters: dict[str, Any] | None,
-    sampler: NvmlSampler,
+    sampler: Any,
     root: Path,
-    validate: Callable[[Path, OutputContract], dict[str, Any]] = validate_output,
 ) -> dict[str, Any]:
     """Run one discarded warmup and one externally measured process."""
-    run_dir = config.output_dir / f"run-{run_index:02d}"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    warmup_output = run_dir / "warmup.mp4"
-    measured_output = run_dir / "output.mp4"
-    warmup_stdout = run_dir / "warmup.stdout.log"
-    warmup_stderr = run_dir / "warmup.stderr.log"
-    measured_stdout = run_dir / "measured.stdout.log"
-    measured_stderr = run_dir / "measured.stderr.log"
-    samples_path = run_dir / "nvml.samples.jsonl"
-    lifecycle_path = run_dir / "lifecycle.json"
-    manifest_path = run_dir / "manifest.json"
-
+    paths = VideoRunPaths.create(config.output_dir, run_index)
+    lifecycle_path = paths.run_dir / "lifecycle.json"
     warmup_command = build_upscale_command(
         config,
-        output_path=warmup_output,
+        output_path=paths.warmup_output,
         frame_count=config.warmup_frames,
     )
     measured_command = build_upscale_command(
         config,
-        output_path=measured_output,
+        output_path=paths.measured_output,
         frame_count=config.frames,
         lifecycle_path=lifecycle_path,
     )
     lifecycle_path.unlink(missing_ok=True)
-    manifest: dict[str, Any] = {
-        "schema_version": 1,
-        "status": "running",
-        "run_index": run_index,
-        "product": PRODUCT_NAME,
-        "workload_id": workload_id,
-        "benchmark_contract_version": benchmark_contract_version,
-        "variant": config.variant,
-        "started_at_utc": datetime.now(UTC).isoformat(),
-        "parameters": {
-            "frames": config.frames,
-            "warmup_frames": config.warmup_frames,
-            "gpu_id": config.gpu_id,
-            "bitrate_mbps": config.bitrate_mbps,
-            "cuda_graph": False,
-            "bitrate_validation": config.validate_bitrate,
-            "nvml_sample_interval_ms": config.sample_interval_ms,
-            "encoder": encoder_parameters,
-        },
-        "commands": {
-            "warmup": sanitize_command(warmup_command, root),
-            "measured": sanitize_command(measured_command, root),
-        },
-        "assets": assets,
-        "environment": environment,
-        "artifacts": {
-            "manifest": relative_artifact_path(manifest_path, root),
-            "warmup_stdout": relative_artifact_path(warmup_stdout, root),
-            "warmup_stderr": relative_artifact_path(warmup_stderr, root),
-            "measured_stdout": relative_artifact_path(measured_stdout, root),
-            "measured_stderr": relative_artifact_path(measured_stderr, root),
-            "nvml_samples": relative_artifact_path(samples_path, root),
-            "lifecycle": relative_artifact_path(lifecycle_path, root),
-        },
-        "errors": [],
-    }
-
-    warmup_returncode = run_child(warmup_command, warmup_stdout, warmup_stderr)
-    warmup_validation = (
-        validate(
-            warmup_output,
-            output_contract(
+    return run_video_measurement(
+        VideoRunSpec(
+            run_index=run_index,
+            frames=config.frames,
+            warmup_frames=config.warmup_frames,
+            keep_outputs=config.keep_outputs,
+            max_compute_processes=1,
+            max_graphics_processes=0,
+            require_reproducible_environment=workload_id is not None,
+            manifest_fields={
+                "product": PRODUCT_NAME,
+                "workload_id": workload_id,
+                "benchmark_contract_version": benchmark_contract_version,
+                "variant": config.variant,
+                "parameters": {
+                    "frames": config.frames,
+                    "warmup_frames": config.warmup_frames,
+                    "gpu_id": config.gpu_id,
+                    "bitrate_mbps": config.bitrate_mbps,
+                    "cuda_graph": False,
+                    "bitrate_validation": config.validate_bitrate,
+                    "nvml_sample_interval_ms": config.sample_interval_ms,
+                    "encoder": encoder_parameters,
+                },
+                "assets": assets,
+                "environment": environment,
+            },
+            warmup=ProcessInvocation(
+                command=sanitize_command(warmup_command, root),
+                execute=lambda stdout, stderr: run_child(
+                    warmup_command,
+                    stdout,
+                    stderr,
+                ),
+            ),
+            measured=ProcessInvocation(
+                command=sanitize_command(measured_command, root),
+                execute=lambda stdout, stderr: run_child(
+                    measured_command,
+                    stdout,
+                    stderr,
+                ),
+            ),
+            warmup_contract=output_contract(
                 config,
                 sidecar,
                 frames=config.warmup_frames,
                 enforce_bitrate=False,
             ),
-        )
-        if warmup_output.is_file()
-        else {"valid": False, "errors": ["Warmup output was not created"]}
-    )
-    manifest["warmup"] = {
-        "returncode": warmup_returncode,
-        "validation": warmup_validation,
-    }
-    if warmup_returncode != 0:
-        manifest["errors"].append(f"Warmup process exited with code {warmup_returncode}")
-    if not warmup_validation.get("valid"):
-        manifest["errors"].extend(warmup_validation.get("errors", []))
-    if manifest["errors"]:
-        manifest["status"] = "invalid"
-        write_json(manifest_path, manifest)
-        return manifest
-    _cleanup_valid_output(warmup_output, config.keep_outputs)
-
-    cpu_before = snapshot_child_cpu()
-    sampler.start(time.perf_counter())
-    start_time_ns = time.perf_counter_ns()
-    try:
-        measured_returncode = run_child(measured_command, measured_stdout, measured_stderr)
-    finally:
-        end_time_ns = time.perf_counter_ns()
-        cpu_after = snapshot_child_cpu()
-        samples = sampler.samples_relative_to(
-            sampler.stop(),
-            start_time_ns / 1_000_000_000,
-        )
-    wall_time_sec = (end_time_ns - start_time_ns) / 1_000_000_000
-    cpu_summary = summarize_child_cpu(
-        cpu_before,
-        cpu_after,
-        wall_time_sec=wall_time_sec,
-    ).as_dict()
-    write_samples(samples_path, samples)
-    nvml_summary = summarize_samples(
-        samples,
-        wall_time_sec=wall_time_sec,
-        frames=config.frames,
-        max_compute_processes=1,
-        max_graphics_processes=0,
-    )
-    measured_validation = (
-        validate(
-            measured_output,
-            output_contract(
+            measured_contract=output_contract(
                 config,
                 sidecar,
                 frames=config.frames,
                 enforce_bitrate=config.validate_bitrate,
             ),
-        )
-        if measured_output.is_file()
-        else {"valid": False, "errors": ["Measured output was not created"]}
+            lifecycle_reader=lambda _result: load_frame_markers(lifecycle_path),
+            extra_artifacts={"lifecycle": lifecycle_path},
+        ),
+        paths=paths,
+        sampler=sampler,
+        root=root,
     )
-    output_asset = _hash_if_present(measured_output, "output", root)
-    lifecycle_summary = None
-    lifecycle_error = None
-    try:
-        lifecycle_summary = summarize_lifecycle(
-            process_started_ns=start_time_ns,
-            process_finished_ns=end_time_ns,
-            markers=load_frame_markers(lifecycle_path),
-            expected_frames=config.frames,
-        )
-    except LifecycleTimingError as exc:
-        lifecycle_error = str(exc)
-    metrics = {
-        "wall_time_sec": wall_time_sec,
-        "end_to_end_fps": config.frames / wall_time_sec if wall_time_sec > 0 else None,
-        "processed_frames": config.frames,
-        "cpu": cpu_summary,
-        "lifecycle": lifecycle_summary,
-        "nvml": nvml_summary,
-    }
-    manifest["measured"] = {
-        "returncode": measured_returncode,
-        "metrics": metrics,
-        "validation": measured_validation,
-        "output": output_asset,
-    }
-    if measured_returncode != 0:
-        manifest["errors"].append(
-            f"Measured process exited with code {measured_returncode}"
-        )
-    if lifecycle_error is not None:
-        manifest["errors"].append(f"Lifecycle timing: {lifecycle_error}")
-    if not measured_validation.get("valid"):
-        manifest["errors"].extend(measured_validation.get("errors", []))
-    if not nvml_summary.get("valid"):
-        manifest["errors"].extend(nvml_summary.get("errors", []))
-    reproducibility_errors = environment_errors(environment)
-    manifest["reproducibility"] = {
-        "publishable": not reproducibility_errors,
-        "errors": reproducibility_errors,
-    }
-    if workload_id is not None:
-        manifest["errors"].extend(reproducibility_errors)
-    manifest["status"] = "valid" if not manifest["errors"] else "invalid"
-    write_json(manifest_path, manifest)
-    if manifest["status"] == "valid":
-        _cleanup_valid_output(measured_output, config.keep_outputs)
-    return manifest
-
-
-def _end_to_end_fps(manifest: dict[str, Any]) -> float:
-    value = manifest.get("measured", {}).get("metrics", {}).get("end_to_end_fps")
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise BenchmarkError("Valid run manifest has no end_to_end_fps metric")
-    return float(value)
-
-
-def _video_power_limit(manifest: dict[str, Any]) -> float | None:
-    value = (
-        manifest.get("measured", {})
-        .get("metrics", {})
-        .get("nvml", {})
-        .get("power", {})
-        .get("limit_w")
-    )
-    if value is None:
-        return None
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise BenchmarkError("Run manifest has an invalid GPU power limit")
-    return float(value)
 
 
 def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[str, Any], int]:
@@ -531,127 +398,65 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
         if isinstance(benchmark_contract, dict)
         else None
     )
-    sampler = NvmlSampler(config.gpu_id, config.sample_interval_ms)
-    gpu = sampler.initialize()
-    environment = collect_environment(gpu)
-    encoder_parameters = None
     assert config.bitrate_mbps is not None
     info = probe_video(str(config.input_path))
     encoder_parameters = NvencCbrContract(
         bitrate_bps=int(config.bitrate_mbps * 1_000_000),
         gop_frames=gop_size_for_one_second(info.fps_str),
     ).as_dict()
-    summary_path = config.output_dir / "suite.json"
     policy = SuitePolicy(
         initial_runs=config.initial_runs,
         extra_runs=config.extra_runs,
         spread_threshold=config.spread_threshold,
         idle_seconds=config.idle_seconds,
     )
-    suite_runner = SuiteRunner(
-        policy,
-        label=PRODUCT_NAME,
-        frames=config.frames,
-        metric_reader=_end_to_end_fps,
-        power_limit_reader=_video_power_limit,
-    )
 
-    def execute_run(run_index: int) -> dict[str, Any]:
-        return run_one(
-            config,
-            run_index=run_index,
-            sidecar=sidecar,
-            assets=assets,
-            workload_id=workload_id,
-            benchmark_contract_version=benchmark_contract_version,
-            environment=environment,
-            encoder_parameters=encoder_parameters,
-            sampler=sampler,
-            root=root,
-        )
+    def executor_factory(sampler: Any, gpu: dict[str, Any]) -> Any:
+        environment = collect_environment(gpu)
 
-    try:
-        suite_result = suite_runner.execute(execute_run)
-    finally:
-        sampler.shutdown()
+        def execute_run(run_index: int) -> dict[str, Any]:
+            return run_one(
+                config,
+                run_index=run_index,
+                sidecar=sidecar,
+                assets=assets,
+                workload_id=workload_id,
+                benchmark_contract_version=benchmark_contract_version,
+                environment=environment,
+                encoder_parameters=encoder_parameters,
+                sampler=sampler,
+                root=root,
+            )
 
-    run_manifests = list(suite_result.runs)
-    statistics_report = suite_result.statistics
-    lifecycle_summaries = [
-        run.get("measured", {}).get("metrics", {}).get("lifecycle")
-        for run in run_manifests
-    ]
-    statistics_report["median_lifecycle_intervals_sec"] = (
-        median_detailed_phase_intervals(lifecycle_summaries)
-        if lifecycle_summaries
-        and all(isinstance(summary, dict) for summary in lifecycle_summaries)
-        else {}
+        return execute_run
+
+    return run_video_suite(
+        VideoSuiteSpec(
+            output_dir=config.output_dir,
+            policy=policy,
+            label=PRODUCT_NAME,
+            frames=config.frames,
+            warmup_frames=config.warmup_frames,
+            sample_interval_ms=config.sample_interval_ms,
+            gpu_id=config.gpu_id,
+            benchmark_contract=(
+                benchmark_contract if isinstance(benchmark_contract, dict) else None
+            ),
+            parameter_fields={
+                "bitrate_mbps": config.bitrate_mbps,
+                "cuda_graph": False,
+                "encoder": encoder_parameters,
+            },
+            summary_fields={
+                "product": PRODUCT_NAME,
+                "workload_id": workload_id,
+                "benchmark_contract_version": benchmark_contract_version,
+                "variant": config.variant,
+            },
+            include_median_lifecycle=True,
+        ),
+        executor_factory,
     )
-    spread = statistics_report["relative_spread"]
-    suite_errors = list(suite_result.errors)
-    status = suite_result.status
-    parameters = {
-        "frames": config.frames,
-        "warmup_frames": config.warmup_frames,
-        "initial_runs": config.initial_runs,
-        "extra_runs_on_spread": config.extra_runs,
-        "spread_threshold": config.spread_threshold,
-        "idle_seconds": config.idle_seconds,
-        "nvml_sample_interval_ms": config.sample_interval_ms,
-        "bitrate_mbps": config.bitrate_mbps,
-        "cuda_graph": False,
-        "encoder": encoder_parameters,
-    }
-    canonical_errors = canonical_suite_errors(
-        parameters,
-        benchmark_contract if isinstance(benchmark_contract, dict) else None,
-        include_warmup_frames=True,
-    )
-    publishability_errors = suite_publishability_errors(
-        status=status,
-        canonical_errors=canonical_errors,
-        runs=run_manifests,
-        acceptance_only=True,
-    )
-    summary = {
-        "schema_version": 1,
-        "status": status,
-        "scope": "acceptance",
-        "publishable": not publishability_errors,
-        "publishability": {
-            "canonical_contract": not canonical_errors,
-            "errors": publishability_errors,
-        },
-        "product": PRODUCT_NAME,
-        "workload_id": workload_id,
-        "benchmark_contract_version": benchmark_contract_version,
-        "variant": config.variant,
-        "parameters": parameters,
-        "statistics": statistics_report,
-        "errors": suite_errors,
-        "runs": [
-            {
-                "index": run["run_index"],
-                "status": run["status"],
-                "manifest": run["artifacts"]["manifest"],
-                "end_to_end_fps": run.get("measured", {})
-                .get("metrics", {})
-                .get("end_to_end_fps"),
-            }
-            for run in run_manifests
-        ],
-    }
-    write_json(summary_path, summary)
-    print(
-        f"Benchmark suite {status}: median={statistics_report['median_fps']!r} FPS, "
-        f"spread={spread!r}",
-        file=sys.stderr,
-    )
-    report_publishability_errors(
-        publishability_errors,
-        acceptance_only=True,
-    )
-    return summary, 0 if status == "valid" else 2
 
 
 def write_summary_target(path: str | None, summary: dict[str, Any]) -> None:
