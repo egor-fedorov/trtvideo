@@ -1,4 +1,4 @@
-# Published Benchmark Results
+# Benchmark Results
 
 This directory contains compact, privacy-reviewed benchmark snapshots. Each
 snapshot retains the environment, immutable asset identifiers, methodology,
@@ -13,22 +13,12 @@ index, and one self-contained JSON file per methodology result class. Result
 sets are not divided by measurement date and are never aggregated across
 different contracts or revisions.
 
-## Results
+## Publication Status
 
-- [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated
-  `720p -> 1440p` and `1080p -> 4K` upstream-default results, plus a retained
-  tuned snapshot pending a corrected VSGAN sweep.
+No benchmark snapshot is currently published. The previous RTX 3090 snapshot
+predated the corrected limited-range color path and the repository privacy
+rewrite, so it was withdrawn rather than presented as current evidence.
 
-The RTX 3090 publication contains three result sets:
-
-- workload-specific tuned sweeps and independent winner campaigns;
-- documented upstream-default scheduling;
-- separate `trtexec` and Nsight diagnostics.
-
-Upstream-default results are complete for both models and both resolutions.
-The first tuned snapshot used only four VapourSynth threads for VSGAN and is
-therefore non-publishable as a maximum-throughput comparison. Its measurements
-remain available for audit while the corrected `num_streams=2..6`,
-runtime-default-thread sweep is pending. Every result set keeps its own
-measurement revision, driver, contract, quality evidence, and machine-readable
-JSON.
+New results will be published only after all images and engines are rebuilt from
+one clean rewritten revision and the complete quality, comparative, tuned, and
+diagnostic workflows pass.

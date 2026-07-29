@@ -29,6 +29,8 @@ venv/
 .vscode/
 .idea/
 .codex
+.agents/
+.claude/
 
 # OS
 .DS_Store

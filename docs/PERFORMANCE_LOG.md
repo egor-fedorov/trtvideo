@@ -5,6 +5,12 @@ For every new performance change, record what changed, the benchmark or command,
 the gain or regression, and where it occurred.
 Keep entries in reverse chronological order, with the newest entry first.
 
+All commit identifiers below were recorded before the July 2026 repository
+privacy rewrite. They remain as immutable labels from the original measurement
+records but are not expected to resolve in the rewritten Git history. Published
+benchmark snapshots were withdrawn; new publication evidence must be measured
+from one clean post-rewrite revision.
+
 Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
@@ -113,9 +119,9 @@ It improves throughput at the cost of higher CPU and VRAM use: SPAN used about
 6.5 CPU cores and 4.8/9.9 GiB VRAM, while the project used about 0.6/0.5 cores
 and 1.5/2.7 GiB at 720p/1080p.
 
-The complete upstream-default tables, tuning curves, final campaign resources,
-quality evidence, hashes, and claim boundaries are published in the
-[RTX 3090 comparative benchmark](../benchmarks/results/rtx-3090/README.md).
+The complete snapshot was later withdrawn before the repository privacy rewrite
+and the corrected limited-range color path. The table remains here only as a
+historical performance record, not as current publication evidence.
 
 ## 2026-07-12 - NVENC stream synchronization
 

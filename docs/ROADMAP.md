@@ -8,10 +8,9 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 ## 1. Current-Revision Benchmark
 
-The existing RTX 3090 upstream-default result remains valid evidence for its
-recorded revision. The tuned snapshot is retained for audit but is not a
-publishable best-tuned comparison because its VSGAN search used a restricted
-VapourSynth thread configuration.
+The previous RTX 3090 snapshot was withdrawn before the repository privacy
+rewrite. It predates the corrected limited-range color path and is not current
+publication evidence.
 
 Before publishing current performance claims:
 
@@ -27,7 +26,7 @@ Before publishing current performance claims:
 - repeat the representative SPAN 1080p Nsight diagnostic on the current runtime
   to confirm that the GPU-resident path still has no material per-frame
   host/device transfers;
-- replace the withdrawn tuned snapshot only after the complete matrix passes
+- publish a new privacy-reviewed snapshot only after the complete matrix passes
   the machine-checked publication contract.
 
 After the canonical matrix:
@@ -43,7 +42,6 @@ After the canonical matrix:
 
 - audit dependency, model, and benchmark-media licenses and document any
   redistribution restrictions;
-- perform a repository privacy and Git-history audit;
 - add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates;
 - publish the final methodology, privacy-reviewed result tables, and compact
   machine-readable evidence;

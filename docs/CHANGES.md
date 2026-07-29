@@ -61,12 +61,6 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Licensed the project source code and documentation under Apache License 2.0,
   with third-party dependencies, models, and media remaining under their own
   licenses.
-- Published a revision-bound RTX 3090 upstream-default and best-tuned
-  comparison for RealESRGAN and SPAN at both canonical resolutions, including
-  complete tuning curves, winner quality evidence, resource metrics, and
-  explicit claim boundaries. Machine-readable results are composed by
-  methodology class (`upstream-default`, `tuned`, and `diagnostics`)
-  through a hashed hardware-level index.
 - Added workload-specific tuned benchmark contracts. RealESRGAN retains the
   bounded `num_streams=2/3/4` search, while SPAN extends through `5/6` after
   boundary measurements found its throughput peak at five streams. Tuned
@@ -111,10 +105,6 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added a lightweight Python 3.12 checks image in `docker/checks.Dockerfile`.
   Regular quality checks no longer require downloading the NVIDIA/TensorRT base
   image.
-- Published a privacy-reviewed multi-resolution benchmark snapshot: validated
-  `720p -> 1440p` and `1080p -> 4K` RealESRGAN and SPAN campaigns on an
-  RTX 3090, including CPU, GPU, power, energy, VRAM, lifecycle, quality,
-  stability, `trtexec`, and compact Nsight results.
 - Benchmark manifests and campaign summaries now contain separate lifecycle
   scopes: startup through the first completed frame, steady state through the
   last frame, and finalize/encoder flush/mux through process exit.
@@ -169,6 +159,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Withdrew the pre-rewrite RTX 3090 benchmark snapshot. It predates the
+  corrected limited-range color path and will be replaced only by evidence
+  measured from one clean post-rewrite revision.
+- Prepared the repository for public history by excluding local agent
+  configuration, normalizing commit identity metadata, and removing legacy
+  internal dependency references from early revisions.
 - Quality-gate output now reports the current model-space and product-output
   operation out of four, while comparative campaigns retain their existing
   operation-level round counter.
@@ -196,21 +192,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
   export retains its PyTorch implementation.
 - Expanded both tuned workload contracts with a mandatory VSGAN
   `num_streams=2..6` sweep using runtime-default VapourSynth threads. Contract
-  validation now rejects an asymmetric grid. The previous RTX 3090 tuned
-  snapshot remains available as historical evidence but is withdrawn from
-  publication claims until the corrected sweep and winner campaigns complete.
-- Reordered the published RTX 3090 summary around best-tuned and resource
-  results. The SPAN 720p result now identifies startup as a measured
-  optimization target without replacing the recorded tuned loss with a
-  counterfactual value.
+  validation now rejects an asymmetric grid.
 - Standardized the project, Python distribution, import package, Docker images,
   build-provenance environment variables, benchmark implementation keys, and
   developer commands on the `trtvideo` name. The import package also moved from
   the root-level `trtvideo/` directory to the standard `src/trtvideo/` layout.
   This is a breaking migration without compatibility aliases; ignored campaign
   artifacts created with an older benchmark contract cannot be resumed.
-- Normalized the published RTX 3090 snapshots to the `trtvideo` identity while
-  preserving their measured values, revisions, image IDs, and asset hashes.
 - Moved benchmark process orchestration, CPU/NVML sampling, environment
   collection, and suite policy out of the production Python package. The
   `benchmark-upscale` wrapper now exists only in benchmark/check images, while

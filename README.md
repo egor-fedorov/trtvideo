@@ -22,8 +22,8 @@ The production runtime currently uses Python 3.12 from the
 - [Performance Log](docs/PERFORMANCE_LOG.md) - measured performance changes.
 - [Benchmark Methodology](benchmarks/methodology.md) - workloads and comparison
   rules.
-- [Published Benchmark Results](benchmarks/results/README.md) - validated
-  competitor baselines and machine-readable snapshots.
+- [Benchmark Results](benchmarks/results/README.md) - publication status and
+  privacy-reviewed result snapshots when available.
 
 ## Host Requirements
 
