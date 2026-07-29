@@ -9,6 +9,42 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
+## 2026-07-29 - Streaming NVENC-to-FFmpeg mux
+
+NVENC output now streams directly into a long-lived FFmpeg mux process instead
+of being written to and reread from a temporary H.264/HEVC file. Source-stream
+preservation, MP4 `faststart`, and atomic output commit remain enabled.
+
+Benchmark:
+
+* Revision: `830934e`.
+* Workload: canonical SPAN `720p -> 1440p`.
+* Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC -> FFmpeg.
+* GPU: RTX 3090 at a 350 W board limit.
+* Workload size: 100 warmup frames and 1000 measured frames.
+* Runs: three.
+
+Results:
+
+| Metric | Temporary bitstream | Streaming mux | Change |
+| --- | ---: | ---: | ---: |
+| Median end-to-end throughput | 55.412 FPS | 56.560 FPS | +2.07% |
+| Relative spread | 0.212% | 0.498% | +0.286 pp |
+| Median startup | 0.810 s | 0.818 s | +0.96% |
+| Median steady-state frame loop | 16.471 s | 16.477 s | +0.03% |
+| Median finalize | 0.756 s | 0.393 s | -48.0% |
+| Bitstream close + mux finalization | 0.512 s | 0.190 s | -62.9% |
+
+The frame loop is unchanged within measurement noise. The gain comes from
+overlapping mux work with inference and eliminating the temporary elementary
+stream's close and reread. Closing FFmpeg stdin takes about 0.014 ms; the
+remaining 190 ms is output-container finalization, including MP4 `faststart`.
+
+This is a project regression comparison between consecutive standalone
+three-run suites, not an interleaved A/B campaign. It does not update the
+published competitor comparison; that requires a new rotated campaign on one
+clean revision.
+
 ## 2026-07-29 - PyTorch to direct CUDA runtime
 
 The production frame path moved from PyTorch tensors to direct CUDA Python,
