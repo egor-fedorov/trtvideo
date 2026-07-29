@@ -13,6 +13,13 @@ Add notable new changes to `Unreleased`, grouped by purpose:
 ```text
 ## Unreleased
 
+### Fixed
+
+- Corrected the production CV-CUDA color path for limited-range NV12. Y and UV
+  code values are now expanded on the GPU before RGB inference and compressed
+  before NVENC, while full-range input remains unchanged. Model-space capture
+  continues to execute this shared production path.
+
 ### Added
 ### Changed
 ### Fixed

@@ -180,6 +180,7 @@ def capture(args: argparse.Namespace) -> Path:
     frame_processor = NvcodecFrameProcessor(
         runtime,
         color_spec_name="bt709",
+        limited_range=True,
     )
     decoder = nvc.ThreadedDecoder(
         enc_file_path=str(input_path),

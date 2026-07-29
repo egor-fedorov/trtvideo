@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from trtvideo.video.nvcodec.surface import nv12_nhwc_view
+from trtvideo.video.nvcodec.surface import nv12_nhwc_view, nv12_plane_views
 
 
 class FakeCudaBuffer:
@@ -72,3 +72,32 @@ def test_nv12_view_accepts_single_channel_hwc_surface() -> None:
 
     assert view.__cuda_array_interface__["shape"] == (1, 1080, 1280, 1)
     assert view.__cuda_array_interface__["strides"] == (1_451_520, 1344, 1, 1)
+
+
+def test_nv12_plane_views_preserve_pitch_and_offset_uv_rows() -> None:
+    source = FakeTensor(
+        {
+            "version": 3,
+            "shape": (1, 1080, 1280, 1),
+            "typestr": np.dtype(np.uint8).str,
+            "data": (123456, False),
+            "strides": (1_451_520, 1344, 1, 1),
+        }
+    )
+
+    y, uv = nv12_plane_views(source, height=720, width=1280)
+
+    assert y.__cuda_array_interface__ == {
+        "version": 3,
+        "shape": (1, 720, 1280, 1),
+        "typestr": "|u1",
+        "data": (123456, False),
+        "strides": (1_451_520, 1344, 1, 1),
+    }
+    assert uv.__cuda_array_interface__ == {
+        "version": 3,
+        "shape": (1, 360, 1280, 1),
+        "typestr": "|u1",
+        "data": (123456 + 720 * 1344, False),
+        "strides": (1_451_520, 1344, 1, 1),
+    }

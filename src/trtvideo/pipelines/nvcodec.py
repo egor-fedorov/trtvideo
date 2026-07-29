@@ -121,6 +121,9 @@ class NvcodecPipeline(BasePipeline):
         self._frame_processor = NvcodecFrameProcessor(
             runtime,
             color_spec_name=self._color_spec_name,
+            limited_range=(
+                self.normalized_color_metadata()["color_range"] != "pc"
+            ),
         )
         bitrate = self._resolve_bitrate(runtime)
         try:

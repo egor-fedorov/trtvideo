@@ -104,9 +104,12 @@ Per-frame processing order:
    zero-copy NHWC view crops any pitch padding without copying the frame.
 3. `CvcudaFrameBuffers` and `CvcudaTensorRTRuntime` reuse preallocated RGB,
    NV12, and NCHW CV-CUDA tensors.
-4. CV-CUDA converts NV12 to RGB with an explicit SDR color specification.
+4. For limited-range input, CV-CUDA expands the Y and UV code ranges to full
+   range on the GPU before converting NV12 to RGB with an explicit SDR color
+   specification.
 5. RGB is converted to the TensorRT input layout, then inference runs.
-6. CV-CUDA converts the output RGB back to NV12.
+6. CV-CUDA converts the output RGB back to full-range NV12. Limited-range jobs
+   compress Y and UV back to their video code ranges before encoding.
 7. NV12 is passed to NVENC through PyNvVideoCodec.
 8. NVENC writes H.264 or HEVC packets to a long-lived FFmpeg subprocess while
    frame processing continues. FFmpeg concurrently muxes the encoded video and
@@ -154,9 +157,11 @@ transfer functions and accepts only `yuv420p`/`nv12`. HDR, P010, YUV 4:2:2,
 and YUV 4:4:4 require a separate color policy and tonemap.
 
 When source metadata is absent, the pipeline uses safe SDR defaults: BT.709 for
-HD/UHD and BT.601-compatible metadata for SD. NV12/RGB conversion in CV-CUDA
-uses the corresponding explicit color specification, and the output receives
-populated `color_range`, `color_space`, `color_transfer`, and
+HD/UHD and BT.601-compatible metadata for SD. CV-CUDA `AdvCvtColor` applies the
+selected YUV matrix to full-range code values, so the pipeline explicitly
+expands limited-range NV12 before RGB conversion and compresses the generated
+NV12 before NVENC. Full-range input bypasses those range transforms. The output
+receives populated `color_range`, `color_space`, `color_transfer`, and
 `color_primaries` fields.
 
 With `--max-frames`, output duration is limited using the exact FPS so audio

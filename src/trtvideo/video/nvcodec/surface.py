@@ -62,3 +62,55 @@ def nv12_nhwc_view(source: Any, *, height: int, width: int) -> CudaArrayView:
         },
         owner=(source, cuda_buffer),
     )
+
+
+def nv12_plane_views(
+    source: Any,
+    *,
+    height: int,
+    width: int,
+) -> tuple[CudaArrayView, CudaArrayView]:
+    """Expose the Y and interleaved UV rows of an NHWC NV12 tensor."""
+    cuda_buffer = source.cuda()
+    interface = cuda_buffer.__cuda_array_interface__
+    shape = tuple(int(value) for value in interface["shape"])
+    expected_shape = (1, height * 3 // 2, width, 1)
+    if shape != expected_shape:
+        raise ValueError(f"Expected NV12 NHWC shape {expected_shape}, got {shape}")
+
+    typestr = str(interface["typestr"])
+    if not typestr.endswith("u1"):
+        raise ValueError(f"Expected uint8 NV12 tensor, got {typestr}")
+
+    strides = interface.get("strides")
+    if strides is None:
+        sample_stride = height * 3 // 2 * width
+        row_stride = width
+        pixel_stride = 1
+        channel_stride = 1
+    else:
+        sample_stride, row_stride, pixel_stride, channel_stride = (
+            int(value) for value in strides
+        )
+
+    pointer = int(interface["data"][0])
+    owner = (source, cuda_buffer)
+
+    def plane(rows: int, offset: int) -> CudaArrayView:
+        return CudaArrayView(
+            {
+                "version": 3,
+                "shape": (1, rows, width, 1),
+                "typestr": typestr,
+                "data": (pointer + offset, False),
+                "strides": (
+                    sample_stride,
+                    row_stride,
+                    pixel_stride,
+                    channel_stride,
+                ),
+            },
+            owner=owner,
+        )
+
+    return plane(height, 0), plane(height // 2, height * row_stride)
