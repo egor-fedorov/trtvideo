@@ -114,10 +114,9 @@ Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
 value is written to the plan and measured-run manifest.
 
 `execution_profile` is the canonical scheduling-profile name across Make,
-runner CLIs, manifests, quality evidence, and campaign aggregation. The former
-`comparison_class` field was removed: comparative runs use the execution
-profile, while diagnostic/reference roles are already explicit in document
-types, implementation metadata, and report structure.
+runner CLIs, manifests, quality evidence, and campaign aggregation.
+Diagnostic/reference roles remain explicit in document types, implementation
+metadata, and report structure rather than in the scheduling profile.
 
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.

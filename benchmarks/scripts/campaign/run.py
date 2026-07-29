@@ -155,6 +155,11 @@ def _run_until(
     _verify_tracked_manifests(campaign_dir, completed)
     expected = campaign_steps(rounds)
     for step in expected[len(completed) :]:
+        print(
+            f"[campaign {step.sequence_index}/{len(expected)}] "
+            f"{step.implementation}, round {step.round_index}/{rounds}",
+            flush=True,
+        )
         previous = completed[-1] if completed else None
         event = _run_step(
             step,

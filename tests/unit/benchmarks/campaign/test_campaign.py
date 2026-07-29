@@ -1054,6 +1054,7 @@ def test_aggregate_campaign_rejects_five_runs_without_consensus(
 def test_campaign_coordinator_records_actual_rotation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     campaign_dir = tmp_path / "artefacts/benchmarks/campaign"
     benchmarks_dir = tmp_path / "benchmarks"
@@ -1102,6 +1103,9 @@ def test_campaign_coordinator_records_actual_rotation(
     assert all(event.status == "completed" for event in events)
     config = json.loads((campaign_dir / CONFIG_NAME).read_text(encoding="utf-8"))
     assert config["execution_profile"] == "upstream-default"
+    output = capsys.readouterr().out
+    assert "[campaign 1/9] trtvideo, round 1/3" in output
+    assert "[campaign 9/9] vstrt, round 3/3" in output
 
 
 def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(

@@ -63,7 +63,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added workload-specific tuned benchmark contracts. RealESRGAN retains the
   bounded `num_streams=2/3/4` search, while SPAN extends through `5/6` after
   boundary measurements found its throughput peak at five streams. Tuned
-  workflows now print immediate candidate and phase progress.
+  workflows print immediate candidate and phase progress, and rotated campaigns
+  report the current implementation, round, and operation count.
 - Added one goal-based benchmark command for complete `project`,
   `comparative`, `tuned`, and `diagnostics` workflows. A declarative matrix
   drives image and engine builds, asset preparation, smoke checks, quality

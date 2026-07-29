@@ -38,6 +38,20 @@ from benchmarks.scripts.workloads.build_vsgan_engine import (
 
 MANIFEST_PATH = "benchmarks/workloads/realesrgan_x2plus_sintel.json"
 IMPLEMENTATIONS_PATH = "benchmarks/implementations.json"
+BENCHMARK_PLAN_KEYS = {
+    "schema_version",
+    "document_type",
+    "product",
+    "backend",
+    "workload_id",
+    "benchmark_contract_version",
+    "variant",
+    "implementation",
+    "parameters",
+    "commands",
+    "assets",
+    "limitations",
+}
 
 
 def manifest() -> dict:
@@ -160,7 +174,7 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert plan["parameters"]["max_compute_processes"] == 2
     assert plan["parameters"]["max_graphics_processes"] == 0
     assert plan["parameters"]["execution_profile"] == "upstream-default"
-    assert "comparison_class" not in plan
+    assert set(plan) == BENCHMARK_PLAN_KEYS
     assert plan["parameters"]["vspipe_requests"] == "auto"
     assert plan["parameters"]["num_streams"] == 1
     assert plan["parameters"]["batch_size"] == 1
@@ -319,7 +333,6 @@ def test_tuned_profile_records_explicit_scheduling_contract() -> None:
     assert "vs_threads=6" in vspipe
     assert "cuda_graph=1" in vspipe
     assert plan["parameters"]["execution_profile"] == "tuned"
-    assert "comparison_class" not in plan
     assert plan["parameters"]["cuda_graph"] is True
 
 

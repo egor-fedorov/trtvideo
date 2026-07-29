@@ -133,7 +133,15 @@ def test_compare_captures_accepts_close_float_tensors(tmp_path: Path) -> None:
     assert report["execution_profile"] == "upstream-default"
     assert report["frame_indices"] == [0]
     assert report["comparisons"][0]["status"] == "valid"
-    assert "comparison_class" not in report["comparisons"][0]
+    assert set(report["comparisons"][0]) == {
+        "implementation",
+        "engine_sha256",
+        "image",
+        "execution_profile",
+        "status",
+        "errors",
+        "tensors",
+    }
 
 
 def test_compare_captures_rejects_large_difference(tmp_path: Path) -> None:
