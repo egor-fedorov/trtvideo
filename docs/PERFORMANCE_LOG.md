@@ -9,41 +9,41 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
-## 2026-07-29 - Streaming NVENC-to-FFmpeg mux
+## 2026-07-29 - Corrected color path and streaming mux baseline
 
-NVENC output now streams directly into a long-lived FFmpeg mux process instead
-of being written to and reread from a temporary H.264/HEVC file. Source-stream
-preservation, MP4 `faststart`, and atomic output commit remain enabled.
+The current GPU-resident path explicitly expands limited-range NV12 Y/UV code
+values before CV-CUDA RGB conversion and compresses generated NV12 before
+NVENC. NVENC packets stream directly into a long-lived FFmpeg mux process;
+source-stream preservation, MP4 `faststart`, and atomic output commit remain
+enabled.
 
 Benchmark:
 
-* Revision: `830934e`.
+* Revision: `ba8d2b0`.
 * Workload: canonical SPAN `720p -> 1440p`.
-* Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC -> FFmpeg.
-* GPU: RTX 3090 at a 350 W board limit.
+* Pipeline: NVDEC -> range expansion -> CV-CUDA -> TensorRT -> CV-CUDA ->
+  range compression -> NVENC -> streaming FFmpeg mux.
+* GPU: RTX 3090.
 * Workload size: 100 warmup frames and 1000 measured frames.
-* Runs: three.
+* Runs: three standalone runs; all passed the canonical output contract.
+* Quality: upstream-default model-space and product-output gates passed with
+  the shared production processor.
 
 Results:
 
-| Metric | Temporary bitstream | Streaming mux | Change |
-| --- | ---: | ---: | ---: |
-| Median end-to-end throughput | 55.412 FPS | 56.560 FPS | +2.07% |
-| Relative spread | 0.212% | 0.498% | +0.286 pp |
-| Median startup | 0.810 s | 0.818 s | +0.96% |
-| Median steady-state frame loop | 16.471 s | 16.477 s | +0.03% |
-| Median finalize | 0.756 s | 0.393 s | -48.0% |
-| Bitstream close + mux finalization | 0.512 s | 0.190 s | -62.9% |
+| Metric | Current baseline |
+| --- | ---: |
+| Median end-to-end throughput | 56.236 FPS |
+| Relative spread | 0.170% |
+| Median startup | 0.846 s |
+| Median steady-state frame loop | 16.553 s |
+| Median finalize | 0.398 s |
+| Mux input close + mux finalization | 0.192 s |
 
-The frame loop is unchanged within measurement noise. The gain comes from
-overlapping mux work with inference and eliminating the temporary elementary
-stream's close and reread. Closing FFmpeg stdin takes about 0.014 ms; the
-remaining 190 ms is output-container finalization, including MP4 `faststart`.
-
-This is a project regression comparison between consecutive standalone
-three-run suites, not an interleaved A/B campaign. It does not update the
-published competitor comparison; that requires a new rotated campaign on one
-clean revision.
+This supersedes the earlier standalone streaming-mux numbers, whose outputs
+were produced before the limited-range correction. Those measurements are not
+retained as an A/B performance claim. A future isolated mux comparison must run
+both revisions through the validated color contract.
 
 ## 2026-07-29 - PyTorch to direct CUDA runtime
 
