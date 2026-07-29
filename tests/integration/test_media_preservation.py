@@ -17,7 +17,9 @@ from trtvideo.demo.media import (
 )
 from trtvideo.video.output import (
     MediaPreservationError,
+    StreamingFfmpegMuxer,
     build_ffmpeg_stream_copy_args,
+    build_ffmpeg_streaming_mux_command,
     preflight_output_container,
 )
 
@@ -228,6 +230,90 @@ def test_mp4_preflight_rejects_unrepresentable_source_streams(tmp_path: Path) ->
             str(tmp_path / "output.mp4"),
             preserve_chapters=True,
         )
+
+
+def test_streaming_mux_preserves_audio_and_faststart(tmp_path: Path) -> None:
+    source = tmp_path / "source.mp4"
+    elementary_stream = tmp_path / "video.h264"
+    output = tmp_path / "output.mp4"
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=128x72:rate=10:duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=1",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            str(source),
+        ]
+    )
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(source),
+            "-map",
+            "0:v:0",
+            "-c",
+            "copy",
+            "-bsf:v",
+            "h264_mp4toannexb",
+            "-f",
+            "h264",
+            str(elementary_stream),
+        ]
+    )
+
+    command = build_ffmpeg_streaming_mux_command(
+        video_codec="h264",
+        fps="10/1",
+        source_input_path=str(source),
+        output_path=str(output),
+        preserve_chapters=True,
+        color_metadata_args=(
+            "-color_range",
+            "tv",
+            "-colorspace",
+            "bt709",
+            "-color_trc",
+            "bt709",
+            "-color_primaries",
+            "bt709",
+        ),
+        faststart=True,
+    )
+    muxer = StreamingFfmpegMuxer.start(command)
+    encoded = elementary_stream.read_bytes()
+    for offset in range(0, len(encoded), 4096):
+        muxer.write(encoded[offset : offset + 4096])
+    muxer.finish()
+
+    probe = _probe(output)
+    stream_types = [stream["codec_type"] for stream in probe["streams"]]
+    assert stream_types.count("video") == 1
+    assert stream_types.count("audio") == 1
+    atoms = output.read_bytes()
+    assert atoms.index(b"moov") < atoms.index(b"mdat")
+    _run(["ffmpeg", "-v", "error", "-i", str(output), "-f", "null", "-"])
 
 
 def test_self_contained_demo_input_passes_its_media_contract(tmp_path: Path) -> None:

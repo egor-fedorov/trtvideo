@@ -93,7 +93,7 @@ File: `src/trtvideo/pipelines/nvcodec.py`.
 
 ```text
 NVDEC -> NV12 GPU surface -> CV-CUDA RGB -> TensorRT
--> CV-CUDA NV12 -> NVENC -> raw H.264/HEVC -> ffmpeg mux
+-> CV-CUDA NV12 -> NVENC -> H.264/HEVC pipe -> FFmpeg mux
 ```
 
 Per-frame processing order:
@@ -108,9 +108,11 @@ Per-frame processing order:
 5. RGB is converted to the TensorRT input layout, then inference runs.
 6. CV-CUDA converts the output RGB back to NV12.
 7. NV12 is passed to NVENC through PyNvVideoCodec.
-8. NVENC writes a raw H.264 or HEVC bitstream to a temporary file.
-9. In `finalize()`, FFmpeg muxes the video bitstream and all supported source
-   non-video streams into the selected output container.
+8. NVENC writes H.264 or HEVC packets to a long-lived FFmpeg subprocess while
+   frame processing continues. FFmpeg concurrently muxes the encoded video and
+   all supported source non-video streams into the private output container.
+9. In `finalize()`, the pipeline drains NVENC, closes FFmpeg stdin, and waits
+   for container finalization, including MP4 `faststart` when applicable.
 
 The production pipeline and model-space quality capture share
 `NvcodecFrameProcessor` for surface wrapping, preprocess, TensorRT enqueue, and
@@ -129,8 +131,9 @@ use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and
 NVENC. This preserves GPU operation order without a per-frame
 `cudaStreamSynchronize`. PyTorch remains available for model export but is not
 imported by ordinary video inference. The CPU remains the orchestration layer
-and writes the compressed bitstream, but full frames do not move between CPU
-and GPU.
+and forwards the compressed bitstream through a pipe, but full frames do not
+move between CPU and GPU. The pipeline does not create or reread a temporary
+elementary-stream file.
 
 NVENC uses no B-frames, preserves the source rational FPS, and creates a GOP/IDR
 approximately once per second. This provides monotonic timestamps and a

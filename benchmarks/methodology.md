@@ -392,8 +392,8 @@ pipeline construction
 -> encoder initialization
 -> frame loop
 -> NVENC drain
--> encoded bitstream close
--> preserved-media mux
+-> mux input close
+-> output-container finalization
 -> cleanup
 -> atomic output commit
 -> reporting

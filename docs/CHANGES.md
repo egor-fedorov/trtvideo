@@ -161,6 +161,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- NVENC packets now stream directly into a long-lived FFmpeg mux process instead
+  of being written to and reread from a temporary H.264/HEVC file. Stream
+  preservation, MP4 `faststart`, and atomic output commit remain unchanged.
 - The optional lightweight `nvtx` binding now provides Nsight ranges without
   importing PyTorch into the diagnostic process.
 - Unified benchmark scheduling terminology around `execution_profile` across

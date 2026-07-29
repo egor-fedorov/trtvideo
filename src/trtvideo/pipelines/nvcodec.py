@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
-import tempfile
 from typing import Any
 
 from trtvideo.pipelines.base import BasePipeline
@@ -19,7 +17,10 @@ from trtvideo.video.nvcodec.encoder import (
     gop_size_for_one_second,
 )
 from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
-from trtvideo.video.output import build_ffmpeg_stream_copy_args
+from trtvideo.video.output import (
+    StreamingFfmpegMuxer,
+    build_ffmpeg_streaming_mux_command,
+)
 
 
 class NvcodecPipeline(BasePipeline):
@@ -44,8 +45,7 @@ class NvcodecPipeline(BasePipeline):
         self._decoder: Any | None = None
         self._encoder: Any | None = None
         self._nvc: Any | None = None
-        self._tmp_raw_path: str = ""
-        self._raw_file: Any | None = None
+        self._muxer: StreamingFfmpegMuxer | None = None
         self._frame_processor: NvcodecFrameProcessor | None = None
         self._color_spec_name = "bt709"
         super().__init__(args)
@@ -82,6 +82,11 @@ class NvcodecPipeline(BasePipeline):
         if self._nvc is None:
             raise RuntimeError("PyNvVideoCodec is not initialized")
         return self._nvc
+
+    def _output_muxer(self) -> StreamingFfmpegMuxer:
+        if self._muxer is None:
+            raise RuntimeError("FFmpeg output muxer is not initialized")
+        return self._muxer
 
     def validate_video_input(self, info) -> None:
         super().validate_video_input(info)
@@ -134,10 +139,6 @@ class NvcodecPipeline(BasePipeline):
             codec=self.args.codec,
         )
 
-        raw_ext = ".h264" if self.args.codec == "h264" else ".hevc"
-        tmp_fd, self._tmp_raw_path = tempfile.mkstemp(suffix=raw_ext)
-        os.close(tmp_fd)
-
         self._encoder = nvc.CreateEncoder(
             runtime.output_w,
             runtime.output_h,
@@ -148,7 +149,19 @@ class NvcodecPipeline(BasePipeline):
             fps=encoder_fps,
             **encoder_contract.pynvcodec_options(),
         )
-        self._raw_file = open(self._tmp_raw_path, "wb")
+        mux_cmd = build_ffmpeg_streaming_mux_command(
+            video_codec=self.args.codec,
+            fps=self.info.fps_str,
+            source_input_path=self.args.input,
+            output_path=self.working_output_path(),
+            preserve_chapters=self.args.max_frames <= 0,
+            color_metadata_args=self.ffmpeg_color_metadata_args(),
+            duration_args=self.ffmpeg_limited_duration_args(),
+            faststart=os.path.splitext(self.args.output)[1].lower()
+            in {".mp4", ".m4v", ".mov"},
+        )
+        self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")
+        self._muxer = StreamingFfmpegMuxer.start(mux_cmd)
 
     def _resolve_bitrate(self, runtime: CvcudaTensorRTRuntime) -> int:
         if self.args.bitrate_mbps is not None:
@@ -205,8 +218,8 @@ class NvcodecPipeline(BasePipeline):
         )
 
     def _write_bitstream(self, bitstream) -> None:
-        if bitstream and self._raw_file:
-            self._raw_file.write(bytearray(bitstream))
+        if bitstream:
+            self._output_muxer().write(bytearray(bitstream))
 
     def _wrap_nv12(self, raw_frame) -> Any:
         return self._processor().wrap_nv12(raw_frame)
@@ -262,54 +275,21 @@ class NvcodecPipeline(BasePipeline):
         self.profiler.commit(events)
 
     def finalize(self) -> None:
-        """Flush NVENC and mux the generated video with preserved source media."""
+        """Flush NVENC and finish the streaming output container."""
+        muxer = self._output_muxer()
         with self._nvtx.range("trtvideo.nvcodec.nvenc_flush"):
             self._write_bitstream(self._encoder.EndEncode())
         self._record_lifecycle_phase("encoder_drained")
-        if self._raw_file:
-            self._raw_file.close()
-            self._raw_file = None
-        self._record_lifecycle_phase("encoder_flushed")
+        muxer.close_input()
+        self._record_lifecycle_phase("mux_input_closed")
 
-        self.log("\nMuxing output container...")
-        faststart_args = (
-            ["-movflags", "+faststart"]
-            if os.path.splitext(self.args.output)[1].lower() in {".mp4", ".m4v", ".mov"}
-            else []
-        )
-        mux_cmd = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-r",
-            self.info.fps_str,
-            "-i",
-            self._tmp_raw_path,
-            "-i",
-            self.args.input,
-            *build_ffmpeg_stream_copy_args(
-                preserve_chapters=self.args.max_frames <= 0
-            ),
-            *self.ffmpeg_color_metadata_args(),
-            *self.ffmpeg_limited_duration_args(),
-            *faststart_args,
-            self.working_output_path(),
-        ]
-        self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")
-        with self._nvtx.range("trtvideo.nvcodec.mux"):
-            result = subprocess.run(mux_cmd, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            details = result.stderr.strip() or "ffmpeg returned no error details"
-            raise RuntimeError(f"ffmpeg mux failed:\n{details}")
+        self.log("\nFinalizing output container...")
+        with self._nvtx.range("trtvideo.nvcodec.mux_finalize"):
+            muxer.finish()
         self._record_lifecycle_phase("mux_completed")
 
     def cleanup(self) -> None:
         self._frame_processor = None
-        if self._raw_file:
-            self._raw_file.close()
-            self._raw_file = None
-        if self._tmp_raw_path and os.path.exists(self._tmp_raw_path):
-            os.unlink(self._tmp_raw_path)
+        if self._muxer is not None:
+            self._muxer.abort()
+            self._muxer = None
