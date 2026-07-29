@@ -161,6 +161,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- The optional lightweight `nvtx` binding now provides Nsight ranges without
+  importing PyTorch into the diagnostic process.
 - Unified benchmark scheduling terminology around `execution_profile` across
   Make, runner CLIs, manifests, quality evidence, and campaigns. Comparative
   manifests no longer duplicate it as `comparison_class`, and individual

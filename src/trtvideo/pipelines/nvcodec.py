@@ -265,6 +265,7 @@ class NvcodecPipeline(BasePipeline):
         """Flush NVENC and mux the generated video with preserved source media."""
         with self._nvtx.range("trtvideo.nvcodec.nvenc_flush"):
             self._write_bitstream(self._encoder.EndEncode())
+        self._record_lifecycle_phase("encoder_drained")
         if self._raw_file:
             self._raw_file.close()
             self._raw_file = None

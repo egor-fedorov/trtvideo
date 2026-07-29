@@ -10,6 +10,25 @@ from dataclasses import dataclass
 NVTX_ENV = "TRTVIDEO_NVTX"
 
 
+def _load_nvtx_callbacks() -> tuple[Callable[[str], int], Callable[[], int]]:
+    try:
+        import nvtx
+    except ImportError as exc:
+        raise RuntimeError(
+            f"{NVTX_ENV}=1 requires the optional benchmark NVTX binding"
+        ) from exc
+
+    def push(name: str) -> int:
+        nvtx.push_range(name)
+        return 0
+
+    def pop() -> int:
+        nvtx.pop_range()
+        return 0
+
+    return push, pop
+
+
 @dataclass(frozen=True)
 class NvtxAnnotator:
     """Push NVTX ranges only when explicitly enabled for diagnostics."""
@@ -24,16 +43,8 @@ class NvtxAnnotator:
         if os.environ.get(NVTX_ENV) != "1":
             return cls(enabled=False)
 
-        try:
-            import torch
-        except ImportError as exc:
-            raise RuntimeError(f"{NVTX_ENV}=1 requires PyTorch NVTX support") from exc
-
-        return cls(
-            enabled=True,
-            _push=torch.cuda.nvtx.range_push,
-            _pop=torch.cuda.nvtx.range_pop,
-        )
+        push, pop = _load_nvtx_callbacks()
+        return cls(enabled=True, _push=push, _pop=pop)
 
     @contextmanager
     def range(self, name: str) -> Iterator[None]:

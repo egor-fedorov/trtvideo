@@ -2,7 +2,29 @@ from __future__ import annotations
 
 import pytest
 
-from trtvideo.diagnostics.nvtx import NvtxAnnotator
+from trtvideo.diagnostics import nvtx
+from trtvideo.diagnostics.nvtx import NVTX_ENV, NvtxAnnotator
+
+
+def test_from_environment_uses_native_nvtx_callbacks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setenv(NVTX_ENV, "1")
+    monkeypatch.setattr(
+        nvtx,
+        "_load_nvtx_callbacks",
+        lambda: (
+            lambda name: calls.append(f"push:{name}") or 0,
+            lambda: calls.append("pop") or 0,
+        ),
+    )
+
+    annotator = NvtxAnnotator.from_environment()
+    with annotator.range("stage"):
+        calls.append("body")
+
+    assert calls == ["push:stage", "body", "pop"]
 
 
 def test_disabled_annotator_is_a_noop() -> None:

@@ -30,6 +30,7 @@ docker = [
 benchmark = [
     "numpy>=2.0,<3",
     "nvidia-ml-py>=13.610,<14",
+    "nvtx>=0.2,<1",
 ]
 export = [
     "torch>=2.10,<3",
