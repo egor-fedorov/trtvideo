@@ -401,9 +401,13 @@ compare-model-space-candidate:
 			--output /app/$(MODEL_SPACE_REPORT)
 
 model-space-parity:
+	@printf '[quality:model-space 1/4] Capture trtvideo tensors\n'
 	$(MAKE) capture-model-trtvideo
+	@printf '[quality:model-space 2/4] Capture vs-mlrt tensors\n'
 	$(MAKE) capture-model-vstrt
+	@printf '[quality:model-space 3/4] Capture VSGAN tensors\n'
 	$(MAKE) capture-model-vsgan
+	@printf '[quality:model-space 4/4] Compare captured tensors\n'
 	$(MAKE) compare-model-space
 
 capture-output-trtvideo:
@@ -434,9 +438,13 @@ compare-product-output:
 			--root /app
 
 product-output-parity:
+	@printf '[quality:product-output 1/4] Run trtvideo quality output\n'
 	$(MAKE) capture-output-trtvideo
+	@printf '[quality:product-output 2/4] Run vs-mlrt quality output\n'
 	$(MAKE) capture-output-vstrt
+	@printf '[quality:product-output 3/4] Run VSGAN quality output\n'
 	$(MAKE) capture-output-vsgan
+	@printf '[quality:product-output 4/4] Compare decoded outputs\n'
 	$(MAKE) compare-product-output
 
 quality-gates: model-space-parity product-output-parity
