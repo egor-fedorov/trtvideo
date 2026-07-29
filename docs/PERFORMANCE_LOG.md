@@ -9,6 +9,48 @@ Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
 `--engine` instead.
 
+## 2026-07-29 - PyTorch to direct CUDA runtime
+
+The production frame path moved from PyTorch tensors to direct CUDA Python,
+CV-CUDA, and TensorRT bindings. A controlled A/B benchmark compared adjacent
+clean revisions:
+
+* PyTorch: `bb226ec23f0a3035e2a583b6664f3d131e262fb1`.
+* Direct CUDA: `6fd22b536165a650832b6c0af8657fc4fbf0801f`.
+* Workload: canonical SPAN `720p -> 1440p`.
+* Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC.
+* GPU: RTX 3090 at a 350 W board limit.
+* Workload size: 100 warmup frames and 1000 measured frames.
+* Runs: three alternating runs per revision; all output validation passed.
+* Engine SHA256:
+  `d147623c0c5cbf41f303444a71e9c0cadbd2560511d48a16a83b8ce7dc724f29`.
+* Input SHA256:
+  `7bbef1c5d80ce5452f2b5b61d04a1b94458d044176ab3a2da19984d4a8180062`.
+
+Results:
+
+| Metric | PyTorch | Direct CUDA | Change |
+| --- | ---: | ---: | ---: |
+| Median end-to-end throughput | 49.717 FPS | 55.283 FPS | +11.2% |
+| Median startup | 2.593 s | 0.816 s | -68.5% |
+| Median steady-state frame loop | 16.617 s | 16.483 s | -0.8% |
+| Median finalize | 0.900 s | 0.757 s | -15.9% |
+| Median CPU use | 0.597 cores | 0.539 cores | -9.8% |
+| Median GPU utilization | 82.49% | 90.76% | +8.27 pp |
+| Median power | 295.98 W | 313.31 W | +5.9% |
+| Median energy per frame | 5.954 J | 5.669 J | -4.8% |
+
+Most of the end-to-end gain comes from removing PyTorch process startup.
+Steady-state frame-loop time also improved by 0.8%, so the migration introduced
+no measured throughput regression. Higher GPU utilization increased average
+power while reducing energy per processed frame.
+
+A later standalone run on the current code measured 55.412 FPS with 0.212%
+relative spread, within 0.3% of the controlled direct-CUDA result. Its extended
+lifecycle instrumentation measured 5 ms for NVENC drain, 113 ms for bitstream
+close, and 400 ms for preserved-media mux. This confirms the current result but
+does not replace the controlled adjacent-revision comparison.
+
 ## 2026-07-27 - RTX 3090 upstream-default and tuned comparison
 
 Validated upstream-default and bounded best-tuned campaigns were measured on
