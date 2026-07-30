@@ -6,7 +6,7 @@ DEMO_GPU_ID ?= 0
 DEMO_FORCE ?= 0
 DEMO_FORCE_ARG = $(if $(filter 1 true yes,$(DEMO_FORCE)),--force,)
 
-.PHONY: build build-dev demo demo-clean lint typecheck compile test-unit test-media-integration check cli-smoke shell
+.PHONY: build build-dev demo demo-clean format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -36,7 +36,14 @@ demo-clean:
 		{ printf 'Refusing to remove unexpected DEMO_DIR: %s\n' "$(DEMO_DIR)"; exit 2; }
 	rm -rf "$(DEMO_DIR)"
 
-lint:
+format:
+	$(DOCKER_RUN) $(DEV_IMAGE) ruff check --select I --fix .
+	$(DOCKER_RUN) $(DEV_IMAGE) ruff format .
+
+format-check:
+	$(DOCKER_RUN) $(DEV_IMAGE) ruff format --check .
+
+lint: format-check
 	$(DOCKER_RUN) $(DEV_IMAGE) ruff check .
 
 typecheck:

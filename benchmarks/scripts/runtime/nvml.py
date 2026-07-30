@@ -139,9 +139,7 @@ def summarize_samples(
         if peak_memory is not None and baseline_memory is not None
         else None
     )
-    throttle_reasons = sorted(
-        {reason for sample in bounded for reason in sample.throttle_reasons}
-    )
+    throttle_reasons = sorted({reason for sample in bounded for reason in sample.throttle_reasons})
     invalid_throttle = sorted(set(throttle_reasons) & _INVALID_THROTTLE_REASONS)
     if invalid_throttle:
         errors.append(f"Invalid throttle reasons observed: {', '.join(invalid_throttle)}")
@@ -192,18 +190,14 @@ def summarize_samples(
         errors.append("GPU power limit changed during the measured process")
 
     powers = [sample.power_w for sample in power_samples if sample.power_w is not None]
-    temperatures = [
-        sample.temperature_c for sample in bounded if sample.temperature_c is not None
-    ]
+    temperatures = [sample.temperature_c for sample in bounded if sample.temperature_c is not None]
     gpu_utilizations = [
         sample.gpu_utilization_percent
         for sample in bounded
         if sample.gpu_utilization_percent is not None
     ]
     graphics_clocks = [
-        sample.graphics_clock_mhz
-        for sample in bounded
-        if sample.graphics_clock_mhz is not None
+        sample.graphics_clock_mhz for sample in bounded if sample.graphics_clock_mhz is not None
     ]
     memory_clocks = [
         sample.memory_clock_mhz for sample in bounded if sample.memory_clock_mhz is not None
@@ -318,9 +312,7 @@ class NvmlSampler:
                 else None
             ),
             "total_memory_mib": memory.total / (1024 * 1024) if memory is not None else None,
-            "power_limit_w": (
-                power_limit / 1000 if power_limit is not None else None
-            ),
+            "power_limit_w": (power_limit / 1000 if power_limit is not None else None),
             "persistence_mode": _safe_call(
                 getattr(nvml, "nvmlDeviceGetPersistenceMode", lambda *_: None),
                 handle,
@@ -338,11 +330,7 @@ class NvmlSampler:
         if function is None:
             return None
         processes = _safe_call(function, self._handle)
-        return (
-            len({int(process.pid) for process in processes})
-            if processes is not None
-            else None
-        )
+        return len({int(process.pid) for process in processes}) if processes is not None else None
 
     def _sample(self) -> NvmlSample:
         if self._nvml is None or self._handle is None:
@@ -421,9 +409,7 @@ class NvmlSampler:
     def samples_relative_to(self, samples: list[NvmlSample], start_time: float) -> list[NvmlSample]:
         """Rebase sampler-relative timestamps to the measured process timer."""
         offset = start_time - self._start_time
-        return [
-            replace(sample, relative_sec=sample.relative_sec - offset) for sample in samples
-        ]
+        return [replace(sample, relative_sec=sample.relative_sec - offset) for sample in samples]
 
     def shutdown(self) -> None:
         """Release NVML state."""

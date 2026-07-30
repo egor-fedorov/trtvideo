@@ -50,9 +50,7 @@ def benchmark_parameters(args: argparse.Namespace, manifest: dict[str, Any]) -> 
     benchmark = manifest.get("benchmark", {})
     values = {
         "frames": int(benchmark_value(args.frames, benchmark, "measured_frames")),
-        "warmup_frames": int(
-            benchmark_value(args.warmup_frames, benchmark, "warmup_frames")
-        ),
+        "warmup_frames": int(benchmark_value(args.warmup_frames, benchmark, "warmup_frames")),
         "initial_runs": int(benchmark_value(args.runs, benchmark, "initial_runs")),
         "extra_runs_on_spread": int(
             benchmark_value(
@@ -61,13 +59,9 @@ def benchmark_parameters(args: argparse.Namespace, manifest: dict[str, Any]) -> 
                 "extra_runs_on_spread",
             )
         ),
-        "idle_seconds": float(
-            benchmark_value(args.idle_seconds, benchmark, "idle_seconds")
-        ),
+        "idle_seconds": float(benchmark_value(args.idle_seconds, benchmark, "idle_seconds")),
         "spread_threshold": float(benchmark.get("spread_threshold", 0.05)),
-        "nvml_sample_interval_ms": int(
-            benchmark.get("nvml_sample_interval_ms", 100)
-        ),
+        "nvml_sample_interval_ms": int(benchmark.get("nvml_sample_interval_ms", 100)),
     }
     for key in ("frames", "warmup_frames", "initial_runs"):
         if values[key] <= 0:
@@ -168,9 +162,7 @@ def plan_document(
         "product": product,
         "backend": backend,
         "workload_id": manifest.get("id"),
-        "benchmark_contract_version": manifest.get("benchmark", {}).get(
-            "contract_version"
-        ),
+        "benchmark_contract_version": manifest.get("benchmark", {}).get("contract_version"),
         "variant": variant_name,
         "implementation": implementation,
         "parameters": parameters,

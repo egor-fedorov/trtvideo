@@ -134,6 +134,9 @@ make build-dev
 make check
 ```
 
+`make format` applies Ruff import sorting and Black-compatible formatting.
+`make lint` checks both formatting and Ruff lint rules without changing files.
+
 `make check` does not rebuild the development image automatically. After
 changes to dependencies in `pyproject.toml`/`uv.lock` or to
 `docker/checks.Dockerfile`, run `make build-dev` first. A metadata-only project

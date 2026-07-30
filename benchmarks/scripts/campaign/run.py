@@ -209,9 +209,7 @@ def _aggregate(
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise CampaignRunError(
-            f"Cannot read aggregate campaign status: {report_path}"
-        ) from exc
+        raise CampaignRunError(f"Cannot read aggregate campaign status: {report_path}") from exc
     if not isinstance(report, dict) or not isinstance(report.get("status"), str):
         raise CampaignRunError(f"Aggregate campaign status is invalid: {report_path}")
     return 3 if report["status"] == "needs-extra-runs" else 0
@@ -229,9 +227,7 @@ def run_campaign(args: argparse.Namespace) -> int:
     )
     if config_path.exists():
         if not args.resume:
-            raise CampaignRunError(
-                f"Campaign config already exists; use --resume: {config_path}"
-            )
+            raise CampaignRunError(f"Campaign config already exists; use --resume: {config_path}")
         stored_config = load_campaign_config(config_path)
         if stored_config != requested_config:
             raise CampaignRunError(
@@ -239,15 +235,11 @@ def run_campaign(args: argparse.Namespace) -> int:
             )
     else:
         if args.resume:
-            raise CampaignRunError(
-                f"Campaign config is missing; cannot resume: {config_path}"
-            )
+            raise CampaignRunError(f"Campaign config is missing; cannot resume: {config_path}")
         write_campaign_config(config_path, requested_config)
 
     if not args.resume and events_path.exists():
-        raise CampaignRunError(
-            f"Campaign event log already exists; use --resume: {events_path}"
-        )
+        raise CampaignRunError(f"Campaign event log already exists; use --resume: {events_path}")
 
     completed = _run_until(
         3,

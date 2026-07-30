@@ -55,9 +55,7 @@ def test_build_upscale_command_has_no_profiling_flags(tmp_path: Path) -> None:
     assert "--profile-json" not in command
     assert command[command.index("--max-frames") + 1] == "1000"
     assert command[command.index("--bitrate-mbps") + 1] == "35.0"
-    assert command[command.index("--benchmark-lifecycle-json") + 1].endswith(
-        "lifecycle.json"
-    )
+    assert command[command.index("--benchmark-lifecycle-json") + 1].endswith("lifecycle.json")
 
 
 def test_validate_config_requires_explicit_nvenc_bitrate(tmp_path: Path) -> None:
@@ -185,10 +183,7 @@ def test_standalone_suite_reports_publishability_errors() -> None:
         stream=output,
     )
 
-    assert output.getvalue() == (
-        "Benchmark suite is not publishable:\n"
-        "  - Run contract changed\n"
-    )
+    assert output.getvalue() == ("Benchmark suite is not publishable:\n  - Run contract changed\n")
 
 
 def test_smoke_parameters_are_valid_but_not_canonical() -> None:
@@ -264,9 +259,7 @@ def test_individual_suite_is_acceptance_only() -> None:
         acceptance_only=True,
     )
 
-    assert errors == [
-        "Individual suites are acceptance-only; use a rotated campaign result"
-    ]
+    assert errors == ["Individual suites are acceptance-only; use a rotated campaign result"]
 
 
 def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -> None:
@@ -283,9 +276,7 @@ def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -
 
 def test_canonical_runner_consumes_manifest_contract() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(
-            encoding="utf-8"
-        )
+        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
         manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
@@ -305,9 +296,7 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
 
     command = build_command(args, manifest)
 
-    assert command[command.index("--input") + 1] == (
-        "videos/benchmarks/sintel_1080p24_h264.mp4"
-    )
+    assert command[command.index("--input") + 1] == ("videos/benchmarks/sintel_1080p24_h264.mp4")
     assert command[command.index("--bitrate-mbps") + 1] == "60"
     assert command[command.index("--warmup-frames") + 1] == "30"
     assert command[command.index("--frames") + 1] == "1000"
@@ -316,9 +305,7 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
 
 def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(
-            encoding="utf-8"
-        )
+        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
         manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
@@ -345,9 +332,7 @@ def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() ->
 
 def test_canonical_runner_can_skip_bitrate_validation_for_smoke() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(
-            encoding="utf-8"
-        )
+        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
         manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",

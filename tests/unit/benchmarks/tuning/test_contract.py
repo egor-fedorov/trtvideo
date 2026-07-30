@@ -22,10 +22,11 @@ from benchmarks.scripts.tuning.contract import (
 def test_repository_tuning_contract_declares_required_sweeps(path: Path) -> None:
     contract = load_tuning_contract(path)
 
-    assert {
-        candidate.num_streams
-        for candidate in contract.for_implementation("vstrt")
-    } >= {2, 3, 4}
+    assert {candidate.num_streams for candidate in contract.for_implementation("vstrt")} >= {
+        2,
+        3,
+        4,
+    }
     assert {
         candidate.num_streams
         for candidate in contract.for_implementation("vsgan")
@@ -44,10 +45,13 @@ def test_repository_tuning_contract_declares_required_sweeps(path: Path) -> None
 def test_span_tuning_contract_contains_measured_interior_peak_range() -> None:
     contract = load_tuning_contract(Path("benchmarks/tuning/span_candidates.json"))
 
-    assert {
-        candidate.num_streams
-        for candidate in contract.for_implementation("vstrt")
-    } == {2, 3, 4, 5, 6}
+    assert {candidate.num_streams for candidate in contract.for_implementation("vstrt")} == {
+        2,
+        3,
+        4,
+        5,
+        6,
+    }
 
 
 def test_candidate_arguments_are_explicit_and_deterministic() -> None:
@@ -60,13 +64,9 @@ def test_candidate_arguments_are_explicit_and_deterministic() -> None:
 
 
 def test_contract_rejects_incomplete_vstrt_stream_sweep() -> None:
-    value = json.loads(
-        Path("benchmarks/tuning/candidates.json").read_text(encoding="utf-8")
-    )
+    value = json.loads(Path("benchmarks/tuning/candidates.json").read_text(encoding="utf-8"))
     value["candidates"] = [
-        candidate
-        for candidate in value["candidates"]
-        if candidate["id"] != "vstrt-s3-g0"
+        candidate for candidate in value["candidates"] if candidate["id"] != "vstrt-s3-g0"
     ]
 
     with pytest.raises(
@@ -77,13 +77,9 @@ def test_contract_rejects_incomplete_vstrt_stream_sweep() -> None:
 
 
 def test_contract_rejects_incomplete_vsgan_auto_thread_sweep() -> None:
-    value = json.loads(
-        Path("benchmarks/tuning/candidates.json").read_text(encoding="utf-8")
-    )
+    value = json.loads(Path("benchmarks/tuning/candidates.json").read_text(encoding="utf-8"))
     value["candidates"] = [
-        candidate
-        for candidate in value["candidates"]
-        if candidate["id"] != "vsgan-s5-tauto-g0"
+        candidate for candidate in value["candidates"] if candidate["id"] != "vsgan-s5-tauto-g0"
     ]
 
     with pytest.raises(

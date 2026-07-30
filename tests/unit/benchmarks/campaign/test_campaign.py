@@ -80,7 +80,7 @@ def _campaign(
                         "ssim_min": 0.95,
                     },
                     "crops": [{"name": "center"}],
-                }
+                },
             },
             "clip": {"frames": 1000},
         },
@@ -168,9 +168,7 @@ def _campaign(
                             "memory": {"peak_delta_mib": 4000.0},
                         },
                     },
-                    "validation": {
-                        "observed": {"video_bitrate_bps": 60_000_000}
-                    },
+                    "validation": {"observed": {"video_bitrate_bps": 60_000_000}},
                     "output": {"size_bytes": 300 * 1024 * 1024},
                 },
             }
@@ -195,10 +193,7 @@ def _campaign(
                     }
                 )
             _write_json(
-                campaign_dir
-                / implementation
-                / f"round-{round_index:02d}"
-                / "run-01/manifest.json",
+                campaign_dir / implementation / f"round-{round_index:02d}" / "run-01/manifest.json",
                 manifest,
             )
     rounds = len(next(iter(fps.values())))
@@ -510,13 +505,10 @@ def test_aggregate_campaign_builds_acceptance_table(
     }
     assert summary["implementations"]["trtvideo"]["statistics"]["median_fps"] == 10.0
     assert summary["implementations"]["trtvideo"]["statistics"]["median_cpu_cores"] == 1.0
-    assert (
-        summary["implementations"]["trtvideo"]["statistics"]["median_startup_sec"]
-        == 2.0
+    assert summary["implementations"]["trtvideo"]["statistics"]["median_startup_sec"] == 2.0
+    assert summary["implementations"]["vstrt"]["relative_to_trtvideo_percent"] == pytest.approx(
+        -10.0
     )
-    assert summary["implementations"]["vstrt"][
-        "relative_to_trtvideo_percent"
-    ] == pytest.approx(-10.0)
 
 
 def test_aggregate_campaign_accepts_matching_model_space_report(
@@ -1069,12 +1061,7 @@ def test_campaign_coordinator_records_actual_rotation(
             return subprocess.CompletedProcess(command, 0)
         implementation = target.removeprefix("campaign-")
         round_index = int(command[4].split("=", 1)[1])
-        path = (
-            campaign_dir
-            / implementation
-            / f"round-{round_index:02d}"
-            / "run-01/manifest.json"
-        )
+        path = campaign_dir / implementation / f"round-{round_index:02d}" / "run-01/manifest.json"
         _write_json(path, {"status": "valid"})
         return subprocess.CompletedProcess(command, 0)
 
@@ -1128,12 +1115,7 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
             return subprocess.CompletedProcess(command, 0)
         implementation = target.removeprefix("campaign-")
         round_index = int(command[4].split("=", 1)[1])
-        path = (
-            campaign_dir
-            / implementation
-            / f"round-{round_index:02d}"
-            / "run-01/manifest.json"
-        )
+        path = campaign_dir / implementation / f"round-{round_index:02d}" / "run-01/manifest.json"
         _write_json(path, {"status": "valid"})
         return subprocess.CompletedProcess(command, 0)
 

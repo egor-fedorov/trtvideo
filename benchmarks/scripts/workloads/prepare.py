@@ -322,8 +322,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     if output_tensor.type.tensor_type.elem_type != onnx.TensorProto.FLOAT:
         raise WorkloadError(f"ONNX output must remain FP32: {path}")
     has_fp16_weights = any(
-        initializer.data_type == onnx.TensorProto.FLOAT16
-        for initializer in model.graph.initializer
+        initializer.data_type == onnx.TensorProto.FLOAT16 for initializer in model.graph.initializer
     )
     if not has_fp16_weights:
         raise WorkloadError(f"ONNX does not contain FP16 initializers: {path}")

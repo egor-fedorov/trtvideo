@@ -154,9 +154,7 @@ def main() -> None:
         onnx_path = Path(args.onnx)
         expected_onnx = Path(model_variant["fp16_path"])
         if onnx_path.resolve() != expected_onnx.resolve():
-            raise CompetitorError(
-                f"Expected canonical ONNX {expected_onnx}, got {onnx_path}"
-            )
+            raise CompetitorError(f"Expected canonical ONNX {expected_onnx}, got {onnx_path}")
         if not onnx_path.is_file() and not args.dry_run:
             raise CompetitorError(f"ONNX not found: {onnx_path}")
         engine_path = Path(args.output)

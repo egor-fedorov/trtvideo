@@ -29,9 +29,7 @@ class VapourSynthExecutionProfile:
             "vspipe_requests": self.requests if self.requests is not None else "auto",
             "num_streams": self.num_streams,
             "vapoursynth_threads": (
-                self.vapoursynth_threads
-                if self.vapoursynth_threads is not None
-                else "auto"
+                self.vapoursynth_threads if self.vapoursynth_threads is not None else "auto"
             ),
             "cuda_graph": self.cuda_graph,
         }
@@ -160,9 +158,7 @@ def _resolve_tuned(
     }
     missing = [option for option, value in required.items() if value is None]
     if missing:
-        raise CompetitorError(
-            f"{implementation} tuned requires explicit {', '.join(missing)}"
-        )
+        raise CompetitorError(f"{implementation} tuned requires explicit {', '.join(missing)}")
     return VapourSynthExecutionProfile(
         name="tuned",
         requests=_normalize_auto(args.requests),
@@ -192,9 +188,7 @@ def validate_declared_profile(
         return
     declared = implementation.get("execution_profiles", {}).get(profile.name)
     if not isinstance(declared, dict):
-        raise CompetitorError(
-            f"Implementation does not declare the {profile.name} profile"
-        )
+        raise CompetitorError(f"Implementation does not declare the {profile.name} profile")
     actual = profile.as_parameters()
     expected = {
         "vspipe_requests": actual["vspipe_requests"],
@@ -202,11 +196,8 @@ def validate_declared_profile(
         "vapoursynth_threads": actual["vapoursynth_threads"],
         "cuda_graph": actual["cuda_graph"],
     }
-    mismatches = [
-        key for key, value in expected.items() if declared.get(key) != value
-    ]
+    mismatches = [key for key, value in expected.items() if declared.get(key) != value]
     if mismatches:
         raise CompetitorError(
-            "Execution profile metadata differs from the runner preset: "
-            + ", ".join(mismatches)
+            "Execution profile metadata differs from the runner preset: " + ", ".join(mismatches)
         )

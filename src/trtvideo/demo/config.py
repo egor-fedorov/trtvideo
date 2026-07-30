@@ -6,10 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 MODEL_NAME = "RealESRGAN_x2plus"
-MODEL_URL = (
-    "https://github.com/xinntao/Real-ESRGAN/releases/download/"
-    "v0.2.1/RealESRGAN_x2plus.pth"
-)
+MODEL_URL = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
 MODEL_SHA256 = "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb"
 MODEL_SIZE_BYTES = 67_061_725
 MODEL_ATTRIBUTION = "Real-ESRGAN, Xintao Wang et al."

@@ -209,9 +209,7 @@ def run_command_spec(
 def _environment(config: VapourSynthSuiteConfig, gpu: dict[str, Any]) -> dict[str, Any]:
     environment = collect_environment(gpu)
     environment["image"] = {
-        "reference": os.environ.get(
-            "TRTVIDEO_IMAGE_REF", config.implementation.metadata["image"]
-        ),
+        "reference": os.environ.get("TRTVIDEO_IMAGE_REF", config.implementation.metadata["image"]),
         "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
         "base_reference": os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown"),
         "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
@@ -247,13 +245,8 @@ def _run_one(
     def lifecycle_reader(result: ProcessResult) -> FrameLifecycleMarkers:
         if not isinstance(result, CommandRunResult):
             raise LifecycleTimingError("vspipe returned an unexpected process result")
-        if (
-            result.first_frame_completed_ns is None
-            or result.producer_finished_ns is None
-        ):
-            raise LifecycleTimingError(
-                "vspipe did not expose the required frame boundaries"
-            )
+        if result.first_frame_completed_ns is None or result.producer_finished_ns is None:
+            raise LifecycleTimingError("vspipe did not expose the required frame boundaries")
         return FrameLifecycleMarkers(
             first_frame_completed_ns=result.first_frame_completed_ns,
             last_frame_completed_ns=result.producer_finished_ns,
@@ -274,9 +267,7 @@ def _run_one(
                 "product": implementation.product,
                 "backend": implementation.backend,
                 "workload_id": workload.workload_id,
-                "benchmark_contract_version": workload.benchmark_contract[
-                    "contract_version"
-                ],
+                "benchmark_contract_version": workload.benchmark_contract["contract_version"],
                 "variant": workload.variant,
                 "implementation": implementation.metadata,
                 "parameters": {
@@ -342,10 +333,7 @@ def run_vapoursynth_suite(
             f"a unique path: {workload.output_dir}"
         )
     try:
-        assets = {
-            name: asset_record(name, path, root)
-            for name, path in workload.assets.items()
-        }
+        assets = {name: asset_record(name, path, root) for name, path in workload.assets.items()}
     except FileNotFoundError as exc:
         raise CompetitorError(str(exc)) from exc
 
@@ -384,9 +372,7 @@ def run_vapoursynth_suite(
                 "product": implementation.product,
                 "backend": implementation.backend,
                 "workload_id": workload.workload_id,
-                "benchmark_contract_version": workload.benchmark_contract[
-                    "contract_version"
-                ],
+                "benchmark_contract_version": workload.benchmark_contract["contract_version"],
                 "variant": workload.variant,
                 "implementation": implementation.metadata,
             },

@@ -265,8 +265,7 @@ def preflight_output_container(
             else "Remove or convert the incompatible source stream."
         )
         raise MediaPreservationError(
-            f"output container cannot preserve every source stream:\n{details}\n"
-            f"{recommendation}"
+            f"output container cannot preserve every source stream:\n{details}\n{recommendation}"
         )
     except FileNotFoundError as exc:
         raise MediaPreservationError("ffmpeg executable was not found") from exc

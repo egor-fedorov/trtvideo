@@ -255,14 +255,11 @@ def validate_output_probe(
     ]
     if contract.gop_frames is not None:
         expected_keyframes = max(1, math.ceil(contract.frames / contract.gop_frames))
-        gop_matches = (
-            len(keyframe_indices) >= expected_keyframes
-            and (
-                expected_keyframes == 1
-                or (
-                    bool(keyframe_gaps)
-                    and all(abs(gap - contract.gop_frames) <= 1 for gap in keyframe_gaps)
-                )
+        gop_matches = len(keyframe_indices) >= expected_keyframes and (
+            expected_keyframes == 1
+            or (
+                bool(keyframe_gaps)
+                and all(abs(gap - contract.gop_frames) <= 1 for gap in keyframe_gaps)
             )
         )
         checks["keyframe_interval"] = gop_matches

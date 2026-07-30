@@ -31,17 +31,16 @@ def load_engine_contract(engine: Path) -> tuple[dict[str, Any], Path]:
     actual_hash = sha256_file(engine)
     if expected_hash != actual_hash:
         raise EngineContractError(
-            f"Engine SHA256 does not match sidecar: expected {expected_hash}, "
-            f"got {actual_hash}"
+            f"Engine SHA256 does not match sidecar: expected {expected_hash}, got {actual_hash}"
         )
     for tensor_name in ("input", "output"):
         shape = sidecar.get(tensor_name, {}).get("shape")
-        if not isinstance(shape, list) or len(shape) != 4 or not all(
-            isinstance(value, int) and value > 0 for value in shape
+        if (
+            not isinstance(shape, list)
+            or len(shape) != 4
+            or not all(isinstance(value, int) and value > 0 for value in shape)
         ):
-            raise EngineContractError(
-                f"Engine sidecar has invalid static {tensor_name} shape"
-            )
+            raise EngineContractError(f"Engine sidecar has invalid static {tensor_name} shape")
     return sidecar, sidecar_path
 
 
@@ -99,9 +98,7 @@ def validate_vsgan_engine_contract(
             "VSGAN runtime does not match the pinned implementation "
             f"({runtime_base_image!r} != {expected_base_image!r}); rebuild the image"
         )
-    runtime_ffmpeg_package = os.environ.get(
-        "TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "unknown"
-    )
+    runtime_ffmpeg_package = os.environ.get("TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "unknown")
     if runtime_ffmpeg_package != expected_ffmpeg_package:
         raise EngineContractError(
             "VSGAN FFmpeg does not match the pinned implementation "

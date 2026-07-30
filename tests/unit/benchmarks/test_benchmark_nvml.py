@@ -116,9 +116,7 @@ def test_summarize_samples_allows_declared_multiprocess_pipeline() -> None:
 
 def test_sampler_counts_unique_process_ids() -> None:
     class FakeNvml(ModuleType):
-        def nvmlDeviceGetComputeRunningProcesses(
-            self, _handle: object
-        ) -> list[SimpleNamespace]:
+        def nvmlDeviceGetComputeRunningProcesses(self, _handle: object) -> list[SimpleNamespace]:
             return [
                 SimpleNamespace(pid=101),
                 SimpleNamespace(pid=101),

@@ -121,9 +121,7 @@ class NvcodecPipeline(BasePipeline):
         self._frame_processor = NvcodecFrameProcessor(
             runtime,
             color_spec_name=self._color_spec_name,
-            limited_range=(
-                self.normalized_color_metadata()["color_range"] != "pc"
-            ),
+            limited_range=(self.normalized_color_metadata()["color_range"] != "pc"),
         )
         bitrate = self._resolve_bitrate(runtime)
         try:
@@ -160,8 +158,7 @@ class NvcodecPipeline(BasePipeline):
             preserve_chapters=self.args.max_frames <= 0,
             color_metadata_args=self.ffmpeg_color_metadata_args(),
             duration_args=self.ffmpeg_limited_duration_args(),
-            faststart=os.path.splitext(self.args.output)[1].lower()
-            in {".mp4", ".m4v", ".mov"},
+            faststart=os.path.splitext(self.args.output)[1].lower() in {".mp4", ".m4v", ".mov"},
         )
         self.log_verbose(f"Mux cmd: {' '.join(mux_cmd)}")
         self._muxer = StreamingFfmpegMuxer.start(mux_cmd)

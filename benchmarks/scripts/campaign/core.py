@@ -74,9 +74,7 @@ class CampaignConfig:
 
     def validate(self) -> None:
         if self.schema_version != 1:
-            raise CampaignEventError(
-                f"Unsupported campaign config schema: {self.schema_version}"
-            )
+            raise CampaignEventError(f"Unsupported campaign config schema: {self.schema_version}")
         if self.execution_profile not in EXECUTION_PROFILES:
             raise CampaignEventError(
                 f"Unknown campaign execution profile: {self.execution_profile}"
@@ -101,10 +99,7 @@ class CampaignStep:
     @property
     def manifest_path(self) -> Path:
         return (
-            Path(self.implementation)
-            / f"round-{self.round_index:02d}"
-            / "run-01"
-            / "manifest.json"
+            Path(self.implementation) / f"round-{self.round_index:02d}" / "run-01" / "manifest.json"
         )
 
 
@@ -151,9 +146,7 @@ class CampaignEvent:
 
     def validate_shape(self) -> None:
         if self.schema_version != 1:
-            raise CampaignEventError(
-                f"Unsupported campaign event schema: {self.schema_version}"
-            )
+            raise CampaignEventError(f"Unsupported campaign event schema: {self.schema_version}")
         if self.attempt_index <= 0 or self.sequence_index <= 0:
             raise CampaignEventError("Campaign event indexes must be positive")
         if self.status not in {"completed", "failed"}:
@@ -215,9 +208,7 @@ def load_events(path: Path) -> list[CampaignEvent]:
                 f"Invalid JSON in campaign event log line {line_number}: {exc}"
             ) from exc
         if not isinstance(value, dict):
-            raise CampaignEventError(
-                f"Campaign event log line {line_number} is not an object"
-            )
+            raise CampaignEventError(f"Campaign event log line {line_number} is not an object")
         events.append(CampaignEvent.from_dict(value))
     for expected_attempt, event in enumerate(events, start=1):
         if event.attempt_index != expected_attempt:
@@ -285,8 +276,7 @@ def validate_event_prefix(
         for label, (actual, wanted) in checks.items():
             if actual != wanted:
                 raise CampaignEventError(
-                    f"Campaign event {position + 1} changed {label}: "
-                    f"{actual!r} != {wanted!r}"
+                    f"Campaign event {position + 1} changed {label}: {actual!r} != {wanted!r}"
                 )
         required_idle = 0.0 if previous is None else idle_seconds
         if event.required_idle_seconds != required_idle:
@@ -296,9 +286,7 @@ def validate_event_prefix(
         started = parse_timestamp(event.started_at_utc)
         finished = parse_timestamp(event.finished_at_utc)
         if finished < started:
-            raise CampaignEventError(
-                f"Campaign event {position + 1} finishes before it starts"
-            )
+            raise CampaignEventError(f"Campaign event {position + 1} finishes before it starts")
         if previous is not None:
             previous_finished = parse_timestamp(previous.finished_at_utc)
             observed = (started - previous_finished).total_seconds()
@@ -323,7 +311,6 @@ def validate_complete_event_log(
     expected_count = len(campaign_steps(rounds))
     if len(completed) != expected_count:
         raise CampaignEventError(
-            f"Campaign event log has {len(completed)} completed steps, "
-            f"expected {expected_count}"
+            f"Campaign event log has {len(completed)} completed steps, expected {expected_count}"
         )
     return completed

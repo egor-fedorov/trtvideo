@@ -51,10 +51,7 @@ def _quality_frame_indices(
     value = (
         override
         if override is not None
-        else ",".join(
-            str(index)
-            for index in manifest["quality"]["model_space"]["frame_indices"]
-        )
+        else ",".join(str(index) for index in manifest["quality"]["model_space"]["frame_indices"])
     )
     return parse_frame_indices(value, frame_count=int(manifest["clip"]["frames"]))
 
@@ -96,9 +93,7 @@ def build_capture_command(
         ]
     )
     if profile.vapoursynth_threads is not None:
-        command.extend(
-            ["--arg", f"vs_threads={profile.vapoursynth_threads}"]
-        )
+        command.extend(["--arg", f"vs_threads={profile.vapoursynth_threads}"])
     command.extend([args.script, str(output_path)])
     return command
 
@@ -115,9 +110,7 @@ def _run_capture(command: list[str], log_path: Path) -> None:
         except OSError as exc:
             raise ModelSpaceError(f"Cannot start vspipe: {exc}") from exc
     if result.returncode != 0:
-        raise ModelSpaceError(
-            f"vspipe model-space capture failed; see {log_path}"
-        )
+        raise ModelSpaceError(f"vspipe model-space capture failed; see {log_path}")
 
 
 def normalize_vapoursynth_rgbs(
@@ -131,8 +124,7 @@ def normalize_vapoursynth_rgbs(
     expected_size = shape[0] * plane_bytes
     if source_path.stat().st_size != expected_size:
         raise ModelSpaceError(
-            "Unexpected raw RGBS size: "
-            f"{source_path.stat().st_size} != {expected_size}"
+            f"Unexpected raw RGBS size: {source_path.stat().st_size} != {expected_size}"
         )
 
     def copy_plane(source: Any, output: Any, plane_index: int) -> None:
@@ -235,11 +227,7 @@ def capture(args: argparse.Namespace) -> Path:
     manifest_path = output_dir / "manifest.json"
     write_capture_manifest(
         manifest_path,
-        implementation=(
-            "vs-mlrt"
-            if args.implementation == "vstrt"
-            else "VSGAN-tensorrt-docker"
-        ),
+        implementation=("vs-mlrt" if args.implementation == "vstrt" else "VSGAN-tensorrt-docker"),
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),

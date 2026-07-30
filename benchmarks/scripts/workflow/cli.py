@@ -58,9 +58,7 @@ def _repository_revision(root: Path) -> str:
 def _require_clean_worktree(root: Path) -> None:
     changes = _git_output(root, "status", "--porcelain")
     if changes:
-        raise WorkflowError(
-            "Complete benchmark workflows require a clean committed worktree"
-        )
+        raise WorkflowError("Complete benchmark workflows require a clean committed worktree")
 
 
 def _sha256(path: Path) -> str:
@@ -80,16 +78,9 @@ def _state_path(
     if explicit is not None:
         path = Path(explicit)
         return path if path.is_absolute() else root / path
-    scope = (
-        f"{options.workload_key or 'all'}-"
-        f"{options.variant_name or 'all'}"
-    )
+    scope = f"{options.workload_key or 'all'}-{options.variant_name or 'all'}"
     profile = COMPARATIVE_PROFILE if options.goal == "comparative" else "canonical"
-    return (
-        root
-        / "artefacts/benchmarks/workflows"
-        / f"{options.goal}-{profile}-{scope}.json"
-    )
+    return root / "artefacts/benchmarks/workflows" / f"{options.goal}-{profile}-{scope}.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -161,11 +152,7 @@ def main() -> None:
         revision = "dry-run" if args.dry_run else _repository_revision(root)
         context = {
             "goal": options.goal,
-            "mode": (
-                COMPARATIVE_PROFILE
-                if options.goal == "comparative"
-                else "canonical"
-            ),
+            "mode": (COMPARATIVE_PROFILE if options.goal == "comparative" else "canonical"),
             "gpu_id": options.gpu_id,
             "matrix_sha256": _sha256(matrix_path),
             "repository_revision": revision,
@@ -185,9 +172,7 @@ def main() -> None:
                 resume=options.resume,
             )
         print(
-            f"Workflow: {options.goal}; "
-            f"matrix: {', '.join(selection_keys)}; "
-            f"steps: {len(plan)}",
+            f"Workflow: {options.goal}; matrix: {', '.join(selection_keys)}; steps: {len(plan)}",
             flush=True,
         )
         if args.dry_run:

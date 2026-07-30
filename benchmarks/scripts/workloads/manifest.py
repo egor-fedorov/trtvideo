@@ -97,13 +97,11 @@ def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int)
         or not all(isinstance(value, int) for value in frame_indices)
     ):
         raise WorkloadError(
-            "Manifest field 'quality.model_space.frame_indices' "
-            "must be a non-empty integer array"
+            "Manifest field 'quality.model_space.frame_indices' must be a non-empty integer array"
         )
     if frame_indices != sorted(set(frame_indices)):
         raise WorkloadError(
-            "Manifest field 'quality.model_space.frame_indices' "
-            "must be sorted and unique"
+            "Manifest field 'quality.model_space.frame_indices' must be sorted and unique"
         )
     if frame_indices[0] < 0 or frame_indices[-1] >= clip_frames:
         raise WorkloadError(
@@ -115,11 +113,7 @@ def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int)
         stage_thresholds = _require_dict(thresholds, stage)
         for name in ("p99_abs", "rmse", "min_psnr_db"):
             value = stage_thresholds.get(name)
-            if (
-                not isinstance(value, (int, float))
-                or isinstance(value, bool)
-                or value <= 0
-            ):
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
                 raise WorkloadError(
                     "Manifest field "
                     f"'quality.model_space.thresholds.{stage}.{name}' "
@@ -159,8 +153,7 @@ def _validate_product_output_quality(
         or psnr_min_db <= 0
     ):
         raise WorkloadError(
-            "Manifest field 'quality.product_output.thresholds.psnr_min_db' "
-            "must be positive"
+            "Manifest field 'quality.product_output.thresholds.psnr_min_db' must be positive"
         )
     if (
         not isinstance(ssim_min, (int, float))
@@ -168,8 +161,7 @@ def _validate_product_output_quality(
         or not 0 < ssim_min <= 1
     ):
         raise WorkloadError(
-            "Manifest field 'quality.product_output.thresholds.ssim_min' "
-            "must be in (0, 1]"
+            "Manifest field 'quality.product_output.thresholds.ssim_min' must be in (0, 1]"
         )
 
     crops = _require_list(product_output, "crops")
@@ -190,13 +182,9 @@ def _validate_product_output_quality(
                 or (field in {"width", "height"} and value <= 0)
                 or value > 1
             ):
-                raise WorkloadError(
-                    f"Manifest product-output crop '{name}' has invalid {field}"
-                )
+                raise WorkloadError(f"Manifest product-output crop '{name}' has invalid {field}")
         if crop["x"] + crop["width"] > 1 or crop["y"] + crop["height"] > 1:
-            raise WorkloadError(
-                f"Manifest product-output crop '{name}' exceeds the output frame"
-            )
+            raise WorkloadError(f"Manifest product-output crop '{name}' exceeds the output frame")
 
 
 def validate_manifest(manifest: dict[str, Any]) -> None:
@@ -238,9 +226,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     if not isinstance(benchmark.get("extra_runs_on_spread"), int) or (
         benchmark["extra_runs_on_spread"] < 0
     ):
-        raise WorkloadError(
-            "Manifest field 'benchmark.extra_runs_on_spread' must be non-negative"
-        )
+        raise WorkloadError("Manifest field 'benchmark.extra_runs_on_spread' must be non-negative")
     if not isinstance(benchmark.get("spread_threshold"), (int, float)) or not (
         0 <= benchmark["spread_threshold"] < 1
     ):
@@ -325,9 +311,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         if not isinstance(benchmark_output.get("bitrate_mbps"), (int, float)) or (
             benchmark_output["bitrate_mbps"] <= 0
         ):
-            raise WorkloadError(
-                f"Clip variant '{name}' has invalid benchmark_output.bitrate_mbps"
-            )
+            raise WorkloadError(f"Clip variant '{name}' has invalid benchmark_output.bitrate_mbps")
 
     if model_names != clip_names:
         raise WorkloadError("Model and clip variants must use the same names")

@@ -39,10 +39,7 @@ def _quality_frame_indices(
     value = (
         override
         if override is not None
-        else ",".join(
-            str(index)
-            for index in manifest["quality"]["model_space"]["frame_indices"]
-        )
+        else ",".join(str(index) for index in manifest["quality"]["model_space"]["frame_indices"])
     )
     return parse_frame_indices(value, frame_count=int(manifest["clip"]["frames"]))
 
@@ -92,13 +89,9 @@ def _copy_gpu_tensor_to_host(tensor: Any, *, cudart: Any, np: Any) -> Any:
         h_stride = shape[3] * dtype.itemsize
         w_stride = dtype.itemsize
     else:
-        n_stride, c_stride, h_stride, w_stride = (
-            int(value) for value in strides
-        )
+        n_stride, c_stride, h_stride, w_stride = (int(value) for value in strides)
     if w_stride != dtype.itemsize:
-        raise ModelSpaceError(
-            f"Captured tensor width is not contiguous: strides={strides}"
-        )
+        raise ModelSpaceError(f"Captured tensor width is not contiguous: strides={strides}")
 
     device_pointer = int(interface["data"][0])
     host = np.empty(shape, dtype=dtype)
@@ -111,18 +104,14 @@ def _copy_gpu_tensor_to_host(tensor: Any, *, cudart: Any, np: Any) -> Any:
                 + batch_index * host.strides[0]
                 + channel_index * host.strides[1],
                 host.strides[2],
-                device_pointer
-                + batch_index * n_stride
-                + channel_index * c_stride,
+                device_pointer + batch_index * n_stride + channel_index * c_stride,
                 h_stride,
                 row_bytes,
                 shape[2],
                 cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost,
             )
             if result[0] != cudart.cudaError_t.cudaSuccess:
-                raise ModelSpaceError(
-                    f"Failed to copy captured tensor to host: {result[0]}"
-                )
+                raise ModelSpaceError(f"Failed to copy captured tensor to host: {result[0]}")
     return host
 
 
@@ -168,9 +157,7 @@ def capture(args: argparse.Namespace) -> Path:
     if info.pix_fmt not in {"nv12", "yuv420p"}:
         raise ModelSpaceError(f"Unsupported model-space input format: {info.pix_fmt}")
     if info.color_space != "bt709" or info.color_range != "tv":
-        raise ModelSpaceError(
-            "Model-space capture requires limited-range BT.709 input"
-        )
+        raise ModelSpaceError("Model-space capture requires limited-range BT.709 input")
 
     runtime = CvcudaTensorRTRuntime(
         str(engine_path),

@@ -74,9 +74,7 @@ def parse_trtexec_output(output: str) -> dict[str, float]:
         "latency_median_ms": rf"Latency:.*?median\s*=\s*{NUMBER}\s*ms",
         "latency_p95_ms": rf"Latency:.*?percentile\(95%\)\s*=\s*{NUMBER}\s*ms",
         "gpu_compute_median_ms": rf"GPU Compute Time:.*?median\s*=\s*{NUMBER}\s*ms",
-        "gpu_compute_p95_ms": (
-            rf"GPU Compute Time:.*?percentile\(95%\)\s*=\s*{NUMBER}\s*ms"
-        ),
+        "gpu_compute_p95_ms": (rf"GPU Compute Time:.*?percentile\(95%\)\s*=\s*{NUMBER}\s*ms"),
     }
     metrics: dict[str, float] = {}
     for name, pattern in patterns.items():
@@ -203,9 +201,7 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
         )
     finally:
         cpu_after = snapshot_child_cpu()
-        samples = context.sampler.samples_relative_to(
-            context.sampler.stop(), sample_origin
-        )
+        samples = context.sampler.samples_relative_to(context.sampler.stop(), sample_origin)
     cpu_summary = summarize_child_cpu(
         cpu_before,
         cpu_after,
@@ -245,9 +241,7 @@ def _run_one(context: TrtexecRunContext, run_index: int) -> dict[str, Any]:
         "product": "trtexec",
         "backend": "TensorRT",
         "workload_id": context.workload["id"],
-        "benchmark_contract_version": context.workload["benchmark"][
-            "contract_version"
-        ],
+        "benchmark_contract_version": context.workload["benchmark"]["contract_version"],
         "variant": context.args.variant,
         "implementation": context.plan["implementation"],
         "parameters": parameters,
@@ -287,12 +281,7 @@ def _throughput_qps(manifest: dict[str, Any]) -> float:
 
 
 def _power_limit(manifest: dict[str, Any]) -> float | None:
-    value = (
-        manifest.get("metrics", {})
-        .get("nvml", {})
-        .get("power", {})
-        .get("limit_w")
-    )
+    value = manifest.get("metrics", {}).get("nvml", {}).get("power", {}).get("limit_w")
     if value is None:
         return None
     if not isinstance(value, (int, float)) or isinstance(value, bool):
@@ -401,8 +390,7 @@ def _run_suite(
     }
     write_json(output_dir / "suite.json", summary)
     print(
-        f"Benchmark suite {status}: median={statistics['median_fps']!r} qps, "
-        f"spread={spread!r}",
+        f"Benchmark suite {status}: median={statistics['median_fps']!r} qps, spread={spread!r}",
         file=sys.stderr,
     )
     report_publishability_errors(

@@ -202,8 +202,7 @@ class BasePipeline(ABC):
         self._record_lifecycle_phase("video_probed")
         info = self.info
         self.log(
-            f"Input video: {info.width}x{info.height}, "
-            f"{info.fps:.2f} fps, {info.nb_frames} frames"
+            f"Input video: {info.width}x{info.height}, {info.fps:.2f} fps, {info.nb_frames} frames"
         )
         self.log(
             "Input color: "
@@ -426,11 +425,11 @@ class BasePipeline(ABC):
         wall_min = int(wall_total // 60)
         wall_sec = wall_total % 60
 
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Frames processed: {len(frame_times)}")
         print(f"Average time:     {avg_time:.3f}s/frame ({fps:.1f} fps)")
         print(f"  Without warmup: {avg_no_warmup:.3f}s/frame ({fps_no_warmup:.1f} fps)")
         print(f"Min/Max:          {min_time:.3f}s / {max_time:.3f}s")
         print(f"Total time:       {wall_min}m {wall_sec:.1f}s")
         print(f"Output file:      {self.args.output}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")

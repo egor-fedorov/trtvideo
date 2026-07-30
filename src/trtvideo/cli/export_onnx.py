@@ -95,7 +95,7 @@ def export_onnx(
         print(f"  Reparameterized {replaced} mutable convolution blocks")
     dummy_input = torch.randn(1, 3, input_h, input_w, dtype=torch.float32)
 
-    print(f"  Export: input {input_w}x{input_h} -> output {input_w*2}x{input_h*2}")
+    print(f"  Export: input {input_w}x{input_h} -> output {input_w * 2}x{input_h * 2}")
     print(f"  File: {output_path}")
 
     torch.onnx.export(

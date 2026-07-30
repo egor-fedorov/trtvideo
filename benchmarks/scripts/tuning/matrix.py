@@ -86,8 +86,7 @@ def verify_matrix(
         for label, (actual, expected) in checks.items():
             if actual != expected:
                 raise TunedMatrixError(
-                    f"{variant} final campaign {label} changed "
-                    f"({actual!r} != {expected!r})"
+                    f"{variant} final campaign {label} changed ({actual!r} != {expected!r})"
                 )
         campaign_path, campaign = _verified_artifact(
             root,
@@ -117,9 +116,7 @@ def verify_matrix(
                 or quality_report.get("publishable") is not True
                 or quality_report.get("variant") != variant
             ):
-                raise TunedMatrixError(
-                    f"{variant} {name} quality evidence is not valid"
-                )
+                raise TunedMatrixError(f"{variant} {name} quality evidence is not valid")
             quality_records[name] = {
                 "path": quality_path.relative_to(root).as_posix(),
                 "sha256": _sha256(quality_path),

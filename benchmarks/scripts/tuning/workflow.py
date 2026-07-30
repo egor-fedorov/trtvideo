@@ -82,11 +82,7 @@ class WorkflowPaths:
         resolved_root = root.resolve()
 
         def under_root(path: Path, *, label: str) -> Path:
-            resolved = (
-                path.resolve()
-                if path.is_absolute()
-                else (resolved_root / path).resolve()
-            )
+            resolved = path.resolve() if path.is_absolute() else (resolved_root / path).resolve()
             if resolved != resolved_root and resolved_root not in resolved.parents:
                 raise TuningWorkflowError(f"{label} escapes the repository root")
             return resolved
@@ -105,9 +101,7 @@ class WorkflowPaths:
         try:
             return path.resolve().relative_to(self.root).as_posix()
         except ValueError as exc:
-            raise TuningWorkflowError(
-                f"Artifact is outside the repository root: {path}"
-            ) from exc
+            raise TuningWorkflowError(f"Artifact is outside the repository root: {path}") from exc
 
 
 @dataclass(frozen=True)
@@ -155,9 +149,7 @@ def _require_clean_destination(
             )
         return False
     if directory.exists() and any(directory.iterdir()):
-        raise TuningWorkflowError(
-            f"Partial evidence must be removed before retrying: {directory}"
-        )
+        raise TuningWorkflowError(f"Partial evidence must be removed before retrying: {directory}")
     return True
 
 
@@ -184,9 +176,9 @@ def _candidate_variables(
     base: dict[str, str],
 ) -> dict[str, str]:
     values = dict(base)
-    values[
-        "VSTRT_ARGS" if candidate.implementation == "vstrt" else "VSGAN_ARGS"
-    ] = candidate.runner_arguments()
+    values["VSTRT_ARGS" if candidate.implementation == "vstrt" else "VSGAN_ARGS"] = (
+        candidate.runner_arguments()
+    )
     return values
 
 
@@ -228,14 +220,8 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         label="VSGAN engine",
     )
     runner = MakeRunner(paths, executable=args.make)
-    if (
-        paths.sweep_dir.exists()
-        and any(paths.sweep_dir.iterdir())
-        and not args.resume
-    ):
-        raise TuningWorkflowError(
-            f"Sweep directory is not empty; use --resume: {paths.sweep_dir}"
-        )
+    if paths.sweep_dir.exists() and any(paths.sweep_dir.iterdir()) and not args.resume:
+        raise TuningWorkflowError(f"Sweep directory is not empty; use --resume: {paths.sweep_dir}")
     paths.sweep_dir.mkdir(parents=True, exist_ok=True)
     base = _base_make_variables(
         paths,
@@ -272,8 +258,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     candidate_count = len(contract.candidates)
     for candidate_index, candidate in enumerate(contract.candidates, start=1):
         prefix = (
-            f"[tuned sweep candidate {candidate_index}/{candidate_count}] "
-            f"{candidate.candidate_id}"
+            f"[tuned sweep candidate {candidate_index}/{candidate_count}] {candidate.candidate_id}"
         )
         candidate_root = candidate_directory(paths.sweep_dir, candidate)
         variables = _candidate_variables(candidate, base)
@@ -285,14 +270,11 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             resume=args.resume,
         )
         _progress(
-            f"{prefix}: "
-            + ("performance suite" if run_performance else "SKIP performance suite")
+            f"{prefix}: " + ("performance suite" if run_performance else "SKIP performance suite")
         )
         if run_performance:
             output_variable = (
-                "VSTRT_OUTPUT_DIR"
-                if candidate.implementation == "vstrt"
-                else "VSGAN_OUTPUT_DIR"
+                "VSTRT_OUTPUT_DIR" if candidate.implementation == "vstrt" else "VSGAN_OUTPUT_DIR"
             )
             runner.run(
                 f"run-{candidate.implementation}",
@@ -305,9 +287,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             )
 
         capture_root = candidate_root / "model-space"
-        capture_manifest = (
-            capture_root / candidate.implementation / "manifest.json"
-        )
+        capture_manifest = capture_root / candidate.implementation / "manifest.json"
         capture_model_space = _require_clean_destination(
             capture_root,
             marker=capture_manifest,
@@ -315,11 +295,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         )
         _progress(
             f"{prefix}: "
-            + (
-                "model-space capture"
-                if capture_model_space
-                else "SKIP model-space capture"
-            )
+            + ("model-space capture" if capture_model_space else "SKIP model-space capture")
         )
         if capture_model_space:
             runner.run(
@@ -332,9 +308,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
 
         report_path = candidate_root / "model-space-parity.json"
         if report_path.is_file() and not args.resume:
-            raise TuningWorkflowError(
-                f"Evidence already exists; use --resume: {report_path}"
-            )
+            raise TuningWorkflowError(f"Evidence already exists; use --resume: {report_path}")
         _progress(
             f"{prefix}: "
             + (
@@ -390,17 +364,13 @@ def _selected_candidates(
         winner = winners.get(implementation)
         candidate_id = winner.get("candidate_id") if isinstance(winner, dict) else None
         if not isinstance(candidate_id, str):
-            raise TuningWorkflowError(
-                f"Tuned candidate selection has no {implementation} winner"
-            )
+            raise TuningWorkflowError(f"Tuned candidate selection has no {implementation} winner")
         result[implementation] = contract.candidate(candidate_id)
     return result
 
 
 def _winner_signature(winners: dict[str, TunedCandidate]) -> str:
-    return "__".join(
-        winners[implementation].candidate_id for implementation in sorted(winners)
-    )
+    return "__".join(winners[implementation].candidate_id for implementation in sorted(winners))
 
 
 def _failed_implementations(report_path: Path) -> dict[str, str]:
@@ -430,11 +400,7 @@ def _record_disqualifications(
     evidence: Path,
     paths: WorkflowPaths,
 ) -> None:
-    value = (
-        _load_json(path)
-        if path.is_file()
-        else {"schema_version": 1, "entries": []}
-    )
+    value = _load_json(path) if path.is_file() else {"schema_version": 1, "entries": []}
     entries = value.get("entries")
     if not isinstance(entries, list):
         raise TuningWorkflowError("Disqualification entries must be an array")
@@ -648,9 +614,7 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         or campaign.get("publishable") is not True
         or campaign.get("execution_profile") != "tuned"
     ):
-        raise TuningWorkflowError(
-            f"Tuned winner campaign is not publishable: {campaign_path}"
-        )
+        raise TuningWorkflowError(f"Tuned winner campaign is not publishable: {campaign_path}")
     report = {
         "schema_version": 1,
         "document_type": "tuned-winner-campaign",

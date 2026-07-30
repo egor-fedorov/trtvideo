@@ -52,9 +52,7 @@ def _candidate_evidence(
             "status": "valid",
             "product": PRODUCTS[candidate.implementation],
             "workload_id": workload["id"],
-            "benchmark_contract_version": workload["benchmark"][
-                "contract_version"
-            ],
+            "benchmark_contract_version": workload["benchmark"]["contract_version"],
             "variant": "1080p",
             "parameters": {
                 **profile,
@@ -86,9 +84,7 @@ def _candidate_evidence(
         {
             "status": "valid",
             "workload_id": workload["id"],
-            "benchmark_contract_version": workload["benchmark"][
-                "contract_version"
-            ],
+            "benchmark_contract_version": workload["benchmark"]["contract_version"],
             "variant": "1080p",
             "parameters": profile,
             "statistics": {
@@ -129,9 +125,7 @@ def _candidate_evidence(
 
 def _complete_sweep(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
     contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
-    workload = load_manifest(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json")
-    )
+    workload = load_manifest(Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"))
     sweep_dir = tmp_path / "artefacts" / "sweep"
     speeds = {
         "vstrt-s2-g0": 10.0,
@@ -226,10 +220,13 @@ def test_rank_rejects_incomplete_sweep_even_when_winners_exist(
     tmp_path: Path,
 ) -> None:
     contract, workload, sweep_dir = _complete_sweep(tmp_path)
-    missing = candidate_directory(
-        sweep_dir,
-        contract.candidate("vsgan-s4-g0"),
-    ) / "model-space-parity.json"
+    missing = (
+        candidate_directory(
+            sweep_dir,
+            contract.candidate("vsgan-s4-g0"),
+        )
+        / "model-space-parity.json"
+    )
     missing.unlink()
 
     report = rank_tuned_candidates(

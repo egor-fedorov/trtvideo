@@ -74,17 +74,11 @@ def validate_model_space_report(
             expectation.reference_image_id,
         ),
         "reference revision": (
-            report.get("reference", {})
-            .get("image", {})
-            .get("repository_revision"),
+            report.get("reference", {}).get("image", {}).get("repository_revision"),
             expectation.reference_revision,
         ),
         "reference source state": (
-            str(
-                report.get("reference", {})
-                .get("image", {})
-                .get("source_dirty")
-            ),
+            str(report.get("reference", {}).get("image", {}).get("source_dirty")),
             expectation.reference_source_dirty,
         ),
         "reference execution profile": (
@@ -106,16 +100,9 @@ def validate_model_space_report(
         implementation = comparison.get("implementation")
         if isinstance(implementation, str):
             by_implementation[implementation] = comparison
-    expected_names = {
-        candidate.implementation for candidate in expectation.comparisons
-    }
-    if (
-        set(by_implementation) != expected_names
-        or len(comparisons) != len(expected_names)
-    ):
-        raise ManifestContractError(
-            "Model-space report comparison set changed"
-        )
+    expected_names = {candidate.implementation for candidate in expectation.comparisons}
+    if set(by_implementation) != expected_names or len(comparisons) != len(expected_names):
+        raise ManifestContractError("Model-space report comparison set changed")
     for candidate in expectation.comparisons:
         comparison = by_implementation[candidate.implementation]
         candidate_checks = {
@@ -144,7 +131,6 @@ def validate_model_space_report(
         for label, (actual, expected) in candidate_checks.items():
             if expected is not None and actual != expected:
                 raise ManifestContractError(
-                    "Model-space report changed "
-                    f"{candidate.implementation} {label}"
+                    f"Model-space report changed {candidate.implementation} {label}"
                 )
     return by_implementation

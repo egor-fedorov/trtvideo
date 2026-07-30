@@ -154,10 +154,7 @@ class NvcodecFrameProcessor:
                 self.buffers.nv12_in_full.uv,
                 source_uv,
                 scale=_CODE_VALUE_MAX / _LIMITED_CHROMA_RANGE,
-                offset=(
-                    _LIMITED_CHROMA_CENTER
-                    * (1.0 - _CODE_VALUE_MAX / _LIMITED_CHROMA_RANGE)
-                ),
+                offset=(_LIMITED_CHROMA_CENTER * (1.0 - _CODE_VALUE_MAX / _LIMITED_CHROMA_RANGE)),
                 stream=self.runtime.stream,
             )
             color_input = self.buffers.nv12_in_full.tensor
@@ -218,10 +215,7 @@ class NvcodecFrameProcessor:
             self.buffers.nv12_out_limited.uv,
             self.buffers.nv12_out_full.uv,
             scale=_LIMITED_CHROMA_RANGE / _CODE_VALUE_MAX,
-            offset=(
-                _LIMITED_CHROMA_CENTER
-                * (1.0 - _LIMITED_CHROMA_RANGE / _CODE_VALUE_MAX)
-            ),
+            offset=(_LIMITED_CHROMA_CENTER * (1.0 - _LIMITED_CHROMA_RANGE / _CODE_VALUE_MAX)),
             stream=self.runtime.stream,
         )
         return self.buffers.nv12_out_limited.hwc

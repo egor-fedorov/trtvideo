@@ -69,9 +69,7 @@ def test_lifecycle_reports_detailed_phase_intervals() -> None:
 
     detailed = summary["detailed"]
     assert detailed["checkpoints_from_process_start_sec"]["pipeline_created"] == 0.1
-    assert (
-        detailed["intervals_sec"]["pipeline_created_to_encoder_initialized"] == 0.7
-    )
+    assert detailed["intervals_sec"]["pipeline_created_to_encoder_initialized"] == 0.7
     assert detailed["intervals_sec"]["last_frame_completed_to_frame_loop_completed"] == 0.1
     assert detailed["intervals_sec"]["mux_completed_to_process_finished"] == 1.0
 
@@ -101,9 +99,7 @@ def test_lifecycle_aggregates_detailed_interval_medians() -> None:
         {"detailed": {"intervals_sec": {"runtime_to_decoder": 0.3}}},
     ]
 
-    assert median_detailed_phase_intervals(summaries) == {
-        "runtime_to_decoder": 0.3
-    }
+    assert median_detailed_phase_intervals(summaries) == {"runtime_to_decoder": 0.3}
 
 
 def test_lifecycle_rejects_mixed_detailed_instrumentation() -> None:

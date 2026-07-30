@@ -82,10 +82,7 @@ def _resolution_evidence(
 
 
 def test_tuned_matrix_requires_both_valid_resolutions(tmp_path: Path) -> None:
-    reports = {
-        variant: _resolution_evidence(tmp_path, variant)
-        for variant in ("720p", "1080p")
-    }
+    reports = {variant: _resolution_evidence(tmp_path, variant) for variant in ("720p", "1080p")}
 
     report = verify_matrix(root=tmp_path, campaign_reports=reports)
 
@@ -98,9 +95,7 @@ def test_tuned_matrix_rejects_missing_resolution(tmp_path: Path) -> None:
     with pytest.raises(TunedMatrixError, match="exactly 720p and 1080p"):
         verify_matrix(
             root=tmp_path,
-            campaign_reports={
-                "1080p": _resolution_evidence(tmp_path, "1080p")
-            },
+            campaign_reports={"1080p": _resolution_evidence(tmp_path, "1080p")},
         )
 
 

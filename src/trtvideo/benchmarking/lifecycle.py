@@ -96,8 +96,7 @@ def load_frame_markers(path: Path) -> FrameLifecycleMarkers:
             processed_frames=int(payload["processed_frames"]),
             instrumentation=str(payload["instrumentation"]),
             phase_completed_ns={
-                str(name): int(completed_ns)
-                for name, completed_ns in phase_payload.items()
+                str(name): int(completed_ns) for name, completed_ns in phase_payload.items()
             },
         )
     except (KeyError, TypeError, ValueError) as exc:
@@ -168,10 +167,7 @@ def median_detailed_phase_intervals(
     medians: dict[str, float] = {}
     for name in sorted(expected_names):
         values = [intervals[name] for intervals in interval_reports]
-        if any(
-            not isinstance(value, (int, float)) or isinstance(value, bool)
-            for value in values
-        ):
+        if any(not isinstance(value, (int, float)) or isinstance(value, bool) for value in values):
             raise LifecycleTimingError(f"Detailed lifecycle interval {name!r} is invalid")
         medians[name] = float(statistics.median(values))
     return medians

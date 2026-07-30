@@ -146,10 +146,7 @@ def test_dry_run_plan_is_explicitly_non_publishable(tmp_path: Path) -> None:
 def test_gpu_video_preflight_rejects_success_without_gpu() -> None:
     error = gpu_video_preflight_error(
         0,
-        (
-            "Could not find any NVIDIA GPUs. "
-            "GPU video accelerator tracing is not available."
-        ),
+        ("Could not find any NVIDIA GPUs. GPU video accelerator tracing is not available."),
         gpu_id=0,
     )
 

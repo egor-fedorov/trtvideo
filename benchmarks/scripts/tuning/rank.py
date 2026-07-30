@@ -108,12 +108,7 @@ class CandidateAssessment:
 
 def candidate_directory(sweep_dir: Path, candidate: TunedCandidate) -> Path:
     """Return the collision-free root for one candidate."""
-    return (
-        sweep_dir
-        / "candidates"
-        / candidate.implementation
-        / candidate.candidate_id
-    )
+    return sweep_dir / "candidates" / candidate.implementation / candidate.candidate_id
 
 
 def load_disqualifications(
@@ -143,13 +138,9 @@ def load_disqualifications(
                 f"Disqualification references unknown candidate: {candidate_id!r}"
             )
         if not isinstance(reason, str) or not reason:
-            raise TuningEvidenceError(
-                f"Disqualification {candidate_id} has no reason"
-            )
+            raise TuningEvidenceError(f"Disqualification {candidate_id} has no reason")
         if not isinstance(evidence, str) or not evidence:
-            raise TuningEvidenceError(
-                f"Disqualification {candidate_id} has no evidence path"
-            )
+            raise TuningEvidenceError(f"Disqualification {candidate_id} has no evidence path")
         result[str(candidate_id)] = {
             "reason": reason,
             "evidence": evidence,
@@ -213,9 +204,7 @@ def _validate_suite(
                 label="Performance run",
             )
             if not manifest_path.is_file():
-                raise TuningEvidenceError(
-                    f"Performance run manifest is missing: {manifest_path}"
-                )
+                raise TuningEvidenceError(f"Performance run manifest is missing: {manifest_path}")
             identities.append(
                 validate_run_manifest(
                     load_json(manifest_path),
@@ -276,9 +265,7 @@ def _validate_model_space(
                 onnx_sha256=identity.onnx_sha256,
                 comparisons=(
                     ModelSpaceComparisonExpectation(
-                        implementation=PRODUCTS[
-                            assessment.candidate.implementation
-                        ],
+                        implementation=PRODUCTS[assessment.candidate.implementation],
                         engine_sha256=identity.engine_sha256,
                         image_id=identity.image_id,
                         repository_revision=identity.repository_revision,
@@ -293,9 +280,7 @@ def _validate_model_space(
 
 def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
     identities = [
-        assessment.identity
-        for assessment in assessments
-        if assessment.identity is not None
+        assessment.identity for assessment in assessments if assessment.identity is not None
     ]
     if not identities:
         return
@@ -303,9 +288,7 @@ def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
     for assessment in assessments:
         identity = assessment.identity
         if identity is not None and identity.shared_model_key() != shared_key:
-            assessment.reject(
-                "Candidate changed shared workload, model, encoder, or revision"
-            )
+            assessment.reject("Candidate changed shared workload, model, encoder, or revision")
     for implementation in PRODUCTS:
         implementation_assessments = [
             assessment
@@ -322,9 +305,7 @@ def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
             identity = assessment.identity
             assert identity is not None
             if identity.implementation_key() != expected:
-                assessment.reject(
-                    "Candidate changed implementation image or engine"
-                )
+                assessment.reject("Candidate changed implementation image or engine")
 
 
 def _validate_disqualification(
@@ -342,30 +323,22 @@ def _validate_disqualification(
         label=f"{assessment.candidate.candidate_id} disqualification",
     )
     if not evidence_path.is_file():
-        raise TuningEvidenceError(
-            f"Disqualification evidence is missing: {evidence_path}"
-        )
+        raise TuningEvidenceError(f"Disqualification evidence is missing: {evidence_path}")
     report = load_json(evidence_path)
     if report.get("document_type") not in {
         "model-space-parity",
         "product-output-parity",
     }:
-        raise TuningEvidenceError(
-            "Candidate disqualification is not a full quality report"
-        )
+        raise TuningEvidenceError("Candidate disqualification is not a full quality report")
     if report.get("status") != "invalid":
         raise TuningEvidenceError(
             "Candidate disqualification must reference an invalid quality report"
         )
     if report.get("workload_id") != workload_id or report.get("variant") != variant:
-        raise TuningEvidenceError(
-            "Candidate disqualification changed workload or variant"
-        )
+        raise TuningEvidenceError("Candidate disqualification changed workload or variant")
     comparisons = report.get("comparisons")
     if not isinstance(comparisons, list):
-        raise TuningEvidenceError(
-            "Candidate disqualification report has no comparisons"
-        )
+        raise TuningEvidenceError("Candidate disqualification report has no comparisons")
     product = PRODUCTS[assessment.candidate.implementation]
     matching = [
         comparison
@@ -381,9 +354,7 @@ def _validate_disqualification(
     comparison = matching[0]
     profile = comparison.get("execution_profile")
     if profile is not None and profile != assessment.candidate.execution_profile():
-        raise TuningEvidenceError(
-            "Candidate disqualification execution profile changed"
-        )
+        raise TuningEvidenceError("Candidate disqualification execution profile changed")
     run_manifest_value = comparison.get("run_manifest")
     if run_manifest_value is not None:
         run_manifest_path = artifact_path(
@@ -406,15 +377,10 @@ def _validate_disqualification(
         )
         if (
             assessment.identity is not None
-            and identity.implementation_key()
-            != assessment.identity.implementation_key()
+            and identity.implementation_key() != assessment.identity.implementation_key()
         ):
-            raise TuningEvidenceError(
-                "Candidate disqualification changed implementation evidence"
-            )
-    assessment.reject(
-        "Full winner quality gate failed: " + rejection["reason"]
-    )
+            raise TuningEvidenceError("Candidate disqualification changed implementation evidence")
+    assessment.reject("Full winner quality gate failed: " + rejection["reason"])
 
 
 def _winner(
@@ -490,10 +456,7 @@ def rank_tuned_candidates(
                 contract_version=contract_version,
             )
 
-    winners = {
-        implementation: _winner(assessments, implementation)
-        for implementation in PRODUCTS
-    }
+    winners = {implementation: _winner(assessments, implementation) for implementation in PRODUCTS}
     incomplete = [
         assessment.candidate.candidate_id
         for assessment in assessments
@@ -502,19 +465,14 @@ def rank_tuned_candidates(
     errors = []
     if contract.selection.require_complete_sweep and incomplete:
         errors.append(
-            "Complete evidence is missing for declared candidates: "
-            + ", ".join(incomplete)
+            "Complete evidence is missing for declared candidates: " + ", ".join(incomplete)
         )
     for implementation, winner in winners.items():
         if winner is None:
             errors.append(f"No eligible {implementation} candidate remains")
 
     first_identity = next(
-        (
-            assessment.identity
-            for assessment in assessments
-            if assessment.identity is not None
-        ),
+        (assessment.identity for assessment in assessments if assessment.identity is not None),
         None,
     )
     report = {
@@ -531,9 +489,7 @@ def rank_tuned_candidates(
         "disqualifications": disqualifications,
         "environment": {
             "repository_revision": (
-                first_identity.repository_revision
-                if first_identity is not None
-                else None
+                first_identity.repository_revision if first_identity is not None else None
             )
         },
         "candidates": [assessment.as_dict() for assessment in assessments],

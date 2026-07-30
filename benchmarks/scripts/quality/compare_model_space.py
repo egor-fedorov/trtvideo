@@ -34,13 +34,9 @@ def compare(args: argparse.Namespace) -> dict[str, Any]:
         thresholds=_load_thresholds(manifest),
     )
     if report["workload_id"] != manifest["id"]:
-        raise ModelSpaceError(
-            "Capture workload does not match the canonical workload manifest"
-        )
+        raise ModelSpaceError("Capture workload does not match the canonical workload manifest")
     if report["variant"] != args.variant:
-        raise ModelSpaceError(
-            "Capture variant does not match the requested comparison variant"
-        )
+        raise ModelSpaceError("Capture variant does not match the requested comparison variant")
     canonical_frames = manifest["quality"]["model_space"]["frame_indices"]
     if report["frame_indices"] != canonical_frames:
         raise ModelSpaceError(

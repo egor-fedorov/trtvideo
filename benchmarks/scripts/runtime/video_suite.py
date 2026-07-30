@@ -94,10 +94,7 @@ class VideoRunPaths:
             "nvml_samples": relative_artifact_path(self.nvml_samples, root),
         }
         artifacts.update(
-            {
-                name: relative_artifact_path(path, root)
-                for name, path in (extra or {}).items()
-            }
+            {name: relative_artifact_path(path, root) for name, path in (extra or {}).items()}
         )
         return artifacts
 
@@ -211,9 +208,7 @@ def run_video_measurement(
         "validation": warmup_validation,
     }
     if warmup_result.returncode != 0:
-        manifest["errors"].append(
-            f"Warmup process exited with code {warmup_result.returncode}"
-        )
+        manifest["errors"].append(f"Warmup process exited with code {warmup_result.returncode}")
     if not warmup_validation.get("valid"):
         manifest["errors"].extend(warmup_validation.get("errors", []))
     if manifest["errors"]:
@@ -289,9 +284,7 @@ def run_video_measurement(
         "output": output,
     }
     if measured_result.returncode != 0:
-        manifest["errors"].append(
-            f"Measured process exited with code {measured_result.returncode}"
-        )
+        manifest["errors"].append(f"Measured process exited with code {measured_result.returncode}")
     if lifecycle_error is not None:
         manifest["errors"].append(f"Lifecycle timing: {lifecycle_error}")
     if not measured_validation.get("valid"):
@@ -358,8 +351,7 @@ def run_video_suite(
     statistics = dict(suite_result.statistics)
     if spec.include_median_lifecycle:
         lifecycle_summaries = [
-            run.get("measured", {}).get("metrics", {}).get("lifecycle")
-            for run in run_manifests
+            run.get("measured", {}).get("metrics", {}).get("lifecycle") for run in run_manifests
         ]
         statistics["median_lifecycle_intervals_sec"] = (
             median_detailed_phase_intervals(lifecycle_summaries)
@@ -407,9 +399,7 @@ def run_video_suite(
                 "index": run["run_index"],
                 "status": run["status"],
                 "manifest": run["artifacts"]["manifest"],
-                "end_to_end_fps": run.get("measured", {})
-                .get("metrics", {})
-                .get("end_to_end_fps"),
+                "end_to_end_fps": run.get("measured", {}).get("metrics", {}).get("end_to_end_fps"),
             }
             for run in run_manifests
         ],

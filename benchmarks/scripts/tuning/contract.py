@@ -45,31 +45,19 @@ class TunedCandidate:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> TunedCandidate:
         candidate_id = value.get("id")
-        if not isinstance(candidate_id, str) or not _CANDIDATE_ID_RE.fullmatch(
-            candidate_id
-        ):
+        if not isinstance(candidate_id, str) or not _CANDIDATE_ID_RE.fullmatch(candidate_id):
             raise TuningContractError(
                 "Candidate id must contain only lowercase letters, digits, and hyphens"
             )
         implementation = value.get("implementation")
         if implementation not in _IMPLEMENTATIONS:
-            raise TuningContractError(
-                f"Candidate {candidate_id} has an invalid implementation"
-            )
+            raise TuningContractError(f"Candidate {candidate_id} has an invalid implementation")
         num_streams = value.get("num_streams")
-        if (
-            not isinstance(num_streams, int)
-            or isinstance(num_streams, bool)
-            or num_streams <= 0
-        ):
-            raise TuningContractError(
-                f"Candidate {candidate_id} num_streams must be positive"
-            )
+        if not isinstance(num_streams, int) or isinstance(num_streams, bool) or num_streams <= 0:
+            raise TuningContractError(f"Candidate {candidate_id} num_streams must be positive")
         cuda_graph = value.get("cuda_graph")
         if not isinstance(cuda_graph, bool):
-            raise TuningContractError(
-                f"Candidate {candidate_id} cuda_graph must be boolean"
-            )
+            raise TuningContractError(f"Candidate {candidate_id} cuda_graph must be boolean")
         return cls(
             candidate_id=candidate_id,
             implementation=implementation,
@@ -124,9 +112,7 @@ class SelectionPolicy:
         max_relative_spread = value.get("max_relative_spread")
         require_complete_sweep = value.get("require_complete_sweep")
         if metric != "median_end_to_end_fps":
-            raise TuningContractError(
-                "Selection metric must be 'median_end_to_end_fps'"
-            )
+            raise TuningContractError("Selection metric must be 'median_end_to_end_fps'")
         if tie_breaker != "candidate_id":
             raise TuningContractError("Selection tie_breaker must be 'candidate_id'")
         if (
@@ -134,13 +120,9 @@ class SelectionPolicy:
             or isinstance(max_relative_spread, bool)
             or not 0 <= max_relative_spread < 1
         ):
-            raise TuningContractError(
-                "Selection max_relative_spread must be in [0, 1)"
-            )
+            raise TuningContractError("Selection max_relative_spread must be in [0, 1)")
         if not isinstance(require_complete_sweep, bool):
-            raise TuningContractError(
-                "Selection require_complete_sweep must be boolean"
-            )
+            raise TuningContractError("Selection require_complete_sweep must be boolean")
         return cls(
             metric=metric,
             max_relative_spread=float(max_relative_spread),
@@ -206,20 +188,14 @@ class TuningContract:
             or not candidates_value
             or not all(isinstance(item, dict) for item in candidates_value)
         ):
-            raise TuningContractError(
-                "Tuning candidates must be a non-empty object array"
-            )
-        candidates = tuple(
-            TunedCandidate.from_dict(candidate) for candidate in candidates_value
-        )
+            raise TuningContractError("Tuning candidates must be a non-empty object array")
+        candidates = tuple(TunedCandidate.from_dict(candidate) for candidate in candidates_value)
         candidate_ids = [candidate.candidate_id for candidate in candidates]
         if len(candidate_ids) != len(set(candidate_ids)):
             raise TuningContractError("Tuning candidate ids must be unique")
         present = {candidate.implementation for candidate in candidates}
         if present != set(_IMPLEMENTATIONS):
-            raise TuningContractError(
-                "Tuning contract must contain vstrt and vsgan candidates"
-            )
+            raise TuningContractError("Tuning contract must contain vstrt and vsgan candidates")
         for implementation, required_streams in _REQUIRED_AUTO_STREAM_SWEEPS.items():
             actual_streams = {
                 candidate.num_streams
@@ -250,9 +226,7 @@ class TuningContract:
         implementation: Implementation,
     ) -> tuple[TunedCandidate, ...]:
         return tuple(
-            candidate
-            for candidate in self.candidates
-            if candidate.implementation == implementation
+            candidate for candidate in self.candidates if candidate.implementation == implementation
         )
 
     def candidate(self, candidate_id: str) -> TunedCandidate:

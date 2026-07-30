@@ -32,21 +32,13 @@ def build_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[st
         "--bitrate-mbps",
         str(output["bitrate_mbps"]),
         "--warmup-frames",
-        str(
-            args.warmup_frames
-            if args.warmup_frames is not None
-            else benchmark["warmup_frames"]
-        ),
+        str(args.warmup_frames if args.warmup_frames is not None else benchmark["warmup_frames"]),
         "--frames",
         str(args.frames if args.frames is not None else benchmark["measured_frames"]),
         "--runs",
         str(args.runs if args.runs is not None else benchmark["initial_runs"]),
         "--extra-runs",
-        str(
-            args.extra_runs
-            if args.extra_runs is not None
-            else benchmark["extra_runs_on_spread"]
-        ),
+        str(args.extra_runs if args.extra_runs is not None else benchmark["extra_runs_on_spread"]),
         "--spread-threshold",
         str(benchmark["spread_threshold"]),
         "--idle-seconds",

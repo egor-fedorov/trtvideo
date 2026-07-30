@@ -194,9 +194,7 @@ def _stream_inventory(
     errors: list[str],
 ) -> dict[str, list[dict[str, Any]]]:
     by_type = {
-        stream_type: [
-            stream for stream in streams if stream.get("codec_type") == stream_type
-        ]
+        stream_type: [stream for stream in streams if stream.get("codec_type") == stream_type]
         for stream_type in ("video", "audio", "subtitle", "attachment")
     }
     expected_counts = {"video": 1, "audio": 2, "subtitle": 1, "attachment": 1}
@@ -231,9 +229,7 @@ def _validate_video_stream(
             errors.append(f"{key}: expected {expected_value!r}, got {video.get(key)!r}")
 
     try:
-        actual_fps = Fraction(
-            str(video.get("avg_frame_rate") or video.get("r_frame_rate"))
-        )
+        actual_fps = Fraction(str(video.get("avg_frame_rate") or video.get("r_frame_rate")))
     except (TypeError, ValueError, ZeroDivisionError):
         actual_fps = Fraction(0, 1)
     if actual_fps != Fraction(contract.fps):
@@ -266,8 +262,7 @@ def _validate_auxiliary_media(
             errors.append(f"chapter titles differ: {chapter_titles!r}")
 
     format_tags = {
-        key.lower(): value
-        for key, value in probe.get("format", {}).get("tags", {}).items()
+        key.lower(): value for key, value in probe.get("format", {}).get("tags", {}).items()
     }
     if format_tags.get("title") != "trtvideo Demo":
         errors.append("global title metadata was not preserved")
@@ -275,14 +270,10 @@ def _validate_auxiliary_media(
         errors.append("global comment metadata was not preserved")
 
     if len(by_type["audio"]) == 2:
-        languages = [
-            stream.get("tags", {}).get("language") for stream in by_type["audio"]
-        ]
+        languages = [stream.get("tags", {}).get("language") for stream in by_type["audio"]]
         if languages != ["eng", "jpn"]:
             errors.append(f"audio language tags differ: {languages!r}")
-        dispositions = [
-            stream.get("disposition", {}).get("default") for stream in by_type["audio"]
-        ]
+        dispositions = [stream.get("disposition", {}).get("default") for stream in by_type["audio"]]
         if dispositions != [1, 0]:
             errors.append(f"audio dispositions differ: {dispositions!r}")
     if len(by_type["subtitle"]) == 1:

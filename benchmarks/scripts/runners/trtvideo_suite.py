@@ -106,6 +106,7 @@ def collect_assets(
     root: Path,
 ) -> tuple[dict[str, Any], str | None]:
     """Hash required assets and verify optional canonical workload metadata."""
+
     def record(kind: str, path: Path) -> dict[str, Any]:
         try:
             return asset_record(kind, path, root)
@@ -361,14 +362,10 @@ def run_suite(config: BenchmarkConfig, root: Path | None = None) -> tuple[dict[s
     sidecar, sidecar_path = load_engine_contract(config.engine)
     assets, workload_id = collect_assets(config, sidecar, sidecar_path, root)
     workload_manifest = (
-        load_json(config.workload_manifest)
-        if config.workload_manifest is not None
-        else None
+        load_json(config.workload_manifest) if config.workload_manifest is not None else None
     )
     benchmark_contract = (
-        workload_manifest.get("benchmark")
-        if isinstance(workload_manifest, dict)
-        else None
+        workload_manifest.get("benchmark") if isinstance(workload_manifest, dict) else None
     )
     benchmark_contract_version = (
         int(benchmark_contract["contract_version"])

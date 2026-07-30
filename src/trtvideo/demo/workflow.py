@@ -118,8 +118,7 @@ def _valid_onnx(path: Path, *, fp16: bool) -> bool:
     if model.graph.output[0].type.tensor_type.elem_type != onnx.TensorProto.FLOAT:
         return False
     return any(
-        initializer.data_type == onnx.TensorProto.FLOAT16
-        for initializer in model.graph.initializer
+        initializer.data_type == onnx.TensorProto.FLOAT16 for initializer in model.graph.initializer
     )
 
 
@@ -136,10 +135,8 @@ def _valid_engine_cache(paths: DemoPaths) -> bool:
         manifest.get("engine_sha256") == _sha256_file(paths.engine)
         and manifest.get("model_sha256") == _sha256_file(paths.fp16_onnx)
         and manifest.get("tensorrt_version") == trt.__version__
-        and manifest.get("input", {}).get("shape")
-        == [1, 3, DEMO_INPUT_HEIGHT, DEMO_INPUT_WIDTH]
-        and manifest.get("output", {}).get("shape")
-        == [1, 3, DEMO_OUTPUT_HEIGHT, DEMO_OUTPUT_WIDTH]
+        and manifest.get("input", {}).get("shape") == [1, 3, DEMO_INPUT_HEIGHT, DEMO_INPUT_WIDTH]
+        and manifest.get("output", {}).get("shape") == [1, 3, DEMO_OUTPUT_HEIGHT, DEMO_OUTPUT_WIDTH]
     )
 
 

@@ -62,9 +62,7 @@ def benchmark_contract_version(manifest: dict[str, Any]) -> int:
     """Extract a positive workload benchmark contract version."""
     value = manifest.get("benchmark_contract_version")
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise ManifestContractError(
-            "Manifest has no valid benchmark contract version"
-        )
+        raise ManifestContractError("Manifest has no valid benchmark contract version")
     return value
 
 
@@ -97,9 +95,7 @@ def validate_execution_profile(
             f"expected {expected_profile!r}"
         )
     if expected_values is not None and profile != expected_values:
-        raise ManifestContractError(
-            f"{implementation} changed execution profile"
-        )
+        raise ManifestContractError(f"{implementation} changed execution profile")
     return profile
 
 
@@ -207,22 +203,16 @@ def extract_run_identity(
     if str(image.get("source_dirty")) != "0":
         raise ManifestContractError("Run manifest was built from dirty source")
     if not isinstance(frames, int) or isinstance(frames, bool) or frames <= 0:
-        raise ManifestContractError(
-            "Run manifest has invalid measured frame count"
-        )
+        raise ManifestContractError("Run manifest has invalid measured frame count")
     if require_warmup_frames:
         if (
             not isinstance(warmup_frames, int)
             or isinstance(warmup_frames, bool)
             or warmup_frames <= 0
         ):
-            raise ManifestContractError(
-                "Run manifest has invalid warmup frame count"
-            )
+            raise ManifestContractError("Run manifest has invalid warmup frame count")
     elif warmup_frames is not None and (
-        not isinstance(warmup_frames, int)
-        or isinstance(warmup_frames, bool)
-        or warmup_frames < 0
+        not isinstance(warmup_frames, int) or isinstance(warmup_frames, bool) or warmup_frames < 0
     ):
         raise ManifestContractError("Run manifest has invalid warmup frame count")
     workload_sha256 = (
@@ -291,23 +281,16 @@ def validate_run_manifest(
         raise ManifestContractError("Run manifest is not reproducible")
     if (
         expectation.require_media_validation
-        and manifest.get("measured", {}).get("validation", {}).get("valid")
-        is not True
+        and manifest.get("measured", {}).get("validation", {}).get("valid") is not True
     ):
-        raise ManifestContractError(
-            "Run manifest failed complete media validation"
-        )
+        raise ManifestContractError("Run manifest failed complete media validation")
     if expectation.execution_profile is not None:
         if expectation.implementation is None:
-            raise ManifestContractError(
-                "Execution profile validation requires an implementation"
-            )
+            raise ManifestContractError("Execution profile validation requires an implementation")
         validate_execution_profile(
             manifest,
             implementation=expectation.implementation,
-            expected_profile=str(
-                expectation.execution_profile["execution_profile"]
-            ),
+            expected_profile=str(expectation.execution_profile["execution_profile"]),
             expected_values=expectation.execution_profile,
         )
     return extract_run_identity(

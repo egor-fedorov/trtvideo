@@ -67,9 +67,7 @@ class FakeCvcuda:
         self.calls.append(("advcvtcolor", destination, source, conversion, spec, stream))
 
     def convertto_into(self, destination, source, *, scale, offset=0.0, stream):
-        self.calls.append(
-            ("convertto", destination, source, scale, offset, stream)
-        )
+        self.calls.append(("convertto", destination, source, scale, offset, stream))
 
     def reformat_into(self, destination, source, *, stream):
         self.calls.append(("reformat", destination, source, stream))

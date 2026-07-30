@@ -247,8 +247,7 @@ def gpu_video_preflight_error(
         or "gpu video accelerator tracing is not available" in normalized
     ):
         return (
-            f"Nsight cannot trace GPU video accelerators on GPU {gpu_id}; "
-            "see gpu-video-devices.txt"
+            f"Nsight cannot trace GPU video accelerators on GPU {gpu_id}; see gpu-video-devices.txt"
         )
     return None
 
@@ -266,9 +265,7 @@ def _write_preflight(
     if version_code != 0:
         errors.append(f"Nsight version check failed with code {version_code}")
 
-    status_code, status_stdout, status_stderr = _run_text(
-        [nsys, "status", "--environment"]
-    )
+    status_code, status_stdout, status_stderr = _run_text([nsys, "status", "--environment"])
     paths.status.write_text(status_stdout + status_stderr, encoding="utf-8")
     if status_code != 0:
         errors.append(f"Nsight environment check failed with code {status_code}")
@@ -320,13 +317,9 @@ def _write_stats(paths: NsightPaths, nsys: str) -> tuple[dict[str, str], list[st
     errors: list[str] = []
     stderr_chunks: list[str] = []
     paths.stats_dir.mkdir(parents=True, exist_ok=True)
-    export_code, export_stdout, export_stderr = _run_text(
-        build_export_command(nsys, paths)
-    )
+    export_code, export_stdout, export_stderr = _run_text(build_export_command(nsys, paths))
     if export_stdout or export_stderr:
-        stderr_chunks.append(
-            f"== sqlite export ==\n{export_stdout}{export_stderr}".rstrip() + "\n"
-        )
+        stderr_chunks.append(f"== sqlite export ==\n{export_stdout}{export_stderr}".rstrip() + "\n")
     if export_code != 0:
         errors.append(f"Nsight SQLite export failed with code {export_code}")
     elif not paths.sqlite.is_file():
@@ -342,9 +335,8 @@ def _write_stats(paths: NsightPaths, nsys: str) -> tuple[dict[str, str], list[st
             stderr_chunks.append(f"== {report} ==\n{stderr.rstrip()}\n")
         if returncode != 0:
             errors.append(f"Nsight stats report {report} failed with code {returncode}")
-        elif (
-            report not in OPTIONAL_EMPTY_STATS_REPORTS
-            and (not stdout.strip() or "SKIPPED:" in stdout or "SKIPPED:" in stderr)
+        elif report not in OPTIONAL_EMPTY_STATS_REPORTS and (
+            not stdout.strip() or "SKIPPED:" in stdout or "SKIPPED:" in stderr
         ):
             errors.append(f"Nsight stats report {report} contains no data")
     paths.stats_stderr.write_text("\n".join(stderr_chunks), encoding="utf-8")
@@ -473,30 +465,18 @@ def run_diagnostic(
         },
         "artifacts": {
             "manifest": relative_artifact_path(manifest_path, root),
-            "trace": (
-                relative_artifact_path(paths.trace, root)
-                if paths.trace.is_file()
-                else None
-            ),
+            "trace": (relative_artifact_path(paths.trace, root) if paths.trace.is_file() else None),
             "sqlite": (
-                relative_artifact_path(paths.sqlite, root)
-                if paths.sqlite.is_file()
-                else None
+                relative_artifact_path(paths.sqlite, root) if paths.sqlite.is_file() else None
             ),
             "output": (
-                relative_artifact_path(paths.video, root)
-                if paths.video.is_file()
-                else None
+                relative_artifact_path(paths.video, root) if paths.video.is_file() else None
             ),
             "stdout": (
-                relative_artifact_path(paths.stdout, root)
-                if paths.stdout.is_file()
-                else None
+                relative_artifact_path(paths.stdout, root) if paths.stdout.is_file() else None
             ),
             "stderr": (
-                relative_artifact_path(paths.stderr, root)
-                if paths.stderr.is_file()
-                else None
+                relative_artifact_path(paths.stderr, root) if paths.stderr.is_file() else None
             ),
             "environment_status": relative_artifact_path(paths.status, root),
             "gpu_video_devices": relative_artifact_path(paths.video_devices, root),

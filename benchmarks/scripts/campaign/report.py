@@ -41,8 +41,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "| Implementation | Startup, s | Steady-state frame loop, s | "
-            "Finalize + mux, s |",
+            "| Implementation | Startup, s | Steady-state frame loop, s | Finalize + mux, s |",
             "|---|---:|---:|---:|",
         ]
     )
@@ -57,8 +56,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "| Implementation | Stability | Full spread | 4-of-5 spread | "
-            "Outlier | Raw FPS |",
+            "| Implementation | Stability | Full spread | 4-of-5 spread | Outlier | Raw FPS |",
             "|---|---|---:|---:|---|---|",
         ]
     )
@@ -68,14 +66,8 @@ def render_markdown(summary: dict[str, Any]) -> str:
         stability = result["stability"]
         consensus = stability["consensus"]
         outlier = stability["outlier"]
-        consensus_spread = (
-            f"{consensus['relative_spread']:.2%}" if consensus else "-"
-        )
-        outlier_label = (
-            f"round {outlier['round']}: {outlier['fps']:.3f} FPS"
-            if outlier
-            else "-"
-        )
+        consensus_spread = f"{consensus['relative_spread']:.2%}" if consensus else "-"
+        outlier_label = f"round {outlier['round']}: {outlier['fps']:.3f} FPS" if outlier else "-"
         raw_values = ", ".join(f"{value:.3f}" for value in stats["values_fps"])
         lines.append(
             f"| {result['product']} | {stability['status']} | "
@@ -84,9 +76,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         )
     if summary["publication"]["warnings"]:
         lines.extend(["", "Publication warnings:"])
-        lines.extend(
-            f"- {warning}" for warning in summary["publication"]["warnings"]
-        )
+        lines.extend(f"- {warning}" for warning in summary["publication"]["warnings"])
     if summary["publication"]["errors"]:
         lines.extend(["", "Publication gaps:"])
         lines.extend(f"- {gap}" for gap in summary["publication"]["errors"])

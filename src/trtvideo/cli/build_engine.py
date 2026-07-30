@@ -40,10 +40,7 @@ def _load_tensorrt() -> None:
 def parse_shape_arg(value: str) -> ShapeArg:
     """Parse NAME:DIMxDIMx... TensorRT profile shape."""
     if ":" not in value:
-        print(
-            f"ERROR: Invalid shape '{value}'. "
-            "Expected NAME:DIMxDIMx..., e.g. input:1x3x720x1280"
-        )
+        print(f"ERROR: Invalid shape '{value}'. Expected NAME:DIMxDIMx..., e.g. input:1x3x720x1280")
         sys.exit(1)
 
     name, dims_str = value.split(":", 1)
@@ -81,8 +78,7 @@ def validate_profile_shapes(
 
     if min_shape is None or opt_shape is None or max_shape is None:
         print(
-            "ERROR: Dynamic profile requires all three flags: "
-            "--min-shape, --opt-shape, --max-shape"
+            "ERROR: Dynamic profile requires all three flags: --min-shape, --opt-shape, --max-shape"
         )
         sys.exit(1)
 
@@ -96,8 +92,7 @@ def validate_profile_shapes(
         name, dims = item
         if name != expected_name:
             print(
-                f"ERROR: {label} uses tensor '{name}', "
-                f"but ONNX input tensor is '{expected_name}'."
+                f"ERROR: {label} uses tensor '{name}', but ONNX input tensor is '{expected_name}'."
             )
             sys.exit(1)
         if len(dims) != len(input_tensor.shape):

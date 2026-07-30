@@ -52,6 +52,9 @@ Build the development image with Ruff and mypy:
 make build-dev
 ```
 
+Use `make format` to apply Ruff import sorting and Black-compatible
+formatting. CI runs the read-only formatting check as part of `make lint`.
+
 ## Quick Demo
 
 On an NVIDIA GPU host, the complete workflow is available as one command:

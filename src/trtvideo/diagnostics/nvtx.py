@@ -14,9 +14,7 @@ def _load_nvtx_callbacks() -> tuple[Callable[[str], int], Callable[[], int]]:
     try:
         import nvtx
     except ImportError as exc:
-        raise RuntimeError(
-            f"{NVTX_ENV}=1 requires the optional benchmark NVTX binding"
-        ) from exc
+        raise RuntimeError(f"{NVTX_ENV}=1 requires the optional benchmark NVTX binding") from exc
 
     def push(name: str) -> int:
         nvtx.push_range(name)

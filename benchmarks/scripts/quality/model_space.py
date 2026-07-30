@@ -39,17 +39,9 @@ class TensorThresholds:
                 min_psnr_db=float(value["min_psnr_db"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
-            raise ModelSpaceError(
-                f"Invalid model-space thresholds for {stage}: {exc}"
-            ) from exc
-        if (
-            thresholds.p99_abs <= 0
-            or thresholds.rmse <= 0
-            or thresholds.min_psnr_db <= 0
-        ):
-            raise ModelSpaceError(
-                f"Model-space thresholds for {stage} must be positive"
-            )
+            raise ModelSpaceError(f"Invalid model-space thresholds for {stage}: {exc}") from exc
+        if thresholds.p99_abs <= 0 or thresholds.rmse <= 0 or thresholds.min_psnr_db <= 0:
+            raise ModelSpaceError(f"Model-space thresholds for {stage} must be positive")
         return thresholds
 
     def as_dict(self) -> dict[str, float]:
@@ -110,8 +102,10 @@ class TensorArtifact:
             raise ModelSpaceError(f"Unknown tensor stage: {self.stage}")
         if self.frame_index < 0:
             raise ModelSpaceError("Tensor frame index must be non-negative")
-        if len(self.shape) != 3 or self.shape[0] != 3 or any(
-            dimension <= 0 for dimension in self.shape
+        if (
+            len(self.shape) != 3
+            or self.shape[0] != 3
+            or any(dimension <= 0 for dimension in self.shape)
         ):
             raise ModelSpaceError(f"Tensor must use positive RGB CHW shape: {self.shape}")
         path = Path(self.path)
@@ -188,14 +182,9 @@ class CaptureManifest:
                 input_sha256=str(value["assets"]["input_sha256"]),
                 onnx_sha256=str(value["assets"]["onnx_sha256"]),
                 engine_sha256=str(value["assets"]["engine_sha256"]),
-                image={
-                    str(key): str(item)
-                    for key, item in image_value.items()
-                },
+                image={str(key): str(item) for key, item in image_value.items()},
                 execution_profile=dict(execution_profile),
-                artifacts=tuple(
-                    TensorArtifact.from_dict(artifact) for artifact in artifacts_value
-                ),
+                artifacts=tuple(TensorArtifact.from_dict(artifact) for artifact in artifacts_value),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ModelSpaceError(f"Invalid capture manifest {path}: {exc}") from exc
@@ -215,8 +204,7 @@ class CaptureManifest:
         identity_errors = environment_errors({"image": self.image})
         if identity_errors:
             raise ModelSpaceError(
-                "Capture image identity is not publishable: "
-                + "; ".join(identity_errors)
+                "Capture image identity is not publishable: " + "; ".join(identity_errors)
             )
         for name, checksum in (
             ("input", self.input_sha256),
@@ -232,9 +220,7 @@ class CaptureManifest:
             raise ModelSpaceError("Capture manifest contains duplicate tensor artifacts")
         frame_indices = sorted({artifact.frame_index for artifact in self.artifacts})
         expected_keys = {
-            (stage, frame_index)
-            for stage in TENSOR_STAGES
-            for frame_index in frame_indices
+            (stage, frame_index) for stage in TENSOR_STAGES for frame_index in frame_indices
         }
         if set(keys) != expected_keys:
             raise ModelSpaceError("Capture must contain input and output for every frame")
@@ -248,10 +234,7 @@ class CaptureManifest:
                 raise ModelSpaceError(f"Captured tensor SHA256 changed: {artifact_path}")
 
     def artifact_map(self) -> dict[tuple[str, int], TensorArtifact]:
-        return {
-            (artifact.stage, artifact.frame_index): artifact
-            for artifact in self.artifacts
-        }
+        return {(artifact.stage, artifact.frame_index): artifact for artifact in self.artifacts}
 
 
 def parse_frame_indices(value: str, *, frame_count: int) -> tuple[int, ...]:
@@ -263,9 +246,7 @@ def parse_frame_indices(value: str, *, frame_count: int) -> tuple[int, ...]:
     if not indices:
         raise ModelSpaceError("At least one frame index is required")
     if indices[0] < 0 or indices[-1] >= frame_count:
-        raise ModelSpaceError(
-            f"Frame indices must stay in [0, {frame_count - 1}], got {indices}"
-        )
+        raise ModelSpaceError(f"Frame indices must stay in [0, {frame_count - 1}], got {indices}")
     return indices
 
 
@@ -380,9 +361,7 @@ def evaluate_metrics(
     if metrics["finite"] is not True:
         errors.append("tensor contains NaN or infinity")
         return errors
-    psnr_db = (
-        math.inf if metrics.get("exact") is True else float(metrics["psnr_db"])
-    )
+    psnr_db = math.inf if metrics.get("exact") is True else float(metrics["psnr_db"])
     checks = {
         "p99_abs": (float(metrics["p99_abs"]), thresholds.p99_abs, "<="),
         "rmse": (float(metrics["rmse"]), thresholds.rmse, "<="),
@@ -404,9 +383,7 @@ def compare_captures(
     """Compare complete captures and return a publication-gate report."""
     reference = CaptureManifest.load(reference_path)
     reference_artifacts = reference.artifact_map()
-    frame_indices = sorted(
-        {artifact.frame_index for artifact in reference.artifacts}
-    )
+    frame_indices = sorted({artifact.frame_index for artifact in reference.artifacts})
     comparisons = []
     report_errors: list[str] = []
     for candidate_path in candidate_paths:
@@ -446,9 +423,7 @@ def compare_captures(
                 reference_artifact = reference_artifacts[key]
                 candidate_artifact = candidate_artifacts[key]
                 if candidate_artifact.shape != reference_artifact.shape:
-                    candidate_errors.append(
-                        f"{key[0]} frame {key[1]} tensor shape differs"
-                    )
+                    candidate_errors.append(f"{key[0]} frame {key[1]} tensor shape differs")
                     continue
                 metrics = compare_float32_tensors(
                     reference_path.parent / reference_artifact.path,
@@ -466,9 +441,7 @@ def compare_captures(
                         "errors": errors,
                     }
                 )
-                candidate_errors.extend(
-                    f"{key[0]} frame {key[1]}: {error}" for error in errors
-                )
+                candidate_errors.extend(f"{key[0]} frame {key[1]}: {error}" for error in errors)
 
         comparisons.append(
             {
@@ -481,9 +454,7 @@ def compare_captures(
                 "tensors": tensors,
             }
         )
-        report_errors.extend(
-            f"{candidate.implementation}: {error}" for error in candidate_errors
-        )
+        report_errors.extend(f"{candidate.implementation}: {error}" for error in candidate_errors)
 
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -505,8 +476,7 @@ def compare_captures(
             "onnx_sha256": reference.onnx_sha256,
         },
         "thresholds": {
-            stage: stage_thresholds.as_dict()
-            for stage, stage_thresholds in thresholds.items()
+            stage: stage_thresholds.as_dict() for stage, stage_thresholds in thresholds.items()
         },
         "comparisons": comparisons,
         "errors": report_errors,

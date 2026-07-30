@@ -264,9 +264,9 @@ def test_vstrt_upstream_default_uses_automatic_vspipe_requests() -> None:
     assert "num_streams=1" in vspipe
     assert not any(value.startswith("vs_threads=") for value in vspipe)
     assert plan["parameters"]["execution_profile"] == "upstream-default"
-    assert plan["commands"]["measured"][0][
-        plan["commands"]["measured"][0].index("--end") + 1
-    ] == "999"
+    assert (
+        plan["commands"]["measured"][0][plan["commands"]["measured"][0].index("--end") + 1] == "999"
+    )
     assert plan["parameters"]["vspipe_requests"] == "auto"
     assert plan["parameters"]["vapoursynth_threads"] == "auto"
 
@@ -291,9 +291,9 @@ def test_vsgan_upstream_default_matches_pinned_configuration() -> None:
     assert "num_streams=4" in vspipe
     assert "vs_threads=4" in vspipe
     assert plan["parameters"]["execution_profile"] == "upstream-default"
-    assert plan["commands"]["measured"][0][
-        plan["commands"]["measured"][0].index("--end") + 1
-    ] == "999"
+    assert (
+        plan["commands"]["measured"][0][plan["commands"]["measured"][0].index("--end") + 1] == "999"
+    )
     assert plan["implementation"]["role"] == "product"
     assert plan["parameters"]["vspipe_requests"] == "auto"
 

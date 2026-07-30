@@ -69,27 +69,19 @@ class OutputEvidence:
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise ProductOutputError(
-                f"Cannot read output manifest {manifest_path}: {exc}"
-            ) from exc
+            raise ProductOutputError(f"Cannot read output manifest {manifest_path}: {exc}") from exc
         if not isinstance(manifest, dict):
             raise ProductOutputError(f"Output manifest must be an object: {manifest_path}")
         if manifest.get("status") != "valid":
             raise ProductOutputError(f"Output run is not valid: {manifest_path}")
         if manifest.get("reproducibility", {}).get("publishable") is not True:
-            raise ProductOutputError(
-                f"Output run is not reproducible: {manifest_path}"
-            )
+            raise ProductOutputError(f"Output run is not reproducible: {manifest_path}")
         validation = manifest.get("measured", {}).get("validation", {})
         if validation.get("valid") is not True:
-            raise ProductOutputError(
-                f"Output media validation failed: {manifest_path}"
-            )
+            raise ProductOutputError(f"Output media validation failed: {manifest_path}")
         output = manifest.get("measured", {}).get("output")
         if not isinstance(output, dict):
-            raise ProductOutputError(
-                f"Output run did not retain its measured MP4: {manifest_path}"
-            )
+            raise ProductOutputError(f"Output run did not retain its measured MP4: {manifest_path}")
         relative_path = output.get("path")
         if not isinstance(relative_path, str) or not relative_path:
             raise ProductOutputError(f"Output manifest has no MP4 path: {manifest_path}")
@@ -140,8 +132,7 @@ def validate_evidence_set(
     actual_products = {candidate.product for candidate in candidates}
     if actual_products != expected_products or len(candidates) != len(expected_products):
         raise ProductOutputError(
-            "Product-output candidates must be exactly vs-mlrt and "
-            "VSGAN-tensorrt-docker"
+            "Product-output candidates must be exactly vs-mlrt and VSGAN-tensorrt-docker"
         )
     for candidate in candidates:
         checks = {
@@ -155,9 +146,7 @@ def validate_evidence_set(
         for label, (actual, expected) in checks.items():
             if actual != expected:
                 raise ProductOutputError(f"{candidate.product} changed {label}")
-        if candidate.product == "vs-mlrt" and (
-            candidate.engine_sha256 != reference.engine_sha256
-        ):
+        if candidate.product == "vs-mlrt" and (candidate.engine_sha256 != reference.engine_sha256):
             raise ProductOutputError("vs-mlrt changed the shared engine")
 
 
@@ -247,14 +236,11 @@ def run_metric(
     if not stats_path.is_file():
         raise ProductOutputError(f"FFmpeg {metric} did not create {stats_path}")
     frame_count = sum(
-        1
-        for line in stats_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        1 for line in stats_path.read_text(encoding="utf-8").splitlines() if line.strip()
     )
     if frame_count != expected_frames:
         raise ProductOutputError(
-            f"FFmpeg {metric} compared {frame_count} frames, "
-            f"expected {expected_frames}"
+            f"FFmpeg {metric} compared {frame_count} frames, expected {expected_frames}"
         )
     metrics = parse_metric_log(metric, log_path.read_text(encoding="utf-8"))
     metrics.update(
@@ -402,8 +388,7 @@ def compare_product_outputs(
     """Compare retained final MP4 outputs and build a quality-gate report."""
     reference = OutputEvidence.load(reference_manifest, root=root)
     candidates = [
-        OutputEvidence.load(manifest_path, root=root)
-        for manifest_path in candidate_manifests
+        OutputEvidence.load(manifest_path, root=root) for manifest_path in candidate_manifests
     ]
     quality = workload["quality"]["product_output"]
     frame_indices = list(quality["frame_indices"])
@@ -414,9 +399,7 @@ def compare_product_outputs(
         expected_frames=int(workload["clip"]["frames"]),
     )
     if reference.workload_id != workload["id"] or reference.variant != variant["name"]:
-        raise ProductOutputError(
-            "Retained outputs do not match the canonical workload variant"
-        )
+        raise ProductOutputError("Retained outputs do not match the canonical workload variant")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     crop_artifacts = {
@@ -433,9 +416,7 @@ def compare_product_outputs(
     comparisons = []
     report_errors: list[str] = []
     for candidate in candidates:
-        candidate_dir = output_dir / (
-            "vstrt" if candidate.product == "vs-mlrt" else "vsgan"
-        )
+        candidate_dir = output_dir / ("vstrt" if candidate.product == "vs-mlrt" else "vsgan")
         candidate_dir.mkdir(parents=True, exist_ok=True)
         psnr = run_metric(
             reference.output_path,
@@ -456,14 +437,9 @@ def compare_product_outputs(
         errors = []
         psnr_value = math.inf if psnr["exact"] else float(psnr["average_db"])
         if psnr_value < thresholds.psnr_min_db:
-            errors.append(
-                f"PSNR must be >= {thresholds.psnr_min_db:g} dB, "
-                f"got {psnr_value:g} dB"
-            )
+            errors.append(f"PSNR must be >= {thresholds.psnr_min_db:g} dB, got {psnr_value:g} dB")
         if float(ssim["all"]) < thresholds.ssim_min:
-            errors.append(
-                f"SSIM must be >= {thresholds.ssim_min:g}, got {ssim['all']:g}"
-            )
+            errors.append(f"SSIM must be >= {thresholds.ssim_min:g}, got {ssim['all']:g}")
         crop_key = "vstrt" if candidate.product == "vs-mlrt" else "vsgan"
         crop_artifacts[candidate.product] = generate_visual_crops(
             candidate,

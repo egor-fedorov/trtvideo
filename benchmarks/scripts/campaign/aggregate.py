@@ -93,23 +93,14 @@ class StabilityAssessment:
 
 
 def _manifest_path(campaign_dir: Path, implementation: str, round_index: int) -> Path:
-    return (
-        campaign_dir
-        / implementation
-        / f"round-{round_index:02d}"
-        / "run-01"
-        / "manifest.json"
-    )
+    return campaign_dir / implementation / f"round-{round_index:02d}" / "run-01" / "manifest.json"
 
 
 def _load_rounds(campaign_dir: Path) -> list[dict[str, dict[str, Any]]]:
     rounds: list[dict[str, dict[str, Any]]] = []
     missing_started = False
     for round_index in ROUND_ORDERS:
-        paths = {
-            name: _manifest_path(campaign_dir, name, round_index)
-            for name in IMPLEMENTATIONS
-        }
+        paths = {name: _manifest_path(campaign_dir, name, round_index) for name in IMPLEMENTATIONS}
         present = {name: path.is_file() for name, path in paths.items()}
         if not any(present.values()):
             missing_started = True
@@ -118,9 +109,7 @@ def _load_rounds(campaign_dir: Path) -> list[dict[str, dict[str, Any]]]:
             raise CampaignError("Campaign rounds are not contiguous")
         missing = [name for name, exists in present.items() if not exists]
         if missing:
-            raise CampaignError(
-                f"Round {round_index} is incomplete; missing: {', '.join(missing)}"
-            )
+            raise CampaignError(f"Round {round_index} is incomplete; missing: {', '.join(missing)}")
         rounds.append({name: load_json(path) for name, path in paths.items()})
     if len(rounds) not in {3, 5}:
         raise CampaignError(f"Campaign requires 3 or 5 complete rounds, got {len(rounds)}")
@@ -221,9 +210,7 @@ def _assess_stability(
 ) -> StabilityAssessment:
     """Apply the canonical three-run, then four-of-five consensus policy."""
     if len(values) not in {3, 5}:
-        raise CampaignError(
-            f"Stability assessment requires 3 or 5 values, got {len(values)}"
-        )
+        raise CampaignError(f"Stability assessment requires 3 or 5 values, got {len(values)}")
 
     full_spread = _relative_spread(values)
     if full_spread <= threshold:
@@ -251,11 +238,7 @@ def _assess_stability(
     consensus_rounds = tuple(index for index, _ in consensus)
     consensus_values = tuple(value for _, value in consensus)
     excluded = next(item for item in indexed_values if item not in consensus)
-    status = (
-        "stable-with-one-outlier"
-        if consensus_spread <= threshold
-        else "unstable"
-    )
+    status = "stable-with-one-outlier" if consensus_spread <= threshold else "unstable"
     return StabilityAssessment(
         status=status,
         threshold=threshold,
@@ -359,9 +342,7 @@ def _validate_quality_run_manifest(
             workload_id=contract["workload_id"],
             variant=contract["variant"],
             benchmark_contract_version=contract["benchmark_contract_version"],
-            implementation=(
-                implementation if expected_profile is not None else None
-            ),
+            implementation=(implementation if expected_profile is not None else None),
             execution_profile=expected_profile,
             require_media_validation=True,
             require_workload_identity=False,
@@ -385,9 +366,9 @@ def _validate_quality_run_manifest(
     }
     for label, (actual, expected) in checks.items():
         if actual != expected:
-            raise CampaignError(
-                f"Product-output {product} run changed {label}"
-            )
+            raise CampaignError(f"Product-output {product} run changed {label}")
+
+
 def _validate_product_output_report(
     path: Path,
     *,
@@ -461,17 +442,11 @@ def _validate_product_output_report(
     ) in expected_contracts.items():
         comparison = by_implementation.get(implementation)
         if not isinstance(comparison, dict):
-            raise CampaignError(
-                f"Product-output report has no {implementation} comparison"
-            )
+            raise CampaignError(f"Product-output report has no {implementation} comparison")
         if comparison.get("status") != "valid":
-            raise CampaignError(
-                f"Product-output report marks {implementation} as invalid"
-            )
+            raise CampaignError(f"Product-output report marks {implementation} as invalid")
         if comparison.get("engine_sha256") != engine_sha256:
-            raise CampaignError(
-                f"Product-output report changed {implementation} engine"
-            )
+            raise CampaignError(f"Product-output report changed {implementation} engine")
         run_manifest = _validate_report_artifact(
             comparison,
             root=root,
@@ -487,15 +462,11 @@ def _validate_product_output_report(
         )
         metrics = comparison.get("metrics")
         if not isinstance(metrics, dict):
-            raise CampaignError(
-                f"Product-output report has no {implementation} metrics"
-            )
+            raise CampaignError(f"Product-output report has no {implementation} metrics")
         for metric_name in ("psnr", "ssim"):
             metric = metrics.get(metric_name)
             if not isinstance(metric, dict):
-                raise CampaignError(
-                    f"Product-output report has no {implementation} {metric_name}"
-                )
+                raise CampaignError(f"Product-output report has no {implementation} {metric_name}")
             _validate_report_artifact(
                 metric,
                 root=root,
@@ -526,13 +497,9 @@ def _validate_product_output_report(
     )
     for implementation, crops in visual_crops.items():
         if not isinstance(crops, list) or len(crops) != expected_crop_count:
-            raise CampaignError(
-                f"Product-output {implementation} visual crop set is incomplete"
-            )
+            raise CampaignError(f"Product-output {implementation} visual crop set is incomplete")
         actual_keys = {
-            (crop.get("frame_index"), crop.get("crop"))
-            for crop in crops
-            if isinstance(crop, dict)
+            (crop.get("frame_index"), crop.get("crop")) for crop in crops if isinstance(crop, dict)
         }
         expected_keys = {
             (frame_index, crop_name)
@@ -540,9 +507,7 @@ def _validate_product_output_report(
             for crop_name in contract["product_output_crop_names"]
         }
         if actual_keys != expected_keys:
-            raise CampaignError(
-                f"Product-output {implementation} visual crop contract changed"
-            )
+            raise CampaignError(f"Product-output {implementation} visual crop contract changed")
         for crop in crops:
             _validate_report_artifact(
                 crop,
@@ -574,9 +539,7 @@ def _validate_manifest(
             ),
         )
     except CampaignError as exc:
-        raise CampaignError(
-            f"{implementation} round {round_index}: {exc}"
-        ) from exc
+        raise CampaignError(f"{implementation} round {round_index}: {exc}") from exc
 
 
 def _validate_common_contract(
@@ -603,9 +566,7 @@ def _validate_common_contract(
     lifecycle_contract = _lifecycle_contract(first)
     expected_revision = os.environ.get("TRTVIDEO_BUILD_REVISION")
     if expected_revision and expected_revision != "unknown" and revision != expected_revision:
-        raise CampaignError(
-            "Campaign repository revision does not match the aggregator image"
-        )
+        raise CampaignError("Campaign repository revision does not match the aggregator image")
 
     image_ids: dict[str, str] = {}
     engine_hashes: dict[str, str] = {}
@@ -648,9 +609,7 @@ def _validate_common_contract(
             }
             for label, (actual, expected) in checks.items():
                 if actual != expected:
-                    raise CampaignError(
-                        f"{implementation} round {round_index} changed {label}"
-                    )
+                    raise CampaignError(f"{implementation} round {round_index} changed {label}")
             image_id = identity.image_id
             previous_image = image_ids.setdefault(implementation, image_id)
             if image_id != previous_image:
@@ -723,9 +682,7 @@ def _validate_common_contract(
         .get("thresholds"),
         "product_output_crop_names": [
             crop.get("name")
-            for crop in workload.get("quality", {})
-            .get("product_output", {})
-            .get("crops", [])
+            for crop in workload.get("quality", {}).get("product_output", {}).get("crops", [])
             if isinstance(crop, dict)
         ],
         "cpu_accounting": cpu_contract,
@@ -749,22 +706,13 @@ def _implementation_statistics(
                 [_metric(manifest, "wall_time_sec") for manifest in manifests]
             ),
             "median_cpu_cores": _median(
-                [
-                    _metric(manifest, "cpu", "average_cores")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "cpu", "average_cores") for manifest in manifests]
             ),
             "median_cpu_capacity_percent": _median(
-                [
-                    _metric(manifest, "cpu", "capacity_percent")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "cpu", "capacity_percent") for manifest in manifests]
             ),
             "median_startup_sec": _median(
-                [
-                    _metric(manifest, "lifecycle", "startup_sec")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "lifecycle", "startup_sec") for manifest in manifests]
             ),
             "median_steady_state_frame_loop_sec": _median(
                 [
@@ -777,14 +725,10 @@ def _implementation_statistics(
                 ]
             ),
             "median_finalize_mux_sec": _median(
-                [
-                    _metric(manifest, "lifecycle", "finalize_mux_sec")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "lifecycle", "finalize_mux_sec") for manifest in manifests]
             ),
             "median_lifecycle_intervals_sec": median_detailed_phase_intervals(
-                manifest["measured"]["metrics"]["lifecycle"]
-                for manifest in manifests
+                manifest["measured"]["metrics"]["lifecycle"] for manifest in manifests
             ),
             "median_gpu_utilization_percent": _median(
                 [
@@ -793,22 +737,13 @@ def _implementation_statistics(
                 ]
             ),
             "median_power_w": _median(
-                [
-                    _metric(manifest, "nvml", "power", "average_w")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "nvml", "power", "average_w") for manifest in manifests]
             ),
             "median_joules_per_frame": _median(
-                [
-                    _metric(manifest, "nvml", "power", "joules_per_frame")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "nvml", "power", "joules_per_frame") for manifest in manifests]
             ),
             "median_peak_vram_mib": _median(
-                [
-                    _metric(manifest, "nvml", "memory", "peak_delta_mib")
-                    for manifest in manifests
-                ]
+                [_metric(manifest, "nvml", "memory", "peak_delta_mib") for manifest in manifests]
             ),
             "median_output_bitrate_mbps": _median(
                 [
@@ -850,9 +785,7 @@ def aggregate_campaign(
     except CampaignEventError as exc:
         raise CampaignError(f"Invalid campaign config: {exc}") from exc
     if campaign_config.execution_profile != execution_profile:
-        raise CampaignError(
-            "Campaign config execution profile does not match aggregation request"
-        )
+        raise CampaignError("Campaign config execution profile does not match aggregation request")
     rounds = _load_rounds(campaign_dir)
     events_path = campaign_dir / EVENT_LOG_NAME
     try:
@@ -904,9 +837,7 @@ def aggregate_campaign(
     trtvideo_fps = implementation_results["trtvideo"]["statistics"]["median_fps"]
     for result in implementation_results.values():
         median_fps = result["statistics"]["median_fps"]
-        result["relative_to_trtvideo_percent"] = (
-            median_fps / trtvideo_fps - 1
-        ) * 100
+        result["relative_to_trtvideo_percent"] = (median_fps / trtvideo_fps - 1) * 100
 
     unstable = [
         name
@@ -982,15 +913,9 @@ def aggregate_campaign(
         "rounds": [
             {
                 "index": index,
-                "order": [
-                    event.implementation
-                    for event in events
-                    if event.round_index == index
-                ],
+                "order": [event.implementation for event in events if event.round_index == index],
                 "manifests": {
-                    name: relative_artifact_path(
-                        _manifest_path(campaign_dir, name, index), root
-                    )
+                    name: relative_artifact_path(_manifest_path(campaign_dir, name, index), root)
                     for name in IMPLEMENTATIONS
                 },
             }
@@ -1038,22 +963,16 @@ def main() -> None:
     args = build_parser().parse_args()
     campaign_dir = Path(args.campaign_dir)
     json_path = Path(args.json) if args.json else campaign_dir / "campaign.json"
-    markdown_path = (
-        Path(args.markdown) if args.markdown else campaign_dir / "results.md"
-    )
+    markdown_path = Path(args.markdown) if args.markdown else campaign_dir / "results.md"
     try:
         summary = aggregate_campaign(
             campaign_dir,
             root=Path(args.root),
             idle_seconds=args.idle_seconds,
             execution_profile=args.execution_profile,
-            model_space_report=(
-                Path(args.model_space_report) if args.model_space_report else None
-            ),
+            model_space_report=(Path(args.model_space_report) if args.model_space_report else None),
             product_output_report=(
-                Path(args.product_output_report)
-                if args.product_output_report
-                else None
+                Path(args.product_output_report) if args.product_output_report else None
             ),
         )
         write_json(json_path, summary)

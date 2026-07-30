@@ -184,10 +184,7 @@ def _smoke_steps(
     smoke_mode = COMPARATIVE_PROFILE
     for selection in selections:
         variables = _selection_variables(selection, options.gpu_id)
-        output_root = (
-            "artefacts/benchmarks/workflows/smoke/"
-            f"{options.goal}/{selection.key}"
-        )
+        output_root = f"artefacts/benchmarks/workflows/smoke/{options.goal}/{selection.key}"
         steps.append(
             Step(
                 key=f"smoke:{selection.key}:project",
@@ -314,9 +311,7 @@ def _tuned_steps(
     ):
         for selection in selections:
             variables = list(_selection_variables(selection, options.gpu_id))
-            variables.append(
-                f"TUNING_CONTRACT={selection.workload.tuning_contract}"
-            )
+            variables.append(f"TUNING_CONTRACT={selection.workload.tuning_contract}")
             if stage == "sweep":
                 variables.append(f"TUNING_RESUME={int(options.resume)}")
             elif stage == "campaign":
@@ -331,9 +326,7 @@ def _tuned_steps(
 
     selected_variants: dict[str, set[str]] = {}
     for selection in selections:
-        selected_variants.setdefault(selection.workload.key, set()).add(
-            selection.variant.name
-        )
+        selected_variants.setdefault(selection.workload.key, set()).add(selection.variant.name)
     for workload in (selection.workload for selection in selections):
         variants = selected_variants[workload.key]
         if variants != {"720p", "1080p"}:
@@ -472,9 +465,7 @@ class WorkflowState:
                 raise WorkflowError(f"Resume state does not exist: {path}")
             return cls(path=path, context=context, completed_steps=[])
         if not resume:
-            raise WorkflowError(
-                f"Workflow state exists; use --resume or remove it: {path}"
-            )
+            raise WorkflowError(f"Workflow state exists; use --resume or remove it: {path}")
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:

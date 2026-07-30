@@ -140,8 +140,7 @@ def canonical_suite_errors(
         expected = benchmark.get(benchmark_key)
         if actual != expected:
             errors.append(
-                f"{parameter_key} must match canonical {benchmark_key} "
-                f"({actual!r} != {expected!r})"
+                f"{parameter_key} must match canonical {benchmark_key} ({actual!r} != {expected!r})"
             )
     return errors
 
@@ -156,9 +155,7 @@ def suite_publishability_errors(
     """Collect suite-level reasons that prevent publishing a result."""
     errors = list(canonical_errors)
     if acceptance_only:
-        errors.append(
-            "Individual suites are acceptance-only; use a rotated campaign result"
-        )
+        errors.append("Individual suites are acceptance-only; use a rotated campaign result")
     if status != "valid":
         errors.append(f"Suite status is {status!r}, not 'valid'")
     for run in runs:
@@ -203,8 +200,7 @@ class SuiteRunner:
                 message = f"Benchmark: {self._label}, {self._frames} frames"
             else:
                 message = (
-                    f"Benchmark run {run_index}/{target_runs}: {self._label}, "
-                    f"{self._frames} frames"
+                    f"Benchmark run {run_index}/{target_runs}: {self._label}, {self._frames} frames"
                 )
             print(message, file=self._stream)
             manifest = run(run_index)
@@ -231,11 +227,7 @@ class SuiteRunner:
         errors = self._invariant_errors(valid_runs)
         all_valid = len(valid_runs) == len(manifests) == target_runs and not errors
         spread = statistics_report["relative_spread"]
-        stable = (
-            all_valid
-            and spread is not None
-            and spread <= self._policy.spread_threshold
-        )
+        stable = all_valid and spread is not None and spread <= self._policy.spread_threshold
         status = "valid" if stable else ("unstable" if all_valid else "invalid")
         return SuiteResult(
             status=status,
@@ -247,9 +239,7 @@ class SuiteRunner:
 
     def _invariant_errors(self, runs: list[RunManifest]) -> list[str]:
         power_limits = {
-            value
-            for manifest in runs
-            if (value := self._power_limit_reader(manifest)) is not None
+            value for manifest in runs if (value := self._power_limit_reader(manifest)) is not None
         }
         if len(power_limits) > 1:
             return ["GPU power limit changed between measured runs"]

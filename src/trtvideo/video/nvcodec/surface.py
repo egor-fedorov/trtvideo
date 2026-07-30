@@ -89,9 +89,7 @@ def nv12_plane_views(
         pixel_stride = 1
         channel_stride = 1
     else:
-        sample_stride, row_stride, pixel_stride, channel_stride = (
-            int(value) for value in strides
-        )
+        sample_stride, row_stride, pixel_stride, channel_stride = (int(value) for value in strides)
 
     pointer = int(interface["data"][0])
     owner = (source, cuda_buffer)

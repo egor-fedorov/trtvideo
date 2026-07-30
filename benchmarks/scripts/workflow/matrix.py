@@ -44,9 +44,7 @@ class Workload:
         for variant in self.variants:
             if variant.name == name:
                 return variant
-        raise WorkflowMatrixError(
-            f"Workload {self.key!r} has no {name!r} variant"
-        )
+        raise WorkflowMatrixError(f"Workload {self.key!r} has no {name!r} variant")
 
 
 @dataclass(frozen=True)
@@ -128,9 +126,7 @@ def load_workflow_matrix(path: Path) -> WorkflowMatrix:
         variants = []
         for name, variant_value in variants_value.items():
             if name not in {"720p", "1080p"} or not isinstance(variant_value, dict):
-                raise WorkflowMatrixError(
-                    f"Workload {key!r} has invalid variant {name!r}"
-                )
+                raise WorkflowMatrixError(f"Workload {key!r} has invalid variant {name!r}")
             variants.append(
                 Variant(
                     name=name,
