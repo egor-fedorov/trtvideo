@@ -18,8 +18,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Frames to exclude from profiling/benchmark summaries",
     )
     parser.add_argument("--log-interval", type=int, default=10, help="Log every N frames")
-    parser.add_argument("--profile", action="store_true", help="Per-stage profiling")
-    parser.add_argument("--profile-json", default=None, help="Write profiling JSON summary")
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help=(
+            "Print isolated stage timings; serializes the pipeline per frame, "
+            "so timings are not additive and FPS is not throughput"
+        ),
+    )
+    parser.add_argument(
+        "--profile-json",
+        default=None,
+        help=(
+            "Write isolated stage timings as JSON; serializes the pipeline per "
+            "frame and is not a throughput measurement"
+        ),
+    )
     parser.add_argument(
         "--benchmark-lifecycle-json",
         default=None,

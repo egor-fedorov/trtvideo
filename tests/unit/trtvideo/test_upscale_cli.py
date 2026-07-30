@@ -35,3 +35,10 @@ def test_removed_backend_options_are_rejected(removed_option: str) -> None:
 def test_engine_is_required() -> None:
     with pytest.raises(SystemExit):
         build_parser().parse_args(["--input", "videos/input.mp4"])
+
+
+def test_profile_help_warns_about_serialized_non_throughput_measurement() -> None:
+    help_text = " ".join(build_parser().format_help().split())
+
+    assert "serializes the pipeline per frame" in help_text
+    assert "FPS is not throughput" in help_text

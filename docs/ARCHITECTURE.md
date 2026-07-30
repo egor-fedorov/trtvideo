@@ -194,13 +194,19 @@ does not overwrite an existing output.
 - RGB -> NV12 through CV-CUDA;
 - the NVENC encode call.
 
-GPU stages are measured with CUDA events. The profiled path may introduce
-additional synchronization to obtain correct timing values, so its CPU behavior
-and throughput must not be treated as equivalent to the normal inference path.
+GPU stages are measured with CUDA events. After every profiled frame, the
+runtime synchronizes its CUDA stream before committing the event intervals.
+This deliberate frame-boundary barrier serializes the profiled path and
+collapses the production path's cross-frame overlap between decode, CUDA work,
+and encode.
 
 The stage profiler starts after receiving a frame from the decoder and is not a
-complete end-to-end process profile. Its results diagnose individual stages;
-they are not used for cross-product comparisons.
+complete end-to-end process profile. It reports isolated stage costs under that
+serialized schedule. The stage values must not be added together as a model of
+real frame time, and the largest isolated stage may be hidden by overlap in the
+normal path. Use the unprofiled benchmark for throughput and Nsight Systems for
+pipeline overlap; stage-profiler results are not used for cross-product
+comparisons.
 
 The benchmark-image-only `benchmark-upscale` wrapper launches regular,
 unprofiled `upscale` subprocesses: a discarded warmup followed by a measured
@@ -260,6 +266,7 @@ FP16 flag.
 - Runtime dynamic-shape inference is not supported.
 - The media contract is limited to SDR 8-bit video.
 - Automatic bitrate does not guarantee a target file size or visual quality.
-- The stage profiler does not provide complete decode-to-mux wall time for each
-  stage.
+- The stage profiler deliberately synchronizes every frame. It provides
+  isolated stage costs, not an additive decode-to-mux breakdown or a throughput
+  measurement.
 - TensorRT engines must be rebuilt after an incompatible TensorRT or GPU change.
