@@ -6,37 +6,10 @@ work belongs in `docs/CHANGES.md`, measured changes in
 `benchmarks/methodology.md`, and published evidence in
 `benchmarks/results/`.
 
-## 1. Current-Revision Benchmark
-
-The previous RTX 3090 snapshot was withdrawn before the repository privacy
-rewrite. It predates the corrected limited-range color path and is not current
-publication evidence.
-
-Before publishing current performance claims:
-
-- rebuild all benchmark images and TensorRT engines from one clean revision;
-- rerun the complete upstream-default matrix after the torch-free NVCodec
-  runtime and startup/finalize changes;
-- run the corrected tuned matrix for RealESRGAN and SPAN at 720p and 1080p,
-  including the VSGAN `num_streams=2..6` grid with runtime-default VapourSynth
-  threads;
-- pass profile-scoped model-space and product-output quality gates and rotated
-  campaigns; full tuned quality runs apply only to the selected winners;
-- refresh the four `trtexec` ceilings using the rebuilt engines;
-- repeat the representative SPAN 1080p Nsight diagnostic on the current runtime
-  to confirm that the GPU-resident path still has no material per-frame
-  host/device transfers;
-- publish a new privacy-reviewed snapshot only after the complete matrix passes
-  the machine-checked publication contract.
-
-After the canonical matrix:
+## 1. Benchmark Follow-Up
 
 - run one confirmation workload on a short live-action clip with substantial
   motion and fine detail;
-- inspect the new SPAN 720p lifecycle intervals. Optimize startup or finalize
-  only if the current-revision measurement still identifies them as material;
-- attribute project CPU use with `perf` or `py-spy` only if the new campaign
-  still shows unexplained sustained CPU consumption.
 
 ## 2. Open-Source Release
 

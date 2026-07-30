@@ -58,6 +58,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Published a post-rewrite RTX 3090 benchmark snapshot from one clean revision:
+  complete upstream-default and corrected best-tuned matrices for RealESRGAN
+  and SPAN at 720p and 1080p, plus fresh `trtexec` ceilings and an Nsight
+  architecture trace. Both tuned matrices and all quality gates are valid and
+  publishable.
 - Licensed the project source code and documentation under Apache License 2.0,
   with third-party dependencies, models, and media remaining under their own
   licenses.

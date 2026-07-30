@@ -1,0 +1,252 @@
+{
+  "schema_version": 2,
+  "document_type": "published_diagnostic_results",
+  "status": "valid",
+  "publishable": true,
+  "scope": {
+    "date_utc": "2026-07-30",
+    "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+    "source_dirty": false,
+    "claim_scope": "TensorRT inference ceilings and one profiler trace; diagnostics are not product competitors or additional throughput campaigns."
+  },
+  "environment": {
+    "cpu": {
+      "logical_cores": 12,
+      "model": "AMD Ryzen 5 5600 6-Core Processor"
+    },
+    "gpu": {
+      "compute_capability": "8.6",
+      "driver_version": "595.84",
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 3090",
+      "persistence_mode": 0,
+      "power_limit_w": 350.0,
+      "total_memory_mib": 24576.0
+    },
+    "image": {
+      "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3",
+      "id": "sha256:560e053ccb9c4b67cf8f229bdee90e6095e2779f71943725da216b8d8d7f6d39",
+      "reference": "trtvideo:benchmark",
+      "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+      "source_dirty": "0"
+    },
+    "software": {
+      "cuda": "13.0",
+      "cvcuda": "0.16.0",
+      "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+      "nsight_systems": "NVIDIA Nsight Systems version 2026.3.1.117-263137992252v0",
+      "nvidia_ml_py": "13.610.43",
+      "pynvvideocodec": "2.1.0",
+      "python": "3.12.3",
+      "tensorrt": "11.0.0.114",
+      "torch": "2.11.0",
+      "trtvideo": "0.3.1"
+    }
+  },
+  "trtexec": [
+    {
+      "workload_id": "realesrgan-x2plus-sintel-v4",
+      "variant": "720p",
+      "benchmark_contract_version": 3,
+      "status": "valid",
+      "publishable": true,
+      "suite": {
+        "path": "artefacts/benchmarks/diagnostics/trtexec/realesrgan_x2plus_sintel-720p/suite.json",
+        "sha256": "f62aa7ad72e829aaf89bd0d29c4d9b432477d3c1e0f4f0258e41f14adf997708"
+      },
+      "assets": {
+        "engine": {
+          "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine",
+          "sha256": "a5df0376be91c337ff7306c5754a4b865b66a22e29c7b7c81a0fb2ac8de57ee1",
+          "size_bytes": 41410540
+        },
+        "engine_manifest": {
+          "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine.json",
+          "sha256": "ab3fadab81b414d04d901617401ec62e62afe8ac0515d9c686be4b7e56921c41",
+          "size_bytes": 1062
+        }
+      },
+      "parameters": {
+        "cuda_graph": false,
+        "data_transfers": false,
+        "extra_runs_on_spread": 2,
+        "frames": 1000,
+        "idle_seconds": 10.0,
+        "initial_runs": 3,
+        "nvml_sample_interval_ms": 100,
+        "spread_threshold": 0.05,
+        "warmup_ms": 1000
+      },
+      "statistics": {
+        "max_fps": 6.28479,
+        "median_fps": 6.28329,
+        "min_fps": 6.28206,
+        "relative_spread": 0.0004344857550741215,
+        "values_fps": [
+          6.28206,
+          6.28479,
+          6.28329
+        ]
+      }
+    },
+    {
+      "workload_id": "realesrgan-x2plus-sintel-v4",
+      "variant": "1080p",
+      "benchmark_contract_version": 3,
+      "status": "valid",
+      "publishable": true,
+      "suite": {
+        "path": "artefacts/benchmarks/diagnostics/trtexec/realesrgan_x2plus_sintel-1080p/suite.json",
+        "sha256": "ddcedc8133c7ed5117ee18b9fd09b073e612fb3c0fbae246bf48c7ccd1581f9c"
+      },
+      "assets": {
+        "engine": {
+          "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine",
+          "sha256": "a5ebf0e8a9953ef867a8c17594906ae37d671c1483c8f82f4068cb29af7cef62",
+          "size_bytes": 39779116
+        },
+        "engine_manifest": {
+          "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine.json",
+          "sha256": "44f4057a879250650d9e6cc5a2924d6640bf492d6b2ab00f40b47bc24ef7107d",
+          "size_bytes": 1065
+        }
+      },
+      "parameters": {
+        "cuda_graph": false,
+        "data_transfers": false,
+        "extra_runs_on_spread": 2,
+        "frames": 1000,
+        "idle_seconds": 10.0,
+        "initial_runs": 3,
+        "nvml_sample_interval_ms": 100,
+        "spread_threshold": 0.05,
+        "warmup_ms": 1000
+      },
+      "statistics": {
+        "max_fps": 2.83671,
+        "median_fps": 2.82904,
+        "min_fps": 2.82851,
+        "relative_spread": 0.0028985097418205417,
+        "values_fps": [
+          2.82904,
+          2.82851,
+          2.83671
+        ]
+      }
+    },
+    {
+      "workload_id": "liveaction-span-sintel-v3",
+      "variant": "720p",
+      "benchmark_contract_version": 1,
+      "status": "valid",
+      "publishable": true,
+      "suite": {
+        "path": "artefacts/benchmarks/diagnostics/trtexec/liveaction_span_sintel-720p/suite.json",
+        "sha256": "2d422a35eb957b6fac789068cbefb3feed16e10c0eb74d3529b68a6b2f6584a2"
+      },
+      "assets": {
+        "engine": {
+          "path": "models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine",
+          "sha256": "c52cf05d959c0021f44b046ce8808002e7689ee7376dac0b6cce78426f423f68",
+          "size_bytes": 1518020
+        },
+        "engine_manifest": {
+          "path": "models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine.json",
+          "sha256": "dc1ea7055605fa2c160c3967d4c9999942c4ca06671c4c48ad2b4cae5b6c6023",
+          "size_bytes": 1054
+        }
+      },
+      "parameters": {
+        "cuda_graph": false,
+        "data_transfers": false,
+        "extra_runs_on_spread": 2,
+        "frames": 1000,
+        "idle_seconds": 10.0,
+        "initial_runs": 3,
+        "nvml_sample_interval_ms": 100,
+        "spread_threshold": 0.05,
+        "warmup_ms": 1000
+      },
+      "statistics": {
+        "max_fps": 61.1716,
+        "median_fps": 60.9505,
+        "min_fps": 60.9312,
+        "relative_spread": 0.003944184215059779,
+        "values_fps": [
+          60.9505,
+          61.1716,
+          60.9312
+        ]
+      }
+    },
+    {
+      "workload_id": "liveaction-span-sintel-v3",
+      "variant": "1080p",
+      "benchmark_contract_version": 1,
+      "status": "valid",
+      "publishable": true,
+      "suite": {
+        "path": "artefacts/benchmarks/diagnostics/trtexec/liveaction_span_sintel-1080p/suite.json",
+        "sha256": "98c25c5aa6a7e1c2a8ad49602fec20b5686ce1970c07ae8f43f74bf714387116"
+      },
+      "assets": {
+        "engine": {
+          "path": "models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine",
+          "sha256": "c6c4d634a2dc40be51f5b69bce8f8f45d29a4d4989784ae5e38bdd0ca14aaa85",
+          "size_bytes": 1425004
+        },
+        "engine_manifest": {
+          "path": "models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine.json",
+          "sha256": "98db9b5dae9163397431e93c45bd262eda59260a5bba218dee6086144b89efcf",
+          "size_bytes": 1057
+        }
+      },
+      "parameters": {
+        "cuda_graph": false,
+        "data_transfers": false,
+        "extra_runs_on_spread": 2,
+        "frames": 1000,
+        "idle_seconds": 10.0,
+        "initial_runs": 3,
+        "nvml_sample_interval_ms": 100,
+        "spread_threshold": 0.05,
+        "warmup_ms": 1000
+      },
+      "statistics": {
+        "max_fps": 27.555,
+        "median_fps": 27.553,
+        "min_fps": 27.5382,
+        "relative_spread": 0.0006097339672630903,
+        "values_fps": [
+          27.553,
+          27.555,
+          27.5382
+        ]
+      }
+    }
+  ],
+  "nsight": {
+    "status": "valid",
+    "publishable_as_performance_result": false,
+    "workload_id": "liveaction-span-sintel-v3",
+    "variant": "1080p",
+    "frames": 120,
+    "manifest_sha256": "3fbda1301631ada29bd4cc02066fd91bbb10d341ddd786eef893715a4358c413",
+    "trace_sha256": "98231336ba0722ac2e23bc47111092f64bd0c8dd3a8c9d30181e267606b8bcff",
+    "sqlite_sha256": "d598682c7dcdb1c98f3b32094cf4deb81aa377c9291c4d37cb5a6e7bb88bf9ea",
+    "output_validation": true,
+    "findings": {
+      "cuda_kernel_time_coverage_of_frame_loop_percent": 99.37441553703377,
+      "nvdec_overlap_with_cuda_kernels_percent": 93.55127090386974,
+      "nvenc_overlap_with_cuda_kernels_percent": 99.53961957570705,
+      "startup_h2d_mib": 0.79693603515625,
+      "per_frame_d2d_mib": 14.83154296875,
+      "per_frame_d2d_time_ms": 0.042705125,
+      "material_per_frame_h2d_or_d2h": false
+    },
+    "limitations": [
+      "Profiler overhead makes trace FPS non-publishable.",
+      "CPU IP sampling and scheduler context-switch tracing are disabled."
+    ]
+  }
+}

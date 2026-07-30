@@ -5,11 +5,11 @@ For every new performance change, record what changed, the benchmark or command,
 the gain or regression, and where it occurred.
 Keep entries in reverse chronological order, with the newest entry first.
 
-All commit identifiers below were recorded before the July 2026 repository
-privacy rewrite. They remain as immutable labels from the original measurement
-records but are not expected to resolve in the rewritten Git history. Published
-benchmark snapshots were withdrawn; new publication evidence must be measured
-from one clean post-rewrite revision.
+Commit identifiers in entries dated before 2026-07-30 were recorded before the
+July 2026 repository privacy rewrite. They remain as immutable labels from the
+original measurement records but are not expected to resolve in the rewritten
+Git history. Current publication evidence must be measured from one clean
+post-rewrite revision.
 
 Entries from before the runtime registry was removed contain historical commands
 with `--model` and precision filters. The current CLI requires an explicit
@@ -93,7 +93,7 @@ lifecycle instrumentation measured 5 ms for NVENC drain, 113 ms for bitstream
 close, and 400 ms for preserved-media mux. This confirms the current result but
 does not replace the controlled adjacent-revision comparison.
 
-## 2026-07-27 - RTX 3090 upstream-default and tuned comparison
+## 2026-07-27 - Pre-rewrite RTX 3090 comparison
 
 Validated upstream-default and bounded best-tuned campaigns were measured on
 clean revision `7aa3d6e` with an RTX 3090 at its active 350 W board limit and an

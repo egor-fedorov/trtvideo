@@ -1,0 +1,1177 @@
+{
+  "schema_version": 2,
+  "document_type": "published_upstream_default_results",
+  "status": "valid",
+  "publishable": true,
+  "scope": {
+    "date_utc": "2026-07-30",
+    "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+    "source_dirty": false,
+    "execution_profile": "upstream-default",
+    "claim_scope": "End-to-end throughput using scheduling defaults documented by the pinned upstream implementations."
+  },
+  "environment": {
+    "hardware": {
+      "cpu": {
+        "logical_cores": 12,
+        "model": "AMD Ryzen 5 5600 6-Core Processor"
+      },
+      "gpu": {
+        "compute_capability": "8.6",
+        "driver_version": "595.84",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 3090",
+        "persistence_mode": 0,
+        "power_limit_w": 350.0,
+        "total_memory_mib": 24576.0
+      }
+    },
+    "project_runtime": {
+      "image": {
+        "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3",
+        "id": "sha256:90b5e69670ec12bb90e405eaa0dd3828059e13d8d7535d6493f0ff8b2a531de2",
+        "reference": "trtvideo:benchmark",
+        "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+        "source_dirty": "0"
+      },
+      "software": {
+        "cuda": "13.0",
+        "cvcuda": "0.16.0",
+        "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "nvidia_ml_py": "13.610.43",
+        "pynvvideocodec": "2.1.0",
+        "python": "3.12.3",
+        "tensorrt": "11.0.0.114",
+        "torch": "2.11.0",
+        "trtvideo": "0.3.1"
+      }
+    },
+    "implementations": {
+      "trtvideo": {
+        "product": "trtvideo"
+      },
+      "vstrt": {
+        "product": "vs-mlrt",
+        "source": "https://github.com/AmusementClub/vs-mlrt",
+        "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
+        "version": "v15.16",
+        "tensorrt_version": "11.0.0"
+      },
+      "vsgan": {
+        "product": "VSGAN-tensorrt-docker",
+        "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
+        "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
+        "version": "2026-06-22",
+        "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
+        "tensorrt_version": "10.16",
+        "exact_model_match": true,
+        "exact_engine_match": false
+      }
+    }
+  },
+  "methodology": {
+    "measured_frames": 1000,
+    "warmup_frames": {
+      "realesrgan_x2plus": 30,
+      "span": 100
+    },
+    "initial_rounds": 3,
+    "extra_rounds_on_spread": 2,
+    "idle_seconds": 10,
+    "spread_threshold": 0.05,
+    "stability_policy": "full-range-3-then-consensus-4-of-5",
+    "cpu_accounting": "getrusage(RUSAGE_CHILDREN), measured child-process tree",
+    "project_profile": {
+      "backend": "nvcodec",
+      "cuda_graph": false
+    },
+    "external_profiles": {
+      "vstrt": {
+        "vspipe_requests": "auto",
+        "num_streams": 1,
+        "vapoursynth_threads": "auto",
+        "cuda_graph": false
+      },
+      "vsgan": {
+        "vspipe_requests": "auto",
+        "num_streams": 4,
+        "vapoursynth_threads": 4,
+        "cuda_graph": false
+      }
+    },
+    "encoder": {
+      "codec": "h264",
+      "preset": "p4",
+      "tuning": "high_quality",
+      "rate_control": "cbr",
+      "multipass": "disabled",
+      "b_frames": 0,
+      "gop_frames": 24,
+      "lookahead_frames": 0,
+      "spatial_aq": false,
+      "temporal_aq": false,
+      "target_bitrate_mbps": {
+        "720p": 35,
+        "1080p": 60
+      }
+    }
+  },
+  "campaigns": [
+    {
+      "execution_profile": "upstream-default",
+      "workload_id": "realesrgan-x2plus-sintel-v4",
+      "variant": "720p",
+      "benchmark_contract_version": 3,
+      "status": "valid",
+      "publishable": true,
+      "campaign": {
+        "path": "artefacts/benchmarks/comparative/campaigns/upstream-default/realesrgan_x2plus_sintel-720p/campaign.json",
+        "sha256": "b26b3407765e1c94bd824e3390c259af25be8f9669d5d19e8475740badf086d2"
+      },
+      "environment": {
+        "cpu": {
+          "logical_cores": 12,
+          "model": "AMD Ryzen 5 5600 6-Core Processor"
+        },
+        "gpu": {
+          "compute_capability": "8.6",
+          "driver_version": "595.84",
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 3090",
+          "persistence_mode": 0,
+          "power_limit_w": 350.0,
+          "total_memory_mib": 24576.0
+        },
+        "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d"
+      },
+      "parameters": {
+        "cpu_accounting": {
+          "accounting": "getrusage(RUSAGE_CHILDREN)",
+          "available_logical_cpus": 12,
+          "scope": "measured-child-process-tree"
+        },
+        "encoder": {
+          "b_frames": 0,
+          "codec": "h264",
+          "gop_frames": 24,
+          "lookahead_frames": 0,
+          "max_bitrate_bps": 35000000,
+          "min_bitrate_bps": 35000000,
+          "multipass": "disabled",
+          "preset": "p4",
+          "rate_control": "cbr",
+          "spatial_aq": false,
+          "target_bitrate_bps": 35000000,
+          "temporal_aq": false,
+          "tuning": "high_quality",
+          "vbv_buffer_bits": 70000000,
+          "vbv_initial_delay_bits": 35000000
+        },
+        "execution_profiles": {
+          "vsgan": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 4,
+            "vapoursynth_threads": 4,
+            "vspipe_requests": "auto"
+          },
+          "vstrt": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 1,
+            "vapoursynth_threads": "auto",
+            "vspipe_requests": "auto"
+          }
+        },
+        "idle_seconds": 10.0,
+        "measured_frames": 1000,
+        "rounds": 3,
+        "spread_threshold": 0.05,
+        "stability_policy": "full-range-3-then-consensus-4-of-5",
+        "warmup_frames": 30
+      },
+      "assets": {
+        "input_sha256": "69cf9733813885ff64ee45eb6625fb337ce29e65080cf1933410139aed142bd4",
+        "onnx_sha256": "2d54d2c7bc0d12dc7fa725c50cf4a97672959ff1c081d88116e3fe2268b26a76"
+      },
+      "quality": {
+        "model_space": {
+          "path": "artefacts/benchmarks/comparative/quality/model-space/upstream-default/realesrgan_x2plus_sintel-720p/model-space-parity.json",
+          "sha256": "f770066be1a94acc09e5d01f3e03a03b06dc0a6a4c5d2d3065f4c2bcc9ca31fa",
+          "status": "valid",
+          "frame_indices": [
+            0,
+            499,
+            999
+          ],
+          "thresholds": {
+            "input": {
+              "min_psnr_db": 48.0,
+              "p99_abs": 0.011765,
+              "rmse": 0.003922
+            },
+            "output": {
+              "min_psnr_db": 42.0,
+              "p99_abs": 0.015686,
+              "rmse": 0.007843
+            }
+          },
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "max_p99_abs": 0.008582837879657745,
+              "max_rmse": 0.002745550368668454,
+              "min_psnr_db": 51.22741169009106
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "max_p99_abs": 0.008582837879657745,
+              "max_rmse": 0.002745550368668454,
+              "min_psnr_db": 51.22741169009106
+            }
+          ]
+        },
+        "product_output": {
+          "path": "artefacts/benchmarks/comparative/quality/product-output/upstream-default/realesrgan_x2plus_sintel-720p/product-output-parity.json",
+          "sha256": "626931250928ed49c3a51b1d3528d2f8562fd4ad0a51db301c14100612899259",
+          "status": "valid",
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "psnr_average_db": 49.125359,
+              "ssim": 0.994492,
+              "compared_frames": 1000
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "psnr_average_db": 49.125359,
+              "ssim": 0.994492,
+              "compared_frames": 1000
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "implementation": "trtvideo",
+          "product": "trtvideo",
+          "image_id": "sha256:90b5e69670ec12bb90e405eaa0dd3828059e13d8d7535d6493f0ff8b2a531de2",
+          "engine_sha256": "b72463b1a263d8d31637d6c3584ac4153322d200a54f1d7aed6c36600a8710b2",
+          "relative_to_trtvideo_percent": 0.0,
+          "fps_median": 6.204373935188384,
+          "fps_runs": [
+            6.214632109912807,
+            6.20193424417269,
+            6.204373935188384
+          ],
+          "fps_spread": 0.0020465990400901847,
+          "wall_sec": 161.176616762,
+          "startup_sec": 1.539394434,
+          "steady_state_sec": 158.761026241,
+          "finalize_sec": 0.849923595,
+          "cpu_cores": 1.010528101247219,
+          "cpu_capacity_percent": 8.421067510393492,
+          "gpu_util_percent": 98.76591760299625,
+          "power_w": 338.43258079004994,
+          "joules_per_frame": 54.54741837377249,
+          "peak_vram_mib": 2226.875,
+          "output_bitrate_mbps": 32.713871,
+          "output_size_mib": 162.49869060516357,
+          "lifecycle_intervals_sec": {
+            "cleanup_completed_to_output_committed": 0.000045046,
+            "decoder_initialized_to_encoder_initialized": 0.193039359,
+            "encoder_drained_to_mux_input_closed": 0.00001055,
+            "encoder_initialized_to_first_frame_completed": 0.167552527,
+            "first_frame_completed_to_last_frame_completed": 158.761026241,
+            "frame_loop_completed_to_encoder_drained": 0.005084007,
+            "last_frame_completed_to_frame_loop_completed": 0.153173915,
+            "mux_completed_to_pipeline_finalized": 0.000002545,
+            "mux_input_closed_to_mux_completed": 0.198248151,
+            "output_committed_to_reporting_started": 0.000001453,
+            "pipeline_created_to_video_probed": 0.044263969,
+            "pipeline_finalized_to_cleanup_completed": 0.000038774,
+            "preservation_preflight_completed_to_runtime_initialized": 0.928946551,
+            "process_started_to_pipeline_created": 0.137719572,
+            "reporting_started_to_process_finished": 0.497197471,
+            "runtime_initialized_to_decoder_initialized": 0.012286642,
+            "video_probed_to_preservation_preflight_completed": 0.050072212
+          },
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.0020465990400901847,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vsgan",
+          "product": "VSGAN-tensorrt-docker",
+          "image_id": "sha256:36935bf97b320be1be1ae5e0e9cd471e1f3566d2a3d037fcfb7e9cdd2efb0843",
+          "engine_sha256": "b00a0ead22a327c9aca5f57ded63f74f197415a0dd84d6a3b2e9291c0b80fd7c",
+          "relative_to_trtvideo_percent": -0.059206673466771775,
+          "fps_median": 6.200700531771919,
+          "fps_runs": [
+            6.212805119444581,
+            6.200700531771919,
+            6.200224757857303
+          ],
+          "fps_spread": 0.002028861339588541,
+          "wall_sec": 161.272100608,
+          "startup_sec": 3.75397449,
+          "steady_state_sec": 157.500783122,
+          "finalize_sec": 0.012302286,
+          "cpu_cores": 3.9455702713376843,
+          "cpu_capacity_percent": 32.879752261147374,
+          "gpu_util_percent": 97.33208255159475,
+          "power_w": 336.61164842766783,
+          "joules_per_frame": 54.28707416684282,
+          "peak_vram_mib": 6792.375,
+          "output_bitrate_mbps": 35.042122,
+          "output_size_mib": 174.06343936920166,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.002028861339588541,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vstrt",
+          "product": "vs-mlrt",
+          "image_id": "sha256:7fdb6ed94126b3a98a1841f0efb16461df0acba818ffe7ef81143e456aa1c756",
+          "engine_sha256": "b72463b1a263d8d31637d6c3584ac4153322d200a54f1d7aed6c36600a8710b2",
+          "relative_to_trtvideo_percent": -7.7865822291628195,
+          "fps_median": 5.721265256920195,
+          "fps_runs": [
+            5.700833465245755,
+            5.721265256920195,
+            5.728691122359517
+          ],
+          "fps_spread": 0.004869142726788664,
+          "wall_sec": 174.786512265,
+          "startup_sec": 1.743986777,
+          "steady_state_sec": 173.022151908,
+          "finalize_sec": 0.02037358,
+          "cpu_cores": 1.1311806687870554,
+          "cpu_capacity_percent": 9.426505573225462,
+          "gpu_util_percent": 90.77393310265282,
+          "power_w": 328.77328348974294,
+          "joules_per_frame": 57.43193579734954,
+          "peak_vram_mib": 2234.375,
+          "output_bitrate_mbps": 35.042122,
+          "output_size_mib": 174.06343936920166,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.004869142726788664,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        }
+      ]
+    },
+    {
+      "execution_profile": "upstream-default",
+      "workload_id": "realesrgan-x2plus-sintel-v4",
+      "variant": "1080p",
+      "benchmark_contract_version": 3,
+      "status": "valid",
+      "publishable": true,
+      "campaign": {
+        "path": "artefacts/benchmarks/comparative/campaigns/upstream-default/realesrgan_x2plus_sintel-1080p/campaign.json",
+        "sha256": "fe79fc0f3bb22d2c39679e9925089fc757a734756b2d23c2e0e7880a9f608f19"
+      },
+      "environment": {
+        "cpu": {
+          "logical_cores": 12,
+          "model": "AMD Ryzen 5 5600 6-Core Processor"
+        },
+        "gpu": {
+          "compute_capability": "8.6",
+          "driver_version": "595.84",
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 3090",
+          "persistence_mode": 0,
+          "power_limit_w": 350.0,
+          "total_memory_mib": 24576.0
+        },
+        "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d"
+      },
+      "parameters": {
+        "cpu_accounting": {
+          "accounting": "getrusage(RUSAGE_CHILDREN)",
+          "available_logical_cpus": 12,
+          "scope": "measured-child-process-tree"
+        },
+        "encoder": {
+          "b_frames": 0,
+          "codec": "h264",
+          "gop_frames": 24,
+          "lookahead_frames": 0,
+          "max_bitrate_bps": 60000000,
+          "min_bitrate_bps": 60000000,
+          "multipass": "disabled",
+          "preset": "p4",
+          "rate_control": "cbr",
+          "spatial_aq": false,
+          "target_bitrate_bps": 60000000,
+          "temporal_aq": false,
+          "tuning": "high_quality",
+          "vbv_buffer_bits": 120000000,
+          "vbv_initial_delay_bits": 60000000
+        },
+        "execution_profiles": {
+          "vsgan": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 4,
+            "vapoursynth_threads": 4,
+            "vspipe_requests": "auto"
+          },
+          "vstrt": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 1,
+            "vapoursynth_threads": "auto",
+            "vspipe_requests": "auto"
+          }
+        },
+        "idle_seconds": 10.0,
+        "measured_frames": 1000,
+        "rounds": 3,
+        "spread_threshold": 0.05,
+        "stability_policy": "full-range-3-then-consensus-4-of-5",
+        "warmup_frames": 30
+      },
+      "assets": {
+        "input_sha256": "e86ae096df7d65be2597a26217d032a447130f57679c5a7c4fd100f48d60758c",
+        "onnx_sha256": "2064303966aacc3081b6ed06db485ca57d39bb16b684d6638580b11d98314f47"
+      },
+      "quality": {
+        "model_space": {
+          "path": "artefacts/benchmarks/comparative/quality/model-space/upstream-default/realesrgan_x2plus_sintel-1080p/model-space-parity.json",
+          "sha256": "df56ac3e7ee30d3e9a798798f67e4c28ffe3b369665e7e4a26ae1cd4f01898c1",
+          "status": "valid",
+          "frame_indices": [
+            0,
+            499,
+            999
+          ],
+          "thresholds": {
+            "input": {
+              "min_psnr_db": 48.0,
+              "p99_abs": 0.011765,
+              "rmse": 0.003922
+            },
+            "output": {
+              "min_psnr_db": 42.0,
+              "p99_abs": 0.015686,
+              "rmse": 0.007843
+            }
+          },
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "max_p99_abs": 0.007577062118798494,
+              "max_rmse": 0.002482209660335691,
+              "min_psnr_db": 52.10323077035339
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "max_p99_abs": 0.007577062118798494,
+              "max_rmse": 0.002482209660335691,
+              "min_psnr_db": 52.10323077035339
+            }
+          ]
+        },
+        "product_output": {
+          "path": "artefacts/benchmarks/comparative/quality/product-output/upstream-default/realesrgan_x2plus_sintel-1080p/product-output-parity.json",
+          "sha256": "b9fe22fc8bb97dfe95ebc7b4258ca92e1b685b4a95319711e2b85c2425262b6c",
+          "status": "valid",
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "psnr_average_db": 50.361544,
+              "ssim": 0.995249,
+              "compared_frames": 1000
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "psnr_average_db": 50.361544,
+              "ssim": 0.995249,
+              "compared_frames": 1000
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "implementation": "trtvideo",
+          "product": "trtvideo",
+          "image_id": "sha256:90b5e69670ec12bb90e405eaa0dd3828059e13d8d7535d6493f0ff8b2a531de2",
+          "engine_sha256": "74d636771ccb8479bcbf3804143a2c58b209f9569966d6ee44d3750e48d303a8",
+          "relative_to_trtvideo_percent": 0.0,
+          "fps_median": 2.8152586418286583,
+          "fps_runs": [
+            2.8152586418286583,
+            2.8178747456005393,
+            2.8126912522685843
+          ],
+          "fps_spread": 0.001841213895923982,
+          "wall_sec": 355.20715047,
+          "startup_sec": 1.537706437,
+          "steady_state_sec": 352.664444179,
+          "finalize_sec": 1.051975172,
+          "cpu_cores": 1.006696209597281,
+          "cpu_capacity_percent": 8.38913507997734,
+          "gpu_util_percent": 99.43829787234043,
+          "power_w": 340.6961110383106,
+          "joules_per_frame": 120.96146068879152,
+          "peak_vram_mib": 4264.125,
+          "output_bitrate_mbps": 56.650738,
+          "output_size_mib": 281.395339012146,
+          "lifecycle_intervals_sec": {
+            "cleanup_completed_to_output_committed": 0.000060245,
+            "decoder_initialized_to_encoder_initialized": 0.194929866,
+            "encoder_drained_to_mux_input_closed": 0.000010009,
+            "encoder_initialized_to_first_frame_completed": 0.36599772,
+            "first_frame_completed_to_last_frame_completed": 352.664444179,
+            "frame_loop_completed_to_encoder_drained": 0.011207515,
+            "last_frame_completed_to_frame_loop_completed": 0.340045475,
+            "mux_completed_to_pipeline_finalized": 0.000003747,
+            "mux_input_closed_to_mux_completed": 0.335680498,
+            "output_committed_to_reporting_started": 0.000001683,
+            "pipeline_created_to_video_probed": 0.045919089,
+            "pipeline_finalized_to_cleanup_completed": 0.000043502,
+            "preservation_preflight_completed_to_runtime_initialized": 0.725691958,
+            "process_started_to_pipeline_created": 0.138526961,
+            "reporting_started_to_process_finished": 0.356447637,
+            "runtime_initialized_to_decoder_initialized": 0.01225736,
+            "video_probed_to_preservation_preflight_completed": 0.052356681
+          },
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.001841213895923982,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vsgan",
+          "product": "VSGAN-tensorrt-docker",
+          "image_id": "sha256:36935bf97b320be1be1ae5e0e9cd471e1f3566d2a3d037fcfb7e9cdd2efb0843",
+          "engine_sha256": "12d88a3e45b31f8799c4490e0c90aeea60884349e286d52fc047ff4e40823d32",
+          "relative_to_trtvideo_percent": -0.13741947793376452,
+          "fps_median": 2.811389928100572,
+          "fps_runs": [
+            2.811389928100572,
+            2.805694597458505,
+            2.811415072128065
+          ],
+          "fps_spread": 0.0020347496490553097,
+          "wall_sec": 355.695945982,
+          "startup_sec": 4.34809117,
+          "steady_state_sec": 351.394083694,
+          "finalize_sec": 0.01226092,
+          "cpu_cores": 3.991084704293164,
+          "cpu_capacity_percent": 33.259039202443034,
+          "gpu_util_percent": 98.89219858156028,
+          "power_w": 339.8138363854769,
+          "joules_per_frame": 120.95982187581552,
+          "peak_vram_mib": 14461.125,
+          "output_bitrate_mbps": 60.199837,
+          "output_size_mib": 299.0241289138794,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.0020347496490553097,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vstrt",
+          "product": "vs-mlrt",
+          "image_id": "sha256:7fdb6ed94126b3a98a1841f0efb16461df0acba818ffe7ef81143e456aa1c756",
+          "engine_sha256": "74d636771ccb8479bcbf3804143a2c58b209f9569966d6ee44d3750e48d303a8",
+          "relative_to_trtvideo_percent": -12.788297625276579,
+          "fps_median": 2.4552349877902904,
+          "fps_runs": [
+            2.469268719607106,
+            2.4552349877902904,
+            2.454496716943409
+          ],
+          "fps_spread": 0.006016533137217892,
+          "wall_sec": 407.292990273,
+          "startup_sec": 2.05680079,
+          "steady_state_sec": 405.210998349,
+          "finalize_sec": 0.022772475,
+          "cpu_cores": 1.1227352083686637,
+          "cpu_capacity_percent": 9.35612673640553,
+          "gpu_util_percent": 86.65050704922088,
+          "power_w": 318.4890438956988,
+          "joules_per_frame": 129.40437738029394,
+          "peak_vram_mib": 4209.125,
+          "output_bitrate_mbps": 60.199837,
+          "output_size_mib": 299.0241289138794,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.006016533137217892,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        }
+      ]
+    },
+    {
+      "execution_profile": "upstream-default",
+      "workload_id": "liveaction-span-sintel-v3",
+      "variant": "720p",
+      "benchmark_contract_version": 1,
+      "status": "valid",
+      "publishable": true,
+      "campaign": {
+        "path": "artefacts/benchmarks/comparative/campaigns/upstream-default/liveaction_span_sintel-720p/campaign.json",
+        "sha256": "8a11d0c804af0c1c2f049456e7fd6f53345b2a23bcc34cb4b42472a9e5c75d47"
+      },
+      "environment": {
+        "cpu": {
+          "logical_cores": 12,
+          "model": "AMD Ryzen 5 5600 6-Core Processor"
+        },
+        "gpu": {
+          "compute_capability": "8.6",
+          "driver_version": "595.84",
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 3090",
+          "persistence_mode": 0,
+          "power_limit_w": 350.0,
+          "total_memory_mib": 24576.0
+        },
+        "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d"
+      },
+      "parameters": {
+        "cpu_accounting": {
+          "accounting": "getrusage(RUSAGE_CHILDREN)",
+          "available_logical_cpus": 12,
+          "scope": "measured-child-process-tree"
+        },
+        "encoder": {
+          "b_frames": 0,
+          "codec": "h264",
+          "gop_frames": 24,
+          "lookahead_frames": 0,
+          "max_bitrate_bps": 35000000,
+          "min_bitrate_bps": 35000000,
+          "multipass": "disabled",
+          "preset": "p4",
+          "rate_control": "cbr",
+          "spatial_aq": false,
+          "target_bitrate_bps": 35000000,
+          "temporal_aq": false,
+          "tuning": "high_quality",
+          "vbv_buffer_bits": 70000000,
+          "vbv_initial_delay_bits": 35000000
+        },
+        "execution_profiles": {
+          "vsgan": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 4,
+            "vapoursynth_threads": 4,
+            "vspipe_requests": "auto"
+          },
+          "vstrt": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 1,
+            "vapoursynth_threads": "auto",
+            "vspipe_requests": "auto"
+          }
+        },
+        "idle_seconds": 10.0,
+        "measured_frames": 1000,
+        "rounds": 3,
+        "spread_threshold": 0.05,
+        "stability_policy": "full-range-3-then-consensus-4-of-5",
+        "warmup_frames": 100
+      },
+      "assets": {
+        "input_sha256": "69cf9733813885ff64ee45eb6625fb337ce29e65080cf1933410139aed142bd4",
+        "onnx_sha256": "ac23121b272436661345f468bd83d7ed26e8a5ed01bf73ce283588d28b274c3a"
+      },
+      "quality": {
+        "model_space": {
+          "path": "artefacts/benchmarks/comparative/quality/model-space/upstream-default/liveaction_span_sintel-720p/model-space-parity.json",
+          "sha256": "29ce0fcecf1cfbe3ae4185dcdb6c49997dc8dc202b00278b189a8ecb42ce78a9",
+          "status": "valid",
+          "frame_indices": [
+            0,
+            499,
+            999
+          ],
+          "thresholds": {
+            "input": {
+              "min_psnr_db": 48.0,
+              "p99_abs": 0.011765,
+              "rmse": 0.003922
+            },
+            "output": {
+              "min_psnr_db": 42.0,
+              "p99_abs": 0.015686,
+              "rmse": 0.007843
+            }
+          },
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "max_p99_abs": 0.008582837879657745,
+              "max_rmse": 0.002745550368668454,
+              "min_psnr_db": 51.22741169009106
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "max_p99_abs": 0.008582837879657745,
+              "max_rmse": 0.002745550368668454,
+              "min_psnr_db": 51.22741169009106
+            }
+          ]
+        },
+        "product_output": {
+          "path": "artefacts/benchmarks/comparative/quality/product-output/upstream-default/liveaction_span_sintel-720p/product-output-parity.json",
+          "sha256": "4e1a21327aad03f3f71b33e4bf256443a0aacf6df662b2e501db7486a32c35c8",
+          "status": "valid",
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "psnr_average_db": 48.897657,
+              "ssim": 0.995706,
+              "compared_frames": 1000
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "psnr_average_db": 48.897657,
+              "ssim": 0.995706,
+              "compared_frames": 1000
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "implementation": "trtvideo",
+          "product": "trtvideo",
+          "image_id": "sha256:90b5e69670ec12bb90e405eaa0dd3828059e13d8d7535d6493f0ff8b2a531de2",
+          "engine_sha256": "e6b6cb02806b14618d11075b71447ee97d66323ecbf1c6e0f7f2045354231c54",
+          "relative_to_trtvideo_percent": 0.0,
+          "fps_median": 56.15970234880622,
+          "fps_runs": [
+            56.018432182132806,
+            56.15970234880622,
+            56.27570437677283
+          ],
+          "fps_spread": 0.004581081876860987,
+          "wall_sec": 17.806362181,
+          "startup_sec": 0.81223665,
+          "steady_state_sec": 16.599875058,
+          "finalize_sec": 0.385834755,
+          "cpu_cores": 0.5642078880502583,
+          "cpu_capacity_percent": 4.70173240041882,
+          "gpu_util_percent": 92.82584269662921,
+          "power_w": 314.09535772586395,
+          "joules_per_frame": 5.59289569903749,
+          "peak_vram_mib": 1497.6875,
+          "output_bitrate_mbps": 32.806009,
+          "output_size_mib": 162.95647525787354,
+          "lifecycle_intervals_sec": {
+            "cleanup_completed_to_output_committed": 0.000047961,
+            "decoder_initialized_to_encoder_initialized": 0.189282025,
+            "encoder_drained_to_mux_input_closed": 0.000011322,
+            "encoder_initialized_to_first_frame_completed": 0.027601149,
+            "first_frame_completed_to_last_frame_completed": 16.599875058,
+            "frame_loop_completed_to_encoder_drained": 0.004864591,
+            "last_frame_completed_to_frame_loop_completed": 0.044717222,
+            "mux_completed_to_pipeline_finalized": 0.000003546,
+            "mux_input_closed_to_mux_completed": 0.186931748,
+            "output_committed_to_reporting_started": 0.000001183,
+            "pipeline_created_to_video_probed": 0.044430763,
+            "pipeline_finalized_to_cleanup_completed": 0.000038784,
+            "preservation_preflight_completed_to_runtime_initialized": 0.350723811,
+            "process_started_to_pipeline_created": 0.138577057,
+            "reporting_started_to_process_finished": 0.14921885,
+            "runtime_initialized_to_decoder_initialized": 0.011012713,
+            "video_probed_to_preservation_preflight_completed": 0.050139007
+          },
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.004581081876860987,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vsgan",
+          "product": "VSGAN-tensorrt-docker",
+          "image_id": "sha256:36935bf97b320be1be1ae5e0e9cd471e1f3566d2a3d037fcfb7e9cdd2efb0843",
+          "engine_sha256": "ab9f31646c1490a7a7a1a84dfe7728915eea3aa058b955943f5874a6ee1ca9f6",
+          "relative_to_trtvideo_percent": -9.384172253935974,
+          "fps_median": 50.88957914309652,
+          "fps_runs": [
+            50.88957914309652,
+            50.49098215424193,
+            51.19709441662507
+          ],
+          "fps_spread": 0.013875380269851027,
+          "wall_sec": 19.650388485,
+          "startup_sec": 0.886280386,
+          "steady_state_sec": 18.7552126,
+          "finalize_sec": 0.013134381,
+          "cpu_cores": 4.198771141178097,
+          "cpu_capacity_percent": 34.98975950981747,
+          "gpu_util_percent": 83.64285714285714,
+          "power_w": 300.216722432709,
+          "joules_per_frame": 5.894755014357113,
+          "peak_vram_mib": 3934.375,
+          "output_bitrate_mbps": 35.532699,
+          "output_size_mib": 176.50021648406982,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.013875380269851027,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vstrt",
+          "product": "vs-mlrt",
+          "image_id": "sha256:7fdb6ed94126b3a98a1841f0efb16461df0acba818ffe7ef81143e456aa1c756",
+          "engine_sha256": "e6b6cb02806b14618d11075b71447ee97d66323ecbf1c6e0f7f2045354231c54",
+          "relative_to_trtvideo_percent": -52.217442066025285,
+          "fps_median": 26.83454231036609,
+          "fps_runs": [
+            26.527105738312528,
+            27.07971517180041,
+            26.83454231036609
+          ],
+          "fps_spread": 0.020593212550318384,
+          "wall_sec": 37.265401751,
+          "startup_sec": 0.842317883,
+          "steady_state_sec": 36.372559655,
+          "finalize_sec": 0.050524213,
+          "cpu_cores": 1.699845487330622,
+          "cpu_capacity_percent": 14.165379061088515,
+          "gpu_util_percent": 49.04851752021563,
+          "power_w": 210.37609337311986,
+          "joules_per_frame": 7.8397496383552,
+          "peak_vram_mib": 1496.375,
+          "output_bitrate_mbps": 35.532699,
+          "output_size_mib": 176.50021648406982,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.020593212550318384,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        }
+      ]
+    },
+    {
+      "execution_profile": "upstream-default",
+      "workload_id": "liveaction-span-sintel-v3",
+      "variant": "1080p",
+      "benchmark_contract_version": 1,
+      "status": "valid",
+      "publishable": true,
+      "campaign": {
+        "path": "artefacts/benchmarks/comparative/campaigns/upstream-default/liveaction_span_sintel-1080p/campaign.json",
+        "sha256": "36092879ff65f57bb181944f6072c0d51ad24adef45c4d4f8be68537ee6bd121"
+      },
+      "environment": {
+        "cpu": {
+          "logical_cores": 12,
+          "model": "AMD Ryzen 5 5600 6-Core Processor"
+        },
+        "gpu": {
+          "compute_capability": "8.6",
+          "driver_version": "595.84",
+          "index": 0,
+          "name": "NVIDIA GeForce RTX 3090",
+          "persistence_mode": 0,
+          "power_limit_w": 350.0,
+          "total_memory_mib": 24576.0
+        },
+        "repository_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d"
+      },
+      "parameters": {
+        "cpu_accounting": {
+          "accounting": "getrusage(RUSAGE_CHILDREN)",
+          "available_logical_cpus": 12,
+          "scope": "measured-child-process-tree"
+        },
+        "encoder": {
+          "b_frames": 0,
+          "codec": "h264",
+          "gop_frames": 24,
+          "lookahead_frames": 0,
+          "max_bitrate_bps": 60000000,
+          "min_bitrate_bps": 60000000,
+          "multipass": "disabled",
+          "preset": "p4",
+          "rate_control": "cbr",
+          "spatial_aq": false,
+          "target_bitrate_bps": 60000000,
+          "temporal_aq": false,
+          "tuning": "high_quality",
+          "vbv_buffer_bits": 120000000,
+          "vbv_initial_delay_bits": 60000000
+        },
+        "execution_profiles": {
+          "vsgan": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 4,
+            "vapoursynth_threads": 4,
+            "vspipe_requests": "auto"
+          },
+          "vstrt": {
+            "cuda_graph": false,
+            "execution_profile": "upstream-default",
+            "num_streams": 1,
+            "vapoursynth_threads": "auto",
+            "vspipe_requests": "auto"
+          }
+        },
+        "idle_seconds": 10.0,
+        "measured_frames": 1000,
+        "rounds": 3,
+        "spread_threshold": 0.05,
+        "stability_policy": "full-range-3-then-consensus-4-of-5",
+        "warmup_frames": 100
+      },
+      "assets": {
+        "input_sha256": "e86ae096df7d65be2597a26217d032a447130f57679c5a7c4fd100f48d60758c",
+        "onnx_sha256": "ec21ef4ce581665dd4389965db329cc45d930223490dee38ba182d376670f3e8"
+      },
+      "quality": {
+        "model_space": {
+          "path": "artefacts/benchmarks/comparative/quality/model-space/upstream-default/liveaction_span_sintel-1080p/model-space-parity.json",
+          "sha256": "5e03f97b0dcaa1d2a448aa5e58b0fa5c60b0fe4c06de8e47095d277d7a5c074c",
+          "status": "valid",
+          "frame_indices": [
+            0,
+            499,
+            999
+          ],
+          "thresholds": {
+            "input": {
+              "min_psnr_db": 48.0,
+              "p99_abs": 0.011765,
+              "rmse": 0.003922
+            },
+            "output": {
+              "min_psnr_db": 42.0,
+              "p99_abs": 0.015686,
+              "rmse": 0.007843
+            }
+          },
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "max_p99_abs": 0.007577062118798494,
+              "max_rmse": 0.002482209660335691,
+              "min_psnr_db": 52.10323077035339
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "max_p99_abs": 0.007577062118798494,
+              "max_rmse": 0.002482209660335691,
+              "min_psnr_db": 52.10323077035339
+            }
+          ]
+        },
+        "product_output": {
+          "path": "artefacts/benchmarks/comparative/quality/product-output/upstream-default/liveaction_span_sintel-1080p/product-output-parity.json",
+          "sha256": "492c183fa83d2b2458a5f97869b722247404210b174e6bb5d55e1e8b10918241",
+          "status": "valid",
+          "comparisons": [
+            {
+              "implementation": "vs-mlrt",
+              "status": "valid",
+              "psnr_average_db": 50.29111,
+              "ssim": 0.996216,
+              "compared_frames": 1000
+            },
+            {
+              "implementation": "VSGAN-tensorrt-docker",
+              "status": "valid",
+              "psnr_average_db": 50.29111,
+              "ssim": 0.996216,
+              "compared_frames": 1000
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "implementation": "trtvideo",
+          "product": "trtvideo",
+          "image_id": "sha256:90b5e69670ec12bb90e405eaa0dd3828059e13d8d7535d6493f0ff8b2a531de2",
+          "engine_sha256": "4916df0c7ebb8add457eceb2f3f097e0904777264da162676ebe7711fbc06e30",
+          "relative_to_trtvideo_percent": 0.0,
+          "fps_median": 26.273027061334236,
+          "fps_runs": [
+            26.315963485222657,
+            26.230683726962592,
+            26.273027061334236
+          ],
+          "fps_spread": 0.003245905318065531,
+          "wall_sec": 38.061849427,
+          "startup_sec": 0.845582963,
+          "steady_state_sec": 36.620737889,
+          "finalize_sec": 0.605090284,
+          "cpu_cores": 0.4789576933731203,
+          "cpu_capacity_percent": 3.991314111442669,
+          "gpu_util_percent": 96.87335092348285,
+          "power_w": 326.21910983862756,
+          "joules_per_frame": 12.436546192782084,
+          "peak_vram_mib": 2693.6875,
+          "output_bitrate_mbps": 56.221178,
+          "output_size_mib": 279.26180934906006,
+          "lifecycle_intervals_sec": {
+            "cleanup_completed_to_output_committed": 0.000058822,
+            "decoder_initialized_to_encoder_initialized": 0.194650642,
+            "encoder_drained_to_mux_input_closed": 0.000011983,
+            "encoder_initialized_to_first_frame_completed": 0.04555282,
+            "first_frame_completed_to_last_frame_completed": 36.620737889,
+            "frame_loop_completed_to_encoder_drained": 0.011827173,
+            "last_frame_completed_to_frame_loop_completed": 0.099055985,
+            "mux_completed_to_pipeline_finalized": 0.000003847,
+            "mux_input_closed_to_mux_completed": 0.325677575,
+            "output_committed_to_reporting_started": 0.000001694,
+            "pipeline_created_to_video_probed": 0.045935007,
+            "pipeline_finalized_to_cleanup_completed": 0.000045026,
+            "preservation_preflight_completed_to_runtime_initialized": 0.358710899,
+            "process_started_to_pipeline_created": 0.13839544,
+            "reporting_started_to_process_finished": 0.169042949,
+            "runtime_initialized_to_decoder_initialized": 0.010982057,
+            "video_probed_to_preservation_preflight_completed": 0.052369678
+          },
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.003245905318065531,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vsgan",
+          "product": "VSGAN-tensorrt-docker",
+          "image_id": "sha256:36935bf97b320be1be1ae5e0e9cd471e1f3566d2a3d037fcfb7e9cdd2efb0843",
+          "engine_sha256": "9dab8a0fc0f6797f2720a95a7b518e78c45e95a5ff47b70486604b1009ff9b97",
+          "relative_to_trtvideo_percent": -17.27655130292697,
+          "fps_median": 21.73395406225094,
+          "fps_runs": [
+            21.599131966084226,
+            21.73395406225094,
+            21.943286472189772
+          ],
+          "fps_spread": 0.01583487777326714,
+          "wall_sec": 46.010955813,
+          "startup_sec": 1.582775844,
+          "steady_state_sec": 44.415569708,
+          "finalize_sec": 0.016161065,
+          "cpu_cores": 4.2050587575410985,
+          "cpu_capacity_percent": 35.042156312842486,
+          "gpu_util_percent": 82.20132743362832,
+          "power_w": 297.4220050422539,
+          "joules_per_frame": 13.70318531021861,
+          "peak_vram_mib": 8085.125,
+          "output_bitrate_mbps": 60.465577,
+          "output_size_mib": 300.3439826965332,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.01583487777326714,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        },
+        {
+          "implementation": "vstrt",
+          "product": "vs-mlrt",
+          "image_id": "sha256:7fdb6ed94126b3a98a1841f0efb16461df0acba818ffe7ef81143e456aa1c756",
+          "engine_sha256": "4916df0c7ebb8add457eceb2f3f097e0904777264da162676ebe7711fbc06e30",
+          "relative_to_trtvideo_percent": -63.7889635667213,
+          "fps_median": 9.513735401304912,
+          "fps_runs": [
+            9.507818491136335,
+            9.576471288854215,
+            9.513735401304912
+          ],
+          "fps_spread": 0.007216176908647574,
+          "wall_sec": 105.11118481,
+          "startup_sec": 1.601131039,
+          "steady_state_sec": 103.552236659,
+          "finalize_sec": 0.023229955,
+          "cpu_cores": 1.4939493528627008,
+          "cpu_capacity_percent": 12.449577940522506,
+          "gpu_util_percent": 38.32502396931927,
+          "power_w": 191.22840304496347,
+          "joules_per_frame": 20.0359847804676,
+          "peak_vram_mib": 2607.125,
+          "output_bitrate_mbps": 60.465577,
+          "output_size_mib": 300.3439826965332,
+          "lifecycle_intervals_sec": {},
+          "stability": {
+            "consensus": null,
+            "full_relative_spread": 0.007216176908647574,
+            "outlier": null,
+            "policy": "full-range-3-then-consensus-4-of-5",
+            "status": "stable",
+            "threshold": 0.05
+          }
+        }
+      ]
+    }
+  ]
+}

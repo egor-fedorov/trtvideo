@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "document_type": "published_result_index",
+  "status": "valid",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_memory_mib": 24576,
+    "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+    "logical_cpus": 12
+  },
+  "composition": {
+    "unit": "methodology result class",
+    "self_contained_result_files": true,
+    "cross_contract_aggregation": false,
+    "human_summary": "README.md",
+    "notes": "Every result class was measured from the same clean post-rewrite revision, driver, physical GPU, and active power policy."
+  },
+  "result_sets": [
+    {
+      "id": "upstream-default",
+      "file": "upstream-default.json",
+      "sha256": "d3abe1eb33d63ef4f958c5d119164eb699e0b7f49e1274fa9e730aabfb343361",
+      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+      "date_utc": "2026-07-30",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "tuned",
+      "file": "tuned.json",
+      "sha256": "4a1be69a1200b1aaea6177f76d29ae4210a6f87a623bda1b7cdbe1864408659d",
+      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+      "date_utc": "2026-07-30",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "diagnostics",
+      "file": "diagnostics.json",
+      "sha256": "eec2db01de770c35047f0553c7c33132c632b5c49590b0ce032827911c2a695f",
+      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
+      "date_utc": "2026-07-30",
+      "status": "valid",
+      "publishable": true
+    }
+  ]
+}

@@ -15,10 +15,11 @@ different contracts or revisions.
 
 ## Publication Status
 
-No benchmark snapshot is currently published. The previous RTX 3090 snapshot
-predated the corrected limited-range color path and the repository privacy
-rewrite, so it was withdrawn rather than presented as current evidence.
+- [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated
+  upstream-default, best-tuned, `trtexec`, and Nsight evidence for RealESRGAN
+  and SPAN at `720p -> 1440p` and `1080p -> 4K`.
 
-New results will be published only after all images and engines are rebuilt from
-one clean rewritten revision and the complete quality, comparative, tuned, and
-diagnostic workflows pass.
+The snapshot was measured after the repository privacy rewrite and corrected
+limited-range color path. All result classes use one clean revision, physical
+GPU, driver, and active power policy. Both tuned workload matrices are
+machine-validated and publishable.
