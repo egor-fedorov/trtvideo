@@ -106,6 +106,51 @@
       ]
     }
   },
+  "external_output_identity": {
+    "status": "verified",
+    "interpretation": "vs-mlrt and VSGAN execute libvstrt.so through the same VapourSynth graph and produce byte-identical candidate tensors and MP4 outputs.",
+    "tensor_set_digest": "SHA-256 of ordered stage<TAB>frame_index<TAB>artifact_sha256<LF> records",
+    "independent_provenance": {
+      "capture_manifest_sha256_differ": true,
+      "run_manifest_sha256_differ": true,
+      "container_image_id_differ": true,
+      "engine_sha256_differ": true
+    },
+    "workloads": [
+      {
+        "workload": "RealESRGAN_x2plus",
+        "variant": "720p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "fc16fa15a622e63d812167215a58ab1d0bb818dd81f687584bc37e1c6e010902",
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "123bfd2d4c333b5eb5808b2a143159d8408a2464ccfb24bf433ac9a746041e77"
+      },
+      {
+        "workload": "RealESRGAN_x2plus",
+        "variant": "1080p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "cc675510138938332fa94768b1dc2714f4a5a11ffdf77c1aa99aca9f68b9e17f",
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "59e6780ad2be4d556b6af3b5f7928e5a706ad64a68b5fe8127cd02b03885c9ea"
+      },
+      {
+        "workload": "SPAN",
+        "variant": "720p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "8e7a291bdc7e3b68ee1a45975525af895c58f8b6d2803d05e8ddbb7c6dee594f",
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "a0bb9fdc12530d90e25731243e397863564f2026892463d50a7965e323844f4b"
+      },
+      {
+        "workload": "SPAN",
+        "variant": "1080p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "751b765d34995af57898f4aa3defd01f08ee3874b3229ae1bb43236d91d57245",
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "50244984f6b8110a7b20528dc12ae23ee69219e30ad43aeaf11633e2638ce32f"
+      }
+    ]
+  },
   "publication_matrices": [
     {
       "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_sintel-matrix.json",

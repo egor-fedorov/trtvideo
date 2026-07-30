@@ -108,6 +108,31 @@ Product-output metrics compare all 1000 decoded frames against `trtvideo`.
 VSGAN uses the same ONNX and weights but a separately built TensorRT 10.16
 engine because its runtime cannot load the project's TensorRT 11 engine.
 
+The identical vs-mlrt and VSGAN rows are expected, not reused measurements.
+Both wrappers execute the `libvstrt.so` plugin through the same VapourSynth
+graph and encoder contract. The quality jobs used separate output directories
+and produced different capture manifests, run manifests, container image IDs,
+and engine SHA-256 values. Despite that independent provenance, all six
+model-space tensor SHA-256 values and the final MP4 SHA-256 match for each
+workload. The retained PSNR/SSIM logs and visual crops are also byte-identical.
+
+| Workload | Input | Candidate tensor-set SHA-256 | Candidate MP4 SHA-256 |
+|---|---|---|---|
+| RealESRGAN_x2plus | 720p | `fc16fa15a622e63d...` | `123bfd2d4c333b5e...` |
+| RealESRGAN_x2plus | 1080p | `cc67551013893833...` | `59e6780ad2be4d55...` |
+| SPAN | 720p | `8e7a291bdc7e3b68...` | `a0bb9fdc12530d90...` |
+| SPAN | 1080p | `751b765d34995af5...` | `50244984f6b8110a...` |
+
+The full fingerprints and provenance assertions are retained in both result
+JSON files. The tensor-set fingerprint is the SHA-256 of the ordered
+`stage<TAB>frame_index<TAB>artifact_sha256<LF>` records from the capture
+manifest.
+
+The repeated model-space minimum across RealESRGAN and SPAN at the same input
+resolution is also expected. In each case the minimum occurs at input frame
+499, before model inference. Both workloads use the same source clip and
+preprocessing, so that input tensor and its comparison metric are identical.
+
 ## Diagnostics
 
 ### TensorRT Ceiling

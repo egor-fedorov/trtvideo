@@ -19,7 +19,7 @@
     {
       "id": "upstream-default",
       "file": "upstream-default.json",
-      "sha256": "d3abe1eb33d63ef4f958c5d119164eb699e0b7f49e1274fa9e730aabfb343361",
+      "sha256": "74408e87c1b33ab2f0e4a0bf58e3a46f6de72a761903b309ab430d76f0e24eb2",
       "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
       "date_utc": "2026-07-30",
       "status": "valid",
@@ -28,7 +28,7 @@
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "4a1be69a1200b1aaea6177f76d29ae4210a6f87a623bda1b7cdbe1864408659d",
+      "sha256": "7c3d5a80d75a7fc0c8c0cc0a54f5be205d2a79d7b2985e389d08a35f551c1883",
       "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
       "date_utc": "2026-07-30",
       "status": "valid",
