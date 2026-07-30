@@ -19,12 +19,16 @@ from benchmarks.scripts.contracts.manifest import (
     load_json,
     validate_run_manifest,
 )
-from benchmarks.scripts.contracts.model_space import (
-    ModelSpaceComparisonExpectation,
-    ModelSpaceReportExpectation,
-    validate_model_space_report,
+from benchmarks.scripts.tuning.adaptive import (
+    CandidatePoint,
+    has_confirmed_decline,
+    select_peak_equivalent,
+    sentinel_recovers,
+    shortlist,
+    upper_boundary_unresolved,
 )
 from benchmarks.scripts.tuning.contract import (
+    MeasurementPolicy,
     TunedCandidate,
     TuningContract,
     TuningContractError,
@@ -75,7 +79,6 @@ class CandidateAssessment:
     relative_spread: float | None = None
     identity: RunIdentity | None = None
     suite_path: str | None = None
-    model_space_report_path: str | None = None
 
     @property
     def eligible(self) -> bool:
@@ -100,7 +103,6 @@ class CandidateAssessment:
             "identity": self.identity.as_dict() if self.identity is not None else None,
             "evidence": {
                 "suite": self.suite_path,
-                "model_space_report": self.model_space_report_path,
             },
             "errors": self.errors,
         }
@@ -157,6 +159,7 @@ def _validate_suite(
     variant: str,
     contract_version: int,
     max_relative_spread: float,
+    policy: MeasurementPolicy,
 ) -> None:
     assessment.suite_path = suite_path.relative_to(root).as_posix()
     if not suite_path.is_file():
@@ -175,6 +178,21 @@ def _validate_suite(
             raise TuningEvidenceError("Performance suite has no parameters")
         if execution_profile(parameters) != assessment.candidate.execution_profile():
             assessment.reject("Performance suite execution profile changed")
+        expected_parameters = {
+            "frames": policy.measured_frames,
+            "warmup_frames": policy.warmup_frames,
+            "initial_runs": policy.initial_runs,
+            "extra_runs_on_spread": policy.extra_runs_on_spread,
+            "spread_threshold": policy.spread_threshold,
+            "max_relative_spread": policy.max_relative_spread,
+            "idle_seconds": policy.idle_seconds,
+            "bitrate_validation": policy.bitrate_validation,
+        }
+        changed = [
+            key for key, expected in expected_parameters.items() if parameters.get(key) != expected
+        ]
+        if changed:
+            assessment.reject("Performance suite changed stage parameters: " + ", ".join(changed))
         statistics = suite.get("statistics")
         if not isinstance(statistics, dict):
             raise TuningEvidenceError("Performance suite has no statistics")
@@ -194,6 +212,14 @@ def _validate_suite(
         runs = suite.get("runs")
         if not isinstance(runs, list) or not runs:
             raise TuningEvidenceError("Performance suite has no run manifests")
+        expected_runs = policy.initial_runs
+        if (
+            assessment.relative_spread is not None
+            and assessment.relative_spread > policy.spread_threshold
+        ):
+            expected_runs += policy.extra_runs_on_spread
+        if len(runs) != expected_runs:
+            assessment.reject("Performance suite run count does not match its spread policy")
         identities = []
         for run in runs:
             if not isinstance(run, dict):
@@ -229,53 +255,6 @@ def _validate_suite(
         assessment.identity = first_identity
     except (ManifestContractError, TuningEvidenceError) as exc:
         assessment.reject(str(exc), evidence_complete=False)
-
-
-def _validate_model_space(
-    assessment: CandidateAssessment,
-    *,
-    root: Path,
-    report_path: Path,
-    workload_id: str,
-    variant: str,
-) -> None:
-    assessment.model_space_report_path = report_path.relative_to(root).as_posix()
-    if not report_path.is_file():
-        assessment.reject("Model-space evidence is missing", evidence_complete=False)
-        return
-    if assessment.identity is None:
-        assessment.reject(
-            "Model-space identity cannot be checked without a valid run",
-            evidence_complete=False,
-        )
-        return
-    try:
-        identity = assessment.identity
-        report = load_json(report_path)
-    except ManifestContractError as exc:
-        assessment.reject(str(exc), evidence_complete=False)
-        return
-    try:
-        validate_model_space_report(
-            report,
-            expectation=ModelSpaceReportExpectation(
-                workload_id=workload_id,
-                variant=variant,
-                input_sha256=identity.input_sha256,
-                onnx_sha256=identity.onnx_sha256,
-                comparisons=(
-                    ModelSpaceComparisonExpectation(
-                        implementation=PRODUCTS[assessment.candidate.implementation],
-                        engine_sha256=identity.engine_sha256,
-                        image_id=identity.image_id,
-                        repository_revision=identity.repository_revision,
-                        execution_profile=assessment.candidate.execution_profile(),
-                    ),
-                ),
-            ),
-        )
-    except (ManifestContractError, TuningEvidenceError) as exc:
-        assessment.reject(str(exc))
 
 
 def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
@@ -383,9 +362,293 @@ def _validate_disqualification(
     assessment.reject("Full winner quality gate failed: " + rejection["reason"])
 
 
+def _state_entries(
+    value: Any,
+    *,
+    label: str,
+) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise TuningEvidenceError(f"Adaptive search {label} must be an object array")
+    return value
+
+
+def _assessment_point(assessment: CandidateAssessment) -> CandidatePoint:
+    if (
+        assessment.median_fps is None
+        or assessment.relative_spread is None
+        or assessment.suite_path is None
+    ):
+        raise TuningEvidenceError(
+            f"Candidate {assessment.candidate.candidate_id} has incomplete statistics"
+        )
+    return CandidatePoint(
+        candidate=assessment.candidate,
+        median_fps=assessment.median_fps,
+        relative_spread=assessment.relative_spread,
+        suite_path=assessment.suite_path,
+    )
+
+
+def _validate_state_stage(
+    entries: list[dict[str, Any]],
+    *,
+    implementation: str,
+    stage: str,
+    contract: TuningContract,
+    workload_id: str,
+    variant: str,
+    contract_version: int,
+    sweep_dir: Path,
+    root: Path,
+    policy: MeasurementPolicy,
+) -> list[CandidateAssessment]:
+    assessments = []
+    seen = set()
+    for entry in entries:
+        candidate_id = entry.get("candidate_id")
+        if not isinstance(candidate_id, str) or candidate_id in seen:
+            raise TuningEvidenceError(
+                f"Adaptive search {stage} contains an invalid or duplicate candidate"
+            )
+        seen.add(candidate_id)
+        candidate = contract.candidate(candidate_id)
+        if candidate.implementation != implementation:
+            raise TuningEvidenceError(f"Adaptive search {stage} changed candidate implementation")
+        expected_suite = (
+            candidate_directory(sweep_dir, candidate) / stage / "performance" / "suite.json"
+        )
+        suite_value = entry.get("suite")
+        if not isinstance(suite_value, str):
+            raise TuningEvidenceError(f"Adaptive search {candidate_id} has no suite path")
+        if artifact_path(root, suite_value, label=f"{candidate_id} suite") != expected_suite:
+            raise TuningEvidenceError(f"Adaptive search {candidate_id} changed its suite path")
+        assessment = CandidateAssessment(candidate=candidate)
+        _validate_suite(
+            assessment,
+            root=root,
+            suite_path=expected_suite,
+            workload_id=workload_id,
+            variant=variant,
+            contract_version=contract_version,
+            max_relative_spread=policy.max_relative_spread,
+            policy=policy,
+        )
+        if assessment.median_fps != entry.get("median_fps"):
+            assessment.reject("Adaptive search changed recorded median FPS")
+        if assessment.relative_spread != entry.get("relative_spread"):
+            assessment.reject("Adaptive search changed recorded relative spread")
+        assessments.append(assessment)
+    return assessments
+
+
+def _validate_completion(
+    *,
+    implementation: str,
+    state: dict[str, Any],
+    reconnaissance: list[CandidateAssessment],
+    confirmation: list[CandidateAssessment],
+    contract: TuningContract,
+) -> None:
+    reconnaissance_points = [_assessment_point(item) for item in reconnaissance]
+    streams = [point.candidate.num_streams for point in reconnaissance_points]
+    if streams != sorted(set(streams)):
+        raise TuningEvidenceError(
+            f"Adaptive search {implementation} reconnaissance is not stream-ordered"
+        )
+    reason = state.get("completion_reason")
+    early_stop_after = state.get("early_stop_after_streams")
+    full_range = list(contract.search.stream_range)
+    if reason in {"range-exhausted", "sentinel-recovery-range-exhausted"}:
+        if streams != full_range:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} did not exhaust the stream range"
+            )
+        if reason == "range-exhausted" and early_stop_after is not None:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} recorded an unexpected early stop"
+            )
+        if reason == "sentinel-recovery-range-exhausted" and not isinstance(
+            early_stop_after,
+            int,
+        ):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} has no recovered early-stop point"
+            )
+        if upper_boundary_unresolved(
+            reconnaissance_points,
+            relative_margin=contract.search.decline_margin,
+        ):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} ended at an increasing upper boundary"
+            )
+    elif reason == "decline-confirmed":
+        if not isinstance(early_stop_after, int):
+            raise TuningEvidenceError(f"Adaptive search {implementation} has no early-stop point")
+        expected = list(range(contract.search.minimum_streams, early_stop_after + 1))
+        expected.append(contract.search.sentinel_streams)
+        if streams != expected:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} changed the decline-confirmed range"
+            )
+        regular = [
+            point
+            for point in reconnaissance_points
+            if point.candidate.num_streams != contract.search.sentinel_streams
+        ]
+        sentinel = reconnaissance_points[-1]
+        if not has_confirmed_decline(
+            regular,
+            relative_margin=contract.search.decline_margin,
+            patience=contract.search.decline_patience,
+        ):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} stopped without a confirmed decline"
+            )
+        if sentinel_recovers(
+            regular,
+            sentinel,
+            relative_margin=contract.search.decline_margin,
+        ):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} ignored a recovering sentinel"
+            )
+    else:
+        raise TuningEvidenceError(
+            f"Adaptive search {implementation} has an invalid completion reason"
+        )
+
+    expected_shortlist = [
+        candidate.candidate_id
+        for candidate in shortlist(
+            reconnaissance_points,
+            size=contract.search.shortlist_size,
+        )
+    ]
+    if state.get("shortlist") != expected_shortlist:
+        raise TuningEvidenceError(f"Adaptive search {implementation} changed its shortlist")
+    confirmation_by_id = {
+        assessment.candidate.candidate_id: assessment for assessment in confirmation
+    }
+    if not set(expected_shortlist).issubset(confirmation_by_id):
+        raise TuningEvidenceError(
+            f"Adaptive search {implementation} has incomplete confirmation evidence"
+        )
+    provisional = select_peak_equivalent(
+        [
+            _assessment_point(confirmation_by_id[candidate_id])
+            for candidate_id in expected_shortlist
+        ],
+        equivalence_margin=contract.selection.equivalence_margin,
+    )
+    if provisional is None:
+        raise TuningEvidenceError(f"Adaptive search {implementation} has no provisional winner")
+    graph_probe = state.get("cuda_graph_probe")
+    profile = contract.implementation(provisional.candidate.implementation)
+    expected_graph = (
+        contract.make_candidate(
+            provisional.candidate.implementation,
+            provisional.candidate.num_streams,
+            cuda_graph=True,
+        ).candidate_id
+        if profile.probe_cuda_graph
+        else None
+    )
+    if graph_probe != expected_graph:
+        raise TuningEvidenceError(f"Adaptive search {implementation} changed its CUDA Graph probe")
+    expected_confirmation = set(expected_shortlist)
+    if expected_graph is not None:
+        expected_confirmation.add(expected_graph)
+    if set(confirmation_by_id) != expected_confirmation:
+        raise TuningEvidenceError(
+            f"Adaptive search {implementation} has unexpected confirmation candidates"
+        )
+
+
+def _load_adaptive_assessments(
+    *,
+    contract: TuningContract,
+    workload: dict[str, Any],
+    variant: str,
+    sweep_dir: Path,
+    root: Path,
+) -> tuple[list[CandidateAssessment], list[CandidateAssessment], dict[str, Any]]:
+    state_path = sweep_dir / "search-state.json"
+    if not state_path.is_file():
+        raise TuningEvidenceError(f"Adaptive search state is missing: {state_path}")
+    state = load_json(state_path)
+    contract_version = int(workload["benchmark"]["contract_version"])
+    expected = {
+        "schema_version": 1,
+        "document_type": "adaptive-tuning-search",
+        "status": "complete",
+        "workload_id": workload["id"],
+        "variant": variant,
+        "benchmark_contract_version": contract_version,
+        "search_policy": contract.search.as_dict(),
+        "selection_policy": contract.selection.as_dict(),
+    }
+    changed = [key for key, value in expected.items() if state.get(key) != value]
+    if changed:
+        raise TuningEvidenceError(
+            "Adaptive search state changed its contract: " + ", ".join(changed)
+        )
+    implementations = state.get("implementations")
+    if not isinstance(implementations, dict) or set(implementations) != set(PRODUCTS):
+        raise TuningEvidenceError("Adaptive search state must contain vstrt and vsgan")
+
+    reconnaissance_all = []
+    confirmation_all = []
+    for implementation in PRODUCTS:
+        implementation_state = implementations[implementation]
+        if not isinstance(implementation_state, dict):
+            raise TuningEvidenceError(f"Adaptive search {implementation} state must be an object")
+        reconnaissance = _validate_state_stage(
+            _state_entries(
+                implementation_state.get("reconnaissance"),
+                label=f"{implementation} reconnaissance",
+            ),
+            implementation=implementation,
+            stage="reconnaissance",
+            contract=contract,
+            workload_id=workload["id"],
+            variant=variant,
+            contract_version=contract_version,
+            sweep_dir=sweep_dir,
+            root=root,
+            policy=contract.search.reconnaissance,
+        )
+        confirmation = _validate_state_stage(
+            _state_entries(
+                implementation_state.get("confirmation"),
+                label=f"{implementation} confirmation",
+            ),
+            implementation=implementation,
+            stage="confirmation",
+            contract=contract,
+            workload_id=workload["id"],
+            variant=variant,
+            contract_version=contract_version,
+            sweep_dir=sweep_dir,
+            root=root,
+            policy=contract.search.confirmation,
+        )
+        _validate_completion(
+            implementation=implementation,
+            state=implementation_state,
+            reconnaissance=reconnaissance,
+            confirmation=confirmation,
+            contract=contract,
+        )
+        reconnaissance_all.extend(reconnaissance)
+        confirmation_all.extend(confirmation)
+    return reconnaissance_all, confirmation_all, state
+
+
 def _winner(
     assessments: list[CandidateAssessment],
     implementation: str,
+    *,
+    equivalence_margin: float,
 ) -> CandidateAssessment | None:
     eligible = [
         assessment
@@ -397,15 +660,23 @@ def _winner(
     if not eligible:
         return None
 
-    def ranking_key(assessment: CandidateAssessment) -> tuple[float, str]:
-        median_fps = assessment.median_fps
-        assert median_fps is not None
-        return (-median_fps, assessment.candidate.candidate_id)
-
-    return sorted(
-        eligible,
-        key=ranking_key,
-    )[0]
+    maximum = max(
+        assessment.median_fps for assessment in eligible if assessment.median_fps is not None
+    )
+    equivalent = [
+        assessment
+        for assessment in eligible
+        if assessment.median_fps is not None
+        and assessment.median_fps >= maximum * (1 - equivalence_margin)
+    ]
+    return min(
+        equivalent,
+        key=lambda assessment: (
+            assessment.candidate.num_streams,
+            assessment.candidate.cuda_graph,
+            assessment.candidate.candidate_id,
+        ),
+    )
 
 
 def rank_tuned_candidates(
@@ -417,31 +688,18 @@ def rank_tuned_candidates(
     root: Path,
     disqualifications: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """Validate all declared candidates and create an immutable selection report."""
+    """Validate adaptive search evidence and select one winner per competitor."""
     root = root.resolve()
     sweep_dir = sweep_dir.resolve()
     contract_version = int(workload["benchmark"]["contract_version"])
-    assessments = []
-    for candidate in contract.candidates:
-        assessment = CandidateAssessment(candidate=candidate)
-        directory = candidate_directory(sweep_dir, candidate)
-        _validate_suite(
-            assessment,
-            root=root,
-            suite_path=directory / "performance" / "suite.json",
-            workload_id=workload["id"],
-            variant=variant,
-            contract_version=contract_version,
-            max_relative_spread=contract.selection.max_relative_spread,
-        )
-        _validate_model_space(
-            assessment,
-            root=root,
-            report_path=directory / "model-space-parity.json",
-            workload_id=workload["id"],
-            variant=variant,
-        )
-        assessments.append(assessment)
+    reconnaissance, assessments, search_state = _load_adaptive_assessments(
+        contract=contract,
+        workload=workload,
+        variant=variant,
+        sweep_dir=sweep_dir,
+        root=root,
+    )
+    _enforce_shared_contract(reconnaissance)
     _enforce_shared_contract(assessments)
     disqualifications = disqualifications or {}
     for assessment in assessments:
@@ -456,16 +714,24 @@ def rank_tuned_candidates(
                 contract_version=contract_version,
             )
 
-    winners = {implementation: _winner(assessments, implementation) for implementation in PRODUCTS}
+    winners = {
+        implementation: _winner(
+            assessments,
+            implementation,
+            equivalence_margin=contract.selection.equivalence_margin,
+        )
+        for implementation in PRODUCTS
+    }
     incomplete = [
         assessment.candidate.candidate_id
         for assessment in assessments
         if not assessment.evidence_complete
     ]
     errors = []
-    if contract.selection.require_complete_sweep and incomplete:
+    if incomplete:
         errors.append(
-            "Complete evidence is missing for declared candidates: " + ", ".join(incomplete)
+            "Complete confirmation evidence is missing for shortlisted candidates: "
+            + ", ".join(incomplete)
         )
     for implementation, winner in winners.items():
         if winner is None:
@@ -476,7 +742,7 @@ def rank_tuned_candidates(
         None,
     )
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "document_type": "tuned-candidate-selection",
         "status": "valid" if not errors else "invalid",
         "publishable": False,
@@ -485,6 +751,13 @@ def rank_tuned_candidates(
         "variant": variant,
         "benchmark_contract_version": contract_version,
         "selection_policy": contract.selection.as_dict(),
+        "search": {
+            "path": (sweep_dir / "search-state.json").relative_to(root).as_posix(),
+            "completion": {
+                implementation: search_state["implementations"][implementation]["completion_reason"]
+                for implementation in PRODUCTS
+            },
+        },
         "project_profile": contract.project_profile.as_dict(),
         "disqualifications": disqualifications,
         "environment": {
@@ -492,6 +765,7 @@ def rank_tuned_candidates(
                 first_identity.repository_revision if first_identity is not None else None
             )
         },
+        "reconnaissance": [assessment.as_dict() for assessment in reconnaissance],
         "candidates": [assessment.as_dict() for assessment in assessments],
         "winners": {
             implementation: (

@@ -366,6 +366,11 @@ def run_video_suite(
         "initial_runs": spec.policy.initial_runs,
         "extra_runs_on_spread": spec.policy.extra_runs,
         "spread_threshold": spec.policy.spread_threshold,
+        "max_relative_spread": (
+            spec.policy.max_relative_spread
+            if spec.policy.max_relative_spread is not None
+            else spec.policy.spread_threshold
+        ),
         "idle_seconds": spec.policy.idle_seconds,
         "nvml_sample_interval_ms": spec.sample_interval_ms,
         **spec.parameter_fields,

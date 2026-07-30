@@ -23,6 +23,7 @@ class SuitePolicy:
     extra_runs: int
     spread_threshold: float
     idle_seconds: float
+    max_relative_spread: float | None = None
 
     def validate(self) -> None:
         if self.initial_runs <= 0:
@@ -31,6 +32,11 @@ class SuitePolicy:
             raise ValueError("extra_runs cannot be negative")
         if not 0 <= self.spread_threshold < 1:
             raise ValueError("spread_threshold must be in the range [0, 1)")
+        if (
+            self.max_relative_spread is not None
+            and not self.spread_threshold <= self.max_relative_spread < 1
+        ):
+            raise ValueError("max_relative_spread must be at least spread_threshold and below 1")
         if self.idle_seconds < 0:
             raise ValueError("idle_seconds cannot be negative")
 
@@ -42,6 +48,12 @@ class SuitePolicy:
             extra_runs=int(parameters["extra_runs_on_spread"]),
             spread_threshold=float(parameters["spread_threshold"]),
             idle_seconds=float(parameters["idle_seconds"]),
+            max_relative_spread=float(
+                parameters.get(
+                    "max_relative_spread",
+                    parameters["spread_threshold"],
+                )
+            ),
         )
         policy.validate()
         return policy
@@ -128,6 +140,7 @@ def canonical_suite_errors(
         "initial_runs": "initial_runs",
         "extra_runs_on_spread": "extra_runs_on_spread",
         "spread_threshold": "spread_threshold",
+        "max_relative_spread": "spread_threshold",
         "idle_seconds": "idle_seconds",
         "nvml_sample_interval_ms": "nvml_sample_interval_ms",
     }
@@ -227,7 +240,12 @@ class SuiteRunner:
         errors = self._invariant_errors(valid_runs)
         all_valid = len(valid_runs) == len(manifests) == target_runs and not errors
         spread = statistics_report["relative_spread"]
-        stable = all_valid and spread is not None and spread <= self._policy.spread_threshold
+        maximum_spread = (
+            self._policy.max_relative_spread
+            if self._policy.max_relative_spread is not None
+            else self._policy.spread_threshold
+        )
+        stable = all_valid and spread is not None and spread <= maximum_spread
         status = "valid" if stable else ("unstable" if all_valid else "invalid")
         return SuiteResult(
             status=status,

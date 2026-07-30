@@ -9,9 +9,20 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from benchmarks.scripts.contracts.manifest import execution_profile
+from benchmarks.scripts.tuning.adaptive import (
+    CandidatePoint,
+    has_confirmed_decline,
+    select_peak_equivalent,
+    sentinel_recovers,
+    shortlist,
+    upper_boundary_unresolved,
+)
 from benchmarks.scripts.tuning.contract import (
+    Implementation,
+    MeasurementPolicy,
     TunedCandidate,
     TuningContract,
     TuningContractError,
@@ -206,8 +217,281 @@ def _write_selection(
     return report
 
 
+def _search_point(
+    *,
+    candidate: TunedCandidate,
+    suite_path: Path,
+    policy: MeasurementPolicy,
+    paths: WorkflowPaths,
+) -> CandidatePoint:
+    suite = _load_json(suite_path)
+    if suite.get("status") != "valid":
+        raise TuningWorkflowError(
+            f"Search suite is not valid for {candidate.candidate_id}: {suite_path}"
+        )
+    parameters = suite.get("parameters")
+    statistics = suite.get("statistics")
+    if not isinstance(parameters, dict) or not isinstance(statistics, dict):
+        raise TuningWorkflowError(f"Search suite is incomplete: {suite_path}")
+    if execution_profile(parameters) != candidate.execution_profile():
+        raise TuningWorkflowError(
+            f"Search suite changed execution profile for {candidate.candidate_id}"
+        )
+    expected = {
+        "frames": policy.measured_frames,
+        "warmup_frames": policy.warmup_frames,
+        "initial_runs": policy.initial_runs,
+        "extra_runs_on_spread": policy.extra_runs_on_spread,
+        "spread_threshold": policy.spread_threshold,
+        "max_relative_spread": policy.max_relative_spread,
+        "idle_seconds": policy.idle_seconds,
+        "bitrate_validation": policy.bitrate_validation,
+    }
+    changed = [
+        key for key, expected_value in expected.items() if parameters.get(key) != expected_value
+    ]
+    if changed:
+        raise TuningWorkflowError(
+            f"Search suite changed {candidate.candidate_id} stage parameters: " + ", ".join(changed)
+        )
+    median_fps = statistics.get("median_fps")
+    relative_spread = statistics.get("relative_spread")
+    if not isinstance(median_fps, (int, float)) or isinstance(median_fps, bool) or median_fps <= 0:
+        raise TuningWorkflowError(f"Search suite has no positive median FPS: {suite_path}")
+    if (
+        not isinstance(relative_spread, (int, float))
+        or isinstance(relative_spread, bool)
+        or relative_spread < 0
+    ):
+        raise TuningWorkflowError(f"Search suite has no valid relative spread: {suite_path}")
+    return CandidatePoint(
+        candidate=candidate,
+        median_fps=float(median_fps),
+        relative_spread=float(relative_spread),
+        suite_path=paths.relative(suite_path),
+    )
+
+
+def _measure_search_candidate(
+    *,
+    candidate: TunedCandidate,
+    stage: str,
+    policy: MeasurementPolicy,
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+) -> CandidatePoint:
+    performance_dir = candidate_directory(paths.sweep_dir, candidate) / stage / "performance"
+    suite_path = performance_dir / "suite.json"
+    required = _require_clean_destination(
+        performance_dir,
+        marker=suite_path,
+        resume=resume,
+    )
+    _progress(
+        f"[tuned {stage}] {candidate.candidate_id}: "
+        + ("performance suite" if required else "SKIP performance suite")
+    )
+    if required:
+        output_variable = (
+            "VSTRT_OUTPUT_DIR" if candidate.implementation == "vstrt" else "VSGAN_OUTPUT_DIR"
+        )
+        runner.run(
+            f"run-{candidate.implementation}",
+            {
+                **_candidate_variables(candidate, base),
+                output_variable: paths.relative(performance_dir),
+                "ARGS": policy.runner_arguments(),
+            },
+            accepted_artifact=suite_path,
+        )
+    return _search_point(
+        candidate=candidate,
+        suite_path=suite_path,
+        policy=policy,
+        paths=paths,
+    )
+
+
+def _run_reconnaissance(
+    *,
+    implementation: Implementation,
+    contract: TuningContract,
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+) -> tuple[list[CandidatePoint], str, int | None]:
+    policy = contract.search.reconnaissance
+    points: list[CandidatePoint] = []
+    early_stop_after = None
+    for streams in contract.search.stream_range:
+        candidate = contract.make_candidate(implementation, streams)
+        points.append(
+            _measure_search_candidate(
+                candidate=candidate,
+                stage="reconnaissance",
+                policy=policy,
+                base=base,
+                paths=paths,
+                runner=runner,
+                resume=resume,
+            )
+        )
+        if streams == contract.search.maximum_streams:
+            break
+        if has_confirmed_decline(
+            points,
+            relative_margin=contract.search.decline_margin,
+            patience=contract.search.decline_patience,
+        ):
+            early_stop_after = streams
+            break
+
+    if early_stop_after is None:
+        if upper_boundary_unresolved(
+            points,
+            relative_margin=contract.search.decline_margin,
+        ):
+            raise TuningWorkflowError(
+                f"{implementation} throughput is still increasing at "
+                f"num_streams={contract.search.maximum_streams}; expand the "
+                "tuning contract range"
+            )
+        return points, "range-exhausted", None
+
+    sentinel_candidate = contract.make_candidate(
+        implementation,
+        contract.search.sentinel_streams,
+    )
+    sentinel = _measure_search_candidate(
+        candidate=sentinel_candidate,
+        stage="reconnaissance",
+        policy=policy,
+        base=base,
+        paths=paths,
+        runner=runner,
+        resume=resume,
+    )
+    if sentinel_recovers(
+        points,
+        sentinel,
+        relative_margin=contract.search.decline_margin,
+    ):
+        measured_streams = {point.candidate.num_streams for point in points}
+        measured_streams.add(sentinel.candidate.num_streams)
+        for streams in contract.search.stream_range:
+            if streams in measured_streams:
+                continue
+            points.append(
+                _measure_search_candidate(
+                    candidate=contract.make_candidate(implementation, streams),
+                    stage="reconnaissance",
+                    policy=policy,
+                    base=base,
+                    paths=paths,
+                    runner=runner,
+                    resume=resume,
+                )
+            )
+        completed = sorted(
+            points + [sentinel],
+            key=lambda point: point.candidate.num_streams,
+        )
+        if upper_boundary_unresolved(
+            completed,
+            relative_margin=contract.search.decline_margin,
+        ):
+            raise TuningWorkflowError(
+                f"{implementation} throughput recovered and is still increasing at "
+                f"num_streams={contract.search.maximum_streams}; expand the "
+                "tuning contract range"
+            )
+        return (
+            completed,
+            "sentinel-recovery-range-exhausted",
+            early_stop_after,
+        )
+    return (
+        sorted(points + [sentinel], key=lambda point: point.candidate.num_streams),
+        "decline-confirmed",
+        early_stop_after,
+    )
+
+
+def _run_confirmation(
+    *,
+    implementation: Implementation,
+    reconnaissance: list[CandidatePoint],
+    contract: TuningContract,
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+) -> tuple[list[CandidatePoint], TunedCandidate | None]:
+    selected = shortlist(
+        reconnaissance,
+        size=contract.search.shortlist_size,
+    )
+    confirmed = [
+        _measure_search_candidate(
+            candidate=candidate,
+            stage="confirmation",
+            policy=contract.search.confirmation,
+            base=base,
+            paths=paths,
+            runner=runner,
+            resume=resume,
+        )
+        for candidate in selected
+    ]
+    provisional = select_peak_equivalent(
+        confirmed,
+        equivalence_margin=contract.selection.equivalence_margin,
+    )
+    if provisional is None:
+        raise TuningWorkflowError(f"No confirmed {implementation} candidate remains")
+    graph_candidate = None
+    if contract.implementation(implementation).probe_cuda_graph:
+        graph_candidate = contract.make_candidate(
+            implementation,
+            provisional.candidate.num_streams,
+            cuda_graph=True,
+        )
+        confirmed.append(
+            _measure_search_candidate(
+                candidate=graph_candidate,
+                stage="confirmation",
+                policy=contract.search.confirmation,
+                base=base,
+                paths=paths,
+                runner=runner,
+                resume=resume,
+            )
+        )
+    return confirmed, graph_candidate
+
+
+def _write_or_verify_search_state(
+    path: Path,
+    value: dict[str, Any],
+    *,
+    resume: bool,
+) -> None:
+    if path.is_file():
+        if not resume:
+            raise TuningWorkflowError(f"Search state already exists: {path}")
+        if _load_json(path) != value:
+            raise TuningWorkflowError(
+                "Adaptive search decisions changed while resuming; start a new sweep"
+            )
+        return
+    _write_json(path, value)
+
+
 def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
-    """Measure and validate every declared tuned candidate."""
+    """Run adaptive reconnaissance and confirm only the strongest candidates."""
     paths = _workflow_paths(args)
     contract = load_tuning_contract(
         _required_file(paths, Path(args.contract), label="Tuning contract")
@@ -231,103 +515,67 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         gpu_id=args.gpu_id,
     )
 
-    reference_root = paths.sweep_dir / "reference" / "model-space"
-    reference_manifest = reference_root / "trtvideo" / "manifest.json"
-    capture_reference = _require_clean_destination(
-        reference_root,
-        marker=reference_manifest,
+    implementation_states = {}
+    for implementation in PRODUCTS:
+        implementation_name = cast(Implementation, implementation)
+        _progress(f"[tuned search] {implementation}: reconnaissance")
+        reconnaissance, completion_reason, early_stop_after = _run_reconnaissance(
+            implementation=implementation_name,
+            contract=contract,
+            base=base,
+            paths=paths,
+            runner=runner,
+            resume=args.resume,
+        )
+        _progress(f"[tuned search] {implementation}: confirmation")
+        confirmation, graph_candidate = _run_confirmation(
+            implementation=implementation_name,
+            reconnaissance=reconnaissance,
+            contract=contract,
+            base=base,
+            paths=paths,
+            runner=runner,
+            resume=args.resume,
+        )
+        implementation_states[implementation] = {
+            "completion_reason": completion_reason,
+            "early_stop_after_streams": early_stop_after,
+            "reconnaissance": [point.as_dict() for point in reconnaissance],
+            "shortlist": [
+                candidate.candidate_id
+                for candidate in shortlist(
+                    reconnaissance,
+                    size=contract.search.shortlist_size,
+                )
+            ],
+            "confirmation": [point.as_dict() for point in confirmation],
+            "cuda_graph_probe": (
+                graph_candidate.candidate_id if graph_candidate is not None else None
+            ),
+        }
+
+    state = {
+        "schema_version": 1,
+        "document_type": "adaptive-tuning-search",
+        "status": "complete",
+        "workload_id": workload["id"],
+        "variant": args.variant,
+        "benchmark_contract_version": workload["benchmark"]["contract_version"],
+        "contract": {
+            "path": paths.relative(_required_file(paths, Path(args.contract), label="contract")),
+            "sha256": _sha256(_under_root(paths, Path(args.contract), label="contract")),
+            "schema_version": contract.schema_version,
+        },
+        "workload_sha256": _sha256(paths.manifest),
+        "search_policy": contract.search.as_dict(),
+        "selection_policy": contract.selection.as_dict(),
+        "implementations": implementation_states,
+    }
+    _write_or_verify_search_state(
+        paths.sweep_dir / "search-state.json",
+        state,
         resume=args.resume,
     )
-    _progress(
-        "[tuned sweep] "
-        + (
-            "Capture project model-space reference"
-            if capture_reference
-            else "SKIP project model-space reference"
-        )
-    )
-    if capture_reference:
-        runner.run(
-            "capture-model-trtvideo",
-            {
-                **base,
-                "MODEL_SPACE_DIR": paths.relative(reference_root),
-            },
-        )
-
-    candidate_count = len(contract.candidates)
-    for candidate_index, candidate in enumerate(contract.candidates, start=1):
-        prefix = (
-            f"[tuned sweep candidate {candidate_index}/{candidate_count}] {candidate.candidate_id}"
-        )
-        candidate_root = candidate_directory(paths.sweep_dir, candidate)
-        variables = _candidate_variables(candidate, base)
-        performance_dir = candidate_root / "performance"
-        suite_path = performance_dir / "suite.json"
-        run_performance = _require_clean_destination(
-            performance_dir,
-            marker=suite_path,
-            resume=args.resume,
-        )
-        _progress(
-            f"{prefix}: " + ("performance suite" if run_performance else "SKIP performance suite")
-        )
-        if run_performance:
-            output_variable = (
-                "VSTRT_OUTPUT_DIR" if candidate.implementation == "vstrt" else "VSGAN_OUTPUT_DIR"
-            )
-            runner.run(
-                f"run-{candidate.implementation}",
-                {
-                    **variables,
-                    output_variable: paths.relative(performance_dir),
-                    "ARGS": "",
-                },
-                accepted_artifact=suite_path,
-            )
-
-        capture_root = candidate_root / "model-space"
-        capture_manifest = capture_root / candidate.implementation / "manifest.json"
-        capture_model_space = _require_clean_destination(
-            capture_root,
-            marker=capture_manifest,
-            resume=args.resume,
-        )
-        _progress(
-            f"{prefix}: "
-            + ("model-space capture" if capture_model_space else "SKIP model-space capture")
-        )
-        if capture_model_space:
-            runner.run(
-                f"capture-model-{candidate.implementation}",
-                {
-                    **variables,
-                    "MODEL_SPACE_DIR": paths.relative(capture_root),
-                },
-            )
-
-        report_path = candidate_root / "model-space-parity.json"
-        if report_path.is_file() and not args.resume:
-            raise TuningWorkflowError(f"Evidence already exists; use --resume: {report_path}")
-        _progress(
-            f"{prefix}: "
-            + (
-                "model-space comparison"
-                if not report_path.is_file()
-                else "SKIP model-space comparison"
-            )
-        )
-        if not report_path.is_file():
-            runner.run(
-                "compare-model-space-candidate",
-                {
-                    **base,
-                    "MODEL_SPACE_REFERENCE": paths.relative(reference_manifest),
-                    "MODEL_SPACE_CANDIDATE": paths.relative(capture_manifest),
-                    "MODEL_SPACE_REPORT": paths.relative(report_path),
-                },
-                accepted_artifact=report_path,
-            )
 
     report = _write_selection(
         contract=contract,

@@ -4,9 +4,17 @@ import json
 from pathlib import Path
 from typing import Any
 
-from benchmarks.scripts.tuning.contract import load_tuning_contract
+import pytest
+
+from benchmarks.scripts.tuning.adaptive import CandidatePoint, select_peak_equivalent, shortlist
+from benchmarks.scripts.tuning.contract import (
+    MeasurementPolicy,
+    TunedCandidate,
+    load_tuning_contract,
+)
 from benchmarks.scripts.tuning.rank import (
     PRODUCTS,
+    TuningEvidenceError,
     candidate_directory,
     rank_tuned_candidates,
 )
@@ -29,15 +37,16 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 def _candidate_evidence(
     root: Path,
     sweep_dir: Path,
-    candidate: Any,
+    candidate: TunedCandidate,
     *,
     workload: dict[str, Any],
+    stage: str,
+    policy: MeasurementPolicy,
     median_fps: float,
-    model_space_valid: bool = True,
-) -> None:
+    relative_spread: float = 0.002,
+) -> CandidatePoint:
     candidate_root = candidate_directory(sweep_dir, candidate)
-    run_path = candidate_root / "performance" / "run-01" / "manifest.json"
-    run_relative = run_path.relative_to(root).as_posix()
+    suite_path = candidate_root / stage / "performance" / "suite.json"
     engine_sha = SHA[f"{candidate.implementation}_engine"]
     image_id = f"sha256:{candidate.implementation}-image"
     profile = candidate.execution_profile()
@@ -46,114 +55,173 @@ def _candidate_evidence(
         "rate_control": "cbr",
         "target_bitrate_bps": 60_000_000,
     }
+    run_count = policy.initial_runs
+    if relative_spread > policy.spread_threshold:
+        run_count += policy.extra_runs_on_spread
+    runs = []
+    for run_index in range(1, run_count + 1):
+        run_path = candidate_root / stage / "performance" / f"run-{run_index:02d}" / "manifest.json"
+        _write_json(
+            run_path,
+            {
+                "status": "valid",
+                "run_index": run_index,
+                "product": PRODUCTS[candidate.implementation],
+                "workload_id": workload["id"],
+                "benchmark_contract_version": workload["benchmark"]["contract_version"],
+                "variant": "1080p",
+                "parameters": {
+                    **profile,
+                    "frames": policy.measured_frames,
+                    "warmup_frames": policy.warmup_frames,
+                    "bitrate_validation": policy.bitrate_validation,
+                    "encoder": encoder,
+                },
+                "assets": {
+                    "input": {"sha256": SHA["input"]},
+                    "onnx": {"sha256": SHA["onnx"]},
+                    "engine": {"sha256": engine_sha},
+                    "workload_manifest": {"sha256": SHA["workload_manifest"]},
+                },
+                "environment": {
+                    "image": {
+                        "id": image_id,
+                        "repository_revision": "a" * 40,
+                        "source_dirty": "0",
+                    }
+                },
+                "reproducibility": {"publishable": True},
+                "measured": {"validation": {"valid": True}},
+            },
+        )
+        runs.append(
+            {
+                "manifest": run_path.relative_to(root).as_posix(),
+            }
+        )
     _write_json(
-        run_path,
+        suite_path,
         {
             "status": "valid",
-            "product": PRODUCTS[candidate.implementation],
             "workload_id": workload["id"],
             "benchmark_contract_version": workload["benchmark"]["contract_version"],
             "variant": "1080p",
             "parameters": {
                 **profile,
-                "frames": workload["benchmark"]["measured_frames"],
-                "warmup_frames": workload["benchmark"]["warmup_frames"],
-                "encoder": encoder,
+                "frames": policy.measured_frames,
+                "warmup_frames": policy.warmup_frames,
+                "initial_runs": policy.initial_runs,
+                "extra_runs_on_spread": policy.extra_runs_on_spread,
+                "spread_threshold": policy.spread_threshold,
+                "max_relative_spread": policy.max_relative_spread,
+                "idle_seconds": policy.idle_seconds,
+                "bitrate_validation": policy.bitrate_validation,
             },
-            "assets": {
-                "input": {"sha256": SHA["input"]},
-                "onnx": {"sha256": SHA["onnx"]},
-                "engine": {"sha256": engine_sha},
-                "workload_manifest": {
-                    "sha256": SHA["workload_manifest"],
-                },
-            },
-            "environment": {
-                "image": {
-                    "id": image_id,
-                    "repository_revision": "a" * 40,
-                    "source_dirty": "0",
-                }
-            },
-            "reproducibility": {"publishable": True},
-            "measured": {"validation": {"valid": True}},
-        },
-    )
-    _write_json(
-        candidate_root / "performance" / "suite.json",
-        {
-            "status": "valid",
-            "workload_id": workload["id"],
-            "benchmark_contract_version": workload["benchmark"]["contract_version"],
-            "variant": "1080p",
-            "parameters": profile,
             "statistics": {
                 "median_fps": median_fps,
-                "relative_spread": 0.01,
+                "relative_spread": relative_spread,
             },
-            "runs": [{"manifest": run_relative}],
+            "runs": runs,
         },
     )
-    _write_json(
-        candidate_root / "model-space-parity.json",
-        {
-            "document_type": "model-space-parity",
-            "status": "valid" if model_space_valid else "invalid",
-            "publishable": model_space_valid,
-            "workload_id": workload["id"],
-            "variant": "1080p",
-            "assets": {
-                "input_sha256": SHA["input"],
-                "onnx_sha256": SHA["onnx"],
-            },
-            "comparisons": [
-                {
-                    "implementation": PRODUCTS[candidate.implementation],
-                    "execution_profile": profile,
-                    "status": "valid" if model_space_valid else "invalid",
-                    "engine_sha256": engine_sha,
-                    "image": {
-                        "id": image_id,
-                        "repository_revision": "a" * 40,
-                        "source_dirty": "0",
-                    },
-                }
-            ],
-        },
+    return CandidatePoint(
+        candidate=candidate,
+        median_fps=median_fps,
+        relative_spread=relative_spread,
+        suite_path=suite_path.relative_to(root).as_posix(),
     )
 
 
-def _complete_sweep(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
+def _complete_search(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
     contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
     workload = load_manifest(Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"))
     sweep_dir = tmp_path / "artefacts" / "sweep"
-    speeds = {
-        "vstrt-s2-g0": 10.0,
-        "vstrt-s3-g0": 12.0,
-        "vstrt-s4-g0": 11.0,
-        "vsgan-s2-tauto-g0": 8.0,
-        "vsgan-s3-tauto-g0": 8.1,
-        "vsgan-s4-tauto-g0": 8.2,
-        "vsgan-s5-tauto-g0": 8.3,
-        "vsgan-s6-tauto-g0": 8.4,
-        "vsgan-s4-g0": 9.0,
-        "vsgan-s4-g1": 9.5,
+    scout_speeds = {
+        "vstrt": [10.0, 12.0, 11.9, 11.8, 11.0, 10.8, 10.5, 10.2],
+        "vsgan": [12.0, 15.0, 18.0, 19.8, 20.0, 20.1, 19.5, 19.0],
     }
-    for candidate in contract.candidates:
-        _candidate_evidence(
-            tmp_path,
-            sweep_dir,
-            candidate,
-            workload=workload,
-            median_fps=speeds[candidate.candidate_id],
+    confirm_speeds = {
+        "vstrt": {2: 12.0, 3: 12.05, 4: 11.7},
+        "vsgan": {4: 19.8, 5: 20.0, 6: 20.1},
+    }
+    states = {}
+    for implementation in PRODUCTS:
+        reconnaissance = [
+            _candidate_evidence(
+                tmp_path,
+                sweep_dir,
+                contract.make_candidate(implementation, streams),
+                workload=workload,
+                stage="reconnaissance",
+                policy=contract.search.reconnaissance,
+                median_fps=scout_speeds[implementation][streams - 1],
+            )
+            for streams in contract.search.stream_range
+        ]
+        selected = shortlist(reconnaissance, size=contract.search.shortlist_size)
+        confirmed = [
+            _candidate_evidence(
+                tmp_path,
+                sweep_dir,
+                candidate,
+                workload=workload,
+                stage="confirmation",
+                policy=contract.search.confirmation,
+                median_fps=confirm_speeds[implementation][candidate.num_streams],
+            )
+            for candidate in selected
+        ]
+        provisional = select_peak_equivalent(
+            confirmed,
+            equivalence_margin=contract.selection.equivalence_margin,
         )
+        assert provisional is not None
+        graph_candidate = contract.make_candidate(
+            implementation,
+            provisional.candidate.num_streams,
+            cuda_graph=True,
+        )
+        graph_speed = 12.1 if implementation == "vstrt" else 20.25
+        confirmed.append(
+            _candidate_evidence(
+                tmp_path,
+                sweep_dir,
+                graph_candidate,
+                workload=workload,
+                stage="confirmation",
+                policy=contract.search.confirmation,
+                median_fps=graph_speed,
+            )
+        )
+        states[implementation] = {
+            "completion_reason": "range-exhausted",
+            "early_stop_after_streams": None,
+            "reconnaissance": [point.as_dict() for point in reconnaissance],
+            "shortlist": [candidate.candidate_id for candidate in selected],
+            "confirmation": [point.as_dict() for point in confirmed],
+            "cuda_graph_probe": graph_candidate.candidate_id,
+        }
+    _write_json(
+        sweep_dir / "search-state.json",
+        {
+            "schema_version": 1,
+            "document_type": "adaptive-tuning-search",
+            "status": "complete",
+            "workload_id": workload["id"],
+            "variant": "1080p",
+            "benchmark_contract_version": workload["benchmark"]["contract_version"],
+            "search_policy": contract.search.as_dict(),
+            "selection_policy": contract.selection.as_dict(),
+            "implementations": states,
+        },
+    )
     return contract, workload, sweep_dir
 
 
-def test_rank_selects_fastest_eligible_candidate_per_implementation(
+def test_rank_selects_peak_equivalent_resource_efficient_candidate(
     tmp_path: Path,
 ) -> None:
-    contract, workload, sweep_dir = _complete_sweep(tmp_path)
+    contract, workload, sweep_dir = _complete_search(tmp_path)
 
     report = rank_tuned_candidates(
         contract=contract,
@@ -164,15 +232,19 @@ def test_rank_selects_fastest_eligible_candidate_per_implementation(
     )
 
     assert report["status"] == "valid"
-    assert report["winners"]["vstrt"]["candidate_id"] == "vstrt-s3-g0"
-    assert report["winners"]["vsgan"]["candidate_id"] == "vsgan-s4-g1"
+    assert report["winners"]["vstrt"]["candidate_id"] == "vstrt-s2-g0"
+    assert report["winners"]["vsgan"]["candidate_id"] == "vsgan-s5-tauto-g1"
+    assert report["search"]["completion"] == {
+        "vstrt": "range-exhausted",
+        "vsgan": "range-exhausted",
+    }
 
 
-def test_rank_promotes_next_candidate_after_full_quality_failure(
+def test_rank_promotes_next_confirmed_candidate_after_quality_failure(
     tmp_path: Path,
 ) -> None:
-    contract, workload, sweep_dir = _complete_sweep(tmp_path)
-    failed_candidate = contract.candidate("vstrt-s3-g0")
+    contract, workload, sweep_dir = _complete_search(tmp_path)
+    failed_candidate = contract.candidate("vstrt-s2-g0")
     evidence_path = tmp_path / "artefacts" / "failure.json"
     _write_json(
         evidence_path,
@@ -186,7 +258,7 @@ def test_rank_promotes_next_candidate_after_full_quality_failure(
                     "implementation": PRODUCTS["vstrt"],
                     "status": "invalid",
                     "execution_profile": failed_candidate.execution_profile(),
-                    "errors": ["product output parity failed"],
+                    "errors": ["model-space parity failed"],
                 }
             ],
         },
@@ -199,33 +271,27 @@ def test_rank_promotes_next_candidate_after_full_quality_failure(
         sweep_dir=sweep_dir,
         root=tmp_path,
         disqualifications={
-            "vstrt-s3-g0": {
-                "reason": "product output parity failed",
+            "vstrt-s2-g0": {
+                "reason": "model-space parity failed",
                 "evidence": evidence_path.relative_to(tmp_path).as_posix(),
             }
         },
     )
 
     assert report["status"] == "valid"
-    assert report["winners"]["vstrt"]["candidate_id"] == "vstrt-s4-g0"
-    failed = next(
-        candidate
-        for candidate in report["candidates"]
-        if candidate["candidate_id"] == "vstrt-s3-g0"
-    )
-    assert failed["status"] == "disqualified"
+    assert report["winners"]["vstrt"]["candidate_id"] == "vstrt-s2-g1"
 
 
-def test_rank_rejects_incomplete_sweep_even_when_winners_exist(
-    tmp_path: Path,
-) -> None:
-    contract, workload, sweep_dir = _complete_sweep(tmp_path)
+def test_rank_rejects_missing_confirmation_evidence(tmp_path: Path) -> None:
+    contract, workload, sweep_dir = _complete_search(tmp_path)
     missing = (
         candidate_directory(
             sweep_dir,
-            contract.candidate("vsgan-s4-g0"),
+            contract.candidate("vsgan-s5-tauto-g1"),
         )
-        / "model-space-parity.json"
+        / "confirmation"
+        / "performance"
+        / "suite.json"
     )
     missing.unlink()
 
@@ -238,30 +304,29 @@ def test_rank_rejects_incomplete_sweep_even_when_winners_exist(
     )
 
     assert report["status"] == "invalid"
-    assert "vsgan-s4-g0" in report["errors"][0]
+    assert "vsgan-s5-tauto-g1" in report["errors"][0]
 
 
-def test_rank_excludes_candidate_that_fails_model_space(
-    tmp_path: Path,
-) -> None:
-    contract, workload, sweep_dir = _complete_sweep(tmp_path)
-    candidate = contract.candidate("vsgan-s4-g1")
-    _candidate_evidence(
-        tmp_path,
-        sweep_dir,
-        candidate,
-        workload=workload,
-        median_fps=9.5,
-        model_space_valid=False,
-    )
+def test_rank_rejects_unproven_early_stop(tmp_path: Path) -> None:
+    contract, workload, sweep_dir = _complete_search(tmp_path)
+    state_path = sweep_dir / "search-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    vstrt = state["implementations"]["vstrt"]
+    vstrt["completion_reason"] = "decline-confirmed"
+    vstrt["early_stop_after_streams"] = 4
+    vstrt["reconnaissance"] = [
+        point for point in vstrt["reconnaissance"] if point["num_streams"] in {1, 2, 3, 4, 8}
+    ]
+    _write_json(state_path, state)
 
-    report = rank_tuned_candidates(
-        contract=contract,
-        workload=workload,
-        variant="1080p",
-        sweep_dir=sweep_dir,
-        root=tmp_path,
-    )
-
-    assert report["status"] == "valid"
-    assert report["winners"]["vsgan"]["candidate_id"] == "vsgan-s4-g0"
+    with pytest.raises(
+        TuningEvidenceError,
+        match="stopped without a confirmed decline",
+    ):
+        rank_tuned_candidates(
+            contract=contract,
+            workload=workload,
+            variant="1080p",
+            sweep_dir=sweep_dir,
+            root=tmp_path,
+        )

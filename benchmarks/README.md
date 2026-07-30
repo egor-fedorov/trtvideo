@@ -23,13 +23,12 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `scripts/quality/` - model-space and final-output quality gates.
 - `scripts/report/` - deterministic SVG generation from committed publication
   JSON.
-- `scripts/tuning/` - candidate sweep, deterministic selection, and
+- `scripts/tuning/` - adaptive search, deterministic selection, and
   cross-resolution publication checks.
 - `scripts/workflow/` - complete goal planning, execution, and resume state.
 - `scripts/workloads/` - asset preparation, validation, and engine builders.
-- `tuning/candidates.json` - RealESRGAN tuned candidates and selection policy.
-- `tuning/span_candidates.json` - extended SPAN candidates with the measured
-  `num_streams=5` interior peak and `num_streams=6` boundary point.
+- `tuning/candidates.json` - RealESRGAN adaptive search and selection policy.
+- `tuning/span_candidates.json` - SPAN adaptive search and selection policy.
 - `GPU_RUNBOOK.md` - acceptance sequence on the benchmark GPU.
 - [`results/`](results/README.md) - committed benchmark tables and
   machine-readable sanitized snapshots; large raw artifacts remain under
@@ -91,7 +90,7 @@ The goals are intentionally separate:
 - `project` measures only `trtvideo` for regression work;
 - `comparative` runs quality gates and rotated project/vstrt/VSGAN campaigns
   using pinned upstream defaults;
-- `tuned` runs candidate sweeps, winner quality gates, final campaigns, and
+- `tuned` runs adaptive searches, winner quality gates, final campaigns, and
   cross-resolution publication checks;
 - `diagnostics` records `trtexec` ceilings for the selection and the canonical
   SPAN 1080p Nsight trace when that combination is selected.
@@ -186,14 +185,23 @@ make -C benchmarks run-tuned-campaign \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-The canonical workflow matrix selects a predeclared tuning contract for each
-workload. RealESRGAN uses `benchmarks/tuning/candidates.json`; SPAN uses the
-extended `benchmarks/tuning/span_candidates.json`. The sweep requires full
-media validation and model-space parity for each point, ranks only eligible
-points by stable median end-to-end FPS, and stores every candidate in a unique
-directory. The full 1000-frame product-output gate runs only for the selected
-pair. A candidate-specific failure disqualifies that point and promotes the
-next eligible candidate.
+The canonical workflow matrix selects a predeclared adaptive tuning contract
+for each workload. RealESRGAN uses `benchmarks/tuning/candidates.json`; SPAN
+uses `benchmarks/tuning/span_candidates.json`. A one-run reconnaissance pass
+searches streams `1..8`, applies the declared early-stop and sentinel rules, and
+shortlists three candidates. A materially increasing stream-8 boundary rejects
+the search and requires a wider contract. Shortlisted candidates are independently
+remeasured with the full 1000-frame 3+2 contract before selection. Only the
+selected pair runs exact-profile model-space and product-output quality gates.
+A candidate-specific quality failure disqualifies that point and promotes the
+next confirmed candidate.
+
+RealESRGAN reconnaissance uses 300 frames and records, but does not enforce,
+average bitrate because NVENC CBR does not reliably converge over that short
+window. This evidence is search-only and non-publishable. Confirmation,
+quality, and the final campaign use 1000 frames with bitrate validation enabled.
+The machine-readable `search-state.json` proves the measured points, stop
+reason, sentinel, shortlist, and CUDA Graph probe used by selection.
 
 Run the same three commands independently for 720p. A single-resolution tuned
 campaign is evidence, not a publication unit. `verify-tuned-matrix` grants

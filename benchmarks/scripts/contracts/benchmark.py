@@ -48,6 +48,14 @@ def benchmark_value(
 def benchmark_parameters(args: argparse.Namespace, manifest: dict[str, Any]) -> dict[str, Any]:
     """Resolve shared 3+2 suite parameters."""
     benchmark = manifest.get("benchmark", {})
+    max_relative_spread = getattr(args, "max_relative_spread", None)
+    if max_relative_spread is None:
+        max_relative_spread = benchmark.get("spread_threshold", 0.05)
+    if not isinstance(max_relative_spread, (int, float)) or isinstance(
+        max_relative_spread,
+        bool,
+    ):
+        raise CompetitorError("max relative spread must be numeric")
     values = {
         "frames": int(benchmark_value(args.frames, benchmark, "measured_frames")),
         "warmup_frames": int(benchmark_value(args.warmup_frames, benchmark, "warmup_frames")),
@@ -60,7 +68,14 @@ def benchmark_parameters(args: argparse.Namespace, manifest: dict[str, Any]) -> 
             )
         ),
         "idle_seconds": float(benchmark_value(args.idle_seconds, benchmark, "idle_seconds")),
-        "spread_threshold": float(benchmark.get("spread_threshold", 0.05)),
+        "spread_threshold": float(
+            benchmark_value(
+                getattr(args, "spread_threshold", None),
+                benchmark,
+                "spread_threshold",
+            )
+        ),
+        "max_relative_spread": float(max_relative_spread),
         "nvml_sample_interval_ms": int(benchmark.get("nvml_sample_interval_ms", 100)),
     }
     for key in ("frames", "warmup_frames", "initial_runs"):
@@ -68,8 +83,8 @@ def benchmark_parameters(args: argparse.Namespace, manifest: dict[str, Any]) -> 
             raise CompetitorError(f"{key} must be greater than zero")
     if values["extra_runs_on_spread"] < 0 or values["idle_seconds"] < 0:
         raise CompetitorError("extra runs and idle time cannot be negative")
-    if not 0 <= values["spread_threshold"] < 1:
-        raise CompetitorError("spread threshold must be in the range [0, 1)")
+    if not 0 <= values["spread_threshold"] <= values["max_relative_spread"] < 1:
+        raise CompetitorError("spread thresholds must satisfy 0 <= extension <= maximum < 1")
     return values
 
 
@@ -134,11 +149,15 @@ def add_common_arguments(parser: argparse.ArgumentParser, *, engine: bool) -> No
     parser.add_argument("--warmup-frames", type=int, default=None)
     parser.add_argument("--runs", type=int, default=None)
     parser.add_argument("--extra-runs", type=int, default=None)
+    parser.add_argument("--spread-threshold", type=float, default=None)
+    parser.add_argument("--max-relative-spread", type=float, default=None)
     parser.add_argument("--idle-seconds", type=float, default=None)
     parser.add_argument(
         "--skip-bitrate-validation",
         action="store_true",
-        help="Record but do not enforce average bitrate (short smoke runs only)",
+        help=(
+            "Record but do not enforce average bitrate (short smoke or tuning reconnaissance only)"
+        ),
     )
     parser.add_argument("--dry-run", action="store_true")
 

@@ -85,7 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--skip-bitrate-validation",
         action="store_true",
-        help="Record but do not enforce average bitrate (short smoke runs only)",
+        help=(
+            "Record but do not enforce average bitrate (short smoke or tuning reconnaissance only)"
+        ),
     )
     parser.add_argument(
         "--workload-manifest",

@@ -8,6 +8,9 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 ## 1. Benchmark Follow-Up
 
+- run the adaptive tuned search, winner quality gates, and final 720p/1080p
+  campaigns on the benchmark GPU before replacing the exhaustive-search RTX
+  3090 snapshot;
 - run one confirmation workload on a short live-action clip with substantial
   motion and fine detail;
 

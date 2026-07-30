@@ -11,7 +11,7 @@ The following result classes are kept separate:
 1. `upstream-default` - each external product uses the scheduling defaults
    recorded from its pinned upstream version.
 2. `tuned` - each external product uses a workload-specific configuration
-   selected by the declared candidate sweep and independent quality gate.
+   selected by the declared adaptive search and independent quality gate.
 3. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
    encode, or mux.
 
@@ -127,35 +127,47 @@ metadata, and report structure rather than in the scheduling profile.
 
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
-Tuned candidate grids are workload-specific and selected by the canonical
-workflow matrix. For vstrt, RealESRGAN tests `num_streams=2/3/4`, while SPAN
-tests `num_streams=2/3/4/5/6`; an initial `2/3/4` SPAN sweep ended at an
-increasing upper boundary, and boundary runs found an interior maximum at `5`.
-For VSGAN, both workloads test `num_streams=2/3/4/5/6` with automatic vspipe
-requests, runtime-default VapourSynth threads, and CUDA Graph disabled. The
-VSGAN grid also retains its upstream `streams=4`, `threads=4` configuration
-with CUDA Graph disabled and enabled as explicit controls. Contract validation
-rejects either workload unless the complete automatic-thread VSGAN stream grid
-is present.
+The `tuned` profile uses a workload-specific two-stage adaptive search selected
+by `benchmarks/workflows/canonical.json`. Both competitors use automatic vspipe
+requests and runtime-default VapourSynth threads while the search considers
+`num_streams=1..8`.
 
-Tuned selection is a two-stage protocol. The workload-specific candidate set
-and common winner rule are fixed in the contract selected by
-`benchmarks/workflows/canonical.json` before the canonical measurement. Every
-declared candidate receives a collision-free directory and must provide:
+Stage 1 is reconnaissance. Each stream count receives one run with CUDA Graph
+disabled. RealESRGAN uses 300 measured frames and 30 warmup frames; SPAN keeps
+1000 measured frames and 100 warmup frames. The search may stop after two
+consecutive points are more than 1% below the best observed throughput, but it
+must then measure stream 8 as a sentinel. A sentinel recovery greater than 1%
+invalidates the early stop and requires every missing stream count. The three
+strongest reconnaissance points form the shortlist. If stream 8 remains more
+than 1% above every lower stream count, the upper boundary is unresolved and
+the contract range must be expanded before selection.
 
-1. a stable canonical performance suite;
-2. unchanged workload, input, ONNX, engine, image, encoder, and revision hashes;
-3. complete output/media validation from every measured run;
-4. model-space parity on frames `0`, `499`, and `999` under that candidate's
-   exact requests, stream, thread, and CUDA Graph settings.
+Stage 2 measures the shortlist from scratch; reconnaissance measurements are
+not reused in its statistics. Every candidate receives three 1000-frame runs
+and two more when the initial relative spread exceeds 1%. A final spread above
+5% disqualifies the candidate. CUDA Graph off/on is then tested at the
+provisional stream winner. Every measured run must preserve the workload,
+input, ONNX, engine, image, encoder, revision, and complete media contract.
 
-Only eligible candidates are ranked. The winner is the highest stable median
-end-to-end FPS; candidate ID is the deterministic tie-breaker. Missing evidence
-invalidates the entire sweep instead of silently reducing the search space.
-The selected pair then runs the independent full 1000-frame product-output
-gate. A candidate-specific failure is retained as disqualification evidence and
-the next eligible point is promoted. Sweep FPS is never published as a final
-product comparison.
+The selected candidate is the lowest stream count within 1% of the confirmed
+peak median end-to-end FPS, with CUDA Graph off preferred when the same stream
+count remains peak-equivalent. This deliberately gives each competitor the
+most resource-efficient configuration that preserves its peak throughput.
+Selection completion is proven by `search-state.json`: it records every
+reconnaissance point, the stop reason, sentinel result, shortlist, confirmation
+evidence, and graph probe. Missing evidence or an unproven stop invalidates the
+search.
+
+During the 300-frame RealESRGAN reconnaissance pass, NVENC rate control does not
+reliably converge. The observed bitrate is recorded but not validated. The
+search assumes that residual NVENC workload differences do not change the
+broad candidate ordering. Shortlisted candidates and all published results are
+remeasured over 1000 frames with bitrate validation enabled.
+
+Only the selected pair runs exact-profile model-space and full product-output
+quality gates. A candidate-specific failure is retained as disqualification
+evidence and promotes the next confirmed candidate. Sweep FPS is never
+published as a final product comparison.
 
 The project is not silently tuned during this search. Its profile is fixed in
 the same contract to the best already verified production configuration:

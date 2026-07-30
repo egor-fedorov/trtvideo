@@ -124,6 +124,29 @@ def test_suite_runner_rejects_power_limit_drift() -> None:
     assert result.errors == ("GPU power limit changed between measured runs",)
 
 
+def test_suite_runner_can_extend_at_one_percent_and_accept_below_five() -> None:
+    values = [100.0, 102.0, 101.0, 101.5, 100.5]
+    runner = SuiteRunner(
+        SuitePolicy(3, 2, 0.01, 0, max_relative_spread=0.05),
+        label="test",
+        frames=1000,
+        metric_reader=lambda manifest: manifest["metric"],
+        power_limit_reader=lambda manifest: manifest["power_limit"],
+    )
+
+    result = runner.execute(
+        lambda index: {
+            "status": "valid",
+            "run_index": index,
+            "metric": values[index - 1],
+            "power_limit": 250.0,
+        }
+    )
+
+    assert result.target_runs == 5
+    assert result.status == "valid"
+
+
 def test_single_run_suite_uses_product_name_without_progress_fraction() -> None:
     output = StringIO()
     runner = SuiteRunner(
@@ -193,6 +216,7 @@ def test_smoke_parameters_are_valid_but_not_canonical() -> None:
         "initial_runs": 3,
         "extra_runs_on_spread": 2,
         "spread_threshold": 0.05,
+        "max_relative_spread": 0.05,
         "idle_seconds": 10,
         "nvml_sample_interval_ms": 100,
     }
@@ -202,6 +226,7 @@ def test_smoke_parameters_are_valid_but_not_canonical() -> None:
         "initial_runs": 1,
         "extra_runs_on_spread": 0,
         "spread_threshold": 0.05,
+        "max_relative_spread": 0.05,
         "idle_seconds": 0,
         "nvml_sample_interval_ms": 100,
     }
@@ -228,6 +253,7 @@ def test_canonical_parameters_are_publishable() -> None:
         "initial_runs": 3,
         "extra_runs_on_spread": 2,
         "spread_threshold": 0.05,
+        "max_relative_spread": 0.05,
         "idle_seconds": 10,
         "nvml_sample_interval_ms": 100,
     }
@@ -237,6 +263,7 @@ def test_canonical_parameters_are_publishable() -> None:
         "initial_runs": 3,
         "extra_runs_on_spread": 2,
         "spread_threshold": 0.05,
+        "max_relative_spread": 0.05,
         "idle_seconds": 10,
         "nvml_sample_interval_ms": 100,
     }

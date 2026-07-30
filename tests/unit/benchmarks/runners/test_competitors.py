@@ -72,6 +72,8 @@ def common_args(**overrides) -> argparse.Namespace:
         "warmup_frames": None,
         "runs": None,
         "extra_runs": None,
+        "spread_threshold": None,
+        "max_relative_spread": None,
         "idle_seconds": None,
         "dry_run": True,
         "cuda_graph": None,
@@ -95,6 +97,15 @@ def test_shared_parameters_accept_smoke_overrides() -> None:
     assert parameters["warmup_frames"] == 24
     assert parameters["initial_runs"] == 1
     assert parameters["extra_runs_on_spread"] == 0
+
+
+def test_shared_parameters_separate_extension_and_acceptance_spread() -> None:
+    args = common_args(spread_threshold=0.01, max_relative_spread=0.05)
+
+    parameters = benchmark_parameters(args, manifest())
+
+    assert parameters["spread_threshold"] == 0.01
+    assert parameters["max_relative_spread"] == 0.05
 
 
 def test_removed_single_request_profile_is_not_accepted() -> None:

@@ -70,22 +70,15 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Licensed the project source code and documentation under Apache License 2.0,
   with third-party dependencies, models, and media remaining under their own
   licenses.
-- Added workload-specific tuned benchmark contracts. RealESRGAN retains the
-  bounded `num_streams=2/3/4` search, while SPAN extends through `5/6` after
-  boundary measurements found its throughput peak at five streams. Tuned
-  workflows print immediate candidate and phase progress, and rotated campaigns
-  report the current implementation, round, and operation count.
 - Added one goal-based benchmark command for complete `project`,
   `comparative`, `tuned`, and `diagnostics` workflows. A declarative matrix
   drives image and engine builds, asset preparation, smoke checks, quality
   gates, campaigns, diagnostics, dry-run plans, and revision-bound resume
   state; Make targets remain available for low-level troubleshooting.
-- Added a manifest-driven tuned benchmark workflow. Every declared scheduling
-  candidate is isolated, media-validated, checked in model space, and ranked by
-  stable median end-to-end FPS. Full 1000-frame quality runs only for selected
-  winners; candidate-specific failures are retained and promote the next
-  eligible point. Tuned publication now requires machine-verified 720p and
-  1080p evidence.
+- Added a manifest-driven tuned benchmark workflow with isolated candidate
+  evidence, deterministic selection, winner-only quality gates, retained
+  disqualifications, immediate phase progress, and machine-verified 720p plus
+  1080p publication evidence.
 - Added machine-checked benchmark contract versions to workload, run, and
   campaign manifests. Aggregation now rejects mixed frame-budget contracts.
 - Split benchmark orchestration into explicit `run-project`,
@@ -168,6 +161,15 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Replaced exhaustive tuned candidate suites with a two-stage adaptive search.
+  One-run reconnaissance over streams `1..8` supports a validated decline stop,
+  maximum-range sentinel, and unresolved-boundary rejection; only the three
+  strongest points receive independent 1000-frame confirmation. Confirmation
+  extends at 1% spread but rejects only beyond 5%, and the lowest-stream point
+  within 1% of peak is selected to give competitors the most
+  resource-efficient equivalent result. Short RealESRGAN reconnaissance records
+  but does not enforce bitrate; all selection and publication evidence restores
+  the full bitrate contract.
 - Withdrew the pre-rewrite RTX 3090 benchmark snapshot. It predates the
   corrected limited-range color path and will be replaced only by evidence
   measured from one clean post-rewrite revision.

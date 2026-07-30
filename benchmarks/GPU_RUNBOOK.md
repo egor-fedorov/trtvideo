@@ -61,16 +61,18 @@ pinned upstream:
 benchmarks/bin/run-benchmark.sh comparative
 ```
 
-Tuned candidates and selection rules come from the workload-specific contracts
-under [`tuning/`](tuning/). The tuned workflow evaluates all declared
-candidates, retains disqualifications, runs the full product-output quality gate
-only for selected winners, and verifies that 720p and 1080p evidence agree
-before publication. Both canonical contracts require the VSGAN
-`num_streams=2..6`, runtime-default VapourSynth-thread grid.
+Tuned search and selection rules come from the workload-specific contracts
+under [`tuning/`](tuning/). The tuned workflow performs one-run reconnaissance,
+validates any early stop with a maximum-range sentinel, independently confirms
+the three strongest candidates over 1000 frames, retains disqualifications,
+runs full quality gates only for selected winners, and verifies that 720p and
+1080p evidence agree before publication. If stream 8 is still materially
+improving, expand the contract instead of publishing a boundary winner.
 
-Do not resume tuned artifacts created with an older candidate contract. Start
-the complete tuned workflow in an empty tuned artifact namespace after
-committing and rebuilding the new revision.
+Do not resume tuned artifacts created with an older search contract. Start the
+complete tuned workflow in an empty tuned artifact namespace after changing the
+search range, stage budgets, completion rule, selection rule, or repository
+revision.
 
 ## Selecting A Subset
 

@@ -1,95 +1,53 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "selection": {
     "metric": "median_end_to_end_fps",
+    "equivalence_margin": 0.01,
     "max_relative_spread": 0.05,
-    "require_complete_sweep": true,
-    "tie_breaker": "candidate_id"
+    "tie_breaker": "lowest_num_streams_then_graph_off"
+  },
+  "search": {
+    "minimum_streams": 1,
+    "maximum_streams": 8,
+    "decline_margin": 0.01,
+    "decline_patience": 2,
+    "sentinel_streams": 8,
+    "shortlist_size": 3,
+    "reconnaissance": {
+      "measured_frames": 300,
+      "warmup_frames": 30,
+      "initial_runs": 1,
+      "extra_runs_on_spread": 0,
+      "spread_threshold": 0.01,
+      "max_relative_spread": 0.05,
+      "idle_seconds": 0,
+      "bitrate_validation": false
+    },
+    "confirmation": {
+      "measured_frames": 1000,
+      "warmup_frames": 30,
+      "initial_runs": 3,
+      "extra_runs_on_spread": 2,
+      "spread_threshold": 0.01,
+      "max_relative_spread": 0.05,
+      "idle_seconds": 10,
+      "bitrate_validation": true
+    }
   },
   "project_profile": {
     "backend": "nvcodec",
     "cuda_graph": false
   },
-  "candidates": [
-    {
-      "id": "vstrt-s2-g0",
-      "implementation": "vstrt",
+  "implementations": {
+    "vstrt": {
       "requests": "auto",
-      "num_streams": 2,
       "vapoursynth_threads": "auto",
-      "cuda_graph": false
+      "probe_cuda_graph": true
     },
-    {
-      "id": "vstrt-s3-g0",
-      "implementation": "vstrt",
+    "vsgan": {
       "requests": "auto",
-      "num_streams": 3,
       "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vstrt-s4-g0",
-      "implementation": "vstrt",
-      "requests": "auto",
-      "num_streams": 4,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s2-tauto-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 2,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s3-tauto-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 3,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s4-tauto-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 4,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s5-tauto-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 5,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s6-tauto-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 6,
-      "vapoursynth_threads": "auto",
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s4-g0",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 4,
-      "vapoursynth_threads": 4,
-      "cuda_graph": false
-    },
-    {
-      "id": "vsgan-s4-g1",
-      "implementation": "vsgan",
-      "requests": "auto",
-      "num_streams": 4,
-      "vapoursynth_threads": 4,
-      "cuda_graph": true
+      "probe_cuda_graph": true
     }
-  ]
+  }
 }
