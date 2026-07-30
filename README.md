@@ -14,35 +14,45 @@ The production runtime currently uses Python 3.12 from the
 
 ## Architecture
 
-```mermaid
-flowchart TB
-  subgraph project["trtvideo"]
-    direction LR
-    project_input["Compressed packets<br/>RAM"]
-    subgraph project_vram["VRAM"]
-      direction LR
-      nvdec["NVDEC"] --> pre["CV-CUDA"] --> trt["TensorRT"] --> post["CV-CUDA"] --> nvenc["NVENC"]
-    end
-    project_output["Compressed bitstream<br/>RAM / mux"]
-    project_input --> nvdec
-    nvenc --> project_output
-  end
+### trtvideo GPU-Resident Path
 
-  subgraph measured["VapourSynth benchmark path (as measured)"]
-    direction LR
-    subgraph measured_ram["RAM"]
-      direction LR
-      bestsource["BestSource"] --> zimg_in["zimg<br/>RGBS"]
-      zimg_out["zimg<br/>YUV420"] --> y4m["Y4M pipe"] --> ffmpeg["FFmpeg"]
-    end
-    subgraph measured_vram["VRAM"]
-      direction LR
-      vstrt["TensorRT<br/>libvstrt"] ~~~ external_nvenc["NVENC"]
-    end
-    zimg_in -->|"H2D 24.9 MB/frame"| vstrt
-    vstrt -->|"D2H 99.5 MB/frame"| zimg_out
-    ffmpeg -->|"H2D 12.4 MB/frame"| external_nvenc
+```mermaid
+flowchart LR
+  subgraph project_input_memory["Host memory"]
+    project_input["Compressed packets"]
   end
+  subgraph project_vram["VRAM"]
+    direction LR
+    nvdec["NVDEC"] --> pre["CV-CUDA"] --> trt["TensorRT"] --> post["CV-CUDA"] --> nvenc["NVENC"]
+  end
+  subgraph project_output_memory["Host memory"]
+    project_output["Compressed bitstream / mux"]
+  end
+  project_input --> nvdec
+  nvenc --> project_output
+```
+
+### VapourSynth Benchmark Path (As Measured)
+
+```mermaid
+flowchart LR
+  subgraph measured_source["Host memory: source and preprocess"]
+    direction LR
+    bestsource["BestSource"] --> zimg_in["zimg / RGBS"]
+  end
+  subgraph measured_inference["VRAM: inference"]
+    vstrt["TensorRT / libvstrt"]
+  end
+  subgraph measured_output["Host memory: postprocess and pipe"]
+    direction LR
+    zimg_out["zimg / YUV420"] --> y4m["Y4M pipe"] --> ffmpeg["FFmpeg"]
+  end
+  subgraph measured_encode["VRAM: encode"]
+    external_nvenc["NVENC"]
+  end
+  zimg_in -->|"H2D 24.9 MB/frame"| vstrt
+  vstrt -->|"D2H 99.5 MB/frame"| zimg_out
+  ffmpeg -->|"H2D 12.4 MB/frame"| external_nvenc
 ```
 
 The transfer labels are computed payload sizes for the declared FP32 RGBS and
@@ -63,7 +73,7 @@ cross its host/device boundary.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-3090/figures/throughput-resources-dark.svg">
-  <img alt="Tuned end-to-end throughput plotted against attributed CPU cores, with bubble area showing peak VRAM" src="benchmarks/results/rtx-3090/figures/throughput-resources-light.svg">
+  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="benchmarks/results/rtx-3090/figures/throughput-resources-light.svg">
 </picture>
 
 On the RTX 3090 publication matrix, all implementations remain inside the

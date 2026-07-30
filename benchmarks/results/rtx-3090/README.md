@@ -83,27 +83,16 @@ CPU is attributed to the measured child-process tree through
 less VRAM on RealESRGAN. On SPAN it uses about 0.5 CPU cores instead of
 5.5-7.6 and 1.5-2.7 GiB VRAM instead of 3.9-11.8 GiB.
 
-### Throughput And Resource Position
+### Same Throughput, Lower Resource Use
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/throughput-resources-dark.svg">
-  <img alt="Tuned end-to-end throughput plotted against attributed CPU cores, with bubble area showing peak VRAM" src="figures/throughput-resources-light.svg">
+  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="figures/throughput-resources-light.svg">
 </picture>
 
-The shaded band is +/-5% around the `trtvideo` median. CPU uses a logarithmic
-axis; bubble area represents peak VRAM rather than diameter.
-
-### Full-Process Lifecycle
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/lifecycle-dark.svg">
-  <img alt="Tuned startup, steady-state frame loop, and finalize wall-time medians for all implementations" src="figures/lifecycle-light.svg">
-</picture>
-
-Bars use the external full-process timing contract. Labels list
-`startup / steady-state / finalize` medians; steady-state remains the dominant
-cost, while startup and finalization stay visible instead of being excluded
-from headline FPS.
+Both panels use linear scales. Each row compares `trtvideo` with the fastest
+external implementation for that workload; the annotation reports the
+end-to-end FPS difference for the same pair.
 
 ## Upstream-Default Results
 

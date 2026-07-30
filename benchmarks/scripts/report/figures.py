@@ -23,8 +23,6 @@ EXPECTED_FIGURES = (
     "tuned-sweep-dark.svg",
     "throughput-resources-light.svg",
     "throughput-resources-dark.svg",
-    "lifecycle-light.svg",
-    "lifecycle-dark.svg",
 )
 IMPLEMENTATION_ORDER = ("trtvideo", "vstrt", "vsgan")
 IMPLEMENTATION_LABELS = {
@@ -49,9 +47,6 @@ class Theme:
     project: str
     vstrt: str
     vsgan: str
-    startup: str
-    steady: str
-    finalize: str
 
     def implementation_color(self, implementation: str) -> str:
         return {
@@ -72,9 +67,6 @@ THEMES = {
         project="#0086A8",
         vstrt="#64748B",
         vsgan="#A87952",
-        startup="#D6A84B",
-        steady="#0086A8",
-        finalize="#94A3B8",
     ),
     "dark": Theme(
         name="dark",
@@ -86,9 +78,6 @@ THEMES = {
         project="#36C5E8",
         vstrt="#94A3B8",
         vsgan="#C9A27E",
-        startup="#E9BC62",
-        steady="#36C5E8",
-        finalize="#64748B",
     ),
 }
 
@@ -108,13 +97,6 @@ class ImplementationResult:
     fps: float
     cpu_cores: float
     peak_vram_mib: float
-    startup_sec: float
-    steady_state_sec: float
-    finalize_sec: float
-
-    @property
-    def wall_sec(self) -> float:
-        return self.startup_sec + self.steady_state_sec + self.finalize_sec
 
 
 @dataclass(frozen=True)
@@ -138,6 +120,12 @@ class WorkloadPanel:
             if result.implementation == implementation:
                 return result
         raise FigureDataError(f"{self.workload_id}/{self.variant} lacks {implementation} results")
+
+    def fastest_external(self) -> ImplementationResult:
+        return max(
+            (self.result("vstrt"), self.result("vsgan")),
+            key=lambda result: result.fps,
+        )
 
 
 @dataclass(frozen=True)
@@ -177,9 +165,6 @@ def _result_from_json(value: dict[str, Any]) -> ImplementationResult:
             fps=float(value["fps_median"]),
             cpu_cores=float(value["cpu_cores"]),
             peak_vram_mib=float(value["peak_vram_mib"]),
-            startup_sec=float(value["startup_sec"]),
-            steady_state_sec=float(value["steady_state_sec"]),
-            finalize_sec=float(value["finalize_sec"]),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise FigureDataError(f"Invalid final campaign result: {value}") from exc
@@ -342,6 +327,11 @@ def _save_figure(figure: Figure, path: Path, theme: Theme) -> None:
         },
     )
     plt.close(figure)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    path.write_text(
+        "\n".join(line.rstrip() for line in lines) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _spread_label_positions(
@@ -465,135 +455,109 @@ def render_throughput_resources(
     output_path: Path,
     theme: Theme,
 ) -> None:
-    """Render FPS against attributed CPU, with bubble area representing VRAM."""
+    """Compare project resource use with the fastest external implementation."""
     _configure_matplotlib(theme)
-    figure, axes = plt.subplots(2, 2, figsize=(11.6, 7.2))
-    for ax, panel in zip(axes.flat, data.panels, strict=True):
-        _style_panel(ax, theme)
-        project_fps = panel.result("trtvideo").fps
-        ax.axhspan(
-            project_fps * 0.95,
-            project_fps * 1.05,
-            color=theme.project,
-            alpha=0.08,
-            linewidth=0,
-        )
-        values = [panel.result(name) for name in IMPLEMENTATION_ORDER]
-        for result in values:
-            color = theme.implementation_color(result.implementation)
-            ax.scatter(
-                [result.cpu_cores],
-                [result.fps],
-                s=result.peak_vram_mib * 0.05,
-                color=color,
-                alpha=0.88,
-                edgecolors=theme.background,
-                linewidths=1.0,
-                zorder=3,
-            )
-            offset = {
-                "trtvideo": (7, 8),
-                "vstrt": (7, 8),
-                "vsgan": (7, -13),
-            }[result.implementation]
-            ax.annotate(
-                IMPLEMENTATION_LABELS[result.implementation],
-                (result.cpu_cores, result.fps),
-                xytext=offset,
-                textcoords="offset points",
-                color=color,
-                fontsize=8.5,
-                fontweight="bold" if result.implementation == "trtvideo" else "normal",
-            )
+    figure, axes = plt.subplots(1, 2, figsize=(12.4, 5.6))
+    y_positions = list(reversed(range(len(data.panels))))
+    labels = [f"{panel.workload}\n{panel.variant} -> {panel.output_label}" for panel in data.panels]
+    resource_specs = (
+        (
+            "Attributed CPU cores",
+            lambda result: result.cpu_cores,
+            lambda value: f"{value:.2f}",
+        ),
+        (
+            "Peak VRAM (GiB)",
+            lambda result: result.peak_vram_mib / 1024.0,
+            lambda value: f"{value:.1f}",
+        ),
+    )
+    bar_offset = 0.17
+    bar_height = 0.3
 
-        minimum = min(value.fps for value in values)
-        maximum = max(value.fps for value in values)
-        padding = max((maximum - minimum) * 1.2, project_fps * 0.035)
-        ax.set_ylim(minimum - padding, maximum + padding)
-        ax.set_xscale("log")
-        ax.set_xlim(0.35, 10.5)
-        ax.set_xlabel("Attributed CPU cores | log scale")
-        ax.set_ylabel("End-to-end FPS")
-        _panel_heading(ax, panel, theme)
-        ax.text(
-            0.99,
-            0.03,
-            "bubble area = peak VRAM",
-            transform=ax.transAxes,
-            color=theme.muted_text,
-            fontsize=7.5,
-            ha="right",
-            va="bottom",
-        )
-
-    figure.subplots_adjust(left=0.08, right=0.98, top=0.93, bottom=0.09, hspace=0.42)
-    _save_figure(figure, output_path, theme)
-
-
-def render_lifecycle(
-    data: PublishedFigureData,
-    output_path: Path,
-    theme: Theme,
-) -> None:
-    """Render full-process startup, steady-state, and finalize medians."""
-    _configure_matplotlib(theme)
-    figure, axes = plt.subplots(2, 2, figsize=(11.6, 7.6))
-    for ax, panel in zip(axes.flat, data.panels, strict=True):
+    for axis_index, (ax, (title, value_of, format_value)) in enumerate(
+        zip(axes, resource_specs, strict=True)
+    ):
         _style_panel(ax, theme, horizontal_grid=False)
-        results = [panel.result(name) for name in IMPLEMENTATION_ORDER]
-        y_positions = list(reversed(range(len(results))))
-        for y, result in zip(y_positions, results, strict=True):
-            left = 0.0
-            for value, color in (
-                (result.startup_sec, theme.startup),
-                (result.steady_state_sec, theme.steady),
-                (result.finalize_sec, theme.finalize),
-            ):
-                ax.barh(
-                    y,
-                    value,
-                    left=left,
-                    height=0.48,
-                    color=color,
-                    edgecolor="none",
-                )
-                left += value
+        ax.grid(axis="x", color=theme.grid, linewidth=0.8, alpha=0.6)
+        project_values = [value_of(panel.result("trtvideo")) for panel in data.panels]
+        external_results = [panel.fastest_external() for panel in data.panels]
+        external_values = [value_of(result) for result in external_results]
+        maximum = max(project_values + external_values)
+
+        ax.barh(
+            [position + bar_offset for position in y_positions],
+            project_values,
+            height=bar_height,
+            color=theme.project,
+            edgecolor="none",
+        )
+        ax.barh(
+            [position - bar_offset for position in y_positions],
+            external_values,
+            height=bar_height,
+            color=theme.vstrt,
+            edgecolor="none",
+        )
+
+        for index, (position, project_value, external_value) in enumerate(
+            zip(y_positions, project_values, external_values, strict=True)
+        ):
             ax.text(
-                result.wall_sec * 1.015,
-                y,
-                (
-                    f"{result.startup_sec:.2f}s / "
-                    f"{result.steady_state_sec:.2f}s / "
-                    f"{result.finalize_sec:.2f}s"
-                ),
-                color=theme.muted_text,
-                fontsize=7.2,
+                project_value + maximum * 0.018,
+                position + bar_offset,
+                format_value(project_value),
+                color=theme.project,
+                fontsize=8,
                 va="center",
             )
+            external = external_results[index]
+            ax.text(
+                external_value + maximum * 0.018,
+                position - bar_offset,
+                f"{format_value(external_value)} {IMPLEMENTATION_LABELS[external.implementation]}",
+                color=theme.vstrt,
+                fontsize=8,
+                va="center",
+            )
+            if axis_index == 0:
+                project_fps = data.panels[index].result("trtvideo").fps
+                fps_delta = (project_fps / external.fps - 1.0) * 100.0
+                ax.text(
+                    maximum * 1.22,
+                    position,
+                    f"{fps_delta:+.1f}% FPS",
+                    color=theme.text,
+                    fontsize=8.5,
+                    fontweight="bold",
+                    ha="center",
+                    va="center",
+                )
 
-        maximum = max(result.wall_sec for result in results)
-        ax.set_xlim(0, maximum * 1.47)
-        ax.set_yticks(
-            y_positions,
-            [IMPLEMENTATION_LABELS[result.implementation] for result in results],
-        )
-        ax.set_xlabel("Full-process wall time | seconds")
-        _panel_heading(ax, panel, theme)
+        ax.set_xlim(0, maximum * (1.4 if axis_index == 0 else 1.28))
+        ax.set_yticks(y_positions, labels)
+        ax.set_title(title, color=theme.text, fontsize=11, fontweight="bold", loc="left")
+        ax.set_xlabel("Linear scale")
 
-    handles = [
-        plt.Rectangle((0, 0), 1, 1, color=color)
-        for color in (theme.startup, theme.steady, theme.finalize)
-    ]
+    handles = [plt.Rectangle((0, 0), 1, 1, color=color) for color in (theme.project, theme.vstrt)]
     figure.legend(
         handles,
-        ("startup", "steady-state", "finalize"),
+        ("trtvideo", "fastest external"),
         loc="lower center",
-        ncol=3,
+        ncol=2,
         frameon=False,
         labelcolor=theme.text,
         bbox_to_anchor=(0.5, 0.01),
     )
-    figure.subplots_adjust(left=0.11, right=0.98, top=0.93, bottom=0.12, hspace=0.42)
+    figure.text(
+        0.25,
+        0.06,
+        "FPS delta: trtvideo versus the fastest external implementation",
+        color=theme.muted_text,
+        fontsize=8,
+        ha="center",
+    )
+    figure.subplots_adjust(left=0.18, right=0.98, top=0.9, bottom=0.17, wspace=0.35)
     _save_figure(figure, output_path, theme)
 
 
@@ -604,7 +568,6 @@ def generate_figures(results_dir: Path, output_dir: Path) -> tuple[Path, ...]:
     renderers = {
         "tuned-sweep": render_tuned_sweep,
         "throughput-resources": render_throughput_resources,
-        "lifecycle": render_lifecycle,
     }
     for stem, renderer in renderers.items():
         for theme in THEMES.values():
@@ -620,6 +583,10 @@ def check_figures(results_dir: Path, output_dir: Path) -> list[str]:
         generated_dir = Path(temporary)
         generate_figures(results_dir, generated_dir)
         errors: list[str] = []
+        expected_names = set(EXPECTED_FIGURES)
+        committed_names = {path.name for path in output_dir.glob("*.svg")}
+        for filename in sorted(committed_names - expected_names):
+            errors.append(f"unexpected: {output_dir / filename}")
         for filename in EXPECTED_FIGURES:
             expected = output_dir / filename
             actual = generated_dir / filename

@@ -58,10 +58,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
-- Added light/dark benchmark figures for tuned stream sweeps, throughput versus
-  attributed CPU and VRAM, and full-process lifecycle scopes. The SVGs are
-  generated deterministically from the committed publication JSON and checked
-  for drift in CI.
+- Added light/dark benchmark figures for tuned stream sweeps and direct
+  trtvideo-versus-fastest-external CPU/VRAM comparisons at equivalent
+  throughput. The SVGs are generated deterministically from the committed
+  publication JSON and checked for drift in CI.
 - Published a post-rewrite RTX 3090 benchmark snapshot from one clean revision:
   complete upstream-default and corrected best-tuned matrices for RealESRGAN
   and SPAN at 720p and 1080p, plus fresh `trtexec` ceilings and an Nsight
