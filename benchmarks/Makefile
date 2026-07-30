@@ -30,6 +30,9 @@ VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUT
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_FRAMES ?= 120
+REPORT_IMAGE ?= trtvideo:dev
+RESULTS_DIR ?= benchmarks/results/rtx-3090
+FIGURES_DIR ?= $(RESULTS_DIR)/figures
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(EXECUTION_PROFILE)/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
@@ -63,6 +66,7 @@ RESUME ?= 0
 .PHONY: aggregate-campaign run-campaign run-comparative
 .PHONY: run-tuned-sweep rank-tuned run-tuned-quality run-tuned-campaign
 .PHONY: verify-tuned-matrix
+.PHONY: figures figures-check
 
 help:
 	@printf '%s\n' \
@@ -90,6 +94,8 @@ help:
 		'run-tuned-quality   Fully validate winners; promote on candidate failure' \
 		'run-tuned-campaign  Run the rotated campaign for validated tuned winners' \
 		'verify-tuned-matrix Require valid tuned evidence for 720p and 1080p' \
+		'figures             Regenerate published SVG figures from result JSON' \
+		'figures-check       Require committed SVG figures to match result JSON' \
 		'run-campaign        Low-level comparative campaign coordinator' \
 		'aggregate-campaign  Rebuild campaign.json and results.md from raw runs'
 
@@ -497,6 +503,29 @@ verify-tuned-matrix:
 		--campaign-720p "$(TUNING_720_DIR)/final-campaign.json" \
 		--campaign-1080p "$(TUNING_1080_DIR)/final-campaign.json" \
 		--output "$(TUNING_MATRIX_OUTPUT)"
+
+figures:
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-e HOME=/tmp \
+		-e MPLCONFIGDIR=/tmp/matplotlib \
+		-e XDG_CACHE_HOME=/tmp/cache \
+		-e PYTHONPATH=/app \
+		-v "$(ROOT):/app" \
+		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
+			--results-dir /app/$(RESULTS_DIR) \
+			--output-dir /app/$(FIGURES_DIR)
+
+figures-check:
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-e HOME=/tmp \
+		-e MPLCONFIGDIR=/tmp/matplotlib \
+		-e XDG_CACHE_HOME=/tmp/cache \
+		-e PYTHONPATH=/app \
+		-v "$(ROOT):/app:ro" \
+		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
+			--results-dir /app/$(RESULTS_DIR) \
+			--output-dir /app/$(FIGURES_DIR) \
+			--check
 
 campaign-preflight:
 	@case "$(EXECUTION_PROFILE)" in \

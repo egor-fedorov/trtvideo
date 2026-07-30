@@ -46,3 +46,6 @@ jobs:
 
       - name: Run CLI smoke tests
         run: make cli-smoke
+
+      - name: Check benchmark figures
+        run: make figures-check

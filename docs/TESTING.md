@@ -136,6 +136,8 @@ make check
 
 `make format` applies Ruff import sorting and Black-compatible formatting.
 `make lint` checks both formatting and Ruff lint rules without changing files.
+`make figures-check` regenerates benchmark SVGs in a temporary directory and
+requires byte-for-byte equality with the committed figures.
 
 `make check` does not rebuild the development image automatically. After
 changes to dependencies in `pyproject.toml`/`uv.lock` or to
@@ -144,7 +146,7 @@ version change does not require an image rebuild.
 
 GitHub Actions builds the same checks image for pull requests and pushes to
 `main`, then reports Ruff, mypy, compileall, unit tests, media integration tests,
-and CLI smoke as separate steps. A separate workflow runs BuildKit static
-validation for the production Dockerfile without downloading the 26 GB runtime
-image. Full production and benchmark builds remain a GPU-host or
-self-hosted-runner acceptance check.
+CLI smoke, and benchmark-figure drift as separate steps. A separate workflow
+runs BuildKit static validation for the production Dockerfile without
+downloading the 26 GB runtime image. Full production and benchmark builds remain
+a GPU-host or self-hosted-runner acceptance check.

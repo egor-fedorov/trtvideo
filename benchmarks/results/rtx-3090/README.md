@@ -33,6 +33,18 @@ revision includes the torch-free runtime and streaming mux, while the corrected
 tuning contract gives both external implementations the same
 runtime-default-thread grid.
 
+### Tuned Stream Sweep
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/tuned-sweep-dark.svg">
+  <img alt="Tuned TensorRT stream-count sweep for RealESRGAN and SPAN at 720p and 1080p" src="figures/tuned-sweep-light.svg">
+</picture>
+
+Rings mark the selected external profiles. The dashed `trtvideo` reference is
+the independent final-campaign median, not a sweep result. RealESRGAN vs-mlrt
+was measured at streams 2-4; no unmeasured 5/6 points are interpolated. SPAN and
+VSGAN retain the full declared 2-6 grid.
+
 ### Selected Profiles
 
 | Workload | Input | vs-mlrt winner | VSGAN winner |
@@ -70,6 +82,28 @@ CPU is attributed to the measured child-process tree through
 `trtvideo` reaches parity while using roughly half the CPU and substantially
 less VRAM on RealESRGAN. On SPAN it uses about 0.5 CPU cores instead of
 5.5-7.6 and 1.5-2.7 GiB VRAM instead of 3.9-11.8 GiB.
+
+### Throughput And Resource Position
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/throughput-resources-dark.svg">
+  <img alt="Tuned end-to-end throughput plotted against attributed CPU cores, with bubble area showing peak VRAM" src="figures/throughput-resources-light.svg">
+</picture>
+
+The shaded band is +/-5% around the `trtvideo` median. CPU uses a logarithmic
+axis; bubble area represents peak VRAM rather than diameter.
+
+### Full-Process Lifecycle
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/lifecycle-dark.svg">
+  <img alt="Tuned startup, steady-state frame loop, and finalize wall-time medians for all implementations" src="figures/lifecycle-light.svg">
+</picture>
+
+Bars use the external full-process timing contract. Labels list
+`startup / steady-state / finalize` medians; steady-state remains the dominant
+cost, while startup and finalization stay visible instead of being excluded
+from headline FPS.
 
 ## Upstream-Default Results
 
@@ -174,6 +208,10 @@ remain valid.
 [`upstream-default.json`](upstream-default.json), [`tuned.json`](tuned.json),
 and [`diagnostics.json`](diagnostics.json) retain per-run FPS, resources,
 profiles, quality summaries, assets, and raw-evidence hashes.
+
+All SVG figures are generated from those committed JSON files with
+`make -C benchmarks figures`; `make -C benchmarks figures-check` verifies
+byte-for-byte reproducibility.
 
 MP4 outputs, FP32 tensor captures, NVML time series, engines, models, event
 logs, and profiler traces remain outside Git. A second live-action confirmation

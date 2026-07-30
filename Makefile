@@ -6,7 +6,7 @@ DEMO_GPU_ID ?= 0
 DEMO_FORCE ?= 0
 DEMO_FORCE_ARG = $(if $(filter 1 true yes,$(DEMO_FORCE)),--force,)
 
-.PHONY: build build-dev demo demo-clean format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
+.PHONY: build build-dev demo demo-clean figures figures-check format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -35,6 +35,12 @@ demo-clean:
 	@test "$(abspath $(DEMO_DIR))" = "$(CURDIR)/.demo" || \
 		{ printf 'Refusing to remove unexpected DEMO_DIR: %s\n' "$(DEMO_DIR)"; exit 2; }
 	rm -rf "$(DEMO_DIR)"
+
+figures:
+	$(MAKE) -C benchmarks figures
+
+figures-check:
+	$(MAKE) -C benchmarks figures-check
 
 format:
 	$(DOCKER_RUN) $(DEV_IMAGE) ruff check --select I --fix .
@@ -68,7 +74,7 @@ cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) build-engine --help
 
-check: lint typecheck compile test-unit test-media-integration cli-smoke
+check: lint typecheck compile test-unit test-media-integration cli-smoke figures-check
 
 shell:
 	$(DOCKER_RUN) -it $(DEV_IMAGE) bash

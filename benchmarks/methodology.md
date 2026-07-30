@@ -19,6 +19,13 @@ Video2X is excluded from the matrix because the available version does not
 support the canonical `RealESRGAN_x2plus` and runs a different anime model. Its
 FPS cannot support a same-model performance claim.
 
+The VapourSynth source filter is a configuration choice. DGDecNV provides NVDEC
+through a closed-source Windows-only AviSynth plugin made free on 2021-04-26. It
+is absent from the pinned VSGAN image and documented vs-mlrt workflow and cannot
+run in the Linux benchmark containers. It would not remove the H2D/D2H
+transfers around `libvstrt` because VapourSynth graph frames enter and leave
+inference in host memory.
+
 The project always uses its production GPU-resident video path.
 
 ## Workflow Separation

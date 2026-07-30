@@ -90,6 +90,51 @@ runtime discovery.
 
 File: `src/trtvideo/pipelines/nvcodec.py`.
 
+```mermaid
+flowchart TB
+  subgraph project["trtvideo"]
+    direction LR
+    project_input["Compressed packets<br/>RAM"]
+    subgraph project_vram["VRAM"]
+      direction LR
+      nvdec["NVDEC"] --> pre["CV-CUDA"] --> trt["TensorRT"] --> post["CV-CUDA"] --> nvenc["NVENC"]
+    end
+    project_output["Compressed bitstream<br/>RAM / mux"]
+    project_input --> nvdec
+    nvenc --> project_output
+  end
+
+  subgraph measured["VapourSynth benchmark path (as measured)"]
+    direction LR
+    subgraph measured_ram["RAM"]
+      direction LR
+      bestsource["BestSource"] --> zimg_in["zimg<br/>RGBS"]
+      zimg_out["zimg<br/>YUV420"] --> y4m["Y4M pipe"] --> ffmpeg["FFmpeg"]
+    end
+    subgraph measured_vram["VRAM"]
+      direction LR
+      vstrt["TensorRT<br/>libvstrt"] ~~~ external_nvenc["NVENC"]
+    end
+    zimg_in -->|"H2D 24.9 MB/frame"| vstrt
+    vstrt -->|"D2H 99.5 MB/frame"| zimg_out
+    ffmpeg -->|"H2D 12.4 MB/frame"| external_nvenc
+  end
+```
+
+The transfer labels are computed payload sizes for the declared FP32 RGBS and
+YUV420 contracts at 1080p -> 4K. A measured SPAN 1080p Nsight trace found no
+H2D or D2H copy in the `trtvideo` frame loop. Only compressed input and output
+cross its host/device boundary.
+
+> The source filter is configurable. NVDEC decoding is available to VapourSynth
+> through DGDecNV, a closed-source AviSynth plugin made free on 2021-04-26 and
+> distributed only for Windows as `DGIndexNV.exe` and `DGDecodeNV.dll`. It has no
+> native VapourSynth integration and is loaded through an AviSynth compatibility
+> layer. DGDecNV is absent from the pinned VSGAN image and the documented
+> vs-mlrt workflow, and it cannot run in this benchmark's Linux containers. It
+> would not remove the H2D and D2H transfers around inference: frames in a
+> VapourSynth graph live in host memory regardless of where decode occurs.
+
 ```text
 NVDEC -> NV12 GPU surface -> CV-CUDA RGB -> TensorRT
 -> CV-CUDA NV12 -> NVENC -> H.264/HEVC pipe -> FFmpeg mux

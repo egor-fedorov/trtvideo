@@ -21,6 +21,8 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
 - `scripts/quality/` - model-space and final-output quality gates.
+- `scripts/report/` - deterministic SVG generation from committed publication
+  JSON.
 - `scripts/tuning/` - candidate sweep, deterministic selection, and
   cross-resolution publication checks.
 - `scripts/workflow/` - complete goal planning, execution, and resume state.
@@ -37,6 +39,14 @@ The benchmark workflow is separated from the root `Makefile`:
 
 ```bash
 make -C benchmarks help
+```
+
+Published figures are generated from the privacy-reviewed JSON snapshot rather
+than maintained by hand:
+
+```bash
+make -C benchmarks figures
+make -C benchmarks figures-check
 ```
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.

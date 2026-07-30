@@ -1,0 +1,1 @@
+"""Published benchmark report generation."""
