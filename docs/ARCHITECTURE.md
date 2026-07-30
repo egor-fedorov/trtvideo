@@ -19,13 +19,12 @@ The main component boundaries are:
 src/trtvideo/
   cli/          argument parsing and command entry points
   demo/         pinned quick-demo assets, orchestration, and media validation
-  diagnostics/  opt-in markers for external profilers
+  diagnostics/  opt-in stage timing and external profiler markers
   pipelines/    decode -> inference -> encode orchestration
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
   video/        generic video metadata, frame iteration, and output contracts
     nvcodec/     NVDEC surfaces, CV-CUDA processing, and NVENC policy
   models/       model runtime contract (ModelSpec)
-  profiling.py  stage timing collection
 ```
 
 The CLI does not discover models or engines automatically. The user explicitly

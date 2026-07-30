@@ -22,7 +22,7 @@ from trtvideo.video.output import (
 from trtvideo.video.probe import VideoInfo, probe_video
 
 if TYPE_CHECKING:
-    from trtvideo.profiling import ProfileCollector
+    from trtvideo.diagnostics.profiling import ProfileCollector
 
 _UNKNOWN_COLOR_VALUES = {None, "", "unknown", "reserved"}
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
@@ -249,7 +249,7 @@ class BasePipeline(ABC):
                     self._record_lifecycle_phase("runtime_initialized")
 
                     if args.profile or args.profile_json:
-                        from trtvideo.profiling import ProfileCollector
+                        from trtvideo.diagnostics.profiling import ProfileCollector
 
                         self.profiler = ProfileCollector(
                             self.profile_stage_names(),

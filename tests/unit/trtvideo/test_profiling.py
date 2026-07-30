@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trtvideo.profiling import ProfileCollector
+from trtvideo.diagnostics.profiling import ProfileCollector
 
 
 class FakeEvent:
