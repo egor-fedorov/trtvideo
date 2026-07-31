@@ -170,6 +170,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   resource-efficient equivalent result. Short RealESRGAN reconnaissance records
   but does not enforce bitrate; all selection and publication evidence restores
   the full bitrate contract.
+- Adaptive tuning now treats a machine-verified TensorRT/CUDA out-of-memory
+  failure as a hashed resource ceiling instead of invalidating the full search.
+  The selector independently revalidates the failed profile, stage policy,
+  suite, run manifest, stderr path, and stderr SHA256; all other candidate
+  failures remain fatal.
 - Withdrew the pre-rewrite RTX 3090 benchmark snapshot. It predates the
   corrected limited-range color path and will be replaced only by evidence
   measured from one clean post-rewrite revision.

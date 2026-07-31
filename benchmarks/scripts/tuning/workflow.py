@@ -9,7 +9,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast, overload
 
 from benchmarks.scripts.contracts.manifest import execution_profile
 from benchmarks.scripts.tuning.adaptive import (
@@ -34,6 +34,10 @@ from benchmarks.scripts.tuning.rank import (
     candidate_directory,
     load_disqualifications,
     rank_tuned_candidates,
+)
+from benchmarks.scripts.tuning.resource_limit import (
+    ResourceLimitEvidence,
+    detect_cuda_oom,
 )
 from benchmarks.scripts.workloads.manifest import load_manifest
 
@@ -217,21 +221,15 @@ def _write_selection(
     return report
 
 
-def _search_point(
+def _validate_search_suite_contract(
     *,
+    suite: dict[str, Any],
     candidate: TunedCandidate,
-    suite_path: Path,
     policy: MeasurementPolicy,
-    paths: WorkflowPaths,
-) -> CandidatePoint:
-    suite = _load_json(suite_path)
-    if suite.get("status") != "valid":
-        raise TuningWorkflowError(
-            f"Search suite is not valid for {candidate.candidate_id}: {suite_path}"
-        )
+    suite_path: Path,
+) -> None:
     parameters = suite.get("parameters")
-    statistics = suite.get("statistics")
-    if not isinstance(parameters, dict) or not isinstance(statistics, dict):
+    if not isinstance(parameters, dict):
         raise TuningWorkflowError(f"Search suite is incomplete: {suite_path}")
     if execution_profile(parameters) != candidate.execution_profile():
         raise TuningWorkflowError(
@@ -254,6 +252,29 @@ def _search_point(
         raise TuningWorkflowError(
             f"Search suite changed {candidate.candidate_id} stage parameters: " + ", ".join(changed)
         )
+
+
+def _search_point(
+    *,
+    candidate: TunedCandidate,
+    suite_path: Path,
+    policy: MeasurementPolicy,
+    paths: WorkflowPaths,
+) -> CandidatePoint:
+    suite = _load_json(suite_path)
+    _validate_search_suite_contract(
+        suite=suite,
+        candidate=candidate,
+        policy=policy,
+        suite_path=suite_path,
+    )
+    if suite.get("status") != "valid":
+        raise TuningWorkflowError(
+            f"Search suite is not valid for {candidate.candidate_id}: {suite_path}"
+        )
+    statistics = suite.get("statistics")
+    if not isinstance(statistics, dict):
+        raise TuningWorkflowError(f"Search suite has no statistics: {suite_path}")
     median_fps = statistics.get("median_fps")
     relative_spread = statistics.get("relative_spread")
     if not isinstance(median_fps, (int, float)) or isinstance(median_fps, bool) or median_fps <= 0:
@@ -272,6 +293,7 @@ def _search_point(
     )
 
 
+@overload
 def _measure_search_candidate(
     *,
     candidate: TunedCandidate,
@@ -281,7 +303,35 @@ def _measure_search_candidate(
     paths: WorkflowPaths,
     runner: MakeRunner,
     resume: bool,
-) -> CandidatePoint:
+    allow_resource_limit: Literal[False] = False,
+) -> CandidatePoint: ...
+
+
+@overload
+def _measure_search_candidate(
+    *,
+    candidate: TunedCandidate,
+    stage: str,
+    policy: MeasurementPolicy,
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+    allow_resource_limit: Literal[True],
+) -> CandidatePoint | ResourceLimitEvidence: ...
+
+
+def _measure_search_candidate(
+    *,
+    candidate: TunedCandidate,
+    stage: str,
+    policy: MeasurementPolicy,
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+    allow_resource_limit: bool = False,
+) -> CandidatePoint | ResourceLimitEvidence:
     performance_dir = candidate_directory(paths.sweep_dir, candidate) / stage / "performance"
     suite_path = performance_dir / "suite.json"
     required = _require_clean_destination(
@@ -306,12 +356,41 @@ def _measure_search_candidate(
             },
             accepted_artifact=suite_path,
         )
-    return _search_point(
-        candidate=candidate,
-        suite_path=suite_path,
-        policy=policy,
-        paths=paths,
-    )
+    try:
+        return _search_point(
+            candidate=candidate,
+            suite_path=suite_path,
+            policy=policy,
+            paths=paths,
+        )
+    except TuningWorkflowError:
+        suite = _load_json(suite_path)
+        _validate_search_suite_contract(
+            suite=suite,
+            candidate=candidate,
+            policy=policy,
+            suite_path=suite_path,
+        )
+        evidence = None
+        if allow_resource_limit and suite.get("status") == "invalid":
+            evidence = detect_cuda_oom(root=paths.root, suite_path=suite_path)
+        if evidence is None:
+            raise
+        _progress(
+            f"[tuned {stage}] {candidate.candidate_id}: CUDA OOM recorded as resource ceiling"
+        )
+        return evidence
+
+
+def _resource_limit_record(
+    candidate: TunedCandidate,
+    evidence: ResourceLimitEvidence,
+) -> dict[str, Any]:
+    return {
+        "candidate_id": candidate.candidate_id,
+        "num_streams": candidate.num_streams,
+        **evidence.as_dict(),
+    }
 
 
 def _run_reconnaissance(
@@ -322,23 +401,34 @@ def _run_reconnaissance(
     paths: WorkflowPaths,
     runner: MakeRunner,
     resume: bool,
-) -> tuple[list[CandidatePoint], str, int | None]:
+) -> tuple[list[CandidatePoint], str, int | None, dict[str, Any] | None]:
     policy = contract.search.reconnaissance
     points: list[CandidatePoint] = []
     early_stop_after = None
     for streams in contract.search.stream_range:
         candidate = contract.make_candidate(implementation, streams)
-        points.append(
-            _measure_search_candidate(
-                candidate=candidate,
-                stage="reconnaissance",
-                policy=policy,
-                base=base,
-                paths=paths,
-                runner=runner,
-                resume=resume,
-            )
+        measured = _measure_search_candidate(
+            candidate=candidate,
+            stage="reconnaissance",
+            policy=policy,
+            base=base,
+            paths=paths,
+            runner=runner,
+            resume=resume,
+            allow_resource_limit=True,
         )
+        if isinstance(measured, ResourceLimitEvidence):
+            if not points:
+                raise TuningWorkflowError(
+                    f"{implementation} cannot execute its minimum stream candidate"
+                )
+            return (
+                points,
+                "resource-ceiling",
+                None,
+                _resource_limit_record(candidate, measured),
+            )
+        points.append(measured)
         if streams == contract.search.maximum_streams:
             break
         if has_confirmed_decline(
@@ -359,7 +449,7 @@ def _run_reconnaissance(
                 f"num_streams={contract.search.maximum_streams}; expand the "
                 "tuning contract range"
             )
-        return points, "range-exhausted", None
+        return points, "range-exhausted", None, None
 
     sentinel_candidate = contract.make_candidate(
         implementation,
@@ -373,7 +463,15 @@ def _run_reconnaissance(
         paths=paths,
         runner=runner,
         resume=resume,
+        allow_resource_limit=True,
     )
+    if isinstance(sentinel, ResourceLimitEvidence):
+        return (
+            points,
+            "resource-ceiling",
+            early_stop_after,
+            _resource_limit_record(sentinel_candidate, sentinel),
+        )
     if sentinel_recovers(
         points,
         sentinel,
@@ -412,11 +510,13 @@ def _run_reconnaissance(
             completed,
             "sentinel-recovery-range-exhausted",
             early_stop_after,
+            None,
         )
     return (
         sorted(points + [sentinel], key=lambda point: point.candidate.num_streams),
         "decline-confirmed",
         early_stop_after,
+        None,
     )
 
 
@@ -519,7 +619,12 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     for implementation in PRODUCTS:
         implementation_name = cast(Implementation, implementation)
         _progress(f"[tuned search] {implementation}: reconnaissance")
-        reconnaissance, completion_reason, early_stop_after = _run_reconnaissance(
+        (
+            reconnaissance,
+            completion_reason,
+            early_stop_after,
+            resource_limit,
+        ) = _run_reconnaissance(
             implementation=implementation_name,
             contract=contract,
             base=base,
@@ -540,6 +645,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         implementation_states[implementation] = {
             "completion_reason": completion_reason,
             "early_stop_after_streams": early_stop_after,
+            "resource_limit": resource_limit,
             "reconnaissance": [point.as_dict() for point in reconnaissance],
             "shortlist": [
                 candidate.candidate_id
@@ -555,7 +661,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         }
 
     state = {
-        "schema_version": 1,
+        "schema_version": 2,
         "document_type": "adaptive-tuning-search",
         "status": "complete",
         "workload_id": workload["id"],

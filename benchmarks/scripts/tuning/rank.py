@@ -34,6 +34,10 @@ from benchmarks.scripts.tuning.contract import (
     TuningContractError,
     load_tuning_contract,
 )
+from benchmarks.scripts.tuning.resource_limit import (
+    ResourceLimitError,
+    validate_cuda_oom_record,
+)
 from benchmarks.scripts.workloads.manifest import load_manifest
 
 PRODUCTS = {
@@ -448,6 +452,11 @@ def _validate_completion(
     reconnaissance: list[CandidateAssessment],
     confirmation: list[CandidateAssessment],
     contract: TuningContract,
+    workload_id: str,
+    variant: str,
+    contract_version: int,
+    sweep_dir: Path,
+    root: Path,
 ) -> None:
     reconnaissance_points = [_assessment_point(item) for item in reconnaissance]
     streams = [point.candidate.num_streams for point in reconnaissance_points]
@@ -457,8 +466,13 @@ def _validate_completion(
         )
     reason = state.get("completion_reason")
     early_stop_after = state.get("early_stop_after_streams")
+    resource_limit = state.get("resource_limit")
     full_range = list(contract.search.stream_range)
     if reason in {"range-exhausted", "sentinel-recovery-range-exhausted"}:
+        if resource_limit is not None:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} recorded an unexpected resource limit"
+            )
         if streams != full_range:
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} did not exhaust the stream range"
@@ -482,6 +496,10 @@ def _validate_completion(
                 f"Adaptive search {implementation} ended at an increasing upper boundary"
             )
     elif reason == "decline-confirmed":
+        if resource_limit is not None:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} recorded an unexpected resource limit"
+            )
         if not isinstance(early_stop_after, int):
             raise TuningEvidenceError(f"Adaptive search {implementation} has no early-stop point")
         expected = list(range(contract.search.minimum_streams, early_stop_after + 1))
@@ -512,6 +530,73 @@ def _validate_completion(
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} ignored a recovering sentinel"
             )
+    elif reason == "resource-ceiling":
+        if not isinstance(resource_limit, dict):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} has no resource-limit evidence"
+            )
+        candidate_id = resource_limit.get("candidate_id")
+        if not isinstance(candidate_id, str):
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} resource limit has no candidate"
+            )
+        candidate = contract.candidate(candidate_id)
+        if candidate.implementation != implementation or candidate.cuda_graph:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} changed its resource-limit candidate"
+            )
+        if resource_limit.get("num_streams") != candidate.num_streams:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} changed its resource-limit stream count"
+            )
+        expected_suite = (
+            candidate_directory(sweep_dir, candidate)
+            / "reconnaissance"
+            / "performance"
+            / "suite.json"
+        )
+        try:
+            validate_cuda_oom_record(
+                resource_limit,
+                candidate=candidate,
+                policy=contract.search.reconnaissance,
+                workload_id=workload_id,
+                variant=variant,
+                contract_version=contract_version,
+                root=root,
+                suite_path=expected_suite,
+            )
+        except ResourceLimitError as exc:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} resource-limit evidence is invalid: {exc}"
+            ) from exc
+        if not streams or candidate.num_streams <= streams[-1]:
+            raise TuningEvidenceError(
+                f"Adaptive search {implementation} resource ceiling is not above valid points"
+            )
+        if early_stop_after is None:
+            expected = list(range(contract.search.minimum_streams, candidate.num_streams))
+            if streams != expected:
+                raise TuningEvidenceError(
+                    f"Adaptive search {implementation} skipped points before its resource ceiling"
+                )
+        else:
+            if (
+                not isinstance(early_stop_after, int)
+                or candidate.num_streams != contract.search.sentinel_streams
+            ):
+                raise TuningEvidenceError(
+                    f"Adaptive search {implementation} has an invalid OOM sentinel stop"
+                )
+            expected = list(range(contract.search.minimum_streams, early_stop_after + 1))
+            if streams != expected or not has_confirmed_decline(
+                reconnaissance_points,
+                relative_margin=contract.search.decline_margin,
+                patience=contract.search.decline_patience,
+            ):
+                raise TuningEvidenceError(
+                    f"Adaptive search {implementation} has an unproven pre-sentinel decline"
+                )
     else:
         raise TuningEvidenceError(
             f"Adaptive search {implementation} has an invalid completion reason"
@@ -578,7 +663,7 @@ def _load_adaptive_assessments(
     state = load_json(state_path)
     contract_version = int(workload["benchmark"]["contract_version"])
     expected = {
-        "schema_version": 1,
+        "schema_version": 2,
         "document_type": "adaptive-tuning-search",
         "status": "complete",
         "workload_id": workload["id"],
@@ -638,6 +723,11 @@ def _load_adaptive_assessments(
             reconnaissance=reconnaissance,
             confirmation=confirmation,
             contract=contract,
+            workload_id=workload["id"],
+            variant=variant,
+            contract_version=contract_version,
+            sweep_dir=sweep_dir,
+            root=root,
         )
         reconnaissance_all.extend(reconnaissance)
         confirmation_all.extend(confirmation)
@@ -755,6 +845,10 @@ def rank_tuned_candidates(
             "path": (sweep_dir / "search-state.json").relative_to(root).as_posix(),
             "completion": {
                 implementation: search_state["implementations"][implementation]["completion_reason"]
+                for implementation in PRODUCTS
+            },
+            "resource_limits": {
+                implementation: search_state["implementations"][implementation]["resource_limit"]
                 for implementation in PRODUCTS
             },
         },

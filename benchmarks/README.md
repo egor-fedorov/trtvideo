@@ -190,18 +190,21 @@ for each workload. RealESRGAN uses `benchmarks/tuning/candidates.json`; SPAN
 uses `benchmarks/tuning/span_candidates.json`. A one-run reconnaissance pass
 searches streams `1..8`, applies the declared early-stop and sentinel rules, and
 shortlists three candidates. A materially increasing stream-8 boundary rejects
-the search and requires a wider contract. Shortlisted candidates are independently
-remeasured with the full 1000-frame 3+2 contract before selection. Only the
-selected pair runs exact-profile model-space and product-output quality gates.
-A candidate-specific quality failure disqualifies that point and promotes the
-next confirmed candidate.
+the search and requires a wider contract. A candidate that exceeds available GPU
+memory is retained as a hashed resource-ceiling artifact and excluded from
+ranking; unrelated failures remain fatal. Shortlisted candidates are
+independently remeasured with the full 1000-frame 3+2 contract before selection.
+Only the selected pair runs exact-profile model-space and product-output quality
+gates. A candidate-specific quality failure disqualifies that point and promotes
+the next confirmed candidate.
 
 RealESRGAN reconnaissance uses 300 frames and records, but does not enforce,
 average bitrate because NVENC CBR does not reliably converge over that short
 window. This evidence is search-only and non-publishable. Confirmation,
 quality, and the final campaign use 1000 frames with bitrate validation enabled.
 The machine-readable `search-state.json` proves the measured points, stop
-reason, sentinel, shortlist, and CUDA Graph probe used by selection.
+reason, sentinel or resource ceiling, shortlist, and CUDA Graph probe used by
+selection.
 
 Run the same three commands independently for 720p. A single-resolution tuned
 campaign is evidence, not a publication unit. `verify-tuned-matrix` grants

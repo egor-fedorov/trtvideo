@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -132,6 +133,69 @@ def _candidate_evidence(
     )
 
 
+def _cuda_oom_evidence(
+    root: Path,
+    sweep_dir: Path,
+    candidate: TunedCandidate,
+    *,
+    workload: dict[str, Any],
+    policy: MeasurementPolicy,
+) -> dict[str, Any]:
+    performance_dir = candidate_directory(sweep_dir, candidate) / "reconnaissance" / "performance"
+    run_dir = performance_dir / "run-01"
+    stderr_path = run_dir / "warmup.stderr.log"
+    stderr_path.parent.mkdir(parents=True, exist_ok=True)
+    stderr_path.write_text(
+        "Error Code 2: OutOfMemory (Requested size was 3450470400 bytes.)\n",
+        encoding="utf-8",
+    )
+    manifest_path = run_dir / "manifest.json"
+    _write_json(
+        manifest_path,
+        {
+            "status": "invalid",
+            "artifacts": {
+                "warmup_stderr": stderr_path.relative_to(root).as_posix(),
+            },
+        },
+    )
+    suite_path = performance_dir / "suite.json"
+    _write_json(
+        suite_path,
+        {
+            "status": "invalid",
+            "workload_id": workload["id"],
+            "benchmark_contract_version": workload["benchmark"]["contract_version"],
+            "variant": "1080p",
+            "parameters": {
+                **candidate.execution_profile(),
+                "frames": policy.measured_frames,
+                "warmup_frames": policy.warmup_frames,
+                "initial_runs": policy.initial_runs,
+                "extra_runs_on_spread": policy.extra_runs_on_spread,
+                "spread_threshold": policy.spread_threshold,
+                "max_relative_spread": policy.max_relative_spread,
+                "idle_seconds": policy.idle_seconds,
+                "bitrate_validation": policy.bitrate_validation,
+            },
+            "runs": [
+                {
+                    "manifest": manifest_path.relative_to(root).as_posix(),
+                }
+            ],
+        },
+    )
+    return {
+        "candidate_id": candidate.candidate_id,
+        "num_streams": candidate.num_streams,
+        "kind": "cuda-out-of-memory",
+        "suite": suite_path.relative_to(root).as_posix(),
+        "run_manifest": manifest_path.relative_to(root).as_posix(),
+        "stderr": stderr_path.relative_to(root).as_posix(),
+        "stderr_sha256": hashlib.sha256(stderr_path.read_bytes()).hexdigest(),
+    }
+
+
 def _complete_search(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
     contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
     workload = load_manifest(Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"))
@@ -196,6 +260,7 @@ def _complete_search(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
         states[implementation] = {
             "completion_reason": "range-exhausted",
             "early_stop_after_streams": None,
+            "resource_limit": None,
             "reconnaissance": [point.as_dict() for point in reconnaissance],
             "shortlist": [candidate.candidate_id for candidate in selected],
             "confirmation": [point.as_dict() for point in confirmed],
@@ -204,7 +269,7 @@ def _complete_search(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
     _write_json(
         sweep_dir / "search-state.json",
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "document_type": "adaptive-tuning-search",
             "status": "complete",
             "workload_id": workload["id"],
@@ -330,3 +395,37 @@ def test_rank_rejects_unproven_early_stop(tmp_path: Path) -> None:
             sweep_dir=sweep_dir,
             root=tmp_path,
         )
+
+
+def test_rank_accepts_hashed_cuda_oom_as_resource_ceiling(tmp_path: Path) -> None:
+    contract, workload, sweep_dir = _complete_search(tmp_path)
+    state_path = sweep_dir / "search-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    candidate = contract.make_candidate("vstrt", 8)
+    vstrt = state["implementations"]["vstrt"]
+    vstrt["completion_reason"] = "resource-ceiling"
+    vstrt["reconnaissance"] = [
+        point
+        for point in vstrt["reconnaissance"]
+        if point["candidate_id"] != candidate.candidate_id
+    ]
+    vstrt["resource_limit"] = _cuda_oom_evidence(
+        tmp_path,
+        sweep_dir,
+        candidate,
+        workload=workload,
+        policy=contract.search.reconnaissance,
+    )
+    _write_json(state_path, state)
+
+    report = rank_tuned_candidates(
+        contract=contract,
+        workload=workload,
+        variant="1080p",
+        sweep_dir=sweep_dir,
+        root=tmp_path,
+    )
+
+    assert report["status"] == "valid"
+    assert report["search"]["completion"]["vstrt"] == "resource-ceiling"
+    assert report["search"]["resource_limits"]["vstrt"] == vstrt["resource_limit"]

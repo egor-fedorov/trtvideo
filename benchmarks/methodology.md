@@ -142,6 +142,15 @@ strongest reconnaissance points form the shortlist. If stream 8 remains more
 than 1% above every lower stream count, the upper boundary is unresolved and
 the contract range must be expanded before selection.
 
+A reconnaissance candidate that fails with a machine-verified TensorRT/CUDA
+out-of-memory error establishes a resource ceiling rather than invalidating the
+search. The failed point is not ranked. Its invalid suite, run manifest, stderr,
+and stderr SHA256 are retained in `search-state.json`; the selector independently
+revalidates the profile, stage policy, artifact paths, and OOM signature. Valid
+stream counts before a directly encountered ceiling must be contiguous. When an
+early-stop sentinel reaches the ceiling, the preceding decline must still satisfy
+the declared patience rule. Any non-OOM candidate failure remains fatal.
+
 Stage 2 measures the shortlist from scratch; reconnaissance measurements are
 not reused in its statistics. Every candidate receives three 1000-frame runs
 and two more when the initial relative spread exceeds 1%. A final spread above
@@ -154,9 +163,9 @@ peak median end-to-end FPS, with CUDA Graph off preferred when the same stream
 count remains peak-equivalent. This deliberately gives each competitor the
 most resource-efficient configuration that preserves its peak throughput.
 Selection completion is proven by `search-state.json`: it records every
-reconnaissance point, the stop reason, sentinel result, shortlist, confirmation
-evidence, and graph probe. Missing evidence or an unproven stop invalidates the
-search.
+reconnaissance point, the stop reason, sentinel or resource-limit evidence,
+shortlist, confirmation evidence, and graph probe. Missing evidence or an
+unproven stop invalidates the search.
 
 During the 300-frame RealESRGAN reconnaissance pass, NVENC rate control does not
 reliably converge. The observed bitrate is recorded but not validated. The
