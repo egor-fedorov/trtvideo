@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 
 DEFAULT_RESULTS_DIR = Path(__file__).resolve().parents[2] / "results" / "rtx-3090"
 EXPECTED_FIGURES = (
@@ -92,6 +93,13 @@ class SweepPoint:
 
 
 @dataclass(frozen=True)
+class ResourceLimit:
+    implementation: str
+    streams: int
+    kind: str
+
+
+@dataclass(frozen=True)
 class ImplementationResult:
     implementation: str
     fps: float
@@ -105,6 +113,7 @@ class WorkloadPanel:
     workload: str
     variant: str
     sweep: tuple[SweepPoint, ...]
+    resource_limits: tuple[ResourceLimit, ...]
     results: tuple[ImplementationResult, ...]
 
     @property
@@ -179,7 +188,8 @@ def _sweep_from_json(
         if isinstance(value, dict) and "candidate_id" in value
     }
     points: list[SweepPoint] = []
-    for candidate in selection.get("candidates", []):
+    candidates = selection.get("reconnaissance") or selection.get("candidates", [])
+    for candidate in candidates:
         profile = candidate.get("execution_profile", {})
         implementation = str(candidate.get("implementation", ""))
         if implementation not in {"vstrt", "vsgan"}:
@@ -206,30 +216,40 @@ def _sweep_from_json(
     return tuple(sorted(points, key=lambda point: (point.implementation, point.streams)))
 
 
+def _resource_limits_from_json(selection: dict[str, Any]) -> tuple[ResourceLimit, ...]:
+    limits = selection.get("search", {}).get("resource_limits", {})
+    result = []
+    for implementation in ("vstrt", "vsgan"):
+        value = limits.get(implementation)
+        if not isinstance(value, dict):
+            continue
+        try:
+            result.append(
+                ResourceLimit(
+                    implementation=implementation,
+                    streams=int(value["num_streams"]),
+                    kind=str(value["kind"]),
+                )
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise FigureDataError(f"Invalid tuned resource limit: {value}") from exc
+    return tuple(result)
+
+
 def load_published_data(results_dir: Path) -> PublishedFigureData:
     """Load and cross-check the self-contained published result classes."""
     tuned_path = results_dir / "tuned.json"
-    upstream_path = results_dir / "upstream-default.json"
     tuned = _load_json(tuned_path)
-    upstream = _load_json(upstream_path)
     _require_publishable(tuned, tuned_path)
-    _require_publishable(upstream, upstream_path)
 
     tuned_revision = str(tuned.get("scope", {}).get("measurement_revision", ""))
-    upstream_revision = str(upstream.get("scope", {}).get("measurement_revision", ""))
-    if not tuned_revision or tuned_revision != upstream_revision:
-        raise FigureDataError("Published result classes use different measurement revisions")
+    if not tuned_revision:
+        raise FigureDataError("Published tuned results lack a measurement revision")
 
-    upstream_keys = {
-        (str(campaign["workload_id"]), str(campaign["variant"]))
-        for campaign in upstream.get("campaigns", [])
-    }
     panels: list[WorkloadPanel] = []
     for workload in tuned.get("workloads", []):
         workload_id = str(workload.get("workload_id", ""))
         variant = str(workload.get("variant", ""))
-        if (workload_id, variant) not in upstream_keys:
-            raise FigureDataError(f"Upstream-default results lack {workload_id}/{variant}")
         final_campaign = workload.get("final_campaign", {})
         if (
             workload.get("status") != "valid"
@@ -249,6 +269,7 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
                 workload=_workload_name(workload_id),
                 variant=variant,
                 sweep=_sweep_from_json(workload.get("selection", {})),
+                resource_limits=_resource_limits_from_json(workload.get("selection", {})),
                 results=results,
             )
         )
@@ -334,32 +355,6 @@ def _save_figure(figure: Figure, path: Path, theme: Theme) -> None:
     )
 
 
-def _spread_label_positions(
-    values: list[tuple[str, float]],
-    lower: float,
-    upper: float,
-) -> dict[str, float]:
-    if not values:
-        return {}
-    gap = max((upper - lower) * 0.075, 1e-9)
-    ordered = sorted(values, key=lambda item: item[1])
-    positioned: list[list[Any]] = [[name, value] for name, value in ordered]
-    for index in range(1, len(positioned)):
-        positioned[index][1] = max(
-            positioned[index][1],
-            positioned[index - 1][1] + gap,
-        )
-    overflow = positioned[-1][1] - upper
-    if overflow > 0:
-        for item in positioned:
-            item[1] -= overflow
-    underflow = lower - positioned[0][1]
-    if underflow > 0:
-        for item in positioned:
-            item[1] += underflow
-    return {str(name): float(value) for name, value in positioned}
-
-
 def render_tuned_sweep(
     data: PublishedFigureData,
     output_path: Path,
@@ -370,7 +365,6 @@ def render_tuned_sweep(
     figure, axes = plt.subplots(2, 2, figsize=(11.6, 7.2))
     for ax, panel in zip(axes.flat, data.panels, strict=True):
         _style_panel(ax, theme)
-        endpoints: list[tuple[str, float]] = []
         observed_fps: list[float] = []
         for implementation in ("vstrt", "vsgan"):
             points = [point for point in panel.sweep if point.implementation == implementation]
@@ -397,7 +391,6 @@ def render_tuned_sweep(
                         linewidths=1.5,
                         zorder=4,
                     )
-            endpoints.append((implementation, fps[-1]))
 
         project_fps = panel.result("trtvideo").fps
         observed_fps.append(project_fps)
@@ -407,46 +400,87 @@ def render_tuned_sweep(
             linewidth=1.7,
             linestyle=(0, (5, 3)),
         )
-        endpoints.append(("trtvideo", project_fps))
 
-        minimum = min(observed_fps)
         maximum = max(observed_fps)
-        padding = max((maximum - minimum) * 0.22, maximum * 0.015)
-        lower = minimum - padding
-        upper = maximum + padding
-        labels = _spread_label_positions(endpoints, lower, upper)
-        endpoint_lookup = dict(endpoints)
-        for implementation in IMPLEMENTATION_ORDER:
-            source_x = (
-                6
-                if implementation == "trtvideo"
-                else max(
-                    point.streams for point in panel.sweep if point.implementation == implementation
-                )
-            )
-            source_y = endpoint_lookup[implementation]
-            ax.annotate(
-                IMPLEMENTATION_LABELS[implementation],
-                xy=(source_x, source_y),
-                xytext=(6.18, labels[implementation]),
-                color=theme.implementation_color(implementation),
-                fontsize=8.5,
-                va="center",
-                arrowprops={
-                    "arrowstyle": "-",
-                    "color": theme.implementation_color(implementation),
-                    "linewidth": 0.7,
-                },
-            )
+        lower = 0.0
+        upper = maximum * 1.15
+        maximum_streams = max(
+            [point.streams for point in panel.sweep]
+            + [limit.streams for limit in panel.resource_limits]
+        )
 
-        ax.set_xlim(1.8, 7.05)
+        if panel.resource_limits:
+            limit_streams = sorted({limit.streams for limit in panel.resource_limits})
+            for limit_stream in limit_streams:
+                implementations = [
+                    IMPLEMENTATION_LABELS[limit.implementation]
+                    for limit in panel.resource_limits
+                    if limit.streams == limit_stream
+                ]
+                ax.scatter(
+                    [limit_stream],
+                    [upper * 0.045],
+                    marker="x",
+                    s=42,
+                    color=theme.text,
+                    linewidths=1.4,
+                    zorder=5,
+                )
+                ax.text(
+                    limit_stream,
+                    upper * 0.075,
+                    f"{' / '.join(implementations)} OOM",
+                    color=theme.text,
+                    fontsize=7.5,
+                    ha="center",
+                    va="bottom",
+                )
+
+        ax.set_xlim(0.8, maximum_streams + 0.2)
         ax.set_ylim(lower, upper)
-        ax.set_xticks((2, 3, 4, 5, 6))
-        ax.set_xlabel("TensorRT streams")
-        ax.set_ylabel("End-to-end FPS")
+        ax.set_xticks(range(1, maximum_streams + 1))
+        ax.tick_params(axis="both", colors=theme.text)
+        ax.set_xlabel("TensorRT streams", color=theme.text)
+        ax.set_ylabel("End-to-end FPS", color=theme.text)
         _panel_heading(ax, panel, theme)
 
-    figure.subplots_adjust(left=0.08, right=0.91, top=0.93, bottom=0.09, hspace=0.42)
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            color=theme.project,
+            linewidth=1.7,
+            linestyle=(0, (5, 3)),
+            label=IMPLEMENTATION_LABELS["trtvideo"],
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=theme.vstrt,
+            linewidth=2.0,
+            marker="o",
+            markersize=4.5,
+            label=IMPLEMENTATION_LABELS["vstrt"],
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=theme.vsgan,
+            linewidth=2.0,
+            marker="o",
+            markersize=4.5,
+            label=IMPLEMENTATION_LABELS["vsgan"],
+        ),
+    ]
+    figure.legend(
+        handles=legend_handles,
+        loc="upper center",
+        ncol=3,
+        frameon=False,
+        labelcolor=theme.text,
+        bbox_to_anchor=(0.5, 0.995),
+    )
+    figure.subplots_adjust(left=0.08, right=0.97, top=0.89, bottom=0.09, hspace=0.42)
     _save_figure(figure, output_path, theme)
 
 
@@ -516,7 +550,7 @@ def render_throughput_resources(
                 external_value + maximum * 0.018,
                 position - bar_offset,
                 f"{format_value(external_value)} {IMPLEMENTATION_LABELS[external.implementation]}",
-                color=theme.vstrt,
+                color=theme.text,
                 fontsize=8,
                 va="center",
             )
@@ -537,7 +571,8 @@ def render_throughput_resources(
         ax.set_xlim(0, maximum * (1.4 if axis_index == 0 else 1.28))
         ax.set_yticks(y_positions, labels)
         ax.set_title(title, color=theme.text, fontsize=11, fontweight="bold", loc="left")
-        ax.set_xlabel("Linear scale")
+        ax.tick_params(axis="both", colors=theme.text)
+        ax.set_xlabel("Linear scale", color=theme.text)
 
     handles = [plt.Rectangle((0, 0), 1, 1, color=color) for color in (theme.project, theme.vstrt)]
     figure.legend(
@@ -553,7 +588,7 @@ def render_throughput_resources(
         0.25,
         0.06,
         "FPS delta: trtvideo versus the fastest external implementation",
-        color=theme.muted_text,
+        color=theme.text,
         fontsize=8,
         ha="center",
     )

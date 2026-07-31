@@ -1,18 +1,22 @@
 # RTX 3090 Comparative Benchmark
 
 This directory contains the current privacy-reviewed RTX 3090 benchmark
-evidence. All result classes were measured on 2026-07-30 from clean revision
-`8adbca96b829bd2f791fe5bce5c27029e283b79d`.
+evidence. The headline tuned matrix was measured on 2026-07-31 from clean
+revision `cb5e645eb4ddcac35c59122bb62fd70cc7e50dcf`. The retained
+upstream-default and diagnostic snapshots were measured on 2026-07-30 from
+revision `8adbca96b829bd2f791fe5bce5c27029e283b79d`.
 
-The complete matrix used the same physical RTX 3090, Ryzen 5 5600, driver
-595.84, models, source clips, output contract, and active 350 W board limit. No
-reduced power cap was applied. RealESRGAN used 30 warmup frames and SPAN used
-100; every measured run processed 1000 frames. Final comparisons use three
-rotated rounds with ten seconds idle between processes.
+Each result class used an RTX 3090, Ryzen 5 5600, driver 595.84, the same model
+and clip assets, the same output contract, and an active 350 W board limit. No
+reduced power cap was applied. Result classes are independent sessions and are
+not compared row-by-row across revisions or physical GPU instances. Every
+within-class product comparison used one physical GPU and one clean revision.
 
-Both execution profiles passed model-space and 1000-frame product-output quality
-gates at 720p and 1080p. Both tuned cross-resolution publication matrices report
-`valid` and `publishable`.
+The tuned final campaigns used 1000 measured frames, 30 RealESRGAN or 100 SPAN
+warmup frames, three rotated rounds, and ten seconds idle between processes.
+Model-space and 1000-frame product-output quality gates passed at both
+resolutions. Both cross-resolution publication matrices report `valid` and
+`publishable`.
 
 ## Best-Tuned Results
 
@@ -22,16 +26,16 @@ used as the final comparison value.
 
 | Workload | Input | trtvideo | vs-mlrt | VSGAN | Project vs fastest external |
 |---|---|---:|---:|---:|---:|
-| RealESRGAN_x2plus | 720p | 6.204 FPS | 6.273 FPS | **6.308 FPS** | -1.66% |
-| RealESRGAN_x2plus | 1080p | 2.813 FPS | **2.838 FPS** | 2.835 FPS | -0.91% |
-| SPAN | 720p | 56.187 FPS | 56.487 FPS | **56.571 FPS** | -0.68% |
-| SPAN | 1080p | **26.229 FPS** | 25.757 FPS | 25.766 FPS | +1.80% |
+| RealESRGAN_x2plus | 720p | 6.078 FPS | 6.151 FPS | **6.192 FPS** | -1.86% |
+| RealESRGAN_x2plus | 1080p | 2.754 FPS | **2.782 FPS** | 2.778 FPS | -1.01% |
+| SPAN | 720p | 54.517 FPS | 55.498 FPS | **55.583 FPS** | -1.92% |
+| SPAN | 1080p | **25.505 FPS** | 25.074 FPS | 25.232 FPS | +1.08% |
 
-All four rows are within the predeclared +/-5% parity band. The earlier SPAN
-720p deficit is not present in this post-change measurement. The measured
-revision includes the torch-free runtime and streaming mux, while the corrected
-tuning contract gives both external implementations the same
-runtime-default-thread grid.
+All four rows are within the predeclared +/-5% parity band. The measured
+revision includes the torch-free runtime, streaming mux, and adaptive two-stage
+tuning search. Both external implementations receive the same stream range,
+runtime-default VapourSynth threads, automatic vspipe requests, and CUDA Graph
+probe policy.
 
 ### Tuned Stream Sweep
 
@@ -40,10 +44,13 @@ runtime-default-thread grid.
   <img alt="Tuned TensorRT stream-count sweep for RealESRGAN and SPAN at 720p and 1080p" src="figures/tuned-sweep-light.svg">
 </picture>
 
-Rings mark the selected external profiles. The dashed `trtvideo` reference is
-the independent final-campaign median, not a sweep result. RealESRGAN vs-mlrt
-was measured at streams 2-4; no unmeasured 5/6 points are interpolated. SPAN and
-VSGAN retain the full declared 2-6 grid.
+The lines show one-run, 300-frame reconnaissance measurements. Rings mark the
+profiles selected after full 1000-frame confirmation; the dashed `trtvideo`
+reference is the independent final-campaign median, not a search result. Search
+starts at one stream, stops after two confirmed declines greater than 1%, or
+reaches the declared eight-stream boundary. The isolated RealESRGAN 1080p
+eight-stream probes reached a reproducibly hashed CUDA out-of-memory ceiling;
+the graph marks that limit rather than inventing an FPS point.
 
 ### Selected Profiles
 
@@ -51,13 +58,15 @@ VSGAN retain the full declared 2-6 grid.
 |---|---|---|---|
 | RealESRGAN_x2plus | 720p | streams 2 | streams 2 |
 | RealESRGAN_x2plus | 1080p | streams 2 | streams 2 |
-| SPAN | 720p | streams 4 | streams 5 |
-| SPAN | 1080p | streams 6 | streams 6 |
+| SPAN | 720p | streams 4 | streams 4 |
+| SPAN | 1080p | streams 5 | streams 5 |
 
 Every selected profile uses automatic vspipe requests, runtime-default
-VapourSynth threads, and CUDA Graph disabled. The complete candidate curves,
-including retained VSGAN four-thread and CUDA Graph reference points, are in
-[`tuned.json`](tuned.json).
+VapourSynth threads, and CUDA Graph disabled. Selection chooses the lowest
+stream count within 1% of confirmed peak throughput, which is deliberately
+favorable to the external implementation's CPU and VRAM use. The complete
+reconnaissance curves, confirmation suites, stop reasons, and resource-ceiling
+evidence are retained in [`tuned.json`](tuned.json).
 
 ### Resource Medians
 
@@ -66,22 +75,22 @@ CPU is attributed to the measured child-process tree through
 
 | Workload | Input | Implementation | FPS | CPU cores | GPU util | Power | J/frame | Peak VRAM | Bitrate |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| RealESRGAN | 720p | trtvideo | 6.204 | **1.011** | 98.70% | 338.43 W | 54.55 | **2226.9 MiB** | 32.714 Mbps |
-| RealESRGAN | 720p | vs-mlrt | 6.273 | 2.126 | 98.12% | 336.94 W | 53.71 | 3764.4 MiB | 35.042 Mbps |
-| RealESRGAN | 720p | VSGAN | **6.308** | 2.129 | 98.22% | 338.18 W | **53.61** | 3762.4 MiB | 35.042 Mbps |
-| RealESRGAN | 1080p | trtvideo | 2.813 | **1.007** | 99.43% | 340.13 W | 120.93 | **4264.1 MiB** | 56.651 Mbps |
-| RealESRGAN | 1080p | vs-mlrt | **2.838** | 2.135 | 99.14% | 339.96 W | **119.84** | 7625.1 MiB | 60.200 Mbps |
-| RealESRGAN | 1080p | VSGAN | 2.835 | 2.130 | 99.12% | 340.22 W | 119.97 | 7623.1 MiB | 60.200 Mbps |
-| SPAN | 720p | trtvideo | 56.187 | **0.564** | 92.30% | 315.25 W | 5.63 | **1493.7 MiB** | 32.806 Mbps |
-| SPAN | 720p | vs-mlrt | 56.487 | 5.450 | 92.55% | 311.71 W | 5.53 | 3936.4 MiB | 35.533 Mbps |
-| SPAN | 720p | VSGAN | **56.571** | 6.466 | 92.43% | 310.73 W | **5.49** | 4760.4 MiB | 35.533 Mbps |
-| SPAN | 1080p | trtvideo | **26.229** | **0.478** | 96.46% | 326.56 W | 12.43 | **2693.7 MiB** | 56.221 Mbps |
-| SPAN | 1080p | vs-mlrt | 25.757 | 7.623 | 94.30% | 319.48 W | **12.40** | 11755.1 MiB | 60.466 Mbps |
-| SPAN | 1080p | VSGAN | 25.766 | 7.550 | 93.78% | 320.55 W | 12.44 | 11753.1 MiB | 60.466 Mbps |
+| RealESRGAN | 720p | trtvideo | 6.078 | **1.009** | 98.58% | 346.00 W | 56.93 | **2231.7 MiB** | 32.714 Mbps |
+| RealESRGAN | 720p | vs-mlrt | 6.151 | 2.125 | 98.16% | 344.97 W | 56.04 | 3764.4 MiB | 35.042 Mbps |
+| RealESRGAN | 720p | VSGAN | **6.192** | 2.126 | 98.14% | 344.81 W | **55.69** | 3762.4 MiB | 35.042 Mbps |
+| RealESRGAN | 1080p | trtvideo | 2.754 | **1.005** | 99.38% | 347.75 W | 126.28 | **4264.1 MiB** | 56.651 Mbps |
+| RealESRGAN | 1080p | vs-mlrt | **2.782** | 2.131 | 99.23% | 347.15 W | **124.81** | 7625.1 MiB | 60.200 Mbps |
+| RealESRGAN | 1080p | VSGAN | 2.778 | 2.127 | 99.17% | 347.12 W | 124.92 | 7623.1 MiB | 60.200 Mbps |
+| SPAN | 720p | trtvideo | 54.517 | **0.556** | 89.86% | 325.86 W | 5.98 | **1493.7 MiB** | 32.806 Mbps |
+| SPAN | 720p | vs-mlrt | 55.498 | 5.402 | 90.98% | 322.28 W | **5.81** | 3936.4 MiB | 35.533 Mbps |
+| SPAN | 720p | VSGAN | **55.583** | 5.413 | 92.68% | 323.18 W | 5.81 | 3934.4 MiB | 35.533 Mbps |
+| SPAN | 1080p | trtvideo | **25.505** | **0.470** | 95.18% | 336.94 W | 13.20 | **2649.7 MiB** | 56.221 Mbps |
+| SPAN | 1080p | vs-mlrt | 25.074 | 6.486 | 93.40% | 331.74 W | 13.24 | 9905.1 MiB | 60.466 Mbps |
+| SPAN | 1080p | VSGAN | 25.232 | 6.459 | 94.41% | 332.49 W | **13.16** | 9903.1 MiB | 60.466 Mbps |
 
 `trtvideo` reaches parity while using roughly half the CPU and substantially
 less VRAM on RealESRGAN. On SPAN it uses about 0.5 CPU cores instead of
-5.5-7.6 and 1.5-2.7 GiB VRAM instead of 3.9-11.8 GiB.
+5.4-6.5 and 1.5-2.6 GiB VRAM instead of 3.8-9.7 GiB.
 
 ### Same Throughput, Lower Resource Use
 
@@ -112,9 +121,9 @@ The RealESRGAN rows are parity. The lightweight SPAN workload exposes the
 scheduling and frame-transport cost of the upstream defaults: the project is
 10.36% faster at 720p and 20.88% faster at 1080p.
 
-The project configuration is identical between upstream-default and tuned
-campaigns. Its medians differ by at most 0.17% across the two independently
-measured classes, providing a control signal for harness reproducibility.
+This retained class predates the adaptive tuned measurement. It remains useful
+for documenting upstream behavior, but its values are not used as a control
+signal for the newer tuned session.
 
 ## Quality Gates
 
@@ -162,7 +171,7 @@ preprocessing, so that input tensor and its comparison metric are identical.
 
 `trtexec` is an inference-only diagnostic, not a product competitor.
 
-| Workload | Input | trtexec median | trtvideo tuned | Pipeline efficiency |
+| Workload | Input | trtexec median | Co-measured trtvideo | Pipeline efficiency |
 |---|---|---:|---:|---:|
 | RealESRGAN_x2plus | 720p | 6.283 QPS | 6.204 FPS | 98.73% |
 | RealESRGAN_x2plus | 1080p | 2.829 QPS | 2.813 FPS | 99.42% |
@@ -170,6 +179,8 @@ preprocessing, so that input tensor and its comparison metric are identical.
 | SPAN | 1080p | 27.553 QPS | 26.229 FPS | 95.20% |
 
 CUDA Graph and data transfers were disabled for the TensorRT ceiling.
+This table belongs to the 2026-07-30 diagnostic snapshot and is not recomputed
+by combining its `trtexec` values with the newer tuned campaign.
 
 ### Nsight Systems
 

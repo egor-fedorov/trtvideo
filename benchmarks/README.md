@@ -21,8 +21,8 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
 - `scripts/quality/` - model-space and final-output quality gates.
-- `scripts/report/` - deterministic SVG generation from committed publication
-  JSON.
+- `scripts/report/` - privacy-reviewed publication export and deterministic SVG
+  generation from committed JSON.
 - `scripts/tuning/` - adaptive search, deterministic selection, and
   cross-resolution publication checks.
 - `scripts/workflow/` - complete goal planning, execution, and resume state.
@@ -47,6 +47,19 @@ than maintained by hand:
 make -C benchmarks figures
 make -C benchmarks figures-check
 ```
+
+A completed copied tuned session is converted into the compact publication
+snapshot by the benchmark-specific exporter. The source path is relative to the
+repository root:
+
+```bash
+make -C benchmarks publish-tuned \
+  TUNED_PUBLICATION_SOURCE=artefacts/benchmarks/01082026tune/comparative/tuning
+```
+
+The exporter requires both valid cross-resolution matrices, one clean revision,
+independent candidate provenance, and identical vs-mlrt/VSGAN tensor and MP4
+fingerprints before replacing `results/rtx-3090/tuned.json`.
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
 The goal coordinator runs on the host and requires Python `>=3.10,<3.13`.

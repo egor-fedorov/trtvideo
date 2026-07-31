@@ -13,7 +13,7 @@
     "self_contained_result_files": true,
     "cross_contract_aggregation": false,
     "human_summary": "README.md",
-    "notes": "Every result class was measured from the same clean post-rewrite revision, driver, physical GPU, and active power policy."
+    "notes": "Each result class is self-contained and records its own clean revision, hardware, driver, and power policy. Classes from separate sessions are not aggregated."
   },
   "result_sets": [
     {
@@ -28,9 +28,9 @@
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "7c3d5a80d75a7fc0c8c0cc0a54f5be205d2a79d7b2985e389d08a35f551c1883",
-      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
-      "date_utc": "2026-07-30",
+      "sha256": "125f16c324221b15f73e44641a90bdfaa53ab44b23220ac9f18dd49c1d1820c5",
+      "measurement_revision": "cb5e645eb4ddcac35c59122bb62fd70cc7e50dcf",
+      "date_utc": "2026-07-31",
       "status": "valid",
       "publishable": true
     },

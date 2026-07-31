@@ -58,15 +58,17 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a benchmark publication exporter that converts a complete copied tuned
+  session into the compact committed JSON while validating matrices, revision
+  identity, evidence provenance, and external output fingerprints.
 - Added light/dark benchmark figures for tuned stream sweeps and direct
   trtvideo-versus-fastest-external CPU/VRAM comparisons at equivalent
   throughput. The SVGs are generated deterministically from the committed
   publication JSON and checked for drift in CI.
-- Published a post-rewrite RTX 3090 benchmark snapshot from one clean revision:
-  complete upstream-default and corrected best-tuned matrices for RealESRGAN
-  and SPAN at 720p and 1080p, plus fresh `trtexec` ceilings and an Nsight
-  architecture trace. Both tuned matrices and all quality gates are valid and
-  publishable.
+- Published post-rewrite RTX 3090 evidence with independently revisioned
+  upstream-default, diagnostics, and adaptive best-tuned result classes for
+  RealESRGAN and SPAN at 720p and 1080p. Both current tuned matrices and all
+  winner quality gates are valid and publishable.
 - Licensed the project source code and documentation under Apache License 2.0,
   with third-party dependencies, models, and media remaining under their own
   licenses.

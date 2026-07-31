@@ -19,7 +19,8 @@ different contracts or revisions.
   upstream-default, best-tuned, `trtexec`, and Nsight evidence for RealESRGAN
   and SPAN at `720p -> 1440p` and `1080p -> 4K`.
 
-The snapshot was measured after the repository privacy rewrite and corrected
-limited-range color path. All result classes use one clean revision, physical
-GPU, driver, and active power policy. Both tuned workload matrices are
-machine-validated and publishable.
+The snapshots were measured after the repository privacy rewrite and corrected
+limited-range color path. Every result class records its own clean revision,
+hardware, driver, and active power policy; classes from different sessions are
+not aggregated. Both current tuned workload matrices are machine-validated and
+publishable.
