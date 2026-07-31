@@ -7,7 +7,7 @@ import re
 import subprocess
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -37,6 +37,23 @@ from trtvideo.benchmarking.validation import OutputContract
 
 CommandFactory = Callable[[Path, int], CommandSpec]
 _VSPipe_FRAME_PATTERN = re.compile(rb"Frame:\s*(\d+)/(\d+)")
+_IMPLEMENTATION_PARAMETER_KEYS = (
+    "execution_profile",
+    "vspipe_requests",
+    "num_streams",
+    "vapoursynth_threads",
+    "cuda_graph",
+    "batch_size",
+    "full_frame",
+    "tiling",
+    "bitrate_validation",
+    "encoder",
+)
+
+
+def suite_implementation_parameters(parameters: Mapping[str, Any]) -> dict[str, Any]:
+    """Select the effective execution contract persisted by external suites."""
+    return {key: parameters[key] for key in _IMPLEMENTATION_PARAMETER_KEYS}
 
 
 @dataclass(frozen=True)

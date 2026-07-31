@@ -276,6 +276,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Propagated the effective bitrate-validation mode from external runner plans
+  into VapourSynth suite and run manifests, so short tuning reconnaissance can
+  prove that bitrate acceptance was intentionally disabled.
 - Restored the model-space reference contract after the torch-free runtime
   migration. Production NVCodec inference and project tensor capture now share
   the same CV-CUDA frame processor instead of capturing through the retired

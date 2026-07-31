@@ -34,6 +34,7 @@ from benchmarks.scripts.runners.vapoursynth_suite import (
     VapourSynthSuiteConfig,
     VapourSynthWorkload,
     run_vapoursynth_suite,
+    suite_implementation_parameters,
 )
 from benchmarks.scripts.runners.vspipe_nvenc import VspipeNvencConfig
 from benchmarks.scripts.runtime.command import CommandSpec, display_command
@@ -232,13 +233,7 @@ def main() -> None:
             policy=SuitePolicy.from_parameters(parameters),
             sample_interval_ms=parameters["nvml_sample_interval_ms"],
             gpu_id=args.gpu_id,
-            implementation_parameters={
-                **profile.as_parameters(),
-                "batch_size": 1,
-                "full_frame": True,
-                "tiling": False,
-                "encoder": parameters["encoder"],
-            },
+            implementation_parameters=suite_implementation_parameters(parameters),
             warmup_command=lambda path, frames: build_vsgan_command(
                 args,
                 manifest,

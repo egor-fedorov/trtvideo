@@ -21,7 +21,10 @@ from benchmarks.scripts.runners.trtexec import (
 from benchmarks.scripts.runners.vapoursynth_profile import (
     add_execution_profile_arguments,
 )
-from benchmarks.scripts.runners.vapoursynth_suite import run_command_spec
+from benchmarks.scripts.runners.vapoursynth_suite import (
+    run_command_spec,
+    suite_implementation_parameters,
+)
 from benchmarks.scripts.runners.vsgan import (
     build_plan as build_vsgan_plan,
 )
@@ -106,6 +109,17 @@ def test_shared_parameters_separate_extension_and_acceptance_spread() -> None:
 
     assert parameters["spread_threshold"] == 0.01
     assert parameters["max_relative_spread"] == 0.05
+
+
+@pytest.mark.parametrize("builder", [build_vstrt_plan, build_vsgan_plan])
+def test_external_suite_records_disabled_bitrate_acceptance(builder) -> None:
+    plan, _ = builder(common_args(skip_bitrate_validation=True))
+
+    parameters = suite_implementation_parameters(plan["parameters"])
+
+    assert parameters["bitrate_validation"] is False
+    assert parameters["execution_profile"] == "upstream-default"
+    assert parameters["encoder"]["rate_control"] == "cbr"
 
 
 def test_removed_single_request_profile_is_not_accepted() -> None:
