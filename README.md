@@ -287,10 +287,10 @@ docker run --rm --gpus all \
 ```
 
 The resulting dynamic engine cannot be used by the current video inference
-runtime. `upscale` requires a static ONNX variant from `prepare-onnx` and a
+runtime. `trtvideo` requires a static ONNX variant from `prepare-onnx` and a
 corresponding static engine.
 
-### 4. Upscale Video
+### 4. Process Video
 
 `--engine` is required and must match the input video resolution. Decode, color
 conversion, TensorRT inference, and encode remain on the GPU. The runtime
@@ -300,11 +300,14 @@ checks the engine input shape and exits on a mismatch.
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  trtvideo:latest upscale \
+  trtvideo:latest trtvideo \
   --engine models/engines/model_720p.engine \
   --bitrate-mbps 35 \
   --input videos/input.mp4
 ```
+
+When `--output` is omitted, the command writes next to the input using the
+`_processed` suffix, for example `input_processed.mp4`.
 
 The pipeline replaces the source video with the enhanced stream and copies every
 source audio, subtitle, data, and attachment stream without transcoding. Global
@@ -328,7 +331,7 @@ Select a specific CUDA device:
 docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
-  trtvideo:latest upscale \
+  trtvideo:latest trtvideo \
   --gpu-id 1 \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4
@@ -372,7 +375,7 @@ make -C benchmarks run-project \
 The runner uses a separate 100-frame warmup process followed by at least three
 measured processes of 1000 frames each. If FPS spread exceeds 5%, it runs two
 additional processes. The regular benchmark does not enable `--profile`; it
-measures wall time from child `upscale` startup through encode, flush, mux, and
+measures wall time from child `trtvideo` startup through encode, flush, mux, and
 process exit.
 
 Run a short infrastructure check before the full benchmark:
@@ -390,7 +393,7 @@ metrics, peak VRAM, average/peak power, energy and joules/frame, hashes, and a
 sanitized environment. After SHA256 and complete FFmpeg validation, valid MP4
 files are deleted while invalid output is retained.
 
-`benchmark-upscale` can also be called directly for an arbitrary video-only
+`benchmark-trtvideo` can also be called directly for an arbitrary video-only
 input. It requires an explicit bitrate and a separate output directory:
 
 ```bash
@@ -398,7 +401,7 @@ docker run --rm --gpus all \
   -v "$PWD/models:/app/models" \
   -v "$PWD/videos:/app/videos" \
   -v "$PWD/artefacts:/app/artefacts" \
-  trtvideo:benchmark benchmark-upscale \
+  trtvideo:benchmark benchmark-trtvideo \
   --engine models/engines/model_720p.engine \
   --input videos/input.mp4 \
   --bitrate-mbps 35 \
@@ -408,7 +411,7 @@ docker run --rm --gpus all \
 
 Progress is written to `stderr`, so `--json -` keeps `stdout` suitable for
 machine-readable JSON. Per-stage timings are collected separately with
-`upscale --profile` or `upscale --profile-json` and are not treated as the
+`trtvideo --profile` or `trtvideo --profile-json` and are not treated as the
 end-to-end benchmark.
 
 The benchmark workflows are deliberately separate:
@@ -428,18 +431,18 @@ commands, and artifact layout are documented in
 Available commands:
 
 ```bash
-upscale
+trtvideo
 export-onnx
 prepare-onnx
 build-engine
-benchmark-upscale
+benchmark-trtvideo
 ```
 
 Use `--help` to view all arguments:
 
 ```bash
-docker run --rm trtvideo:latest upscale --help
-docker run --rm trtvideo:benchmark benchmark-upscale --help
+docker run --rm trtvideo:latest trtvideo --help
+docker run --rm trtvideo:benchmark benchmark-trtvideo --help
 docker run --rm trtvideo:latest export-onnx --help
 docker run --rm trtvideo:latest prepare-onnx --help
 docker run --rm trtvideo:latest build-engine --help

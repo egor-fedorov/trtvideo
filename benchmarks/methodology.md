@@ -455,7 +455,7 @@ The primary metric is `average_cores`: `1.0` means one fully occupied core and
 `2.5` means the equivalent of two and a half cores. `capacity_percent` is
 normalized by the container's CPU affinity and is a supporting metric.
 
-Accounting includes `upscale`, `vspipe`, FFmpeg, and other completed processes
+Accounting includes `trtvideo`, `vspipe`, FFmpeg, and other completed processes
 in the measured pipeline. It excludes the discarded warmup, benchmark
 controller, NVML sampler, and unrelated host processes. Unrelated CPU activity
 can still increase wall time, so the canonical campaign runs without parallel

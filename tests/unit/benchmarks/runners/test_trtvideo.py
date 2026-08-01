@@ -12,7 +12,7 @@ from benchmarks.scripts.runners.trtvideo_suite import (
     PRODUCT_NAME,
     BenchmarkConfig,
     BenchmarkError,
-    build_upscale_command,
+    build_trtvideo_command,
     validate_config,
 )
 from benchmarks.scripts.runtime.environment import relative_artifact_path, sanitize_command
@@ -41,16 +41,17 @@ def config(tmp_path: Path, bitrate_mbps: float | None = 35.0) -> BenchmarkConfig
     )
 
 
-def test_build_upscale_command_has_no_profiling_flags(tmp_path: Path) -> None:
+def test_build_trtvideo_command_has_no_profiling_flags(tmp_path: Path) -> None:
     benchmark = config(tmp_path)
 
-    command = build_upscale_command(
+    command = build_trtvideo_command(
         benchmark,
         output_path=tmp_path / "output.mp4",
         frame_count=1000,
         lifecycle_path=tmp_path / "lifecycle.json",
     )
 
+    assert command[:2] == ["trtvideo", "--engine"]
     assert "--profile" not in command
     assert "--profile-json" not in command
     assert command[command.index("--max-frames") + 1] == "1000"
@@ -295,9 +296,9 @@ def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -
     internal = root / "models" / "model.engine"
     external = tmp_path / "private" / "input.mp4"
 
-    sanitized = sanitize_command(["upscale", str(internal), str(external)], root)
+    sanitized = sanitize_command(["trtvideo", str(internal), str(external)], root)
 
-    assert sanitized == ["upscale", "models/model.engine", "external/input.mp4"]
+    assert sanitized == ["trtvideo", "models/model.engine", "external/input.mp4"]
     assert relative_artifact_path(external, root) == "external/input.mp4"
 
 
@@ -323,6 +324,7 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
 
     command = build_command(args, manifest)
 
+    assert command[0] == "benchmark-trtvideo"
     assert command[command.index("--input") + 1] == ("videos/benchmarks/sintel_1080p24_h264.mp4")
     assert command[command.index("--bitrate-mbps") + 1] == "60"
     assert command[command.index("--warmup-frames") + 1] == "30"

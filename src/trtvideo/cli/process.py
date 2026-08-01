@@ -1,11 +1,14 @@
-"""GPU-resident video upscale CLI."""
+"""GPU-resident TensorRT video processing CLI."""
 
 import argparse
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create the NVDEC/CV-CUDA/TensorRT/NVENC upscale parser."""
-    parser = argparse.ArgumentParser(prog="upscale", description="TensorRT video upscaler")
+    """Create the NVDEC/CV-CUDA/TensorRT/NVENC processing parser."""
+    parser = argparse.ArgumentParser(
+        prog="trtvideo",
+        description="GPU-resident TensorRT video processing",
+    )
     parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")
     parser.add_argument("--output", default=None, help="Output video")

@@ -43,13 +43,13 @@ streams that cannot be copied into MP4.
 
 ### CLI/Docker Smoke
 
-The non-GPU checks image validates Docker entrypoints. `benchmark-upscale` is
+The non-GPU checks image validates Docker entrypoints. `benchmark-trtvideo` is
 copied into this image only for test parity with the benchmark target; it is not
 installed as a production project script.
 
 ```bash
-docker run --rm trtvideo:dev upscale --help
-docker run --rm trtvideo:dev benchmark-upscale --help
+docker run --rm trtvideo:dev trtvideo --help
+docker run --rm trtvideo:dev benchmark-trtvideo --help
 docker run --rm trtvideo:dev export-onnx --help
 docker run --rm trtvideo:dev prepare-onnx --help
 docker run --rm trtvideo:dev build-engine --help

@@ -67,8 +67,8 @@ test-media-integration:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q -m docker tests/integration
 
 cli-smoke:
-	$(DOCKER_RUN) $(DEV_IMAGE) upscale --help
-	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-upscale --help
+	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo --help
+	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-trtvideo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help

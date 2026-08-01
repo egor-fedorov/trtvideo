@@ -12,7 +12,7 @@ from trtvideo.demo.config import (
     DemoVideoContract,
 )
 from trtvideo.demo.media import build_demo_input_command, validate_demo_probe
-from trtvideo.demo.workflow import upscale_command
+from trtvideo.demo.workflow import process_command
 
 
 def _valid_probe() -> tuple[dict, list[dict]]:
@@ -92,9 +92,10 @@ def test_demo_input_is_rich_deterministic_mkv(tmp_path: Path) -> None:
     assert command[-1].endswith("demo_720p.mkv")
 
 
-def test_demo_upscale_uses_explicit_engine(tmp_path: Path) -> None:
-    command = upscale_command(DemoPaths.under(tmp_path), gpu_id=2)
+def test_demo_process_uses_explicit_engine(tmp_path: Path) -> None:
+    command = process_command(DemoPaths.under(tmp_path), gpu_id=2)
 
+    assert command[0] == "trtvideo"
     assert "--backend" not in command
     assert command[command.index("--gpu-id") + 1] == "2"
     assert command[command.index("--bitrate-mbps") + 1] == "12.0"

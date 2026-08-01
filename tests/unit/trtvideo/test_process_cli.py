@@ -1,10 +1,11 @@
 import pytest
 
-from trtvideo.cli.upscale import build_parser
+from trtvideo.cli.process import build_parser
 
 
 def test_parser_uses_single_gpu_resident_contract() -> None:
-    args = build_parser().parse_args(
+    parser = build_parser()
+    args = parser.parse_args(
         [
             "--engine",
             "models/engines/model.engine",
@@ -13,6 +14,7 @@ def test_parser_uses_single_gpu_resident_contract() -> None:
         ]
     )
 
+    assert parser.prog == "trtvideo"
     assert args.codec == "h264"
     assert args.bitrate_mbps is None
 

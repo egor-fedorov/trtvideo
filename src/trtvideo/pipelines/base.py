@@ -37,14 +37,14 @@ def _color_or_default(value: str | None, default: str) -> str:
 
 
 class BasePipeline(ABC):
-    """Base class for video upscaling pipeline.
+    """Base class for GPU-resident video processing pipelines.
 
     Template method: run() controls the full cycle.
     Subclasses implement hooks: setup_decoder, setup_encoder, decode_frames,
     process_frame, finalize, cleanup.
     """
 
-    DESCRIPTION: str = "TensorRT Video Upscaler"
+    DESCRIPTION: str = "TensorRT Video Processor"
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -196,7 +196,7 @@ class BasePipeline(ABC):
 
         if args.output is None:
             base, ext = os.path.splitext(args.input)
-            args.output = f"{base}_upscaled{ext}"
+            args.output = f"{base}_processed{ext}"
 
         self.info = probe_video(args.input)
         self._record_lifecycle_phase("video_probed")

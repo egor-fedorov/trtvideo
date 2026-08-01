@@ -97,7 +97,7 @@ class NsightPaths:
         )
 
 
-def build_upscale_command(
+def build_trtvideo_command(
     args: argparse.Namespace,
     manifest: dict[str, Any],
     *,
@@ -107,7 +107,7 @@ def build_upscale_command(
     variant = find_clip_variant(manifest, args.variant)
     bitrate_mbps = variant["benchmark_output"]["bitrate_mbps"]
     return [
-        "upscale",
+        "trtvideo",
         "--engine",
         args.engine,
         "--input",
@@ -143,7 +143,7 @@ def build_nsight_command(
         "--force-overwrite=true",
         "--output",
         str(paths.trace_base),
-        *build_upscale_command(args, manifest, output_path=paths.video),
+        *build_trtvideo_command(args, manifest, output_path=paths.video),
     ]
 
 

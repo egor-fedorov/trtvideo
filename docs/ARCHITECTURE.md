@@ -32,7 +32,7 @@ passes a static TensorRT engine through `--engine`.
 
 ## Inference Lifecycle
 
-The `upscale` command parses the production video contract and creates
+The `trtvideo` command parses the production video contract and creates
 `NvcodecPipeline`. `BasePipeline` in `src/trtvideo/pipelines/base.py` owns the
 common lifecycle:
 
@@ -262,8 +262,8 @@ normal path. Use the unprofiled benchmark for throughput and Nsight Systems for
 pipeline overlap; stage-profiler results are not used for cross-product
 comparisons.
 
-The benchmark-image-only `benchmark-upscale` wrapper launches regular,
-unprofiled `upscale` subprocesses: a discarded warmup followed by a measured
+The benchmark-image-only `benchmark-trtvideo` wrapper launches regular,
+unprofiled `trtvideo` subprocesses: a discarded warmup followed by a measured
 run. The external timer covers process startup, inference, encode, flush, and
 mux. A parallel NVML sampler measures total GPU memory, power, utilization,
 temperature, and throttle state without calls in the per-frame hot path. After
@@ -288,7 +288,7 @@ diagnostic and are never competitor rows.
 The benchmark runtime is an optional Docker target. The production image
 contains the main CLI, frame lifecycle marker emission, and reusable output
 validation, but it does not install `nvidia-ml-py`, expose
-`benchmark-upscale`, or copy the benchmark harness. Process orchestration,
+`benchmark-trtvideo`, or copy the benchmark harness. Process orchestration,
 NVML sampling, environment capture, suite policy, and evidence contracts live
 under `benchmarks/scripts/`. Reproducible measurements use
 `trtvideo:benchmark`.
@@ -306,7 +306,7 @@ Dynamic ONNX is supported at build time in two ways:
 
 A dynamic engine with an optimization profile can be built, but the current
 runtime neither selects a concrete shape nor reallocates buffers. Therefore,
-`upscale` requires a static engine.
+`trtvideo` requires a static engine.
 
 With TensorRT 11, FP16 is defined by ONNX tensor types rather than weak-typing
 builder flags. `prepare-onnx --precision fp16` converts internal floating-point

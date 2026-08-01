@@ -1,7 +1,7 @@
 [project]
 name = "trtvideo"
 version = "0.3.1"
-description = "TensorRT video processing with GPU-resident upscale pipelines"
+description = "TensorRT video processing with GPU-resident pipelines"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.scripts]
-upscale = "trtvideo.cli.upscale:main"
+trtvideo = "trtvideo.cli.process:main"
 export-onnx = "trtvideo.cli.export_onnx:main"
 prepare-onnx = "trtvideo.cli.prepare_onnx:main"
 build-engine = "trtvideo.cli.build_engine:main"

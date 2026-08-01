@@ -136,7 +136,7 @@ low-level troubleshooting interface, not the normal full-cycle workflow.
 results for different models at the same resolution from overwriting each
 other.
 
-`profile-nsight` wraps one ordinary unprofiled `upscale` process. It does not
+`profile-nsight` wraps one ordinary unprofiled `trtvideo` process. It does not
 contribute FPS values to a campaign. The canonical diagnostic trace uses SPAN
 at 1080p because its lighter inference makes pipeline gaps more visible:
 

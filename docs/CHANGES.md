@@ -166,6 +166,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Renamed the production `upscale` entrypoint to `trtvideo`, its CLI module to
+  `trtvideo.cli.process`, and the optional benchmark wrapper to
+  `benchmark-trtvideo`. The default implicit output suffix is now `_processed`.
+  This is a pre-release breaking change without compatibility aliases; the
+  explicit model contract remains `task="upscale"` until another frame-local
+  task is implemented.
 - Replaced exhaustive tuned candidate suites with a two-stage adaptive search.
   One-run reconnaissance over streams `1..8` supports a validated decline stop,
   maximum-range sentinel, and unresolved-boundary rejection; only the three

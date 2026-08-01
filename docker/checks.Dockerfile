@@ -30,6 +30,6 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
 COPY src/ src/
 COPY benchmarks/ benchmarks/
 COPY tests/ tests/
-COPY --chmod=755 benchmarks/bin/benchmark-upscale /usr/local/bin/benchmark-upscale
+COPY --chmod=755 benchmarks/bin/benchmark-trtvideo /usr/local/bin/benchmark-trtvideo
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .

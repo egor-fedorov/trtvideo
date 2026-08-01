@@ -12,7 +12,7 @@ from benchmarks.scripts.diagnostics.nsight import (
     build_nsight_command,
     build_plan,
     build_stats_command,
-    build_upscale_command,
+    build_trtvideo_command,
     gpu_video_preflight_error,
 )
 
@@ -50,14 +50,14 @@ def args(tmp_path: Path) -> argparse.Namespace:
     )
 
 
-def test_upscale_command_uses_regular_production_path(tmp_path: Path) -> None:
-    command = build_upscale_command(
+def test_trtvideo_command_uses_regular_production_path(tmp_path: Path) -> None:
+    command = build_trtvideo_command(
         args(tmp_path),
         manifest(),
         output_path=tmp_path / "output.mp4",
     )
 
-    assert command[:2] == ["upscale", "--engine"]
+    assert command[:2] == ["trtvideo", "--engine"]
     assert "--backend" not in command
     assert command[command.index("--max-frames") + 1] == "120"
     assert command[command.index("--bitrate-mbps") + 1] == "60"
@@ -77,7 +77,7 @@ def test_nsight_command_enables_required_trace_providers(tmp_path: Path) -> None
     assert "--cpuctxsw=none" in command
     assert "--gpu-video-devices=0" in command
     assert command[command.index("--output") + 1] == str(paths.trace_base)
-    assert command[command.index("upscale") :] == build_upscale_command(
+    assert command[command.index("trtvideo") :] == build_trtvideo_command(
         parsed,
         manifest(),
         output_path=paths.video,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run reproducible process-level video upscale benchmark suites."""
+"""Run reproducible process-level trtvideo benchmark suites."""
 
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ from benchmarks.scripts.runtime.nvml import NvmlError
 def build_parser() -> argparse.ArgumentParser:
     """Build the end-to-end benchmark CLI parser."""
     parser = argparse.ArgumentParser(
-        prog="benchmark-upscale",
+        prog="benchmark-trtvideo",
         description=(
-            "Benchmark unprofiled upscale subprocesses with external wall time, "
+            "Benchmark unprofiled trtvideo subprocesses with external wall time, "
             "NVML sampling and FFmpeg output validation"
         ),
     )

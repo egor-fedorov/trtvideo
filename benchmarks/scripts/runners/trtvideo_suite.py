@@ -172,7 +172,7 @@ def collect_assets(
     return assets, workload_id
 
 
-def build_upscale_command(
+def build_trtvideo_command(
     config: BenchmarkConfig,
     *,
     output_path: Path,
@@ -181,7 +181,7 @@ def build_upscale_command(
 ) -> list[str]:
     """Build an unprofiled child command for warmup or measurement."""
     command = [
-        "upscale",
+        "trtvideo",
         "--engine",
         str(config.engine),
         "--input",
@@ -273,12 +273,12 @@ def run_one(
     """Run one discarded warmup and one externally measured process."""
     paths = VideoRunPaths.create(config.output_dir, run_index)
     lifecycle_path = paths.run_dir / "lifecycle.json"
-    warmup_command = build_upscale_command(
+    warmup_command = build_trtvideo_command(
         config,
         output_path=paths.warmup_output,
         frame_count=config.warmup_frames,
     )
-    measured_command = build_upscale_command(
+    measured_command = build_trtvideo_command(
         config,
         output_path=paths.measured_output,
         frame_count=config.frames,

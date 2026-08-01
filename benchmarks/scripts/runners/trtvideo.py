@@ -17,12 +17,12 @@ from benchmarks.scripts.workloads.manifest import (
 
 
 def build_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[str]:
-    """Build the installed benchmark-upscale invocation from pinned workload values."""
+    """Build the installed benchmark-trtvideo invocation from pinned workload values."""
     benchmark = manifest["benchmark"]
     variant = find_clip_variant(manifest, args.variant)
     output = variant["benchmark_output"]
     command = [
-        "benchmark-upscale",
+        "benchmark-trtvideo",
         "--engine",
         args.engine,
         "--input",

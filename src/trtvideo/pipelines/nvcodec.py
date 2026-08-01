@@ -1,4 +1,4 @@
-"""GPU-resident video upscaling via PyNvVideoCodec, CV-CUDA, and TensorRT."""
+"""GPU-resident video processing via PyNvVideoCodec, CV-CUDA, and TensorRT."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from trtvideo.video.output import (
 class NvcodecPipeline(BasePipeline):
     """Pipeline: NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC."""
 
-    DESCRIPTION = "TensorRT Video Upscaler"
+    DESCRIPTION = "TensorRT Video Processor"
     _DECODE_BATCH_SIZE = 8
     _GPU_STAGES = [
         "NV12\u2192RGB (cvcuda)",
@@ -92,7 +92,7 @@ class NvcodecPipeline(BasePipeline):
         super().validate_video_input(info)
         if info.pix_fmt not in {"nv12", "yuv420p"}:
             print(
-                "ERROR: upscale currently supports only 8-bit SDR NV12/yuv420p "
+                "ERROR: trtvideo currently supports only 8-bit SDR NV12/yuv420p "
                 f"input, got pix_fmt={info.pix_fmt or 'unknown'}. "
                 "Transcode or tonemap the input to SDR yuv420p first."
             )

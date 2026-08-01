@@ -234,10 +234,10 @@ def _build_engine(paths: DemoPaths, *, force: bool) -> bool:
     return False
 
 
-def upscale_command(paths: DemoPaths, gpu_id: int) -> list[str]:
+def process_command(paths: DemoPaths, gpu_id: int) -> list[str]:
     """Build the canonical demo inference command."""
     return [
-        "upscale",
+        "trtvideo",
         "--gpu-id",
         str(gpu_id),
         "--engine",
@@ -253,9 +253,9 @@ def upscale_command(paths: DemoPaths, gpu_id: int) -> list[str]:
     ]
 
 
-def _run_upscale(paths: DemoPaths, *, gpu_id: int, engine_reused: bool) -> None:
+def _run_process(paths: DemoPaths, *, gpu_id: int, engine_reused: bool) -> None:
     paths.output_video.parent.mkdir(parents=True, exist_ok=True)
-    command = upscale_command(paths, gpu_id)
+    command = process_command(paths, gpu_id)
     try:
         _run(command)
     except DemoError:
@@ -316,7 +316,7 @@ def run_demo(root: Path, *, gpu_id: int, force: bool) -> DemoPaths:
     input_observed = _prepare_input(paths, force=force)
     _prepare_model(paths, force=force)
     engine_reused = _build_engine(paths, force=force)
-    _run_upscale(paths, gpu_id=gpu_id, engine_reused=engine_reused)
+    _run_process(paths, gpu_id=gpu_id, engine_reused=engine_reused)
     output_observed = validate_demo_video(
         paths.output_video,
         DemoVideoContract(DEMO_OUTPUT_WIDTH, DEMO_OUTPUT_HEIGHT),
