@@ -61,6 +61,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added a benchmark publication exporter that converts a complete copied tuned
   session into the compact committed JSON while validating matrices, revision
   identity, evidence provenance, and external output fingerprints.
+- Added machine-readable tuned-session power/temperature observations and an
+  independent confirmation-to-final reproducibility control to distinguish
+  cross-session GPU variation from within-session product comparisons.
 - Added light/dark benchmark figures for tuned stream sweeps and direct
   trtvideo-versus-fastest-external CPU/VRAM comparisons at equivalent
   throughput. The SVGs are generated deterministically from the committed

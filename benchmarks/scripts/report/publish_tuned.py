@@ -122,7 +122,31 @@ def _compact_product_output(
     }
 
 
-def _compact_result(implementation: str, value: dict[str, Any]) -> dict[str, Any]:
+def _run_observations(
+    source: EvidenceSource,
+    campaign: dict[str, Any],
+    implementation: str,
+) -> dict[str, Any]:
+    manifests = [
+        _load(source.resolve(round_value["manifests"][implementation]))
+        for round_value in campaign["rounds"]
+    ]
+    nvml = [manifest["measured"]["metrics"]["nvml"] for manifest in manifests]
+    return {
+        "peak_temperature_c": max(item["temperature"]["peak_c"] for item in nvml),
+        "power_cap_observed": any(item["power"]["power_cap_observed"] for item in nvml),
+        "throttle_reasons": sorted(
+            {reason for item in nvml for reason in item["throttle_reasons"]}
+        ),
+    }
+
+
+def _compact_result(
+    source: EvidenceSource,
+    campaign: dict[str, Any],
+    implementation: str,
+    value: dict[str, Any],
+) -> dict[str, Any]:
     statistics = value["statistics"]
     return {
         "implementation": implementation,
@@ -146,7 +170,33 @@ def _compact_result(implementation: str, value: dict[str, Any]) -> dict[str, Any
         "output_bitrate_mbps": statistics["median_output_bitrate_mbps"],
         "output_size_mib": statistics["median_output_size_mib"],
         "lifecycle_intervals_sec": statistics["median_lifecycle_intervals_sec"],
+        "session_observations": _run_observations(source, campaign, implementation),
         "stability": value["stability"],
+    }
+
+
+def _intra_session_reproducibility(
+    selection: dict[str, Any],
+    campaign: dict[str, Any],
+) -> dict[str, Any]:
+    comparisons = []
+    for implementation in ("vstrt", "vsgan"):
+        confirmation_fps = float(selection["winners"][implementation]["median_fps"])
+        final_fps = float(campaign["implementations"][implementation]["statistics"]["median_fps"])
+        comparisons.append(
+            {
+                "implementation": implementation,
+                "confirmation_fps": confirmation_fps,
+                "final_campaign_fps": final_fps,
+                "delta_percent": (final_fps / confirmation_fps - 1.0) * 100.0,
+            }
+        )
+    return {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": comparisons,
+        "max_absolute_delta_percent": max(
+            abs(float(item["delta_percent"])) for item in comparisons
+        ),
     }
 
 
@@ -231,6 +281,7 @@ def _compact_workload(
             "candidates": [_compact_candidate(item) for item in selection["candidates"]],
             "disqualifications": selection["disqualifications"],
         },
+        "intra_session_reproducibility": _intra_session_reproducibility(selection, campaign),
         "final_campaign": {
             "execution_profile": campaign["execution_profile"],
             "workload_id": campaign["workload_id"],
@@ -250,7 +301,7 @@ def _compact_workload(
                 "product_output": _compact_product_output(source, product_report, product_path),
             },
             "results": [
-                _compact_result(name, campaign["implementations"][name])
+                _compact_result(source, campaign, name, campaign["implementations"][name])
                 for name in ("trtvideo", "vsgan", "vstrt")
             ],
         },
@@ -340,7 +391,7 @@ def build_document(
         raise PublicationError("External provenance is not independent")
 
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "document_type": "published_tuned_results",
         "status": "valid",
         "publishable": True,

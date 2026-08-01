@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from benchmarks.scripts.report.publish_tuned import (
     EvidenceSource,
     PublicationError,
+    _intra_session_reproducibility,
+    _run_observations,
     _tensor_set_digest,
 )
 
@@ -33,3 +36,61 @@ def test_evidence_source_maps_only_canonical_paths(tmp_path: Path) -> None:
 
     with pytest.raises(PublicationError, match="escapes tuned evidence"):
         source.resolve("artefacts/benchmarks/project/suite.json")
+
+
+def test_run_observations_summarize_all_campaign_rounds(tmp_path: Path) -> None:
+    source = EvidenceSource(tmp_path)
+    manifest_paths = []
+    for index, (temperature, capped, reasons) in enumerate(
+        ((54, False, ["gpu_idle"]), (58, True, ["sw_power_cap"])),
+        start=1,
+    ):
+        path = tmp_path / f"round-{index:02d}" / "manifest.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "measured": {
+                        "metrics": {
+                            "nvml": {
+                                "temperature": {"peak_c": temperature},
+                                "power": {"power_cap_observed": capped},
+                                "throttle_reasons": reasons,
+                            }
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        manifest_paths.append(source.canonical(path))
+
+    campaign = {
+        "rounds": [{"manifests": {"trtvideo": manifest_path}} for manifest_path in manifest_paths]
+    }
+
+    assert _run_observations(source, campaign, "trtvideo") == {
+        "peak_temperature_c": 58,
+        "power_cap_observed": True,
+        "throttle_reasons": ["gpu_idle", "sw_power_cap"],
+    }
+
+
+def test_intra_session_reproducibility_compares_selected_external_profiles() -> None:
+    selection = {
+        "winners": {
+            "vstrt": {"median_fps": 10.0},
+            "vsgan": {"median_fps": 20.0},
+        }
+    }
+    campaign = {
+        "implementations": {
+            "vstrt": {"statistics": {"median_fps": 10.04}},
+            "vsgan": {"statistics": {"median_fps": 19.96}},
+        }
+    }
+
+    result = _intra_session_reproducibility(selection, campaign)
+
+    assert result["max_absolute_delta_percent"] == pytest.approx(0.4)
+    assert [item["implementation"] for item in result["comparisons"]] == ["vstrt", "vsgan"]

@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "document_type": "published_tuned_results",
   "status": "valid",
   "publishable": true,
@@ -841,6 +841,24 @@
         ],
         "disqualifications": {}
       },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 6.144254171608853,
+            "final_campaign_fps": 6.151053563945216,
+            "delta_percent": 0.11066261496441854
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 6.177843447477687,
+            "final_campaign_fps": 6.192462988215887,
+            "delta_percent": 0.23664472663464942
+          }
+        ],
+        "max_absolute_delta_percent": 0.23664472663464942
+      },
       "final_campaign": {
         "execution_profile": "tuned",
         "workload_id": "realesrgan-x2plus-sintel-v4",
@@ -1024,6 +1042,13 @@
               "runtime_initialized_to_decoder_initialized": 0.012431272,
               "video_probed_to_preservation_preflight_completed": 0.04859397
             },
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0017342043191762447,
@@ -1059,6 +1084,14 @@
             "output_bitrate_mbps": 35.042122,
             "output_size_mib": 174.06343936920166,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0009620831294354322,
@@ -1094,6 +1127,14 @@
             "output_bitrate_mbps": 35.042122,
             "output_size_mib": 174.06343936920166,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0028817150859974006,
@@ -1525,6 +1566,24 @@
         ],
         "disqualifications": {}
       },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 2.779072029950161,
+            "final_campaign_fps": 2.781928404548315,
+            "delta_percent": 0.1027815964239398
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 2.7741588999841693,
+            "final_campaign_fps": 2.7782022524470302,
+            "delta_percent": 0.14575057192591778
+          }
+        ],
+        "max_absolute_delta_percent": 0.14575057192591778
+      },
       "final_campaign": {
         "execution_profile": "tuned",
         "workload_id": "realesrgan-x2plus-sintel-v4",
@@ -1708,6 +1767,13 @@
               "runtime_initialized_to_decoder_initialized": 0.012475209,
               "video_probed_to_preservation_preflight_completed": 0.049996113
             },
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.004123147157891672,
@@ -1743,6 +1809,14 @@
             "output_bitrate_mbps": 60.199837,
             "output_size_mib": 299.0241289138794,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0018640284533908247,
@@ -1778,6 +1852,14 @@
             "output_bitrate_mbps": 60.199837,
             "output_size_mib": 299.0241289138794,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0004857412072311182,
@@ -2307,6 +2389,24 @@
         ],
         "disqualifications": {}
       },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 55.41935173499716,
+            "final_campaign_fps": 55.49807493214229,
+            "delta_percent": 0.1420500144454273
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 55.56931166147776,
+            "final_campaign_fps": 55.582669794721184,
+            "delta_percent": 0.02403868762095307
+          }
+        ],
+        "max_absolute_delta_percent": 0.1420500144454273
+      },
       "final_campaign": {
         "execution_profile": "tuned",
         "workload_id": "liveaction-span-sintel-v3",
@@ -2490,6 +2590,14 @@
               "runtime_initialized_to_decoder_initialized": 0.011408097,
               "video_probed_to_preservation_preflight_completed": 0.048573283
             },
+            "session_observations": {
+              "peak_temperature_c": 50,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.00780143989984726,
@@ -2525,6 +2633,14 @@
             "output_bitrate_mbps": 35.532699,
             "output_size_mib": 176.50021648406982,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 48,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0048189060544109015,
@@ -2560,6 +2676,14 @@
             "output_bitrate_mbps": 35.532699,
             "output_size_mib": 176.50021648406982,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 49,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.005115759448638602,
@@ -3089,6 +3213,24 @@
         ],
         "disqualifications": {}
       },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 25.18306941352855,
+            "final_campaign_fps": 25.07399627975417,
+            "delta_percent": -0.4331208876221626
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 25.184328474623626,
+            "final_campaign_fps": 25.232427641113034,
+            "delta_percent": 0.19098848134018187
+          }
+        ],
+        "max_absolute_delta_percent": 0.4331208876221626
+      },
       "final_campaign": {
         "execution_profile": "tuned",
         "workload_id": "liveaction-span-sintel-v3",
@@ -3272,6 +3414,14 @@
               "runtime_initialized_to_decoder_initialized": 0.011417803,
               "video_probed_to_preservation_preflight_completed": 0.050510251
             },
+            "session_observations": {
+              "peak_temperature_c": 53,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.0046623260777576055,
@@ -3307,6 +3457,14 @@
             "output_bitrate_mbps": 60.465577,
             "output_size_mib": 300.3439826965332,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 53,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.003247891157508573,
@@ -3342,6 +3500,14 @@
             "output_bitrate_mbps": 60.465577,
             "output_size_mib": 300.3439826965332,
             "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 53,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
             "stability": {
               "consensus": null,
               "full_relative_spread": 0.004354967476730601,

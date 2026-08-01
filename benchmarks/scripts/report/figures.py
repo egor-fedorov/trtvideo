@@ -558,21 +558,20 @@ def render_throughput_resources(
                 project_fps = data.panels[index].result("trtvideo").fps
                 fps_delta = (project_fps / external.fps - 1.0) * 100.0
                 ax.text(
-                    maximum * 1.22,
+                    max(project_value, external_value) + maximum * 0.16,
                     position,
                     f"{fps_delta:+.1f}% FPS",
                     color=theme.text,
                     fontsize=8.5,
                     fontweight="bold",
-                    ha="center",
+                    ha="left",
                     va="center",
                 )
 
-        ax.set_xlim(0, maximum * (1.4 if axis_index == 0 else 1.28))
+        ax.set_xlim(0, maximum * (1.32 if axis_index == 0 else 1.28))
         ax.set_yticks(y_positions, labels)
         ax.set_title(title, color=theme.text, fontsize=11, fontweight="bold", loc="left")
         ax.tick_params(axis="both", colors=theme.text)
-        ax.set_xlabel("Linear scale", color=theme.text)
 
     handles = [plt.Rectangle((0, 0), 1, 1, color=color) for color in (theme.project, theme.vstrt)]
     figure.legend(

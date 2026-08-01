@@ -37,6 +37,15 @@ tuning search. Both external implementations receive the same stream range,
 runtime-default VapourSynth threads, automatic vspipe requests, and CUDA Graph
 probe policy.
 
+Absolute throughput is 1.7-3.0% lower than the superseded tuned snapshot across
+all three implementations. The current session drew more average board power
+and repeatedly reached the same 350 W software power cap, but peaked at 58 C
+versus 65 C previously and recorded no thermal throttle reason. The evidence
+therefore supports a shared cross-session or physical-GPU shift, not a
+`trtvideo` regression or a thermal-throttling claim. Headline comparisons use
+only the rotated measurements from the current physical GPU; old and current
+absolute results are not pooled.
+
 ### Tuned Stream Sweep
 
 <picture>
@@ -67,6 +76,22 @@ stream count within 1% of confirmed peak throughput, which is deliberately
 favorable to the external implementation's CPU and VRAM use. The complete
 reconnaissance curves, confirmation suites, stop reasons, and resource-ceiling
 evidence are retained in [`tuned.json`](tuned.json).
+
+### Intra-Session Reproducibility
+
+The selected external profiles were measured independently during confirmation
+and again in the final rotated campaign. Their medians agree within 0.44%:
+
+| Workload | Input | vs-mlrt final vs confirmation | VSGAN final vs confirmation |
+|---|---|---:|---:|
+| RealESRGAN_x2plus | 720p | +0.11% | +0.24% |
+| RealESRGAN_x2plus | 1080p | +0.10% | +0.15% |
+| SPAN | 720p | +0.14% | +0.02% |
+| SPAN | 1080p | -0.43% | +0.19% |
+
+This is a same-session harness control, not another product comparison.
+`trtvideo` is excluded because it is not a tuning candidate and therefore has
+no confirmation-stage run.
 
 ### Resource Medians
 
@@ -99,8 +124,8 @@ less VRAM on RealESRGAN. On SPAN it uses about 0.5 CPU cores instead of
   <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="figures/throughput-resources-light.svg">
 </picture>
 
-Both panels use linear scales. Each row compares `trtvideo` with the fastest
-external implementation for that workload; the annotation reports the
+Each row compares `trtvideo` with the fastest external implementation for that
+workload on linear scales; the annotation beside the bars reports the
 end-to-end FPS difference for the same pair.
 
 ## Upstream-Default Results
