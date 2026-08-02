@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import statistics
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,57 @@ class FrameLifecycleMarkers:
                 raise LifecycleTimingError(
                     f"Lifecycle phase {name!r} must have a positive integer timestamp"
                 )
+
+
+class LifecycleRecorder:
+    """Collect optional production lifecycle markers without profiling stages."""
+
+    def __init__(
+        self,
+        output_path: Path | None,
+        *,
+        clock_ns: Callable[[], int] = time.perf_counter_ns,
+    ) -> None:
+        self._output_path = output_path
+        self._clock_ns = clock_ns
+        self._first_frame_completed_ns: int | None = None
+        self._last_frame_completed_ns: int | None = None
+        self._phase_completed_ns: dict[str, int] = {}
+
+    @property
+    def enabled(self) -> bool:
+        return self._output_path is not None
+
+    def mark_phase(self, name: str) -> None:
+        if self.enabled:
+            self._phase_completed_ns[name] = self._clock_ns()
+
+    def mark_frame_completed(self) -> None:
+        if not self.enabled:
+            return
+        completed_ns = self._clock_ns()
+        if self._first_frame_completed_ns is None:
+            self._first_frame_completed_ns = completed_ns
+        self._last_frame_completed_ns = completed_ns
+
+    def write(self, processed_frames: int) -> None:
+        if (
+            self._output_path is None
+            or self._first_frame_completed_ns is None
+            or self._last_frame_completed_ns is None
+            or processed_frames <= 0
+        ):
+            return
+        write_frame_markers(
+            self._output_path,
+            FrameLifecycleMarkers(
+                first_frame_completed_ns=self._first_frame_completed_ns,
+                last_frame_completed_ns=self._last_frame_completed_ns,
+                processed_frames=processed_frames,
+                instrumentation="trtvideo-frame-loop",
+                phase_completed_ns=dict(self._phase_completed_ns),
+            ),
+        )
 
 
 def write_frame_markers(path: Path, markers: FrameLifecycleMarkers) -> None:
@@ -155,10 +207,14 @@ def median_detailed_phase_intervals(
         return {}
     if not all(isinstance(report, dict) for report in detailed_reports):
         raise LifecycleTimingError("Detailed lifecycle phases are missing from some runs")
+    reports = [report for report in detailed_reports if isinstance(report, dict)]
 
-    interval_reports = [report.get("intervals_sec") for report in detailed_reports]
-    if not all(isinstance(intervals, dict) for intervals in interval_reports):
+    raw_interval_reports = [report.get("intervals_sec") for report in reports]
+    if not all(isinstance(intervals, dict) for intervals in raw_interval_reports):
         raise LifecycleTimingError("Detailed lifecycle interval data is incomplete")
+    interval_reports = [
+        intervals for intervals in raw_interval_reports if isinstance(intervals, dict)
+    ]
 
     expected_names = set(interval_reports[0])
     if any(set(intervals) != expected_names for intervals in interval_reports[1:]):

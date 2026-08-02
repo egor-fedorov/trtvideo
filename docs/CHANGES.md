@@ -166,6 +166,15 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Replaced the single-subclass `BasePipeline` template hierarchy with one
+  explicit `NvcodecPipeline` orchestrator. CLI values now enter the runtime as
+  an immutable `ProcessConfig`; color policy, atomic output publication,
+  profiling reports, and benchmark lifecycle recording are separate cohesive
+  collaborators. The NVDEC/CV-CUDA/TensorRT/NVENC frame order is unchanged.
+- Separated normalized `VideoMetadata` from the FFprobe adapter. Probe failures
+  now raise `VideoProbeError` instead of terminating the process, and the output
+  subsystem is split into preservation, streaming mux, and atomic transaction
+  modules behind the existing `trtvideo.video.output` import boundary.
 - Renamed the production `upscale` entrypoint to `trtvideo`, its CLI module to
   `trtvideo.cli.process`, and the optional benchmark wrapper to
   `benchmark-trtvideo`. The default implicit output suffix is now `_processed`.
@@ -212,7 +221,7 @@ Before `1.0.0`, use pragmatic semantic versioning:
   iteration, and output-container contracts remain under `trtvideo.video`;
   NVDEC surface lifetime, CV-CUDA processing, bitrate policy, and NVENC settings
   now live under `trtvideo.video.nvcodec`. Ambiguous compatibility imports and
-  dict-style `VideoInfo` access were removed.
+  legacy dict-style metadata access were removed.
 - Replaced PyTorch tensor/stream orchestration in the default `nvcodec` runtime
   with CV-CUDA-owned buffers, CUDA Array Interface views, and direct TensorRT
   bindings. Ordinary GPU-resident inference no longer imports PyTorch; model

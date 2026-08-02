@@ -5,6 +5,8 @@ from typing import Any
 import pytest
 
 import trtvideo.video.probe as video_probe
+from trtvideo.video.metadata import VideoMetadata
+from trtvideo.video.probe import VideoProbeError
 
 
 @dataclass
@@ -62,6 +64,7 @@ def test_probe_video_prefers_video_stream_bitrate(monkeypatch: pytest.MonkeyPatc
 
     info = video_probe.probe_video("input.mp4")
 
+    assert isinstance(info, VideoMetadata)
     assert info.width == 1280
     assert info.height == 720
     assert info.fps == pytest.approx(59.94005994)
@@ -87,11 +90,36 @@ def test_probe_video_keeps_container_bitrate_fallback(
     assert info.container_bit_rate == 4_500_000
 
 
-def test_probe_video_exits_when_ffprobe_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_probe_video_raises_when_ffprobe_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(*_args: object, **_kwargs: object) -> FakeCompletedProcess:
         return FakeCompletedProcess(returncode=1, stdout="", stderr="bad input")
 
     monkeypatch.setattr(video_probe.subprocess, "run", fake_run)
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(VideoProbeError, match="FFprobe failed: bad input"):
         video_probe.probe_video("missing.mp4")
+
+
+def test_probe_video_rejects_invalid_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        video_probe.subprocess,
+        "run",
+        lambda *_args, **_kwargs: FakeCompletedProcess(returncode=0, stdout="not-json"),
+    )
+
+    with pytest.raises(VideoProbeError, match="invalid JSON"):
+        video_probe.probe_video("input.mp4")
+
+
+def test_probe_video_requires_a_video_stream(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        video_probe.subprocess,
+        "run",
+        lambda *_args, **_kwargs: FakeCompletedProcess(
+            returncode=0,
+            stdout=json.dumps({"streams": [{"codec_type": "audio"}]}),
+        ),
+    )
+
+    with pytest.raises(VideoProbeError, match="No video stream found"):
+        video_probe.probe_video("audio-only.mkv")

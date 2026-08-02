@@ -1,6 +1,6 @@
 import pytest
 
-from trtvideo.cli.process import build_parser
+from trtvideo.cli.process import build_parser, process_config_from_args
 
 
 def test_parser_uses_single_gpu_resident_contract() -> None:
@@ -17,6 +17,28 @@ def test_parser_uses_single_gpu_resident_contract() -> None:
     assert parser.prog == "trtvideo"
     assert args.codec == "h264"
     assert args.bitrate_mbps is None
+
+
+def test_cli_arguments_map_to_typed_process_config() -> None:
+    args = build_parser().parse_args(
+        [
+            "--engine",
+            "models/model.engine",
+            "--input",
+            "videos/input.mp4",
+            "--max-frames",
+            "12",
+            "--profile-json",
+            "artefacts/profile.json",
+        ]
+    )
+
+    config = process_config_from_args(args)
+
+    assert str(config.engine_path) == "models/model.engine"
+    assert str(config.output_path) == "videos/input_processed.mp4"
+    assert config.max_frames == 12
+    assert str(config.profile_json_path) == "artefacts/profile.json"
 
 
 @pytest.mark.parametrize("removed_option", ["--backend", "--crf", "--cuda-graph"])

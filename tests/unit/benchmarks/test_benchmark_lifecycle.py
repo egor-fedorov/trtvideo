@@ -6,6 +6,7 @@ import pytest
 
 from trtvideo.benchmarking.lifecycle import (
     FrameLifecycleMarkers,
+    LifecycleRecorder,
     LifecycleTimingError,
     load_frame_markers,
     median_detailed_phase_intervals,
@@ -44,6 +45,33 @@ def test_lifecycle_markers_round_trip(tmp_path: Path) -> None:
     write_frame_markers(path, markers())
 
     assert load_frame_markers(path) == markers()
+
+
+def test_lifecycle_recorder_emits_production_markers(tmp_path: Path) -> None:
+    ticks = iter([1_100_000_000, 2_000_000_000, 3_000_000_000])
+    path = tmp_path / "lifecycle.json"
+    recorder = LifecycleRecorder(path, clock_ns=lambda: next(ticks))
+
+    recorder.mark_phase("pipeline_created")
+    recorder.mark_frame_completed()
+    recorder.mark_frame_completed()
+    recorder.write(2)
+
+    assert load_frame_markers(path) == FrameLifecycleMarkers(
+        first_frame_completed_ns=2_000_000_000,
+        last_frame_completed_ns=3_000_000_000,
+        processed_frames=2,
+        instrumentation="trtvideo-frame-loop",
+        phase_completed_ns={"pipeline_created": 1_100_000_000},
+    )
+
+
+def test_disabled_lifecycle_recorder_is_a_noop() -> None:
+    recorder = LifecycleRecorder(None, clock_ns=lambda: pytest.fail("clock was read"))
+
+    recorder.mark_phase("pipeline_created")
+    recorder.mark_frame_completed()
+    recorder.write(1)
 
 
 def test_lifecycle_reports_detailed_phase_intervals() -> None:

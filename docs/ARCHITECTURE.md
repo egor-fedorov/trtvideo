@@ -20,10 +20,11 @@ src/trtvideo/
   cli/          argument parsing and command entry points
   demo/         pinned quick-demo assets, orchestration, and media validation
   diagnostics/  opt-in stage timing and external profiler markers
-  pipelines/    decode -> inference -> encode orchestration
+  pipelines/    typed process configuration and production orchestration
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
   video/        generic video metadata, frame iteration, and output contracts
     nvcodec/     NVDEC surfaces, CV-CUDA processing, and NVENC policy
+    output/      preservation policy, FFmpeg muxing, and atomic publication
   models/       model runtime contract (ModelSpec)
 ```
 
@@ -32,13 +33,12 @@ passes a static TensorRT engine through `--engine`.
 
 ## Inference Lifecycle
 
-The `trtvideo` command parses the production video contract and creates
-`NvcodecPipeline`. `BasePipeline` in `src/trtvideo/pipelines/base.py` owns the
-common lifecycle:
+The `trtvideo` command maps CLI arguments into an immutable `ProcessConfig` and
+creates the only production orchestrator, `NvcodecPipeline`:
 
 1. Verify that `--engine` and `--input` exist.
-2. Use `ffprobe` to read resolution, FPS, frame count, bitrate, and color
-   metadata into `VideoInfo`.
+2. Use the FFprobe adapter to read resolution, FPS, frame count, bitrate, and
+   color metadata into `VideoMetadata`.
 3. Reject inputs outside the current media contract.
 4. Preflight source-stream compatibility with the selected output container and
    reserve a same-directory temporary output.
@@ -53,8 +53,24 @@ common lifecycle:
     completed successfully.
 11. Print final throughput and an optional profile.
 
-`BasePipeline` owns lifecycle and shared validation. `NvcodecPipeline` owns
-decode, preprocess, encode, and cleanup.
+There is intentionally no abstract base pipeline. After removal of the former
+CPU-frame backend, inheritance only hid the order of one concrete workflow and
+made speculative extension points part of the production design. The stateful
+`NvcodecPipeline` now owns orchestration and the frame loop directly, while
+delegating cohesive policies to typed collaborators:
+
+- `pipelines/config.py` owns validated process configuration and domain errors;
+- `video/metadata.py` owns the normalized video metadata value object;
+- `video/probe.py` adapts FFprobe output without terminating the process;
+- `video/color.py` owns SDR metadata normalization and CV-CUDA/FFmpeg mapping;
+- `video/output/` separates preservation preflight, streaming mux, and atomic
+  output publication behind one stable package API;
+- `diagnostics/profiling.py` owns isolated stage collection and report writing;
+- `benchmarking/lifecycle.py` owns optional benchmark lifecycle markers.
+
+This is composition around one real pipeline, not an abstraction for backends
+that do not exist. A shared interface should be introduced only if a second
+production implementation requires one.
 
 ## Model Contract And TensorRT Runtime
 
@@ -176,12 +192,15 @@ The production pipeline and model-space quality capture share
 postprocess. The quality job copies only selected normalized input and raw
 output tensors to the host after synchronizing this shared path.
 
-Generic video concerns stay directly under `src/trtvideo/video/`: `probe.py`
-adapts ffprobe into `VideoInfo`, `fps.py` preserves rational frame rates,
-`frames.py` owns implementation-independent iterator limits, and `output.py`
-owns the stream-preservation and atomic-output transaction. NVIDIA-specific
+Generic video concerns stay directly under `src/trtvideo/video/`:
+`metadata.py` defines `VideoMetadata`, `probe.py` adapts FFprobe into that
+contract, `fps.py` preserves rational frame rates, `frames.py` owns
+implementation-independent iterator limits, and `color.py` owns the normalized
+SDR conversion contract. The `output/` package separates preservation policy,
+the long-lived FFmpeg mux process, and atomic publication. NVIDIA-specific
 bitrate, decoder lifetime, encoder policy, CUDA surfaces, and frame processing
-live under `src/trtvideo/video/nvcodec/`.
+live under `src/trtvideo/video/nvcodec/`; its `frame_processor.py` is shared by
+production and model-space quality capture.
 
 The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
 use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and

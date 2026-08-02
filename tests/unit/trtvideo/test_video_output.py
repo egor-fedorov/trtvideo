@@ -3,8 +3,11 @@ from types import SimpleNamespace
 
 import pytest
 
-import trtvideo.video.output as video_output
+import trtvideo.video.output.muxer as output_muxer
+import trtvideo.video.output.preservation as output_preservation
+import trtvideo.video.output.transaction as output_transaction
 from trtvideo.video.output import (
+    AtomicOutputTransaction,
     MediaPreservationError,
     StreamingFfmpegMuxer,
     build_container_preflight_command,
@@ -123,7 +126,7 @@ def test_streaming_muxer_handles_partial_pipe_writes(
 ) -> None:
     process = _FakeProcess()
     monkeypatch.setattr(
-        video_output.subprocess,
+        output_muxer.subprocess,
         "Popen",
         lambda *_args, **_kwargs: process,
     )
@@ -147,7 +150,7 @@ def test_streaming_muxer_reports_ffmpeg_failure(
         kwargs["stderr"].write(b"invalid output container")
         return process
 
-    monkeypatch.setattr(video_output.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(output_muxer.subprocess, "Popen", fake_popen)
 
     muxer = StreamingFfmpegMuxer.start(["ffmpeg"])
     with pytest.raises(MediaPreservationError, match="invalid output container"):
@@ -159,7 +162,7 @@ def test_streaming_muxer_terminates_unfinished_process(
 ) -> None:
     process = _FakeProcess()
     monkeypatch.setattr(
-        video_output.subprocess,
+        output_muxer.subprocess,
         "Popen",
         lambda *_args, **_kwargs: process,
     )
@@ -177,7 +180,7 @@ def test_preflight_recommends_mkv_for_incompatible_mp4(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        video_output.subprocess,
+        output_preservation.subprocess,
         "run",
         lambda *_args, **_kwargs: SimpleNamespace(
             returncode=1,
@@ -214,3 +217,48 @@ def test_atomic_output_replaces_target_only_after_commit(tmp_path: Path) -> None
 
     assert output.read_text(encoding="utf-8") == "complete"
     assert not temporary.exists()
+
+
+def test_output_transaction_commits_only_after_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "input.mkv"
+    output = tmp_path / "output.mkv"
+    output.write_text("old", encoding="utf-8")
+    monkeypatch.setattr(
+        output_transaction,
+        "preflight_output_container",
+        lambda *_a, **_kw: None,
+    )
+
+    with AtomicOutputTransaction(str(source), str(output), preserve_chapters=True) as staging:
+        assert output.read_text(encoding="utf-8") == "old"
+        staging.write_text("complete", encoding="utf-8")
+
+    assert output.read_text(encoding="utf-8") == "complete"
+    assert not staging.exists()
+
+
+def test_output_transaction_rolls_back_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "input.mkv"
+    output = tmp_path / "output.mkv"
+    output.write_text("old", encoding="utf-8")
+    monkeypatch.setattr(
+        output_transaction,
+        "preflight_output_container",
+        lambda *_a, **_kw: None,
+    )
+
+    with (
+        pytest.raises(RuntimeError, match="processing failed"),
+        AtomicOutputTransaction(str(source), str(output), preserve_chapters=True) as staging,
+    ):
+        staging.write_text("partial", encoding="utf-8")
+        raise RuntimeError("processing failed")
+
+    assert output.read_text(encoding="utf-8") == "old"
+    assert not staging.exists()

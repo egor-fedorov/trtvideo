@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
+from trtvideo.video.nvcodec.frame_processor import NvcodecFrameProcessor
 
 
 class FakeTensor:

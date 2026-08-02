@@ -122,7 +122,7 @@ def capture(args: argparse.Namespace) -> Path:
     from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
     from trtvideo.video.frames import iter_limited_frames
     from trtvideo.video.nvcodec.decoder import iter_locked_decode_frames
-    from trtvideo.video.nvcodec.processor import NvcodecFrameProcessor
+    from trtvideo.video.nvcodec.frame_processor import NvcodecFrameProcessor
     from trtvideo.video.probe import probe_video
 
     root = Path(args.root).resolve()

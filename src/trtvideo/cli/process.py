@@ -1,6 +1,10 @@
 """GPU-resident TensorRT video processing CLI."""
 
 import argparse
+from pathlib import Path
+from typing import Literal, cast
+
+from trtvideo.pipelines.config import PipelineError, ProcessConfig, default_output_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,11 +61,41 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def process_config_from_args(args: argparse.Namespace) -> ProcessConfig:
+    """Translate CLI parsing concerns into the typed pipeline contract."""
+    input_path = Path(args.input)
+    output_path = Path(args.output) if args.output is not None else default_output_path(input_path)
+    return ProcessConfig(
+        engine_path=Path(args.engine),
+        input_path=input_path,
+        output_path=output_path,
+        gpu_id=args.gpu_id,
+        max_frames=args.max_frames,
+        warmup_frames=args.warmup_frames,
+        log_interval=args.log_interval,
+        profile=args.profile,
+        profile_json_path=Path(args.profile_json) if args.profile_json is not None else None,
+        benchmark_lifecycle_path=(
+            Path(args.benchmark_lifecycle_json)
+            if args.benchmark_lifecycle_json is not None
+            else None
+        ),
+        bitrate_mbps=args.bitrate_mbps,
+        codec=cast(Literal["h264", "hevc"], args.codec),
+        verbose=args.verbose,
+        quiet=args.quiet,
+    )
+
+
 def main() -> None:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
     from trtvideo.pipelines.nvcodec import NvcodecPipeline
 
-    NvcodecPipeline(args).run()
+    try:
+        NvcodecPipeline(process_config_from_args(args)).run()
+    except PipelineError as exc:
+        parser.exit(1, f"ERROR: {exc}\n")
 
 
 if __name__ == "__main__":

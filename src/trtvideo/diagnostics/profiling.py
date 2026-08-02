@@ -1,7 +1,12 @@
-"""CUDA event-based profiling for pipeline stages."""
+"""CUDA event-based profiling and reports for pipeline stages."""
 
+import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
+
+from trtvideo.runtime import RuntimeEngine
+from trtvideo.video.metadata import VideoMetadata
 
 
 class ProfileCollector:
@@ -141,3 +146,47 @@ class ProfileCollector:
 
         print(f"{'FPS (processing)':<40s} {summary['processing_fps']:>7.1f}")
         print(sep)
+
+
+def write_profile_report(
+    output_path: Path,
+    *,
+    collector: ProfileCollector,
+    runtime: RuntimeEngine,
+    video_info: VideoMetadata,
+    engine_path: Path,
+    input_path: Path,
+    media_output_path: Path,
+    frame_times: list[float],
+    wall_total_sec: float,
+    stage_key_map: dict[str, str],
+) -> None:
+    """Write the machine-readable report for an isolated stage profile."""
+    profile = collector.summary(frame_times)
+    stage_ms = profile.get("stage_ms", {})
+    normalized_stage_ms = {stage_key_map.get(name, name): value for name, value in stage_ms.items()}
+    report = {
+        "engine": str(engine_path),
+        "gpu": runtime.gpu_name,
+        "input": str(input_path),
+        "output": str(media_output_path),
+        "input_resolution": f"{video_info.width}x{video_info.height}",
+        "output_resolution": f"{runtime.output_w}x{runtime.output_h}",
+        "processed_frames": len(frame_times),
+        "frames": profile.get("frames", len(frame_times)),
+        "warmup_frames": profile.get("warmup_frames", 0),
+        "processing_fps": profile.get("processing_fps", 0.0),
+        "throughput_fps": (len(frame_times) / wall_total_sec if wall_total_sec > 0 else 0.0),
+        "avg_frame_sec": profile.get("avg_frame_sec", 0.0),
+        "avg_frame_ms": profile.get("avg_frame_ms", 0.0),
+        "min_frame_ms": profile.get("min_frame_ms", 0.0),
+        "max_frame_ms": profile.get("max_frame_ms", 0.0),
+        "wall_total_sec": wall_total_sec,
+        "stage_ms": normalized_stage_ms,
+        "gpu_peak_mem_mb": runtime.peak_memory_allocated_mb(),
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
