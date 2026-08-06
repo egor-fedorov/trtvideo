@@ -1,16 +1,53 @@
 # trtvideo
 
-Docker-first CLI tools for TensorRT-based video processing. The implemented
-workflow is full-video upscaling through a GPU-resident
-NVDEC/CV-CUDA/TensorRT/NVENC pipeline. Model preparation supports `.pth`
-checkpoints and existing ONNX files; inference runs with an explicitly selected
-TensorRT engine.
+GPU-resident TensorRT video upscaling from compressed input to muxed output in
+one Docker command. Raw video frames stay on the GPU through NVDEC, CV-CUDA,
+TensorRT, and NVENC.
 
-Docker is the recommended workflow. The image contains runtime dependencies for
-TensorRT inference, NVDEC/NVENC inference, ONNX preparation, and model export.
+## Same Throughput, Lower Resource Use
 
-The production runtime currently uses Python 3.12 from the
-`nvcr.io/nvidia/tensorrt:26.06-py3` base TensorRT Docker image.
+Across four validated best-tuned workloads, `trtvideo` stays within 1.9% of the
+fastest external result while using 2.1-13.7x lower attributed CPU use and
+1.7-3.7x lower peak VRAM.
+
+| Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
+|---|---:|---:|---:|
+| RealESRGAN_x2plus 720p -> 1440p | 6.078 / 6.192 VSGAN (-1.9%) | 1.01 / 2.13 | 2.18 / 3.67 GiB |
+| RealESRGAN_x2plus 1080p -> 4K | 2.754 / 2.782 vs-mlrt (-1.0%) | 1.01 / 2.13 | 4.16 / 7.45 GiB |
+| SPAN 720p -> 1440p | 54.517 / 55.583 VSGAN (-1.9%) | 0.56 / 5.41 | 1.46 / 3.84 GiB |
+| SPAN 1080p -> 4K | 25.505 / 25.232 VSGAN (+1.1%) | 0.47 / 6.46 | 2.59 / 9.67 GiB |
+
+These end-to-end measurements were recorded on an RTX 3090 at a 350 W board
+limit with a Ryzen 5 5600. CPU use is attributed to the measured child-process
+tree, not the whole host. Every row uses the same model, input clip, and encoder
+contract; all implementations fall inside the predeclared +/-5% parity band.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-3090/figures/throughput-resources-dark.svg">
+  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="benchmarks/results/rtx-3090/figures/throughput-resources-light.svg">
+</picture>
+
+Source: the privacy-reviewed [RTX 3090 tuned result](benchmarks/results/rtx-3090/tuned.json),
+measured on 2026-07-31 from revision `cb5e645`. See the
+[full result report](benchmarks/results/rtx-3090/README.md) and
+[benchmark methodology](benchmarks/methodology.md) for the complete provenance,
+quality gates, and tuning contract.
+
+## Quick Start
+
+On a Linux host with an NVIDIA driver, Docker, and working
+`docker run --gpus all` passthrough:
+
+```bash
+git clone https://github.com/egor-fedorov/trtvideo.git
+cd trtvideo
+make demo
+```
+
+The demo builds the image and a GPU-specific TensorRT engine, processes a
+generated rich-media clip, validates the complete result, and writes
+`.demo/output/demo_1440p.mkv`. See the [Docker workflow](#docker-workflow) to
+prepare a model and process your own video.
 
 ## Architecture
 
@@ -69,24 +106,15 @@ cross its host/device boundary.
 > would not remove the H2D and D2H transfers around inference: frames in a
 > VapourSynth graph live in host memory regardless of where decode occurs.
 
-## Measured Throughput And Resources
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-3090/figures/throughput-resources-dark.svg">
-  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="benchmarks/results/rtx-3090/figures/throughput-resources-light.svg">
-</picture>
-
-On the RTX 3090 publication matrix, all implementations remain inside the
-predeclared +/-5% throughput parity band. `trtvideo` reaches that throughput
-with materially lower attributed CPU use and peak VRAM. The figure is generated
-from the committed, privacy-reviewed benchmark JSON; exact values and the full
-methodology are in the [RTX 3090 results](benchmarks/results/rtx-3090/README.md).
-
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) - inference, TensorRT runtime, and video
   pipeline architecture.
 - [Testing](docs/TESTING.md) - test layers and the Docker-only quality gate.
+- [Contributing](CONTRIBUTING.md) - development workflow and pull-request
+  expectations.
+- [Security](SECURITY.md) - supported revisions and private vulnerability
+  reporting.
 - [Roadmap](docs/ROADMAP.md) - current development directions.
 - [Changes](docs/CHANGES.md) - versioned changes and versioning rules.
 - [Performance Log](docs/PERFORMANCE_LOG.md) - measured performance changes.
@@ -125,13 +153,7 @@ make build-dev
 Use `make format` to apply Ruff import sorting and Black-compatible
 formatting. CI runs the read-only formatting check as part of `make lint`.
 
-## Quick Demo
-
-On an NVIDIA GPU host, the complete workflow is available as one command:
-
-```bash
-make demo
-```
+## Demo Details
 
 The target builds the production image, downloads the pinned
 `RealESRGAN_x2plus` v0.2.1 weights, verifies their size and SHA256, and creates a

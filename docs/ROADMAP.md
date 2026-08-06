@@ -8,9 +8,6 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 ## 1. Benchmark Follow-Up
 
-- run the adaptive tuned search, winner quality gates, and final 720p/1080p
-  campaigns on the benchmark GPU before replacing the exhaustive-search RTX
-  3090 snapshot;
 - run one confirmation workload on a short live-action clip with substantial
   motion and fine detail;
 
@@ -18,9 +15,8 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 - audit dependency, model, and benchmark-media licenses and document any
   redistribution restrictions;
-- add `CONTRIBUTING.md`, `SECURITY.md`, and issue templates;
-- publish the final methodology, privacy-reviewed result tables, and compact
-  machine-readable evidence;
+- enable GitHub private vulnerability reporting and verify repository topics
+  and issue forms when the repository becomes public;
 - move full production and benchmark image builds to a larger or self-hosted
   GitHub Actions runner; hosted runners continue to perform static Dockerfile
   validation;

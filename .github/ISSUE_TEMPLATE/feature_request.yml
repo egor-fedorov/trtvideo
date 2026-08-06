@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose a concrete video-processing workflow or project improvement
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Describe the problem and who needs to solve it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired CLI, Docker, model, or media workflow from the user's perspective.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain current workarounds or why existing commands are insufficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Runtime and contract constraints
+      description: Include relevant GPU, driver, TensorRT, model-shape, codec, color, or media-preservation requirements.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This request describes a concrete workflow rather than only a technology preference.
+          required: true

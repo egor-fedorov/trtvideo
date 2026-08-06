@@ -27,6 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+COPY README.md ./
 COPY src/ src/
 COPY benchmarks/ benchmarks/
 COPY tests/ tests/

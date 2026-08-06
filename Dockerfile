@@ -45,6 +45,7 @@ ENV TRTVIDEO_BASE_IMAGE="${BASE_IMAGE}" \
     TRTVIDEO_BUILD_DIRTY="${VCS_DIRTY}"
 LABEL org.opencontainers.image.revision="${VCS_REF}"
 
+COPY README.md ./
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .

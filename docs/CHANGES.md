@@ -77,6 +77,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
   integration tests, CLI smoke tests, benchmark-figure drift, and static
   Dockerfile validation. The lightweight checks image avoids downloading the
   TensorRT production base for regular CI.
+- Added contribution and security policies, structured bug and feature issue
+  forms, and complete package discovery metadata for the public repository.
 - Added one goal-based benchmark interface for project regression, comparative,
   adaptive tuned, and diagnostic workflows. It prepares and verifies pinned
   assets, builds GPU-specific engines and images, runs smoke checks, records
@@ -127,6 +129,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
   three initial runs plus two when needed, and a four-of-five stability
   consensus after extension. Stage profiling remains diagnostic and is never
   used as end-to-end benchmark throughput.
+- Reworked the root README to lead with exact tuned throughput, attributed CPU,
+  peak VRAM, and a three-command validated demo before implementation details.
 
 ### Fixed
 

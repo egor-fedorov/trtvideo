@@ -1,0 +1,109 @@
+name: Bug report
+description: Report reproducible runtime, model, media, Docker, or tooling behavior
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not disclose vulnerabilities here. Use the private reporting link in `SECURITY.md`.
+        Remove credentials, private media, proprietary model data, hostnames, absolute host paths, and GPU UUIDs from logs.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Video processing pipeline
+        - Model export or ONNX preparation
+        - TensorRT engine build
+        - Docker image or demo
+        - Benchmark tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe what happened and why it is incorrect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest reliable sequence of steps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Complete relevant output
+      description: Include the first error and its context, not only the final exit code.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: revision
+    attributes:
+      label: trtvideo release or commit
+      placeholder: v0.x.y or git rev-parse HEAD
+    validations:
+      required: true
+
+  - type: input
+    id: image
+    attributes:
+      label: Docker image reference or digest
+      placeholder: trtvideo:latest or sha256:...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Host and GPU environment
+      description: Include OS, GPU model, NVIDIA driver, Docker, CUDA, and TensorRT versions. Write "not applicable" only for GPU-independent issues.
+      placeholder: |
+        OS:
+        GPU:
+        NVIDIA driver:
+        Docker:
+        CUDA:
+        TensorRT:
+    validations:
+      required: true
+
+  - type: textarea
+    id: model_media
+    attributes:
+      label: Model, engine, and media contract
+      description: Include model source/type, tensor shapes, engine sidecar fields, input resolution, codec, and sanitized ffprobe output when relevant.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed sensitive or proprietary data from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

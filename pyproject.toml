@@ -1,11 +1,43 @@
 [project]
 name = "trtvideo"
 version = "0.3.1"
-description = "TensorRT video processing with GPU-resident pipelines"
+description = "GPU-resident TensorRT video upscaling from compressed input to muxed output"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
+authors = [
+    { name = "Egor Fyodorov" },
+]
+keywords = [
+    "tensorrt",
+    "nvenc",
+    "nvdec",
+    "cv-cuda",
+    "video-upscaling",
+    "real-esrgan",
+    "gpu-inference",
+    "super-resolution",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/egor-fedorov/trtvideo"
+Source = "https://github.com/egor-fedorov/trtvideo"
+Issues = "https://github.com/egor-fedorov/trtvideo/issues"
+Documentation = "https://github.com/egor-fedorov/trtvideo/blob/main/docs/ARCHITECTURE.md"
+Changelog = "https://github.com/egor-fedorov/trtvideo/blob/main/docs/CHANGES.md"
+"Benchmark Results" = "https://github.com/egor-fedorov/trtvideo/tree/main/benchmarks/results/rtx-3090"
 
 [build-system]
 requires = ["setuptools>=68"]
