@@ -18,8 +18,12 @@ from benchmarks.scripts.workloads.prepare import (
     verify_source_file,
 )
 
-MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_sintel.json")
-SPAN_MANIFEST_PATH = Path("benchmarks/workloads/liveaction_span_sintel.json")
+MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_madrid.json")
+SPAN_MANIFEST_PATH = Path("benchmarks/workloads/liveaction_span_madrid.json")
+LEGACY_MANIFEST_PATHS = (
+    Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"),
+    Path("benchmarks/workloads/liveaction_span_sintel.json"),
+)
 
 
 @pytest.fixture
@@ -35,16 +39,41 @@ def test_span_manifest_is_valid() -> None:
     validate_manifest(json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8")))
 
 
+def test_legacy_sintel_manifests_remain_valid() -> None:
+    for path in LEGACY_MANIFEST_PATHS:
+        validate_manifest(json.loads(path.read_text(encoding="utf-8")))
+
+
 def test_workload_benchmark_contract_versions_are_explicit() -> None:
     realesrgan = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     span = json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8"))
 
-    assert realesrgan["benchmark"]["contract_version"] == 3
+    assert realesrgan["benchmark"]["contract_version"] == 1
     assert realesrgan["benchmark"]["measured_frames"] == 1000
     assert realesrgan["benchmark"]["warmup_frames"] == 30
     assert span["benchmark"]["contract_version"] == 1
     assert span["benchmark"]["measured_frames"] == 1000
     assert span["benchmark"]["warmup_frames"] == 100
+
+
+def test_canonical_workloads_share_pinned_madrid_media_contract() -> None:
+    realesrgan = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    span = json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    assert realesrgan["clip"] == span["clip"]
+    assert realesrgan["clip"]["source"] == {
+        "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Madrid-2021-05-06.webm",
+        "sha256": "ac70e498797426cb40a278c19c53b8305ce42a9786c25e99544b7084aa5f744d",
+        "size_bytes": 175932820,
+        "license": "CC0-1.0",
+        "license_reference": "https://commons.wikimedia.org/wiki/File:Madrid-2021-05-06.webm",
+        "attribution": "Madrid-2021-05-06 by Nicolas Vigier",
+    }
+    assert realesrgan["clip"]["temporal_sampling"] == {
+        "source_fps": "19001/317",
+        "method": "drop",
+        "round": "near",
+    }
 
 
 def test_quality_frame_indices_remain_on_full_canonical_clip() -> None:
@@ -86,6 +115,22 @@ def test_manifest_rejects_invalid_benchmark_contract_version(manifest: dict) -> 
         WorkloadError,
         match="benchmark.contract_version",
     ):
+        validate_manifest(invalid)
+
+
+def test_manifest_rejects_temporal_upsampling_declared_as_drop(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    invalid["clip"]["temporal_sampling"]["source_fps"] = "12/1"
+
+    with pytest.raises(WorkloadError, match="cannot be lower"):
+        validate_manifest(invalid)
+
+
+def test_manifest_rejects_unknown_temporal_sampling_method(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    invalid["clip"]["temporal_sampling"]["method"] = "interpolate"
+
+    with pytest.raises(WorkloadError, match="must be 'drop'"):
         validate_manifest(invalid)
 
 
@@ -156,20 +201,34 @@ def test_build_ffmpeg_command_pins_media_contract(manifest: dict, tmp_path: Path
     variant = manifest["clip"]["variants"][0]
     command = build_ffmpeg_command(
         manifest,
-        tmp_path / "source.y4m",
+        tmp_path / "source.mov",
         variant,
         tmp_path / "output.mp4",
     )
 
     assert command[0] == "ffmpeg"
-    assert "scale=1280:720:flags=lanczos,setsar=1" in command
+    assert "fps=fps=24/1:round=near,scale=1280:720:flags=lanczos,setsar=1" in command
     assert command[command.index("-frames:v") + 1] == "1000"
-    assert command[command.index("-r") + 1] == "24/1"
+    assert "-r" not in command
     assert command[command.index("-pix_fmt") + 1] == "yuv420p"
     assert command[command.index("-x264-params") + 1] == (
-        "keyint=24:min-keyint=24:scenecut=0:bframes=0:"
+        "keyint=24:min-keyint=24:scenecut=0:bframes=3:"
         "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited"
     )
+
+
+def test_legacy_sintel_command_preserves_original_timing_contract(tmp_path: Path) -> None:
+    legacy = json.loads(LEGACY_MANIFEST_PATHS[0].read_text(encoding="utf-8"))
+    command = build_ffmpeg_command(
+        legacy,
+        tmp_path / "source.y4m",
+        legacy["clip"]["variants"][0],
+        tmp_path / "output.mp4",
+    )
+
+    assert command[command.index("-vf") + 1] == ("scale=1280:720:flags=lanczos,setsar=1")
+    assert command[command.index("-r") + 1] == "24/1"
+    assert "bframes=0" in command[command.index("-x264-params") + 1]
 
 
 def test_build_model_commands_use_static_variants(manifest: dict, tmp_path: Path) -> None:
@@ -196,7 +255,7 @@ def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:
                 "avg_frame_rate": "24/1",
                 "nb_frames": "1000",
                 "nb_read_frames": "1000",
-                "has_b_frames": 0,
+                "has_b_frames": 2,
                 "sample_aspect_ratio": "1:1",
                 "color_range": "tv",
                 "color_space": "bt709",
@@ -210,7 +269,7 @@ def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:
     validate_video_probe(probe, variant=variant, clip=clip)
 
 
-def test_validate_video_probe_rejects_old_b_frame_clip(manifest: dict) -> None:
+def test_validate_video_probe_rejects_wrong_b_frame_depth(manifest: dict) -> None:
     clip = manifest["clip"]
     variant = clip["variants"][0]
     probe = {
@@ -225,7 +284,7 @@ def test_validate_video_probe_rejects_old_b_frame_clip(manifest: dict) -> None:
                 "avg_frame_rate": "24/1",
                 "nb_frames": "1000",
                 "nb_read_frames": "1000",
-                "has_b_frames": 2,
+                "has_b_frames": 0,
                 "sample_aspect_ratio": "1:1",
                 "color_range": "tv",
                 "color_space": "bt709",

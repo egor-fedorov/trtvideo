@@ -123,7 +123,17 @@ def build_ffmpeg_command(
         f"colorprim={encode['color_primaries']}:transfer={encode['color_transfer']}:"
         f"colormatrix={encode['color_space']}:range=limited"
     )
-    return [
+    filters = []
+    temporal_sampling = clip.get("temporal_sampling")
+    if temporal_sampling is not None:
+        filters.append(f"fps=fps={clip['fps']}:round={temporal_sampling['round']}")
+    filters.extend(
+        (
+            f"scale={variant['width']}:{variant['height']}:flags=lanczos",
+            "setsar=1",
+        )
+    )
+    command = [
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
@@ -139,31 +149,36 @@ def build_ffmpeg_command(
         "-sn",
         "-dn",
         "-vf",
-        f"scale={variant['width']}:{variant['height']}:flags=lanczos,setsar=1",
-        "-r",
-        clip["fps"],
-        "-c:v",
-        encode["codec"],
-        "-preset",
-        encode["preset"],
-        "-crf",
-        str(encode["crf"]),
-        "-pix_fmt",
-        encode["pixel_format"],
-        "-x264-params",
-        x264_params,
-        "-color_range",
-        encode["color_range"],
-        "-colorspace",
-        encode["color_space"],
-        "-color_trc",
-        encode["color_transfer"],
-        "-color_primaries",
-        encode["color_primaries"],
-        "-movflags",
-        "+faststart",
-        str(output),
+        ",".join(filters),
     ]
+    if temporal_sampling is None:
+        command.extend(("-r", clip["fps"]))
+    command.extend(
+        (
+            "-c:v",
+            encode["codec"],
+            "-preset",
+            encode["preset"],
+            "-crf",
+            str(encode["crf"]),
+            "-pix_fmt",
+            encode["pixel_format"],
+            "-x264-params",
+            x264_params,
+            "-color_range",
+            encode["color_range"],
+            "-colorspace",
+            encode["color_space"],
+            "-color_trc",
+            encode["color_transfer"],
+            "-color_primaries",
+            encode["color_primaries"],
+            "-movflags",
+            "+faststart",
+            str(output),
+        )
+    )
+    return command
 
 
 def build_model_commands(manifest: dict[str, Any], root: Path) -> list[list[str]]:
@@ -257,7 +272,7 @@ def validate_video_probe(
         "color_space": clip["encode"]["color_space"],
         "color_transfer": clip["encode"]["color_transfer"],
         "color_primaries": clip["encode"]["color_primaries"],
-        "has_b_frames": clip["encode"]["b_frames"],
+        "has_b_frames": clip["encode"].get("ffprobe_has_b_frames", clip["encode"]["b_frames"]),
         "sample_aspect_ratio": "1:1",
     }
     for key, expected_value in expected.items():
@@ -336,7 +351,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
 
 
 def prepare_clips(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
-    """Create deterministic compressed inputs from the lossless source."""
+    """Create deterministic compressed inputs from the pinned source."""
     clip = manifest["clip"]
     source = repo_path(root, clip["source_path"])
     for variant in clip["variants"]:
@@ -402,6 +417,11 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
                 "height": variant["height"],
                 "frames": clip["frames"],
                 "fps": clip["fps"],
+                "x264_b_frames": clip["encode"]["b_frames"],
+                "ffprobe_has_b_frames": clip["encode"].get(
+                    "ffprobe_has_b_frames", clip["encode"]["b_frames"]
+                ),
+                "temporal_sampling": clip.get("temporal_sampling"),
             }
         )
 

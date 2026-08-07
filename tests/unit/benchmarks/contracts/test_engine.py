@@ -13,7 +13,7 @@ from benchmarks.scripts.contracts.engine import (
     validate_vsgan_engine_contract,
 )
 
-MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_sintel.json")
+MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_madrid.json")
 
 
 def manifest() -> dict:

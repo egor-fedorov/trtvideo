@@ -29,6 +29,10 @@ def test_canonical_matrix_contains_two_models_and_two_resolutions() -> None:
     matrix = load_workflow_matrix(MATRIX_PATH)
 
     assert matrix.workload_keys == ("realesrgan", "span")
+    assert {workload.key: workload.manifest for workload in matrix.workloads} == {
+        "realesrgan": "benchmarks/workloads/realesrgan_x2plus_madrid.json",
+        "span": "benchmarks/workloads/liveaction_span_madrid.json",
+    }
     assert {workload.key: workload.tuning_contract for workload in matrix.workloads} == {
         "realesrgan": "benchmarks/tuning/candidates.json",
         "span": "benchmarks/tuning/span_candidates.json",

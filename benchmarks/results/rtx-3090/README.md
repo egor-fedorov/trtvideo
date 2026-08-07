@@ -11,6 +11,9 @@ and clip assets, the same output contract, and an active 350 W board limit. No
 reduced power cap was applied. Result classes are independent sessions and are
 not compared row-by-row across revisions or physical GPU instances. Every
 within-class product comparison used one physical GPU and one clean revision.
+The snapshot uses the pinned Sintel media contract that was canonical at
+measurement time. It is retained unchanged as historical evidence and must not
+be compared directly with future Madrid workload results.
 
 The tuned final campaigns used 1000 measured frames, 30 RealESRGAN or 100 SPAN
 warmup frames, three rotated rounds, and ten seconds idle between processes.

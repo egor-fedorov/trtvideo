@@ -6,12 +6,7 @@ work belongs in `docs/CHANGES.md`, measured changes in
 `benchmarks/methodology.md`, and published evidence in
 `benchmarks/results/`.
 
-## 1. Benchmark Follow-Up
-
-- run one confirmation workload on a short live-action clip with substantial
-  motion and fine detail;
-
-## 2. Open-Source Release
+## 1. Open-Source Release
 
 - audit dependency, model, and benchmark-media licenses and document any
   redistribution restrictions;
@@ -22,7 +17,7 @@ work belongs in `docs/CHANGES.md`, measured changes in
   validation;
 - publish the first public versioned GitHub release.
 
-## 3. Later
+## 2. Later
 
 - improve the media contract for VFR, rotation, SAR/DAR, duration, and missing
   `nb_frames`;

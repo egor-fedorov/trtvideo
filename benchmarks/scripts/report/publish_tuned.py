@@ -12,7 +12,13 @@ CANONICAL_ROOT = PurePosixPath("artefacts/benchmarks/comparative/tuning")
 DEFAULT_OUTPUT = Path("benchmarks/results/rtx-3090/tuned.json")
 DEFAULT_IMPLEMENTATIONS = Path("benchmarks/implementations.json")
 DEFAULT_TUNING_CONTRACT = Path("benchmarks/tuning/candidates.json")
-WORKLOADS = (
+CANONICAL_WORKLOADS = (
+    ("realesrgan_x2plus_madrid", "RealESRGAN_x2plus", "720p"),
+    ("realesrgan_x2plus_madrid", "RealESRGAN_x2plus", "1080p"),
+    ("liveaction_span_madrid", "SPAN", "720p"),
+    ("liveaction_span_madrid", "SPAN", "1080p"),
+)
+LEGACY_SINTEL_WORKLOADS = (
     ("realesrgan_x2plus_sintel", "RealESRGAN_x2plus", "720p"),
     ("realesrgan_x2plus_sintel", "RealESRGAN_x2plus", "1080p"),
     ("liveaction_span_sintel", "SPAN", "720p"),
@@ -54,6 +60,15 @@ class EvidenceSource:
         except ValueError as exc:
             raise PublicationError(f"Artifact path escapes tuned evidence: {path}") from exc
         return self.root / Path(*relative.parts)
+
+
+def _workloads_for_source(source: EvidenceSource) -> tuple[tuple[str, str, str], ...]:
+    """Select the canonical contract while retaining legacy Sintel publication support."""
+    for workloads in (CANONICAL_WORKLOADS, LEGACY_SINTEL_WORKLOADS):
+        bases = {base for base, _, _ in workloads}
+        if all((source.root / f"{base}-matrix.json").is_file() for base in bases):
+            return workloads
+    raise PublicationError("Tuned evidence does not contain a complete known workload matrix")
 
 
 def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
@@ -341,9 +356,10 @@ def build_document(
     implementations_path: Path,
     tuning_contract_path: Path,
 ) -> dict[str, Any]:
+    workload_specs = _workloads_for_source(source)
     workloads = [
         _compact_workload(source, base, workload_name, variant)
-        for base, workload_name, variant in WORKLOADS
+        for base, workload_name, variant in workload_specs
     ]
     first_campaign_path = source.resolve(workloads[0]["final_campaign"]["campaign"]["path"])
     raw_campaign = _load(first_campaign_path)
@@ -354,7 +370,7 @@ def build_document(
     date_utc = str(manifest["started_at_utc"])[:10]
 
     matrices = []
-    for base in ("realesrgan_x2plus_sintel", "liveaction_span_sintel"):
+    for base in dict.fromkeys(base for base, _, _ in workload_specs):
         path = source.root / f"{base}-matrix.json"
         evidence = _load(path)
         if evidence["status"] != "valid" or evidence["publishable"] is not True:
@@ -367,7 +383,7 @@ def build_document(
 
     identities = [
         _output_identity(source, base, workload_name, variant, workload["selection"]["winners"])
-        for (base, workload_name, variant), workload in zip(WORKLOADS, workloads, strict=True)
+        for (base, workload_name, variant), workload in zip(workload_specs, workloads, strict=True)
     ]
     independent = {
         "capture_manifest_sha256_differ": all(

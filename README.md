@@ -31,7 +31,9 @@ Source: the privacy-reviewed [RTX 3090 tuned result](benchmarks/results/rtx-3090
 measured on 2026-07-31 from revision `cb5e645`. See the
 [full result report](benchmarks/results/rtx-3090/README.md) and
 [benchmark methodology](benchmarks/methodology.md) for the complete provenance,
-quality gates, and tuning contract.
+quality gates, and tuning contract. This historical snapshot used the pinned
+Sintel media contract; new canonical runs use the CC0 live-action Madrid
+contract and are not compared across those inputs.
 
 ## Quick Start
 
@@ -361,10 +363,12 @@ docker run --rm --gpus all \
 
 ### 5. Prepare A Benchmark Workload
 
-The canonical workload uses `RealESRGAN_x2plus` and the public lossless Sintel
-trailer. The command downloads approximately 3.7 GB of source data, creates H.264
-inputs for 720p/1080p, and exports static mixed-FP16 ONNX files. It does not build
-a TensorRT engine; engines must be built on the GPU used for the benchmark.
+The canonical workload uses `RealESRGAN_x2plus` and a 70-second CC0 live-action
+Madrid source. The resumable first download is approximately 168 MiB.
+Preparation deterministically samples its roughly 60 fps timeline to 24 fps,
+creates 1000-frame H.264 inputs for 720p/1080p, and exports static mixed-FP16
+ONNX files. It does not build a TensorRT engine; engines must be built on the GPU
+used for the benchmark.
 
 ```bash
 make -C benchmarks prepare
@@ -394,11 +398,11 @@ make -C benchmarks run-project \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 ```
 
-The runner uses a separate 100-frame warmup process followed by at least three
-measured processes of 1000 frames each. If FPS spread exceeds 5%, it runs two
-additional processes. The regular benchmark does not enable `--profile`; it
-measures wall time from child `trtvideo` startup through encode, flush, mux, and
-process exit.
+The runner uses a separate workload-defined warmup process (30 frames for
+RealESRGAN, 100 for SPAN) followed by at least three measured processes of 1000
+frames each. If FPS spread exceeds 5%, it runs two additional processes. The
+regular benchmark does not enable `--profile`; it measures wall time from child
+`trtvideo` startup through encode, flush, mux, and process exit.
 
 Run a short infrastructure check before the full benchmark:
 

@@ -17,7 +17,9 @@ different contracts or revisions.
 
 - [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated
   upstream-default, best-tuned, `trtexec`, and Nsight evidence for RealESRGAN
-  and SPAN at `720p -> 1440p` and `1080p -> 4K`.
+  and SPAN at `720p -> 1440p` and `1080p -> 4K`. This snapshot uses the legacy
+  Sintel media contract and remains historical after the canonical workflow's
+  move to the CC0 Madrid live-action source.
 
 The snapshots were measured after the repository privacy rewrite and corrected
 limited-range color path. Every result class records its own clean revision,

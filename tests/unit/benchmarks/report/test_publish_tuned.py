@@ -5,11 +5,14 @@ from pathlib import Path
 import pytest
 
 from benchmarks.scripts.report.publish_tuned import (
+    CANONICAL_WORKLOADS,
+    LEGACY_SINTEL_WORKLOADS,
     EvidenceSource,
     PublicationError,
     _intra_session_reproducibility,
     _run_observations,
     _tensor_set_digest,
+    _workloads_for_source,
 )
 
 
@@ -36,6 +39,24 @@ def test_evidence_source_maps_only_canonical_paths(tmp_path: Path) -> None:
 
     with pytest.raises(PublicationError, match="escapes tuned evidence"):
         source.resolve("artefacts/benchmarks/project/suite.json")
+
+
+@pytest.mark.parametrize(
+    ("workloads", "expected"),
+    (
+        (CANONICAL_WORKLOADS, CANONICAL_WORKLOADS),
+        (LEGACY_SINTEL_WORKLOADS, LEGACY_SINTEL_WORKLOADS),
+    ),
+)
+def test_publication_detects_complete_media_contract(
+    tmp_path: Path,
+    workloads: tuple[tuple[str, str, str], ...],
+    expected: tuple[tuple[str, str, str], ...],
+) -> None:
+    for base in {item[0] for item in workloads}:
+        (tmp_path / f"{base}-matrix.json").write_text("{}\n", encoding="utf-8")
+
+    assert _workloads_for_source(EvidenceSource(tmp_path)) == expected
 
 
 def test_run_observations_summarize_all_campaign_rounds(tmp_path: Path) -> None:

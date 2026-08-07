@@ -59,21 +59,33 @@ Both models are exported through Spandrel to static full-frame ONNX. The
 canonical tensor contract is batch 1, RGB NCHW, FP32 input/output bindings, a
 mixed-FP16 graph, and no tiling.
 
-The primary input is derived from the lossless Sintel trailer in 1080p24 Y4M.
-Two video-only H.264 inputs are prepared:
+The canonical input is derived from the 70.088-second CC0 live-action
+`Madrid-2021-05-06` source (`1920x1080`, VP9, approximately 60 fps). Its crowded
+nighttime street scene contains people, camera motion, fine detail, and difficult
+low-light texture. The preparation command deterministically drops frames with
+FFmpeg's `fps` filter (`round=near`) before scaling, then retains exactly 1000
+output frames at 24 fps. Two video-only H.264 inputs are prepared:
 
-| Mode | Input | Output | Frames | FPS |
+| Variant | Input | Output | Frames | FPS |
 |---|---:|---:|---:|---:|
-| primary | 1920x1080 | 3840x2160 | 1000 | 24/1 |
-| confirmation | 1280x720 | 2560x1440 | 1000 | 24/1 |
+| 720p | 1280x720 | 2560x1440 | 1000 | 24/1 |
+| 1080p | 1920x1080 | 3840x2160 | 1000 | 24/1 |
 
-The input uses `yuv420p`, limited BT.709, SAR 1:1, zero B-frames, and GOP 24.
-Audio, subtitles, chapters, and user metadata are absent. URLs, hashes,
-licenses, and attribution are stored in `workloads/`.
+The input uses libx264 medium/CRF 18, `yuv420p`, limited BT.709, SAR 1:1, GOP
+24, and `bframes=3`; the prepared stream is required to report FFprobe
+`has_b_frames=2`. Input B-frames exercise ordinary decode reordering. The
+separate benchmark output contract keeps NVENC B-frames disabled to guarantee
+monotonic mux timestamps. Audio, subtitles, chapters, and user metadata are
+absent. URLs, exact sizes, SHA256 hashes, licenses, attribution, temporal
+sampling, and both B-frame values are stored in the workload and asset lock.
+The downloadable source is compressed rather than a camera master; this does
+not vary between implementations because every run consumes the same prepared,
+hash-pinned H.264 asset.
 
-After the canonical campaign, the headline workload is repeated on a short
-live-action clip with substantial motion and fine detail. These results are
-published separately from Sintel.
+The previous Sintel manifests remain immutable for reproduction of published
+historical snapshots, but they are not selected by the canonical workflow.
+Results from Sintel and Madrid are different media contracts and must not be
+pooled or compared as an implementation regression.
 
 ## Inference Contract
 

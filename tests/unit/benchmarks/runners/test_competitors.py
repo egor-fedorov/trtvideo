@@ -39,7 +39,7 @@ from benchmarks.scripts.workloads.build_vsgan_engine import (
     build_command as build_vsgan_engine_command,
 )
 
-MANIFEST_PATH = "benchmarks/workloads/realesrgan_x2plus_sintel.json"
+MANIFEST_PATH = "benchmarks/workloads/realesrgan_x2plus_madrid.json"
 IMPLEMENTATIONS_PATH = "benchmarks/implementations.json"
 BENCHMARK_PLAN_KEYS = {
     "schema_version",
@@ -67,7 +67,7 @@ def common_args(**overrides) -> argparse.Namespace:
         "implementations": IMPLEMENTATIONS_PATH,
         "variant": "1080p",
         "engine": "/app/models/model.engine",
-        "input": "/app/videos/benchmarks/sintel_1080p24_h264.mp4",
+        "input": "/app/videos/benchmarks/madrid_2021_05_06_1080p24_h264.mp4",
         "output_dir": "/app/artefacts/results",
         "json": None,
         "gpu_id": 0,
@@ -152,7 +152,7 @@ def test_trtexec_plan_is_diagnostic() -> None:
     plan, _ = build_trtexec_plan(args)
 
     assert plan["implementation"]["role"] == "diagnostic"
-    assert plan["benchmark_contract_version"] == 3
+    assert plan["benchmark_contract_version"] == 1
     assert "--iterations=1000" in plan["commands"]["measured"][0]
     assert plan["parameters"]["data_transfers"] is False
     assert plan["assets"][0]["present"] is False
@@ -190,7 +190,7 @@ def test_vstrt_plan_uses_absolute_container_input() -> None:
     assert len(spec) == 2
     assert spec[0][0] == "vspipe"
     assert spec[0][spec[0].index("--end") + 1] == "999"
-    assert "source=/app/videos/benchmarks/sintel_1080p24_h264.mp4" in spec[0]
+    assert "source=/app/videos/benchmarks/madrid_2021_05_06_1080p24_h264.mp4" in spec[0]
     assert spec[1][0] == "ffmpeg"
     assert spec[1][spec[1].index("-b:v") + 1] == "60000000"
     assert spec[1][spec[1].index("-rc_init_occupancy") + 1] == "60000000"
@@ -249,7 +249,7 @@ def test_vsgan_plan_uses_upstream_defaults() -> None:
     plan, _ = build_vsgan_plan(common_args())
     vspipe, _ = plan["commands"]["measured"]
 
-    assert plan["benchmark_contract_version"] == 3
+    assert plan["benchmark_contract_version"] == 1
     assert vspipe[vspipe.index("--end") + 1] == "999"
     assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["implementation"]["exact_model_match"] is True

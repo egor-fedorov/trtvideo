@@ -198,7 +198,7 @@ def _cuda_oom_evidence(
 
 def _complete_search(tmp_path: Path) -> tuple[Any, dict[str, Any], Path]:
     contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
-    workload = load_manifest(Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"))
+    workload = load_manifest(Path("benchmarks/workloads/realesrgan_x2plus_madrid.json"))
     sweep_dir = tmp_path / "artefacts" / "sweep"
     scout_speeds = {
         "vstrt": [10.0, 12.0, 11.9, 11.8, 11.0, 10.8, 10.5, 10.2],

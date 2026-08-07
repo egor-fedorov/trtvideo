@@ -87,6 +87,32 @@ def _validate_source(source: dict[str, Any], field: str) -> None:
             raise WorkloadError(f"Manifest field '{field}.{metadata_key}' is required")
 
 
+def _validate_temporal_sampling(clip: dict[str, Any]) -> None:
+    sampling = clip.get("temporal_sampling")
+    if sampling is None:
+        return
+    if not isinstance(sampling, dict):
+        raise WorkloadError("Manifest field 'clip.temporal_sampling' must be an object")
+    try:
+        source_fps = Fraction(str(sampling.get("source_fps")))
+    except (ValueError, ZeroDivisionError) as exc:
+        raise WorkloadError(
+            "Manifest field 'clip.temporal_sampling.source_fps' must be a rational FPS"
+        ) from exc
+    if source_fps <= 0:
+        raise WorkloadError("Manifest field 'clip.temporal_sampling.source_fps' must be positive")
+    target_fps = Fraction(str(clip["fps"]))
+    if source_fps < target_fps:
+        raise WorkloadError(
+            "Manifest field 'clip.temporal_sampling.source_fps' cannot be lower "
+            "than clip.fps when using frame dropping"
+        )
+    if sampling.get("method") != "drop":
+        raise WorkloadError("Manifest field 'clip.temporal_sampling.method' must be 'drop'")
+    if sampling.get("round") != "near":
+        raise WorkloadError("Manifest field 'clip.temporal_sampling.round' must be 'near'")
+
+
 def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int) -> None:
     quality = _require_dict(manifest, "quality")
     model_space = _require_dict(quality, "model_space")
@@ -257,6 +283,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         raise WorkloadError("Manifest field 'clip.fps' must be a rational FPS") from exc
     if fps <= 0:
         raise WorkloadError("Manifest field 'clip.fps' must be positive")
+    _validate_temporal_sampling(clip)
     encode = _require_dict(clip, "encode")
     required_encode_fields = {
         "codec",
@@ -275,6 +302,11 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         raise WorkloadError(f"Manifest clip.encode fields are missing: {', '.join(missing)}")
     if not isinstance(encode.get("b_frames"), int) or encode["b_frames"] < 0:
         raise WorkloadError("Manifest field 'clip.encode.b_frames' must be non-negative")
+    ffprobe_has_b_frames = encode.get("ffprobe_has_b_frames", encode["b_frames"])
+    if not isinstance(ffprobe_has_b_frames, int) or ffprobe_has_b_frames < 0:
+        raise WorkloadError(
+            "Manifest field 'clip.encode.ffprobe_has_b_frames' must be non-negative"
+        )
     clip_variants = _require_list(clip, "variants")
 
     model_names = set()

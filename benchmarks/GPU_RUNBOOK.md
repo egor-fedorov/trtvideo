@@ -14,7 +14,9 @@ The host must provide:
 - GNU Make and Git;
 - Python `>=3.10,<3.13` for the host coordinator;
 - enough disk space for the production, benchmark, vstrt, and pinned VSGAN
-  images when competitor workflows are selected.
+  images when competitor workflows are selected;
+- space for the 168 MiB canonical source, prepared clips, models, engines, and
+  workflow artifacts.
 
 Use `HOST_PYTHON` when `python3` is not the intended interpreter:
 
@@ -111,7 +113,7 @@ After the run, inspect the median internal lifecycle intervals:
 
 ```bash
 jq '.statistics.median_lifecycle_intervals_sec' \
-  artefacts/benchmarks/project/liveaction_span_sintel-720p/suite.json
+  artefacts/benchmarks/project/liveaction_span_madrid-720p/suite.json
 ```
 
 This diagnostic breakdown does not replace the suite's external end-to-end FPS
@@ -225,15 +227,15 @@ Common examples:
 
 ```bash
 make -C benchmarks verify \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json
 
 make -C benchmarks run-project \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 
 make -C benchmarks profile-nsight \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 ```

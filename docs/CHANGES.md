@@ -131,6 +131,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   used as end-to-end benchmark throughput.
 - Reworked the root README to lead with exact tuned throughput, attributed CPU,
   peak VRAM, and a three-command validated demo before implementation details.
+- Replaced the canonical animated Sintel benchmark input with a 70-second CC0
+  live-action Madrid source. Preparation now records deterministic frame
+  dropping by timestamp to 24 fps and restores ordinary x264 input B-frames,
+  while the independent NVENC output contract remains B-frame-free. Legacy
+  Sintel manifests and published snapshots remain immutable historical evidence.
 
 ### Fixed
 

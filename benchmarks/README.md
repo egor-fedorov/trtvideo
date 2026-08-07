@@ -142,18 +142,18 @@ at 1080p because its lighter inference makes pipeline gaps more visible:
 
 ```bash
 make -C benchmarks plan-nsight \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 
 make -C benchmarks profile-nsight \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json \
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json \
   VARIANT=1080p \
   ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 ```
 
 The 120-frame trace and CLI reports are written under
-`artefacts/benchmarks/diagnostics/nsight/liveaction_span_sintel-1080p/`.
+`artefacts/benchmarks/diagnostics/nsight/liveaction_span_madrid-1080p/`.
 `manifest.json` records the workload, engine and image contract; the ignored
 `.nsys-rep` can be opened with a matching or newer Nsight Systems GUI. The
 runner requires GPU video tracing and validates the complete output after
@@ -237,10 +237,10 @@ make -C benchmarks run-comparative \
 
 `upstream-default` is not automatically the fastest vstrt configuration:
 upstream keeps one TensorRT stream and recommends increasing it when the GPU is
-not saturated. RealESRGAN therefore tests vstrt streams `2/3/4`. The lighter
-SPAN workload tests `2/3/4/5/6`: boundary measurements found the maximum at
-`5`, while `6` confirmed that throughput no longer increased. Manual
-`VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not replace the
+not saturated. The tuned workflow searches the declared `1..8` range
+adaptively, confirms the strongest candidates from scratch, and records either
+a proven early stop, the upper boundary, or a reproducible resource ceiling.
+Manual `VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not replace the
 manifest-driven selection report.
 
 ## Assets
@@ -257,15 +257,15 @@ For SPAN:
 
 ```bash
 make -C benchmarks prepare \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json
 make -C benchmarks verify \
-  MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+  MANIFEST=benchmarks/workloads/liveaction_span_madrid.json
 ```
 
-The first run downloads approximately 3.7 GB of lossless Sintel source data.
-Both workloads reuse this source and the prepared clips. Model weights,
-generated ONNX files, and clips remain in ignored `models/` and `videos/`
-directories.
+The first run downloads approximately 168 MiB of CC0 live-action source data.
+Interrupted downloads resume through HTTP range requests. Both workloads reuse
+this source and the prepared clips. Model weights, generated ONNX files, and
+clips remain in ignored `models/` and `videos/` directories.
 
 Recreate only the clips without exporting the models again:
 
@@ -312,7 +312,7 @@ make -C benchmarks dry-run \
 For SPAN, override the model paths together with `MANIFEST`:
 
 ```bash
-MANIFEST=benchmarks/workloads/liveaction_span_sintel.json
+MANIFEST=benchmarks/workloads/liveaction_span_madrid.json
 ONNX=models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx
 ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
 VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
@@ -383,7 +383,7 @@ make -C benchmarks run-comparative \
 ```
 
 Results are written to
-`artefacts/benchmarks/comparative/campaigns/upstream-default/realesrgan_x2plus_sintel-1080p/`:
+`artefacts/benchmarks/comparative/campaigns/upstream-default/realesrgan_x2plus_madrid-1080p/`:
 raw manifests, `campaign.config.json`, `campaign.events.jsonl`, `campaign.json`,
 and `results.md`. The config fixes scheduling identity; the event log records
 the actual order, start/end time, and observed pause for each run. The aggregator

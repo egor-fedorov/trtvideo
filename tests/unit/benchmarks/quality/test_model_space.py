@@ -303,8 +303,8 @@ def test_vapoursynth_gbr_planes_are_normalized_to_rgb(tmp_path: Path) -> None:
 
 def test_workload_manifests_fix_model_space_contract() -> None:
     for path in (
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"),
-        Path("benchmarks/workloads/liveaction_span_sintel.json"),
+        Path("benchmarks/workloads/realesrgan_x2plus_madrid.json"),
+        Path("benchmarks/workloads/liveaction_span_madrid.json"),
     ):
         value = json.loads(path.read_text(encoding="utf-8"))
         quality = value["quality"]["model_space"]

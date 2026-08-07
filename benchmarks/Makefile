@@ -7,7 +7,7 @@ VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
 VSGAN_IMAGE ?= trtvideo:benchmark-vsgan
 VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef
 
-MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_sintel.json
+MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_madrid.json
 IMPLEMENTATIONS ?= benchmarks/implementations.json
 VARIANT ?= 1080p
 ENGINE ?=

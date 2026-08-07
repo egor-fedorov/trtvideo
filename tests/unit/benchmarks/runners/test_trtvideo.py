@@ -304,10 +304,10 @@ def test_sanitize_command_does_not_leak_external_absolute_path(tmp_path: Path) -
 
 def test_canonical_runner_consumes_manifest_contract() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
+        Path("benchmarks/workloads/realesrgan_x2plus_madrid.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
-        manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
+        manifest="benchmarks/workloads/realesrgan_x2plus_madrid.json",
         variant="1080p",
         engine="models/model.engine",
         output_dir="artefacts/results",
@@ -325,7 +325,9 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
     command = build_command(args, manifest)
 
     assert command[0] == "benchmark-trtvideo"
-    assert command[command.index("--input") + 1] == ("videos/benchmarks/sintel_1080p24_h264.mp4")
+    assert command[command.index("--input") + 1] == (
+        "videos/benchmarks/madrid_2021_05_06_1080p24_h264.mp4"
+    )
     assert command[command.index("--bitrate-mbps") + 1] == "60"
     assert command[command.index("--warmup-frames") + 1] == "30"
     assert command[command.index("--frames") + 1] == "1000"
@@ -334,10 +336,10 @@ def test_canonical_runner_consumes_manifest_contract() -> None:
 
 def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
+        Path("benchmarks/workloads/realesrgan_x2plus_madrid.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
-        manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
+        manifest="benchmarks/workloads/realesrgan_x2plus_madrid.json",
         variant="1080p",
         engine="models/model.engine",
         output_dir="artefacts/results",
@@ -361,10 +363,10 @@ def test_canonical_runner_preserves_explicit_zero_for_downstream_validation() ->
 
 def test_canonical_runner_can_skip_bitrate_validation_for_smoke() -> None:
     manifest = json.loads(
-        Path("benchmarks/workloads/realesrgan_x2plus_sintel.json").read_text(encoding="utf-8")
+        Path("benchmarks/workloads/realesrgan_x2plus_madrid.json").read_text(encoding="utf-8")
     )
     args = argparse.Namespace(
-        manifest="benchmarks/workloads/realesrgan_x2plus_sintel.json",
+        manifest="benchmarks/workloads/realesrgan_x2plus_madrid.json",
         variant="720p",
         engine="models/model.engine",
         output_dir="artefacts/results",
