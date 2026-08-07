@@ -15,6 +15,9 @@ work belongs in `docs/CHANGES.md`, measured changes in
 - move full production and benchmark image builds to a larger or self-hosted
   GitHub Actions runner; hosted runners continue to perform static Dockerfile
   validation;
+- publish versioned production images to GHCR from a trusted release-only
+  runner after the redistribution-license audit, and record each immutable
+  image digest in its GitHub release; benchmark images remain internal;
 - publish the first public versioned GitHub release.
 
 ## 2. Later
