@@ -19,8 +19,8 @@ class _Frame:
     def copy(self) -> _Frame:
         return _Frame(width=self.width, height=self.height, stride=self.stride)
 
-    def get_write_ptr(self, plane: int) -> int:
-        return ctypes.addressof(self.planes[plane])
+    def get_write_ptr(self, plane: int) -> ctypes.c_void_p:
+        return ctypes.c_void_p(ctypes.addressof(self.planes[plane]))
 
     def get_stride(self, _plane: int) -> int:
         return self.stride

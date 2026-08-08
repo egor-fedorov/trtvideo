@@ -38,7 +38,11 @@ def load_raw_rgbs(path, width, height):
         writable = f.copy()
         source_base = ctypes.addressof(source_buffer)
         for plane in range(3):
-            destination = int(writable.get_write_ptr(plane))
+            destination = ctypes.cast(
+                writable.get_write_ptr(plane), ctypes.c_void_p
+            ).value
+            if destination is None:
+                raise ValueError(f"RGBS plane {plane} has a null write pointer")
             stride = writable.get_stride(plane)
             if stride < row_bytes:
                 raise ValueError(f"RGBS stride {stride} is smaller than {row_bytes}")
