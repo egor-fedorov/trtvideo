@@ -62,7 +62,7 @@ class _Std:
 
     def ModifyFrame(self, *, clip: _Clip, clips: _Clip, selector: object) -> _Clip:
         assert clip is clips
-        return _Clip(self.core, selector(0, clip.frame))  # type: ignore[operator]
+        return _Clip(self.core, selector(n=0, f=clip.frame))  # type: ignore[operator]
 
 
 class _Core:

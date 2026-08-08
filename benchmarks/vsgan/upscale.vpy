@@ -34,8 +34,8 @@ def load_raw_rgbs(path, width, height):
         fpsden=1,
     )
 
-    def fill_frame(_n, frame):
-        writable = frame.copy()
+    def fill_frame(n, f):
+        writable = f.copy()
         source_base = ctypes.addressof(source_buffer)
         for plane in range(3):
             destination = int(writable.get_write_ptr(plane))
