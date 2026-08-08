@@ -309,7 +309,7 @@ def _validate_disqualification(
         raise TuningEvidenceError(f"Disqualification evidence is missing: {evidence_path}")
     report = load_json(evidence_path)
     if report.get("document_type") not in {
-        "model-space-parity",
+        "inference-parity",
         "product-output-parity",
     }:
         raise TuningEvidenceError("Candidate disqualification is not a full quality report")

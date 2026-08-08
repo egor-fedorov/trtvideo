@@ -746,6 +746,23 @@ def _failed_implementations(report_path: Path) -> dict[str, str]:
     return failures
 
 
+def _failed_inference_implementations(report_path: Path) -> dict[str, str]:
+    """Return model-output failures; shared-input or identity failures are fatal."""
+    report = _load_json(report_path)
+    for comparison in report.get("comparisons", []):
+        if not isinstance(comparison, dict) or comparison.get("status") == "valid":
+            continue
+        errors = [str(error) for error in comparison.get("errors", [])]
+        infrastructure_errors = [error for error in errors if not error.startswith("output frame ")]
+        if infrastructure_errors:
+            implementation = comparison.get("implementation", "unknown implementation")
+            raise TuningWorkflowError(
+                f"Shared-input inference evidence failed for {implementation}: "
+                + "; ".join(infrastructure_errors)
+            )
+    return _failed_implementations(report_path)
+
+
 def _record_disqualifications(
     path: Path,
     *,
@@ -810,9 +827,10 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             )
         )
         attempt_root = paths.sweep_dir / "winner-quality" / signature
-        model_space_dir = attempt_root / "model-space"
+        tensor_quality_dir = attempt_root / "tensor-quality"
         product_output_dir = attempt_root / "product-output"
-        model_report = model_space_dir / "model-space-parity.json"
+        inference_report = tensor_quality_dir / "inference-parity.json"
+        preprocessing_report = tensor_quality_dir / "preprocessing-diagnostic.json"
         product_report = product_output_dir / "product-output-parity.json"
         if attempt_root.exists() and any(attempt_root.iterdir()):
             raise TuningWorkflowError(
@@ -830,27 +848,27 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             **base,
             "VSTRT_ARGS": winners["vstrt"].runner_arguments(),
             "VSGAN_ARGS": winners["vsgan"].runner_arguments(),
-            "MODEL_SPACE_DIR": paths.relative(model_space_dir),
+            "MODEL_SPACE_DIR": paths.relative(tensor_quality_dir),
             "PRODUCT_OUTPUT_DIR": paths.relative(product_output_dir),
         }
-        _progress(f"[tuned quality attempt {attempt}] Model-space gate")
-        model_result = runner.run(
-            "model-space-parity",
+        _progress(f"[tuned quality attempt {attempt}] Tensor-space quality")
+        inference_result = runner.run(
+            "tensor-quality",
             variables,
-            accepted_artifact=model_report,
+            accepted_artifact=inference_report,
         )
-        if model_result != 0:
-            failures = _failed_implementations(model_report)
+        if inference_result != 0:
+            failures = _failed_inference_implementations(inference_report)
             if not failures:
                 raise TuningWorkflowError(
-                    "Winner model-space gate failed without a candidate-specific "
-                    f"failure: {model_report}"
+                    "Winner inference gate failed without a candidate-specific "
+                    f"failure: {inference_report}"
                 )
             _record_disqualifications(
                 disqualifications_path,
                 winners=winners,
                 failures=failures,
-                evidence=model_report,
+                evidence=inference_report,
                 paths=paths,
             )
             continue
@@ -891,9 +909,13 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             },
             "winners": selection["winners"],
             "quality": {
-                "model_space": {
-                    "path": paths.relative(model_report),
-                    "sha256": _sha256(model_report),
+                "inference_parity": {
+                    "path": paths.relative(inference_report),
+                    "sha256": _sha256(inference_report),
+                },
+                "preprocessing_diagnostic": {
+                    "path": paths.relative(preprocessing_report),
+                    "sha256": _sha256(preprocessing_report),
                 },
                 "product_output": {
                     "path": paths.relative(product_report),
@@ -921,10 +943,15 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
     winners = _selected_candidates(selection, contract)
     signature = _winner_signature(winners)
     quality_values = quality["quality"]
-    model_report = _under_root(
+    inference_report = _under_root(
         paths,
-        Path(quality_values["model_space"]["path"]),
-        label="Model-space report",
+        Path(quality_values["inference_parity"]["path"]),
+        label="Inference parity report",
+    )
+    preprocessing_report = _under_root(
+        paths,
+        Path(quality_values["preprocessing_diagnostic"]["path"]),
+        label="Preprocessing diagnostic",
     )
     product_report = _under_root(
         paths,
@@ -948,11 +975,13 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "VSTRT_ARGS": winners["vstrt"].runner_arguments(),
         "VSGAN_ARGS": winners["vsgan"].runner_arguments(),
-        "MODEL_SPACE_DIR": paths.relative(model_report.parent),
+        "MODEL_SPACE_DIR": paths.relative(inference_report.parent),
         "PRODUCT_OUTPUT_DIR": paths.relative(product_report.parent),
         "CAMPAIGN_DIR": paths.relative(campaign_dir),
         "RESUME": "1" if args.resume else "0",
     }
+    if preprocessing_report.parent != inference_report.parent:
+        raise TuningWorkflowError("Tensor-space quality reports are not co-located")
     _progress(
         "[tuned campaign] "
         + ", ".join(

@@ -50,18 +50,16 @@ TUNING_RESUME ?= 0
 TUNING_720_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-720p
 TUNING_1080_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-1080p
 TUNING_MATRIX_OUTPUT ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-matrix.json
-MODEL_SPACE_REFERENCE ?=
-MODEL_SPACE_CANDIDATE ?=
-MODEL_SPACE_REPORT ?=
 RESUME ?= 0
 
 .PHONY: help build build-vstrt build-vsgan build-project-engine build-vsgan-engine prepare verify
 .PHONY: run-project run-trtvideo plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
 .PHONY: run-trtexec run-vstrt run-vsgan
 .PHONY: profile-nsight
-.PHONY: capture-model-trtvideo capture-model-vstrt capture-model-vsgan
-.PHONY: compare-model-space model-space-parity
-.PHONY: compare-model-space-candidate
+.PHONY: capture-model-trtvideo
+.PHONY: capture-preprocessing-vstrt capture-preprocessing-vsgan
+.PHONY: capture-inference-vstrt capture-inference-vsgan
+.PHONY: compare-preprocessing compare-inference tensor-quality
 .PHONY: capture-output-trtvideo capture-output-vstrt capture-output-vsgan
 .PHONY: compare-product-output product-output-parity quality-gates
 .PHONY: campaign-preflight campaign-trtvideo campaign-vstrt campaign-vsgan
@@ -88,9 +86,9 @@ help:
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
 		'plan-nsight         Print the project Nsight diagnostic plan' \
 		'profile-nsight      Capture one project Nsight Systems trace' \
-		'model-space-parity  Compare pre/post-TensorRT RGB float tensors' \
+		'tensor-quality      Check shared-input inference; diagnose preprocessing' \
 		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
-		'quality-gates       Run model-space and product-output parity gates' \
+		'quality-gates       Run tensor and product-output quality gates' \
 		'run-tuned-sweep     Evaluate every declared tuned scheduling candidate' \
 		'rank-tuned          Rebuild the tuned candidate selection report' \
 		'run-tuned-quality   Fully validate winners; promote on candidate failure' \
@@ -326,7 +324,7 @@ profile-nsight:
 
 capture-model-trtvideo:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/trtvideo"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/production/trtvideo"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e TRTVIDEO_IMAGE_REF="$(BENCHMARK_IMAGE)" \
 		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(BENCHMARK_IMAGE))" \
@@ -339,12 +337,12 @@ capture-model-trtvideo:
 			--engine /app/$(ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			--output-dir /app/$(MODEL_SPACE_DIR)/trtvideo \
+			--output-dir /app/$(MODEL_SPACE_DIR)/production/trtvideo \
 			$(MODEL_SPACE_ARGS)
 
-capture-model-vstrt:
+capture-preprocessing-vstrt:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vstrt"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/production/vstrt"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e TRTVIDEO_IMAGE_REF="$(VSTRT_IMAGE)" \
 		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
@@ -360,12 +358,12 @@ capture-model-vstrt:
 			--script /app/benchmarks/vstrt/upscale.vpy \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			--output-dir /app/$(MODEL_SPACE_DIR)/vstrt \
+			--output-dir /app/$(MODEL_SPACE_DIR)/production/vstrt \
 			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
 
-capture-model-vsgan:
+capture-preprocessing-vsgan:
 	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/vsgan"
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/production/vsgan"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
 		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
@@ -382,42 +380,91 @@ capture-model-vsgan:
 			--script /app/benchmarks/vsgan/upscale.vpy \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			--output-dir /app/$(MODEL_SPACE_DIR)/vsgan \
+			--output-dir /app/$(MODEL_SPACE_DIR)/production/vsgan \
 			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
 
-compare-model-space:
+capture-inference-vstrt:
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/inference/vstrt"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e TRTVIDEO_IMAGE_REF="$(VSTRT_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSTRT_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(VSTRT_IMAGE) python3 -m benchmarks.scripts.quality.capture_vspipe \
+			--implementation vstrt \
+			--manifest /app/$(MANIFEST) \
+			--implementations /app/$(IMPLEMENTATIONS) \
+			--variant $(VARIANT) \
+			--engine /app/$(ENGINE) \
+			--script /app/benchmarks/vstrt/upscale.vpy \
+			--gpu-id $(GPU_ID) \
+			--execution-profile $(EXECUTION_PROFILE) \
+			--shared-input-manifest /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
+			--output-dir /app/$(MODEL_SPACE_DIR)/inference/vstrt \
+			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
+
+capture-inference-vsgan:
+	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/inference/vsgan"
+	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
+		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-v "$(ROOT)/models:/app/models:ro" \
+		-v "$(ROOT)/videos:/app/videos:ro" \
+		-v "$(ROOT)/artefacts:/app/artefacts" \
+		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 \
+			-m benchmarks.scripts.quality.capture_vspipe \
+			--implementation vsgan \
+			--manifest /app/$(MANIFEST) \
+			--implementations /app/$(IMPLEMENTATIONS) \
+			--variant $(VARIANT) \
+			--engine /app/$(VSGAN_ENGINE) \
+			--script /app/benchmarks/vsgan/upscale.vpy \
+			--gpu-id $(GPU_ID) \
+			--execution-profile $(EXECUTION_PROFILE) \
+			--shared-input-manifest /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
+			--output-dir /app/$(MODEL_SPACE_DIR)/inference/vsgan \
+			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
+
+compare-preprocessing:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_model_space \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_preprocessing \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
-			--reference /app/$(MODEL_SPACE_DIR)/trtvideo/manifest.json \
-			--candidate /app/$(MODEL_SPACE_DIR)/vstrt/manifest.json \
-			--candidate /app/$(MODEL_SPACE_DIR)/vsgan/manifest.json \
-			--output /app/$(MODEL_SPACE_DIR)/model-space-parity.json
+			--reference /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/production/vstrt/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/production/vsgan/manifest.json \
+			--output /app/$(MODEL_SPACE_DIR)/preprocessing-diagnostic.json
 
-compare-model-space-candidate:
-	@test -n "$(MODEL_SPACE_REFERENCE)" || (echo "ERROR: MODEL_SPACE_REFERENCE is required" >&2; exit 2)
-	@test -n "$(MODEL_SPACE_CANDIDATE)" || (echo "ERROR: MODEL_SPACE_CANDIDATE is required" >&2; exit 2)
-	@test -n "$(MODEL_SPACE_REPORT)" || (echo "ERROR: MODEL_SPACE_REPORT is required" >&2; exit 2)
+compare-inference:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_model_space \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.quality.compare_inference \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
-			--reference /app/$(MODEL_SPACE_REFERENCE) \
-			--candidate /app/$(MODEL_SPACE_CANDIDATE) \
-			--output /app/$(MODEL_SPACE_REPORT)
+			--reference /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/inference/vstrt/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/inference/vsgan/manifest.json \
+			--output /app/$(MODEL_SPACE_DIR)/inference-parity.json
 
-model-space-parity:
-	@printf '[quality:model-space 1/4] Capture trtvideo tensors\n'
+tensor-quality:
+	@printf '[quality:tensors 1/7] Capture trtvideo production tensors\n'
 	$(MAKE) capture-model-trtvideo
-	@printf '[quality:model-space 2/4] Capture vs-mlrt tensors\n'
-	$(MAKE) capture-model-vstrt
-	@printf '[quality:model-space 3/4] Capture VSGAN tensors\n'
-	$(MAKE) capture-model-vsgan
-	@printf '[quality:model-space 4/4] Compare captured tensors\n'
-	$(MAKE) compare-model-space
+	@printf '[quality:tensors 2/7] Capture vs-mlrt production preprocessing\n'
+	$(MAKE) capture-preprocessing-vstrt
+	@printf '[quality:tensors 3/7] Capture VSGAN production preprocessing\n'
+	$(MAKE) capture-preprocessing-vsgan
+	@printf '[quality:tensors 4/7] Record preprocessing diagnostic\n'
+	$(MAKE) compare-preprocessing
+	@printf '[quality:tensors 5/7] Run vs-mlrt from shared RGB tensors\n'
+	$(MAKE) capture-inference-vstrt
+	@printf '[quality:tensors 6/7] Run VSGAN from shared RGB tensors\n'
+	$(MAKE) capture-inference-vsgan
+	@printf '[quality:tensors 7/7] Validate shared-input inference parity\n'
+	$(MAKE) compare-inference
 
 capture-output-trtvideo:
 	$(MAKE) run-trtvideo \
@@ -456,7 +503,7 @@ product-output-parity:
 	@printf '[quality:product-output 4/4] Compare decoded outputs\n'
 	$(MAKE) compare-product-output
 
-quality-gates: model-space-parity product-output-parity
+quality-gates: tensor-quality product-output-parity
 
 run-tuned-sweep:
 	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow sweep \
@@ -620,7 +667,8 @@ aggregate-campaign:
 			--root /app \
 			--idle-seconds $(CAMPAIGN_IDLE_SECONDS) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/model-space-parity.json),--model-space-report /app/$(MODEL_SPACE_DIR)/model-space-parity.json) \
+			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/inference-parity.json),--inference-report /app/$(MODEL_SPACE_DIR)/inference-parity.json) \
+			$(if $(wildcard $(ROOT)/$(MODEL_SPACE_DIR)/preprocessing-diagnostic.json),--preprocessing-report /app/$(MODEL_SPACE_DIR)/preprocessing-diagnostic.json) \
 			$(if $(wildcard $(ROOT)/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json),--product-output-report /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json) \
 			$(ARGS)
 

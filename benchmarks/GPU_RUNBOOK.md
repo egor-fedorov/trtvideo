@@ -199,7 +199,8 @@ artefacts/benchmarks/workflows/
 Before publishing a comparative or tuned result, verify:
 
 - every suite and campaign reports `valid` and `publishable`;
-- model-space and product-output quality reports are valid;
+- shared-input inference and product-output reports are valid, and the
+  preprocessing diagnostic is complete;
 - retained MP4 files fully decode and the visual crop matrix is acceptable;
 - engine, image, revision, workload-contract, and GPU identities match;
 - no invalid thermal or competing-process reason was recorded;

@@ -133,18 +133,27 @@ def _validate_model_space_quality(manifest: dict[str, Any], *, clip_frames: int)
         raise WorkloadError(
             "Manifest model-space frame indices must stay inside the canonical clip"
         )
+    if model_space.get("contract_version") != 3:
+        raise WorkloadError("Manifest model-space contract_version must be 3")
 
-    thresholds = _require_dict(model_space, "thresholds")
-    for stage in ("input", "output"):
-        stage_thresholds = _require_dict(thresholds, stage)
-        for name in ("p99_abs", "rmse", "min_psnr_db"):
-            value = stage_thresholds.get(name)
-            if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
-                raise WorkloadError(
-                    "Manifest field "
-                    f"'quality.model_space.thresholds.{stage}.{name}' "
-                    "must be positive"
-                )
+    inference = _require_dict(model_space, "inference")
+    if inference.get("canonical_input") != "trtvideo-production-rgb-f32":
+        raise WorkloadError("Manifest model-space canonical input contract is invalid")
+    if inference.get("input_acceptance") != "exact-float32":
+        raise WorkloadError("Manifest model-space input acceptance contract is invalid")
+    output_thresholds = _require_dict(inference, "output_thresholds")
+    for name in ("p99_abs", "rmse", "min_psnr_db"):
+        value = output_thresholds.get(name)
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+            raise WorkloadError(
+                "Manifest field "
+                f"'quality.model_space.inference.output_thresholds.{name}' "
+                "must be positive"
+            )
+
+    preprocessing = _require_dict(model_space, "preprocessing")
+    if preprocessing.get("acceptance") != "diagnostic-only":
+        raise WorkloadError("Manifest model-space preprocessing must be diagnostic-only")
 
 
 def _validate_product_output_quality(

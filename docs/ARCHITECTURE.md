@@ -187,10 +187,13 @@ Per-frame processing order:
 9. In `finalize()`, the pipeline drains NVENC, closes FFmpeg stdin, and waits
    for container finalization, including MP4 `faststart` when applicable.
 
-The production pipeline and model-space quality capture share
+The production pipeline and trtvideo tensor-quality reference share
 `NvcodecFrameProcessor` for surface wrapping, preprocess, TensorRT enqueue, and
 postprocess. The quality job copies only selected normalized input and raw
-output tensors to the host after synchronizing this shared path.
+output tensors to the host after synchronizing this shared path. External
+inference parity then feeds exact copies of those input tensors into each
+TensorRT graph; each implementation's normal decode/colorspace input is
+captured separately as a non-gating preprocessing diagnostic.
 
 Generic video concerns stay directly under `src/trtvideo/video/`:
 `metadata.py` defines `VideoMetadata`, `probe.py` adapts FFprobe into that
@@ -200,7 +203,7 @@ SDR conversion contract. The `output/` package separates preservation policy,
 the long-lived FFmpeg mux process, and atomic publication. NVIDIA-specific
 bitrate, decoder lifetime, encoder policy, CUDA surfaces, and frame processing
 live under `src/trtvideo/video/nvcodec/`; its `frame_processor.py` is shared by
-production and model-space quality capture.
+production and the tensor-quality reference capture.
 
 The NVDEC surface handoff, CV-CUDA, TensorRT, and NV12 preparation explicitly
 use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and

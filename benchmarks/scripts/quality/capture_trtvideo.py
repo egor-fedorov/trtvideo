@@ -227,6 +227,7 @@ def capture(args: argparse.Namespace) -> Path:
     write_capture_manifest(
         manifest_path,
         implementation="trtvideo",
+        capture_scope="production-reference",
         workload_id=manifest["id"],
         variant=args.variant,
         input_sha256=sha256_file(input_path),
@@ -275,7 +276,7 @@ def main() -> None:
     ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)
-    print(f"Model-space capture written: {manifest_path}")
+    print(f"Tensor capture written: {manifest_path}")
 
 
 if __name__ == "__main__":

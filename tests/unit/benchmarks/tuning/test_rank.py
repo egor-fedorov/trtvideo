@@ -314,7 +314,7 @@ def test_rank_promotes_next_confirmed_candidate_after_quality_failure(
     _write_json(
         evidence_path,
         {
-            "document_type": "model-space-parity",
+            "document_type": "inference-parity",
             "status": "invalid",
             "workload_id": workload["id"],
             "variant": "1080p",
@@ -323,7 +323,7 @@ def test_rank_promotes_next_confirmed_candidate_after_quality_failure(
                     "implementation": PRODUCTS["vstrt"],
                     "status": "invalid",
                     "execution_profile": failed_candidate.execution_profile(),
-                    "errors": ["model-space parity failed"],
+                    "errors": ["inference parity failed"],
                 }
             ],
         },
@@ -337,7 +337,7 @@ def test_rank_promotes_next_confirmed_candidate_after_quality_failure(
         root=tmp_path,
         disqualifications={
             "vstrt-s2-g0": {
-                "reason": "model-space parity failed",
+                "reason": "inference parity failed",
                 "evidence": evidence_path.relative_to(tmp_path).as_posix(),
             }
         },

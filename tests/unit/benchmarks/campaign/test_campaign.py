@@ -11,7 +11,8 @@ import pytest
 
 from benchmarks.scripts.campaign.aggregate import (
     IMPLEMENTATIONS,
-    MODEL_SPACE_GAP,
+    INFERENCE_PARITY_GAP,
+    PREPROCESSING_DIAGNOSTIC_GAP,
     PRODUCT_OUTPUT_GAP,
     CampaignError,
     aggregate_campaign,
@@ -71,6 +72,7 @@ def _campaign(
             },
             "quality": {
                 "model_space": {
+                    "contract_version": 3,
                     "frame_indices": [0, 499, 999],
                 },
                 "product_output": {
@@ -228,14 +230,18 @@ def _campaign(
     return campaign_dir
 
 
-def _model_space_report(root: Path) -> Path:
-    path = root / "artefacts/benchmarks/quality/model-space-parity.json"
+def _tensor_report(root: Path, *, preprocessing: bool) -> Path:
+    document_type = "preprocessing-diagnostic" if preprocessing else "inference-parity"
+    status = "complete" if preprocessing else "valid"
+    path = root / "artefacts/benchmarks/quality" / f"{document_type}.json"
     _write_json(
         path,
         {
-            "document_type": "model-space-parity",
-            "status": "valid",
+            "document_type": document_type,
+            "status": status,
             "publishable": True,
+            "acceptance_gate": not preprocessing,
+            "contract_version": 3,
             "workload_id": "workload-v1",
             "variant": "1080p",
             "execution_profile": "upstream-default",
@@ -243,9 +249,11 @@ def _model_space_report(root: Path) -> Path:
             "assets": {
                 "input_sha256": "input-sha",
                 "onnx_sha256": "onnx-sha",
+                **({"canonical_input_manifest_sha256": "a" * 64} if not preprocessing else {}),
             },
             "reference": {
                 "implementation": "trtvideo",
+                "capture_manifest_sha256": "a" * 64,
                 "engine_sha256": "shared-engine",
                 "execution_profile": {
                     "execution_profile": "upstream-default",
@@ -260,7 +268,9 @@ def _model_space_report(root: Path) -> Path:
             "comparisons": [
                 {
                     "implementation": "vs-mlrt",
-                    "status": "valid",
+                    "status": status,
+                    "capture_manifest_sha256": "b" * 64,
+                    **({"canonical_input_manifest_sha256": "a" * 64} if not preprocessing else {}),
                     "engine_sha256": "shared-engine",
                     "execution_profile": {
                         "execution_profile": "upstream-default",
@@ -277,7 +287,9 @@ def _model_space_report(root: Path) -> Path:
                 },
                 {
                     "implementation": "VSGAN-tensorrt-docker",
-                    "status": "valid",
+                    "status": status,
+                    "capture_manifest_sha256": "c" * 64,
+                    **({"canonical_input_manifest_sha256": "a" * 64} if not preprocessing else {}),
                     "engine_sha256": "vsgan-engine",
                     "execution_profile": {
                         "execution_profile": "upstream-default",
@@ -296,6 +308,14 @@ def _model_space_report(root: Path) -> Path:
         },
     )
     return path
+
+
+def _inference_report(root: Path) -> Path:
+    return _tensor_report(root, preprocessing=False)
+
+
+def _preprocessing_report(root: Path) -> Path:
+    return _tensor_report(root, preprocessing=True)
 
 
 def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
@@ -490,7 +510,8 @@ def test_aggregate_campaign_builds_acceptance_table(
     assert summary["benchmark_contract_version"] == 1
     assert summary["publishable"] is False
     assert summary["publication"]["errors"] == [
-        MODEL_SPACE_GAP,
+        INFERENCE_PARITY_GAP,
+        PREPROCESSING_DIAGNOSTIC_GAP,
         PRODUCT_OUTPUT_GAP,
     ]
     assert summary["needs_extra_runs"] is False
@@ -511,7 +532,7 @@ def test_aggregate_campaign_builds_acceptance_table(
     )
 
 
-def test_aggregate_campaign_accepts_matching_model_space_report(
+def test_aggregate_campaign_accepts_matching_inference_report(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -529,14 +550,17 @@ def test_aggregate_campaign_accepts_matching_model_space_report(
         campaign_dir,
         root=tmp_path,
         idle_seconds=10,
-        model_space_report=_model_space_report(tmp_path),
+        inference_report=_inference_report(tmp_path),
     )
 
-    assert summary["publication"]["errors"] == [PRODUCT_OUTPUT_GAP]
-    assert summary["quality"]["model_space"]["status"] == "valid"
+    assert summary["publication"]["errors"] == [
+        PREPROCESSING_DIAGNOSTIC_GAP,
+        PRODUCT_OUTPUT_GAP,
+    ]
+    assert summary["quality"]["inference_parity"]["status"] == "valid"
 
 
-def test_aggregate_campaign_is_publishable_with_both_quality_reports(
+def test_aggregate_campaign_is_publishable_with_all_quality_reports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -554,7 +578,8 @@ def test_aggregate_campaign_is_publishable_with_both_quality_reports(
         campaign_dir,
         root=tmp_path,
         idle_seconds=10,
-        model_space_report=_model_space_report(tmp_path),
+        inference_report=_inference_report(tmp_path),
+        preprocessing_report=_preprocessing_report(tmp_path),
         product_output_report=_product_output_report(tmp_path),
     )
 
@@ -588,7 +613,8 @@ def test_product_output_quality_keeps_full_clip_for_shorter_campaign(
         campaign_dir,
         root=tmp_path,
         idle_seconds=10,
-        model_space_report=_model_space_report(tmp_path),
+        inference_report=_inference_report(tmp_path),
+        preprocessing_report=_preprocessing_report(tmp_path),
         product_output_report=_product_output_report(
             tmp_path,
             contract_version=2,
@@ -601,7 +627,7 @@ def test_product_output_quality_keeps_full_clip_for_shorter_campaign(
     assert summary["quality"]["product_output"]["status"] == "valid"
 
 
-def test_aggregate_campaign_rejects_model_space_engine_drift(
+def test_aggregate_campaign_rejects_inference_engine_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -614,7 +640,7 @@ def test_aggregate_campaign_rejects_model_space_engine_drift(
             "vsgan": [8.8, 8.9, 8.7],
         },
     )
-    report_path = _model_space_report(tmp_path)
+    report_path = _inference_report(tmp_path)
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report["comparisons"][1]["engine_sha256"] = "other-engine"
     _write_json(report_path, report)
@@ -624,11 +650,11 @@ def test_aggregate_campaign_rejects_model_space_engine_drift(
             campaign_dir,
             root=tmp_path,
             idle_seconds=10,
-            model_space_report=report_path,
+            inference_report=report_path,
         )
 
 
-def test_aggregate_campaign_rejects_model_space_profile_drift(
+def test_aggregate_campaign_rejects_inference_profile_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -641,7 +667,7 @@ def test_aggregate_campaign_rejects_model_space_profile_drift(
             "vsgan": [8.8, 8.9, 8.7],
         },
     )
-    report_path = _model_space_report(tmp_path)
+    report_path = _inference_report(tmp_path)
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report["comparisons"][0]["execution_profile"]["num_streams"] = 2
     _write_json(report_path, report)
@@ -651,11 +677,11 @@ def test_aggregate_campaign_rejects_model_space_profile_drift(
             campaign_dir,
             root=tmp_path,
             idle_seconds=10,
-            model_space_report=report_path,
+            inference_report=report_path,
         )
 
 
-def test_aggregate_campaign_rejects_model_space_image_drift(
+def test_aggregate_campaign_rejects_inference_image_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -668,7 +694,7 @@ def test_aggregate_campaign_rejects_model_space_image_drift(
             "vsgan": [8.8, 8.9, 8.7],
         },
     )
-    report_path = _model_space_report(tmp_path)
+    report_path = _inference_report(tmp_path)
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report["comparisons"][0]["image"]["id"] = "other-image"
     _write_json(report_path, report)
@@ -678,7 +704,7 @@ def test_aggregate_campaign_rejects_model_space_image_drift(
             campaign_dir,
             root=tmp_path,
             idle_seconds=10,
-            model_space_report=report_path,
+            inference_report=report_path,
         )
 
 
@@ -991,7 +1017,8 @@ def test_aggregate_campaign_accepts_four_of_five_consensus(
         campaign_dir,
         root=tmp_path,
         idle_seconds=10,
-        model_space_report=_model_space_report(tmp_path),
+        inference_report=_inference_report(tmp_path),
+        preprocessing_report=_preprocessing_report(tmp_path),
         product_output_report=_product_output_report(tmp_path),
     )
 

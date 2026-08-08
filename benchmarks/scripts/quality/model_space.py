@@ -10,12 +10,18 @@ from typing import Any
 
 from benchmarks.scripts.runtime.environment import environment_errors, sha256_file
 
-CAPTURE_SCHEMA_VERSION = 2
-REPORT_SCHEMA_VERSION = 3
+CAPTURE_SCHEMA_VERSION = 3
+INFERENCE_REPORT_SCHEMA_VERSION = 1
+PREPROCESSING_REPORT_SCHEMA_VERSION = 1
 TENSOR_DTYPE = "float32"
 TENSOR_LAYOUT = "CHW"
 TENSOR_CHANNEL_ORDER = "RGB"
 TENSOR_STAGES = ("input", "output")
+CAPTURE_STAGE_CONTRACTS = {
+    "production-reference": frozenset(TENSOR_STAGES),
+    "production-preprocessing": frozenset({"input"}),
+    "shared-input-inference": frozenset(TENSOR_STAGES),
+}
 
 
 class ModelSpaceError(RuntimeError):
@@ -138,6 +144,7 @@ class CaptureManifest:
     """Complete model-space capture from one implementation."""
 
     implementation: str
+    capture_scope: str
     workload_id: str
     variant: str
     input_sha256: str
@@ -145,6 +152,7 @@ class CaptureManifest:
     engine_sha256: str
     image: dict[str, str]
     execution_profile: dict[str, Any]
+    canonical_input_manifest_sha256: str | None
     artifacts: tuple[TensorArtifact, ...]
 
     @classmethod
@@ -177,6 +185,7 @@ class CaptureManifest:
                 raise TypeError("execution_profile must be an object")
             manifest = cls(
                 implementation=str(value["implementation"]),
+                capture_scope=str(value["capture_scope"]),
                 workload_id=str(value["workload_id"]),
                 variant=str(value["variant"]),
                 input_sha256=str(value["assets"]["input_sha256"]),
@@ -184,6 +193,11 @@ class CaptureManifest:
                 engine_sha256=str(value["assets"]["engine_sha256"]),
                 image={str(key): str(item) for key, item in image_value.items()},
                 execution_profile=dict(execution_profile),
+                canonical_input_manifest_sha256=(
+                    str(value["assets"]["canonical_input_manifest_sha256"])
+                    if value["assets"].get("canonical_input_manifest_sha256") is not None
+                    else None
+                ),
                 artifacts=tuple(TensorArtifact.from_dict(artifact) for artifact in artifacts_value),
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -194,6 +208,8 @@ class CaptureManifest:
     def validate(self, root: Path) -> None:
         if not self.implementation:
             raise ModelSpaceError("Capture implementation identity is required")
+        if self.capture_scope not in CAPTURE_STAGE_CONTRACTS:
+            raise ModelSpaceError(f"Unknown model-space capture scope: {self.capture_scope}")
         if not self.workload_id or not self.variant:
             raise ModelSpaceError("Capture workload identity is required")
         if self.execution_profile.get("execution_profile") not in {
@@ -213,6 +229,16 @@ class CaptureManifest:
         ):
             if len(checksum) != 64:
                 raise ModelSpaceError(f"Capture {name} SHA256 is invalid")
+        if self.capture_scope == "shared-input-inference":
+            if (
+                self.canonical_input_manifest_sha256 is None
+                or len(self.canonical_input_manifest_sha256) != 64
+            ):
+                raise ModelSpaceError("Shared-input capture has no canonical input manifest SHA256")
+        elif self.canonical_input_manifest_sha256 is not None:
+            raise ModelSpaceError(
+                "Only shared-input captures may reference a canonical input manifest"
+            )
         if not self.artifacts:
             raise ModelSpaceError("Capture manifest has no tensors")
         keys = [(artifact.stage, artifact.frame_index) for artifact in self.artifacts]
@@ -220,10 +246,14 @@ class CaptureManifest:
             raise ModelSpaceError("Capture manifest contains duplicate tensor artifacts")
         frame_indices = sorted({artifact.frame_index for artifact in self.artifacts})
         expected_keys = {
-            (stage, frame_index) for stage in TENSOR_STAGES for frame_index in frame_indices
+            (stage, frame_index)
+            for stage in CAPTURE_STAGE_CONTRACTS[self.capture_scope]
+            for frame_index in frame_indices
         }
         if set(keys) != expected_keys:
-            raise ModelSpaceError("Capture must contain input and output for every frame")
+            raise ModelSpaceError(
+                f"Capture scope {self.capture_scope} has an incomplete tensor set"
+            )
         for artifact in self.artifacts:
             artifact_path = root / artifact.path
             if not artifact_path.is_file():
@@ -248,6 +278,25 @@ def parse_frame_indices(value: str, *, frame_count: int) -> tuple[int, ...]:
     if indices[0] < 0 or indices[-1] >= frame_count:
         raise ModelSpaceError(f"Frame indices must stay in [0, {frame_count - 1}], got {indices}")
     return indices
+
+
+def validate_report_scope(
+    report: dict[str, Any],
+    *,
+    workload_id: str,
+    variant: str,
+    frame_indices: list[int],
+) -> None:
+    """Require a tensor report to cover one canonical workload selection."""
+    if report["workload_id"] != workload_id:
+        raise ModelSpaceError("Capture workload does not match the canonical workload manifest")
+    if report["variant"] != variant:
+        raise ModelSpaceError("Capture variant does not match the requested comparison variant")
+    if report["frame_indices"] != frame_indices:
+        raise ModelSpaceError(
+            "Capture frame indices do not match the canonical quality contract: "
+            f"{report['frame_indices']} != {frame_indices}"
+        )
 
 
 def create_tensor_artifact(
@@ -279,6 +328,7 @@ def write_capture_manifest(
     path: Path,
     *,
     implementation: str,
+    capture_scope: str,
     workload_id: str,
     variant: str,
     input_sha256: str,
@@ -287,12 +337,14 @@ def write_capture_manifest(
     image: dict[str, str],
     execution_profile: dict[str, Any],
     artifacts: list[TensorArtifact],
+    canonical_input_manifest_sha256: str | None = None,
 ) -> None:
     """Write one deterministic model-space capture manifest."""
-    value = {
+    value: dict[str, Any] = {
         "schema_version": CAPTURE_SCHEMA_VERSION,
         "document_type": "model-space-capture",
         "implementation": implementation,
+        "capture_scope": capture_scope,
         "workload_id": workload_id,
         "variant": variant,
         "execution_profile": execution_profile,
@@ -309,6 +361,8 @@ def write_capture_manifest(
         "environment": {"image": image},
         "artifacts": [artifact.as_dict() for artifact in artifacts],
     }
+    if canonical_input_manifest_sha256 is not None:
+        value["assets"]["canonical_input_manifest_sha256"] = canonical_input_manifest_sha256
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -352,6 +406,40 @@ def compare_float32_tensors(
     }
 
 
+def summarize_float32_tensor(
+    path: Path,
+    *,
+    shape: tuple[int, int, int],
+) -> dict[str, Any]:
+    """Summarize one model tensor without assigning acceptance semantics."""
+    import numpy as np
+
+    count = math.prod(shape)
+    tensor = np.memmap(path, dtype="<f4", mode="r", shape=(count,))
+    finite = bool(np.isfinite(tensor).all())
+    if not finite:
+        return {
+            "elements": count,
+            "finite": False,
+            "min": None,
+            "max": None,
+            "below_zero_fraction": None,
+            "above_one_fraction": None,
+            "outside_unit_interval_fraction": None,
+        }
+    below = tensor < 0.0
+    above = tensor > 1.0
+    return {
+        "elements": count,
+        "finite": True,
+        "min": float(np.min(tensor)),
+        "max": float(np.max(tensor)),
+        "below_zero_fraction": float(np.mean(below)),
+        "above_one_fraction": float(np.mean(above)),
+        "outside_unit_interval_fraction": float(np.mean(below | above)),
+    }
+
+
 def evaluate_metrics(
     metrics: dict[str, Any],
     thresholds: TensorThresholds,
@@ -374,20 +462,26 @@ def evaluate_metrics(
     return errors
 
 
-def compare_captures(
+def compare_inference_captures(
     reference_path: Path,
     candidate_paths: list[Path],
     *,
-    thresholds: dict[str, TensorThresholds],
+    output_thresholds: TensorThresholds,
 ) -> dict[str, Any]:
-    """Compare complete captures and return a publication-gate report."""
+    """Compare model outputs after injecting the same canonical RGB tensor."""
     reference = CaptureManifest.load(reference_path)
+    if reference.capture_scope != "production-reference":
+        raise ModelSpaceError("Inference reference must be a production-reference capture")
     reference_artifacts = reference.artifact_map()
     frame_indices = sorted({artifact.frame_index for artifact in reference.artifacts})
     comparisons = []
     report_errors: list[str] = []
     for candidate_path in candidate_paths:
         candidate = CaptureManifest.load(candidate_path)
+        if candidate.capture_scope != "shared-input-inference":
+            raise ModelSpaceError(
+                f"Inference candidate has wrong capture scope: {candidate.capture_scope}"
+            )
         identity_checks = {
             "workload": (candidate.workload_id, reference.workload_id),
             "variant": (candidate.variant, reference.variant),
@@ -404,6 +498,10 @@ def compare_captures(
             "tensor set": (
                 set(candidate.artifact_map()),
                 set(reference_artifacts),
+            ),
+            "canonical input manifest SHA256": (
+                candidate.canonical_input_manifest_sha256,
+                sha256_file(reference_path),
             ),
         }
         candidate_errors = [
@@ -430,7 +528,16 @@ def compare_captures(
                     candidate_path.parent / candidate_artifact.path,
                     shape=reference_artifact.shape,
                 )
-                errors = evaluate_metrics(metrics, thresholds[key[0]])
+                metrics["sha256_equal"] = candidate_artifact.sha256 == reference_artifact.sha256
+                errors = (
+                    []
+                    if key[0] == "input" and metrics["sha256_equal"] is True
+                    else (
+                        ["canonical input tensor differs"]
+                        if key[0] == "input"
+                        else evaluate_metrics(metrics, output_thresholds)
+                    )
+                )
                 tensors.append(
                     {
                         "stage": key[0],
@@ -446,6 +553,8 @@ def compare_captures(
         comparisons.append(
             {
                 "implementation": candidate.implementation,
+                "capture_manifest_sha256": sha256_file(candidate_path),
+                "canonical_input_manifest_sha256": (candidate.canonical_input_manifest_sha256),
                 "engine_sha256": candidate.engine_sha256,
                 "image": candidate.image,
                 "execution_profile": candidate.execution_profile,
@@ -457,16 +566,18 @@ def compare_captures(
         report_errors.extend(f"{candidate.implementation}: {error}" for error in candidate_errors)
 
     return {
-        "schema_version": REPORT_SCHEMA_VERSION,
-        "document_type": "model-space-parity",
+        "schema_version": INFERENCE_REPORT_SCHEMA_VERSION,
+        "document_type": "inference-parity",
         "status": "valid" if not report_errors else "invalid",
         "publishable": not report_errors,
+        "acceptance_gate": True,
         "workload_id": reference.workload_id,
         "variant": reference.variant,
         "execution_profile": reference.execution_profile["execution_profile"],
         "frame_indices": frame_indices,
         "reference": {
             "implementation": reference.implementation,
+            "capture_manifest_sha256": sha256_file(reference_path),
             "engine_sha256": reference.engine_sha256,
             "image": reference.image,
             "execution_profile": reference.execution_profile,
@@ -474,9 +585,125 @@ def compare_captures(
         "assets": {
             "input_sha256": reference.input_sha256,
             "onnx_sha256": reference.onnx_sha256,
+            "canonical_input_manifest_sha256": sha256_file(reference_path),
         },
-        "thresholds": {
-            stage: stage_thresholds.as_dict() for stage, stage_thresholds in thresholds.items()
+        "thresholds": {"output": output_thresholds.as_dict()},
+        "comparisons": comparisons,
+        "errors": report_errors,
+    }
+
+
+def compare_preprocessing_captures(
+    reference_path: Path,
+    candidate_paths: list[Path],
+) -> dict[str, Any]:
+    """Measure production preprocessing differences without gating publication."""
+    reference = CaptureManifest.load(reference_path)
+    if reference.capture_scope != "production-reference":
+        raise ModelSpaceError("Preprocessing reference must be a production-reference capture")
+    reference_artifacts = {
+        key: artifact for key, artifact in reference.artifact_map().items() if key[0] == "input"
+    }
+    frame_indices = sorted({artifact.frame_index for artifact in reference_artifacts.values()})
+    comparisons = []
+    report_errors: list[str] = []
+    for candidate_path in candidate_paths:
+        candidate = CaptureManifest.load(candidate_path)
+        if candidate.capture_scope != "production-preprocessing":
+            raise ModelSpaceError(
+                f"Preprocessing candidate has wrong capture scope: {candidate.capture_scope}"
+            )
+        candidate_artifacts = candidate.artifact_map()
+        identity_checks = {
+            "workload": (candidate.workload_id, reference.workload_id),
+            "variant": (candidate.variant, reference.variant),
+            "input SHA256": (candidate.input_sha256, reference.input_sha256),
+            "ONNX SHA256": (candidate.onnx_sha256, reference.onnx_sha256),
+            "repository revision": (
+                candidate.image["repository_revision"],
+                reference.image["repository_revision"],
+            ),
+            "execution profile": (
+                candidate.execution_profile.get("execution_profile"),
+                reference.execution_profile.get("execution_profile"),
+            ),
+            "input tensor set": (set(candidate_artifacts), set(reference_artifacts)),
+        }
+        candidate_errors = [
+            f"{label} differs"
+            for label, (actual, expected) in identity_checks.items()
+            if actual != expected
+        ]
+        tensors = []
+        if not candidate_errors:
+            for key in sorted(reference_artifacts, key=lambda item: item[1]):
+                reference_artifact = reference_artifacts[key]
+                candidate_artifact = candidate_artifacts[key]
+                if candidate_artifact.shape != reference_artifact.shape:
+                    candidate_errors.append(f"input frame {key[1]} tensor shape differs")
+                    continue
+                reference_tensor_path = reference_path.parent / reference_artifact.path
+                candidate_tensor_path = candidate_path.parent / candidate_artifact.path
+                tensors.append(
+                    {
+                        "stage": "input",
+                        "frame_index": key[1],
+                        "shape": list(reference_artifact.shape),
+                        "metrics": compare_float32_tensors(
+                            reference_tensor_path,
+                            candidate_tensor_path,
+                            shape=reference_artifact.shape,
+                        ),
+                        "reference_statistics": summarize_float32_tensor(
+                            reference_tensor_path,
+                            shape=reference_artifact.shape,
+                        ),
+                        "candidate_statistics": summarize_float32_tensor(
+                            candidate_tensor_path,
+                            shape=candidate_artifact.shape,
+                        ),
+                    }
+                )
+        comparison_status = "complete" if not candidate_errors else "invalid"
+        comparisons.append(
+            {
+                "implementation": candidate.implementation,
+                "capture_manifest_sha256": sha256_file(candidate_path),
+                "engine_sha256": candidate.engine_sha256,
+                "image": candidate.image,
+                "execution_profile": candidate.execution_profile,
+                "status": comparison_status,
+                "errors": candidate_errors,
+                "tensors": tensors,
+            }
+        )
+        report_errors.extend(f"{candidate.implementation}: {error}" for error in candidate_errors)
+
+    return {
+        "schema_version": PREPROCESSING_REPORT_SCHEMA_VERSION,
+        "document_type": "preprocessing-diagnostic",
+        "status": "complete" if not report_errors else "invalid",
+        "publishable": not report_errors,
+        "acceptance_gate": False,
+        "interpretation": (
+            "Production preprocessing paths are measured independently. Numeric "
+            "differences are diagnostic and do not gate publication; inference parity "
+            "is evaluated separately with an exact shared RGB input tensor."
+        ),
+        "workload_id": reference.workload_id,
+        "variant": reference.variant,
+        "execution_profile": reference.execution_profile["execution_profile"],
+        "frame_indices": frame_indices,
+        "reference": {
+            "implementation": reference.implementation,
+            "capture_manifest_sha256": sha256_file(reference_path),
+            "engine_sha256": reference.engine_sha256,
+            "image": reference.image,
+            "execution_profile": reference.execution_profile,
+        },
+        "assets": {
+            "input_sha256": reference.input_sha256,
+            "onnx_sha256": reference.onnx_sha256,
         },
         "comparisons": comparisons,
         "errors": report_errors,

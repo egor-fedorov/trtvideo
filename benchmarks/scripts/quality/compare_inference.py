@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare model-space captures against the canonical quality contract."""
+"""Compare TensorRT outputs produced from one exact shared RGB input tensor."""
 
 from __future__ import annotations
 
@@ -12,37 +12,32 @@ from typing import Any
 from benchmarks.scripts.quality.model_space import (
     ModelSpaceError,
     TensorThresholds,
-    compare_captures,
+    compare_inference_captures,
+    validate_report_scope,
 )
 from benchmarks.scripts.workloads.manifest import load_manifest
 
 
-def _load_thresholds(manifest: dict[str, Any]) -> dict[str, TensorThresholds]:
-    values = manifest["quality"]["model_space"]["thresholds"]
-    return {
-        stage: TensorThresholds.from_dict(values[stage], stage=stage)
-        for stage in ("input", "output")
-    }
+def _output_thresholds(manifest: dict[str, Any]) -> TensorThresholds:
+    values = manifest["quality"]["model_space"]["inference"]["output_thresholds"]
+    return TensorThresholds.from_dict(values, stage="output")
 
 
 def compare(args: argparse.Namespace) -> dict[str, Any]:
-    """Create and persist the model-space parity report."""
+    """Create and persist the shared-input inference parity report."""
     manifest = load_manifest(Path(args.manifest))
-    report = compare_captures(
+    report = compare_inference_captures(
         Path(args.reference),
         [Path(path) for path in args.candidate],
-        thresholds=_load_thresholds(manifest),
+        output_thresholds=_output_thresholds(manifest),
     )
-    if report["workload_id"] != manifest["id"]:
-        raise ModelSpaceError("Capture workload does not match the canonical workload manifest")
-    if report["variant"] != args.variant:
-        raise ModelSpaceError("Capture variant does not match the requested comparison variant")
-    canonical_frames = manifest["quality"]["model_space"]["frame_indices"]
-    if report["frame_indices"] != canonical_frames:
-        raise ModelSpaceError(
-            "Capture frame indices do not match the canonical quality contract: "
-            f"{report['frame_indices']} != {canonical_frames}"
-        )
+    report["contract_version"] = manifest["quality"]["model_space"]["contract_version"]
+    validate_report_scope(
+        report,
+        workload_id=manifest["id"],
+        variant=args.variant,
+        frame_indices=manifest["quality"]["model_space"]["frame_indices"],
+    )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
@@ -69,10 +64,7 @@ def main() -> None:
     except (ModelSpaceError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(2)
-    print(
-        f"Model-space parity {report['status']}: {args.output}",
-        file=sys.stderr,
-    )
+    print(f"Inference parity {report['status']}: {args.output}", file=sys.stderr)
     if report["status"] != "valid":
         sys.exit(2)
 

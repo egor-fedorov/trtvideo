@@ -90,10 +90,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   NVML power/utilization/VRAM sampling, lifecycle scopes, sanitized environment
   data, content hashes, output validation, and machine-checked workload
   contract versions.
-- Added model-space tensor parity and full decoded-product PSNR/SSIM quality
-  gates. Comparative results are publishable only when performance evidence and
-  both quality contracts refer to the same assets, engines, images, and clean
-  repository revision.
+- Added shared-input TensorRT parity, production-preprocessing diagnostics, and
+  full decoded-product PSNR/SSIM quality evidence. Comparative results are
+  publishable only when performance evidence and all quality contracts refer to
+  the same assets, engines, images, and clean repository revision; numeric
+  preprocessing differences are reported but do not gate acceptance.
 - Added upstream-default and adaptive best-tuned comparison profiles. Tuned
   selection uses short reconnaissance, full confirmation for the strongest
   candidates, explicit resource-limit evidence, and winner-only quality gates.
@@ -139,10 +140,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Separated inference correctness from preprocessing equivalence after legal
+  luma excursions in the live-action workload exposed that the former combined
+  model-space gate conflated decode/colorspace policy with TensorRT output.
 - Corrected limited-range NV12 handling: video-range Y/UV values are expanded
   before RGB inference and compressed again before NVENC, while full-range input
-  remains unchanged. Production and model-space capture share this exact
-  CV-CUDA frame path.
+  remains unchanged. Production and the trtvideo tensor reference capture share
+  this exact CV-CUDA frame path.
 - Kept NVDEC batches alive until their CUDA work completes and placed CV-CUDA,
   TensorRT, and NVENC on the intended stream, preventing asynchronous surface
   reuse. `--max-frames` also stops without fetching an unnecessary decoder

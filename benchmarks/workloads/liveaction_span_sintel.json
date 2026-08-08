@@ -14,22 +14,23 @@
   },
   "quality": {
     "model_space": {
+      "contract_version": 3,
       "frame_indices": [
         0,
         499,
         999
       ],
-      "thresholds": {
-        "input": {
-          "p99_abs": 0.011765,
-          "rmse": 0.003922,
-          "min_psnr_db": 48.0
-        },
-        "output": {
+      "inference": {
+        "canonical_input": "trtvideo-production-rgb-f32",
+        "input_acceptance": "exact-float32",
+        "output_thresholds": {
           "p99_abs": 0.015686,
           "rmse": 0.007843,
           "min_psnr_db": 42.0
         }
+      },
+      "preprocessing": {
+        "acceptance": "diagnostic-only"
       }
     },
     "product_output": {

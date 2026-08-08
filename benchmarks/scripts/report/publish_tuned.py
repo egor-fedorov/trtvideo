@@ -87,7 +87,45 @@ def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _compact_model_space(
+def _optional_min(values: list[Any]) -> float | None:
+    numeric = [float(value) for value in values if isinstance(value, (int, float))]
+    return min(numeric) if numeric else None
+
+
+def _optional_max(values: list[Any]) -> float | None:
+    numeric = [float(value) for value in values if isinstance(value, (int, float))]
+    return max(numeric) if numeric else None
+
+
+def _compact_inference(
+    source: EvidenceSource,
+    report: dict[str, Any],
+    path: Path,
+) -> dict[str, Any]:
+    comparisons = []
+    for comparison in report["comparisons"]:
+        tensors = [item for item in comparison["tensors"] if item["stage"] == "output"]
+        comparisons.append(
+            {
+                "implementation": comparison["implementation"],
+                "status": comparison["status"],
+                "max_p99_abs": _optional_max([item["metrics"]["p99_abs"] for item in tensors]),
+                "max_rmse": _optional_max([item["metrics"]["rmse"] for item in tensors]),
+                "min_psnr_db": _optional_min([item["metrics"]["psnr_db"] for item in tensors]),
+            }
+        )
+    return {
+        "path": source.canonical(path),
+        "sha256": _digest(path),
+        "status": report["status"],
+        "contract_version": report["contract_version"],
+        "frame_indices": report["frame_indices"],
+        "thresholds": report["thresholds"],
+        "comparisons": comparisons,
+    }
+
+
+def _compact_preprocessing(
     source: EvidenceSource,
     report: dict[str, Any],
     path: Path,
@@ -95,22 +133,28 @@ def _compact_model_space(
     comparisons = []
     for comparison in report["comparisons"]:
         tensors = comparison["tensors"]
-        psnr_values = [item["metrics"]["psnr_db"] for item in tensors]
+        candidate_statistics = [item["candidate_statistics"] for item in tensors]
         comparisons.append(
             {
                 "implementation": comparison["implementation"],
                 "status": comparison["status"],
-                "max_p99_abs": max(item["metrics"]["p99_abs"] for item in tensors),
-                "max_rmse": max(item["metrics"]["rmse"] for item in tensors),
-                "min_psnr_db": min(value for value in psnr_values if value is not None),
+                "max_p99_abs": _optional_max([item["metrics"]["p99_abs"] for item in tensors]),
+                "max_rmse": _optional_max([item["metrics"]["rmse"] for item in tensors]),
+                "min_psnr_db": _optional_min([item["metrics"]["psnr_db"] for item in tensors]),
+                "max_outside_unit_interval_fraction": _optional_max(
+                    [item["outside_unit_interval_fraction"] for item in candidate_statistics]
+                ),
+                "observed_min": _optional_min([item["min"] for item in candidate_statistics]),
+                "observed_max": _optional_max([item["max"] for item in candidate_statistics]),
             }
         )
     return {
         "path": source.canonical(path),
         "sha256": _digest(path),
         "status": report["status"],
+        "acceptance_gate": False,
+        "contract_version": report["contract_version"],
         "frame_indices": report["frame_indices"],
-        "thresholds": report["thresholds"],
         "comparisons": comparisons,
     }
 
@@ -233,22 +277,30 @@ def _output_identity(
 ) -> dict[str, Any]:
     winner_key = f"{winners['vsgan']['candidate_id']}__{winners['vstrt']['candidate_id']}"
     quality_root = source.root / f"{base}-{variant}" / "winner-quality" / winner_key
-    model_root = quality_root / "model-space"
+    tensor_root = quality_root / "tensor-quality"
     product_report = _load(quality_root / "product-output" / "product-output-parity.json")
-    capture_paths = {name: model_root / name / "manifest.json" for name in ("vstrt", "vsgan")}
+    capture_paths = {
+        name: tensor_root / "inference" / name / "manifest.json" for name in ("vstrt", "vsgan")
+    }
     captures = {name: _load(path) for name, path in capture_paths.items()}
     tensor_digests = {name: _tensor_set_digest(value) for name, value in captures.items()}
     comparisons = product_report["comparisons"]
     output_digests = {item["implementation"]: item["output_sha256"] for item in comparisons}
-    if len(set(tensor_digests.values())) != 1 or len(set(output_digests.values())) != 1:
-        raise PublicationError(f"External outputs differ for {base}/{variant}")
+    tensor_sets_identical = len(set(tensor_digests.values())) == 1
+    mp4_outputs_identical = len(set(output_digests.values())) == 1
     return {
         "workload": workload_name,
         "variant": variant,
-        "candidate_tensor_sha256_sets_identical": True,
-        "candidate_tensor_set_sha256": next(iter(tensor_digests.values())),
-        "candidate_mp4_sha256_identical": True,
-        "candidate_mp4_sha256": next(iter(output_digests.values())),
+        "candidate_tensor_sha256_sets_identical": tensor_sets_identical,
+        "candidate_tensor_set_sha256": (
+            next(iter(tensor_digests.values())) if tensor_sets_identical else None
+        ),
+        "candidate_tensor_set_sha256_by_implementation": tensor_digests,
+        "candidate_mp4_sha256_identical": mp4_outputs_identical,
+        "candidate_mp4_sha256": (
+            next(iter(output_digests.values())) if mp4_outputs_identical else None
+        ),
+        "candidate_mp4_sha256_by_implementation": output_digests,
         "capture_manifest_sha256": {name: _digest(path) for name, path in capture_paths.items()},
         "run_manifest_sha256": {
             item["implementation"]: item["run_manifest_sha256"] for item in comparisons
@@ -269,9 +321,13 @@ def _compact_workload(
     matrix_variant = matrix["variants"][variant]
     campaign_path = source.resolve(matrix_variant["campaign"]["path"])
     campaign = _load(campaign_path)
-    model_path = source.resolve(matrix_variant["quality"]["model_space"]["path"])
+    inference_path = source.resolve(matrix_variant["quality"]["inference_parity"]["path"])
+    preprocessing_path = source.resolve(
+        matrix_variant["quality"]["preprocessing_diagnostic"]["path"]
+    )
     product_path = source.resolve(matrix_variant["quality"]["product_output"]["path"])
-    model_report = _load(model_path)
+    inference_report = _load(inference_path)
+    preprocessing_report = _load(preprocessing_path)
     product_report = _load(product_path)
     search_state_path = directory / "search-state.json"
     search = selection["search"]
@@ -312,7 +368,16 @@ def _compact_workload(
             "parameters": campaign["parameters"],
             "assets": campaign["assets"],
             "quality": {
-                "model_space": _compact_model_space(source, model_report, model_path),
+                "inference_parity": _compact_inference(
+                    source,
+                    inference_report,
+                    inference_path,
+                ),
+                "preprocessing_diagnostic": _compact_preprocessing(
+                    source,
+                    preprocessing_report,
+                    preprocessing_path,
+                ),
                 "product_output": _compact_product_output(source, product_report, product_path),
             },
             "results": [
@@ -407,7 +472,7 @@ def build_document(
         raise PublicationError("External provenance is not independent")
 
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "document_type": "published_tuned_results",
         "status": "valid",
         "publishable": True,

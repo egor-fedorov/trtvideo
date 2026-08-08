@@ -20,7 +20,8 @@ Compact, privacy-reviewed publication snapshots are stored in `results/`.
   on the shared runtime.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
-- `scripts/quality/` - model-space and final-output quality gates.
+- `scripts/quality/` - shared-input inference, preprocessing diagnostics, and
+  final-output quality evidence.
 - `scripts/report/` - privacy-reviewed publication export and deterministic SVG
   generation from committed JSON.
 - `scripts/tuning/` - adaptive search, deterministic selection, and
@@ -123,11 +124,11 @@ low-level troubleshooting interface, not the normal full-cycle workflow.
   runtime versions.
 - `run-trtexec` - diagnostic inference ceiling, not a competitor.
 - `profile-nsight` - one non-publishable project timeline for pipeline analysis.
-- `model-space-parity` - compare FP32 RGB tensors immediately before and after
-  TensorRT, outside the timed benchmark path.
+- `tensor-quality` - validate TensorRT outputs from exact shared FP32 RGB inputs
+  and record production-preprocessing differences outside the timed path.
 - `product-output-parity` - retain one canonical MP4 per product, run complete
   PSNR/SSIM decode comparisons, and generate visual crops.
-- `quality-gates` - run both quality jobs.
+- `quality-gates` - run tensor quality and decoded product-output quality.
 - `run-comparative` - canonical rotation of project/vstrt/VSGAN by round and
   generation of a shared acceptance table.
 
@@ -207,9 +208,10 @@ the search and requires a wider contract. A candidate that exceeds available GPU
 memory is retained as a hashed resource-ceiling artifact and excluded from
 ranking; unrelated failures remain fatal. Shortlisted candidates are
 independently remeasured with the full 1000-frame 3+2 contract before selection.
-Only the selected pair runs exact-profile model-space and product-output quality
-gates. A candidate-specific quality failure disqualifies that point and promotes
-the next confirmed candidate.
+Only the selected pair runs exact-profile shared-input inference and
+product-output gates plus the non-gating preprocessing diagnostic. A
+candidate-specific inference or product-output failure disqualifies that point
+and promotes the next confirmed candidate.
 
 RealESRGAN reconnaissance uses 300 frames and records, but does not enforce,
 average bitrate because NVENC CBR does not reliably converge over that short
@@ -333,27 +335,30 @@ All video runners use one explicit NVENC contract: H.264 P4/HQ, CBR,
 target=min=max bitrate, a two-second VBV buffer with 50% initial occupancy,
 single pass, lookahead/AQ disabled, a one-second GOP, and zero B-frames.
 
-Run the independent model-space quality gate after the GPU smoke tests:
+Run the independent tensor-space quality job after the GPU smoke tests:
 
 ```bash
-make -C benchmarks model-space-parity \
+make -C benchmarks tensor-quality \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
   VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
 ```
 
-The command captures canonical frames `0`, `499`, and `999` from the project,
-TRT11 vstrt, and pinned VSGAN. It compares normalized FP32 CHW RGB tensors before
-and after TensorRT using thresholds fixed in the workload manifest. Raw tensors
-and `model-space-parity.json` are written under
+The command captures canonical frames `0`, `499`, and `999`. It first records
+each production preprocessing path as a diagnostic. It then injects the exact
+trtvideo FP32 CHW RGB input tensors into TRT11 vstrt and pinned VSGAN, requires
+the injected inputs to remain byte-identical, and compares only TensorRT
+outputs against fixed thresholds. Raw tensors, `inference-parity.json`, and
+`preprocessing-diagnostic.json` are written under
 `artefacts/benchmarks/comparative/quality/model-space/<profile>/<workload>-<variant>/`.
 Run the exact 720p and SPAN commands from `GPU_RUNBOOK.md`. This gate is not
 included in FPS timing. When the report exists at the canonical path,
-`aggregate-campaign` verifies its execution profile, workload, input, ONNX, and
-engine hashes plus the exact image IDs and clean repository revision, then
-removes the model-space publication gap.
+`aggregate-campaign` verifies both reports' contract version, execution profile,
+workload, input, ONNX, and engine hashes plus exact image IDs and clean
+repository revision. Preprocessing differences are published diagnostics and
+do not fail acceptance.
 
-Run both quality gates together:
+Run the complete quality contract together:
 
 ```bash
 make -C benchmarks quality-gates \

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+import pytest
 
 from benchmarks.scripts.tuning import workflow
 from benchmarks.scripts.tuning.adaptive import CandidatePoint
@@ -59,3 +62,39 @@ def test_reconnaissance_stops_at_hashed_resource_ceiling(
         "stderr": "run-01/warmup.stderr.log",
         "stderr_sha256": "a" * 64,
     }
+
+
+def _invalid_inference_report(path: Path, error: str) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "comparisons": [
+                    {
+                        "implementation": "vs-mlrt",
+                        "status": "invalid",
+                        "errors": [error],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_inference_output_failure_can_disqualify_candidate(tmp_path: Path) -> None:
+    report = tmp_path / "inference.json"
+    _invalid_inference_report(report, "output frame 499: rmse exceeded")
+
+    assert workflow._failed_inference_implementations(report) == {
+        "vstrt": "output frame 499: rmse exceeded"
+    }
+
+
+def test_shared_input_failure_aborts_tuning_instead_of_disqualifying_candidates(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "inference.json"
+    _invalid_inference_report(report, "input frame 499: canonical input tensor differs")
+
+    with pytest.raises(workflow.TuningWorkflowError, match="Shared-input inference"):
+        workflow._failed_inference_implementations(report)

@@ -105,18 +105,36 @@ def verify_matrix(
         if not isinstance(quality, dict):
             raise TunedMatrixError(f"{variant} full quality evidence is missing")
         quality_records = {}
-        for name in ("model_space", "product_output"):
+        tensor_quality_contract_version = campaign.get("parameters", {}).get(
+            "tensor_quality_contract_version"
+        )
+        quality_contracts = {
+            "inference_parity": ("valid", True),
+            "preprocessing_diagnostic": ("complete", False),
+            "product_output": ("valid", None),
+        }
+        for name, (expected_status, expected_gate) in quality_contracts.items():
             quality_path, quality_report = _verified_artifact(
                 root,
                 quality.get(name),
                 label=f"{variant} {name}",
             )
             if (
-                quality_report.get("status") != "valid"
+                quality_report.get("status") != expected_status
                 or quality_report.get("publishable") is not True
                 or quality_report.get("variant") != variant
             ):
                 raise TunedMatrixError(f"{variant} {name} quality evidence is not valid")
+            if (
+                expected_gate is not None
+                and quality_report.get("acceptance_gate") is not expected_gate
+            ):
+                raise TunedMatrixError(f"{variant} {name} acceptance role changed")
+            if (
+                name != "product_output"
+                and quality_report.get("contract_version") != tensor_quality_contract_version
+            ):
+                raise TunedMatrixError(f"{variant} {name} contract version changed")
             quality_records[name] = {
                 "path": quality_path.relative_to(root).as_posix(),
                 "sha256": _sha256(quality_path),
@@ -127,6 +145,7 @@ def verify_matrix(
         contract = (
             campaign.get("workload_id"),
             campaign.get("benchmark_contract_version"),
+            campaign.get("parameters", {}).get("tensor_quality_contract_version"),
             environment.get("repository_revision"),
             gpu.get("name"),
             gpu.get("driver_version"),
@@ -136,7 +155,7 @@ def verify_matrix(
             shared_contract = contract
         elif contract != shared_contract:
             raise TunedMatrixError(
-                "720p and 1080p evidence changed workload, revision, or GPU contract"
+                "720p and 1080p evidence changed workload, quality, revision, or GPU contract"
             )
         entries[variant] = {
             "winners": wrapper.get("winners"),
@@ -156,12 +175,13 @@ def verify_matrix(
         "scope": "cross-resolution-tuned-publication",
         "workload_id": shared_contract[0],
         "benchmark_contract_version": shared_contract[1],
+        "tensor_quality_contract_version": shared_contract[2],
         "environment": {
-            "repository_revision": shared_contract[2],
+            "repository_revision": shared_contract[3],
             "gpu": {
-                "name": shared_contract[3],
-                "driver_version": shared_contract[4],
-                "power_limit_w": shared_contract[5],
+                "name": shared_contract[4],
+                "driver_version": shared_contract[5],
+                "power_limit_w": shared_contract[6],
             },
         },
         "variants": entries,

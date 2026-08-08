@@ -36,9 +36,10 @@ from benchmarks.scripts.contracts.manifest import (
     validate_run_manifest,
 )
 from benchmarks.scripts.contracts.model_space import (
-    ModelSpaceComparisonExpectation,
-    ModelSpaceReportExpectation,
-    validate_model_space_report,
+    TensorComparisonExpectation,
+    TensorReportExpectation,
+    validate_inference_report,
+    validate_preprocessing_report,
 )
 from benchmarks.scripts.runtime.environment import (
     relative_artifact_path,
@@ -48,7 +49,8 @@ from benchmarks.scripts.runtime.environment import (
 from benchmarks.scripts.runtime.suite import compute_suite_statistics
 from trtvideo.benchmarking.lifecycle import median_detailed_phase_intervals
 
-MODEL_SPACE_GAP = "Model-space RGB/float parity is not verified yet"
+INFERENCE_PARITY_GAP = "Shared-input TensorRT inference parity is not verified yet"
+PREPROCESSING_DIAGNOSTIC_GAP = "Production preprocessing diagnostics are not recorded yet"
 PRODUCT_OUTPUT_GAP = "Product-output PSNR/SSIM and visual crops are not generated yet"
 
 
@@ -251,50 +253,73 @@ def _assess_stability(
     )
 
 
-def _validate_model_space_report(
+def _tensor_report_expectation(contract: dict[str, Any]) -> TensorReportExpectation:
+    return TensorReportExpectation(
+        workload_id=contract["workload_id"],
+        variant=contract["variant"],
+        contract_version=contract["model_space_contract_version"],
+        input_sha256=contract["input_sha256"],
+        onnx_sha256=contract["onnx_sha256"],
+        comparisons=(
+            TensorComparisonExpectation(
+                implementation="vs-mlrt",
+                engine_sha256=contract["engine_hashes"]["vstrt"],
+                image_id=contract["image_ids"]["vstrt"],
+                repository_revision=contract["repository_revision"],
+                execution_profile=contract["execution_profiles"]["vstrt"],
+            ),
+            TensorComparisonExpectation(
+                implementation="VSGAN-tensorrt-docker",
+                engine_sha256=contract["engine_hashes"]["vsgan"],
+                image_id=contract["image_ids"]["vsgan"],
+                repository_revision=contract["repository_revision"],
+                execution_profile=contract["execution_profiles"]["vsgan"],
+            ),
+        ),
+        execution_profile=contract["execution_profile"],
+        frame_indices=contract["model_space_frame_indices"],
+        reference_engine_sha256=contract["engine_hashes"]["trtvideo"],
+        reference_image_id=contract["image_ids"]["trtvideo"],
+        reference_revision=contract["repository_revision"],
+        reference_source_dirty="0",
+        reference_execution_profile={
+            "execution_profile": contract["execution_profile"],
+            "cuda_graph": False,
+        },
+    )
+
+
+def _validate_inference_report(
     path: Path,
     *,
     contract: dict[str, Any],
     root: Path,
 ) -> dict[str, Any]:
-    report = load_json(path)
-    validate_model_space_report(
-        report,
-        expectation=ModelSpaceReportExpectation(
-            workload_id=contract["workload_id"],
-            variant=contract["variant"],
-            input_sha256=contract["input_sha256"],
-            onnx_sha256=contract["onnx_sha256"],
-            comparisons=(
-                ModelSpaceComparisonExpectation(
-                    implementation="vs-mlrt",
-                    engine_sha256=contract["engine_hashes"]["vstrt"],
-                    image_id=contract["image_ids"]["vstrt"],
-                    repository_revision=contract["repository_revision"],
-                    execution_profile=contract["execution_profiles"]["vstrt"],
-                ),
-                ModelSpaceComparisonExpectation(
-                    implementation="VSGAN-tensorrt-docker",
-                    engine_sha256=contract["engine_hashes"]["vsgan"],
-                    image_id=contract["image_ids"]["vsgan"],
-                    repository_revision=contract["repository_revision"],
-                    execution_profile=contract["execution_profiles"]["vsgan"],
-                ),
-            ),
-            execution_profile=contract["execution_profile"],
-            frame_indices=contract["model_space_frame_indices"],
-            reference_engine_sha256=contract["engine_hashes"]["trtvideo"],
-            reference_image_id=contract["image_ids"]["trtvideo"],
-            reference_revision=contract["repository_revision"],
-            reference_source_dirty="0",
-            reference_execution_profile={
-                "execution_profile": contract["execution_profile"],
-                "cuda_graph": False,
-            },
-        ),
+    validate_inference_report(
+        load_json(path),
+        expectation=_tensor_report_expectation(contract),
     )
     return {
         "status": "valid",
+        "acceptance_gate": True,
+        "report": relative_artifact_path(path, root),
+        "sha256": sha256_file(path),
+    }
+
+
+def _validate_preprocessing_report(
+    path: Path,
+    *,
+    contract: dict[str, Any],
+    root: Path,
+) -> dict[str, Any]:
+    validate_preprocessing_report(
+        load_json(path),
+        expectation=_tensor_report_expectation(contract),
+    )
+    return {
+        "status": "complete",
+        "acceptance_gate": False,
         "report": relative_artifact_path(path, root),
         "sha256": sha256_file(path),
     }
@@ -674,6 +699,9 @@ def _validate_common_contract(
         "model_space_frame_indices": workload.get("quality", {})
         .get("model_space", {})
         .get("frame_indices"),
+        "model_space_contract_version": workload.get("quality", {})
+        .get("model_space", {})
+        .get("contract_version"),
         "product_output_frame_indices": workload.get("quality", {})
         .get("product_output", {})
         .get("frame_indices"),
@@ -774,7 +802,8 @@ def aggregate_campaign(
     root: Path,
     idle_seconds: float,
     execution_profile: str = "upstream-default",
-    model_space_report: Path | None = None,
+    inference_report: Path | None = None,
+    preprocessing_report: Path | None = None,
     product_output_report: Path | None = None,
 ) -> dict[str, Any]:
     """Validate and aggregate all completed rounds in one campaign directory."""
@@ -803,14 +832,25 @@ def aggregate_campaign(
         execution_profile=execution_profile,
     )
     quality: dict[str, Any] = {}
-    publication_errors = [MODEL_SPACE_GAP, PRODUCT_OUTPUT_GAP]
-    if model_space_report is not None:
-        quality["model_space"] = _validate_model_space_report(
-            model_space_report,
+    publication_errors = [
+        INFERENCE_PARITY_GAP,
+        PREPROCESSING_DIAGNOSTIC_GAP,
+        PRODUCT_OUTPUT_GAP,
+    ]
+    if inference_report is not None:
+        quality["inference_parity"] = _validate_inference_report(
+            inference_report,
             contract=contract,
             root=root,
         )
-        publication_errors.remove(MODEL_SPACE_GAP)
+        publication_errors.remove(INFERENCE_PARITY_GAP)
+    if preprocessing_report is not None:
+        quality["preprocessing_diagnostic"] = _validate_preprocessing_report(
+            preprocessing_report,
+            contract=contract,
+            root=root,
+        )
+        publication_errors.remove(PREPROCESSING_DIAGNOSTIC_GAP)
     if product_output_report is not None:
         quality["product_output"] = _validate_product_output_report(
             product_output_report,
@@ -889,6 +929,7 @@ def aggregate_campaign(
             "encoder": contract["encoder"],
             "cpu_accounting": contract["cpu_accounting"],
             "execution_profiles": contract["execution_profiles"],
+            "tensor_quality_contract_version": contract["model_space_contract_version"],
         },
         "environment": {
             "repository_revision": contract["repository_revision"],
@@ -942,9 +983,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", default=None)
     parser.add_argument("--markdown", default=None)
     parser.add_argument(
-        "--model-space-report",
+        "--inference-report",
         default=None,
-        help="Optional valid model-space parity report for this exact campaign",
+        help="Optional valid shared-input inference report for this exact campaign",
+    )
+    parser.add_argument(
+        "--preprocessing-report",
+        default=None,
+        help="Optional complete preprocessing diagnostic for this exact campaign",
     )
     parser.add_argument(
         "--product-output-report",
@@ -970,7 +1016,10 @@ def main() -> None:
             root=Path(args.root),
             idle_seconds=args.idle_seconds,
             execution_profile=args.execution_profile,
-            model_space_report=(Path(args.model_space_report) if args.model_space_report else None),
+            inference_report=(Path(args.inference_report) if args.inference_report else None),
+            preprocessing_report=(
+                Path(args.preprocessing_report) if args.preprocessing_report else None
+            ),
             product_output_report=(
                 Path(args.product_output_report) if args.product_output_report else None
             ),

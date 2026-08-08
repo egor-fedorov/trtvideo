@@ -27,15 +27,24 @@ def _resolution_evidence(
 ) -> Path:
     directory = root / "artefacts" / variant
     quality = {}
-    for name in ("model_space", "product_output"):
+    quality_contracts = {
+        "inference_parity": ("valid", True),
+        "preprocessing_diagnostic": ("complete", False),
+        "product_output": ("valid", None),
+    }
+    for name, (status, acceptance_gate) in quality_contracts.items():
         path = directory / f"{name}.json"
+        report = {
+            "status": status,
+            "publishable": True,
+            "variant": variant,
+        }
+        if acceptance_gate is not None:
+            report["acceptance_gate"] = acceptance_gate
+            report["contract_version"] = 3
         _write_json(
             path,
-            {
-                "status": "valid",
-                "publishable": True,
-                "variant": variant,
-            },
+            report,
         )
         quality[name] = {
             "path": path.relative_to(root).as_posix(),
@@ -51,6 +60,7 @@ def _resolution_evidence(
             "workload_id": "workload-v1",
             "benchmark_contract_version": 2,
             "variant": variant,
+            "parameters": {"tensor_quality_contract_version": 3},
             "environment": {
                 "repository_revision": revision,
                 "gpu": {

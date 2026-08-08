@@ -37,8 +37,9 @@ Benchmark execution is divided by purpose:
    supports before/after engineering decisions but cannot establish a
    competitor advantage.
 2. `comparative campaign` rotates project, vstrt, and VSGAN runs by round and
-   combines them only after both quality gates pass. This is the sole source of
-   publishable competitor claims.
+   combines them only after inference/product-output gates pass and the
+   preprocessing diagnostic is complete. This is the sole source of publishable
+   competitor claims.
 3. `diagnostics` includes `trtexec`, Nsight Systems, and per-stage profiling.
    Diagnostic timings are never mixed into project or competitor FPS tables.
 
@@ -185,10 +186,12 @@ search assumes that residual NVENC workload differences do not change the
 broad candidate ordering. Shortlisted candidates and all published results are
 remeasured over 1000 frames with bitrate validation enabled.
 
-Only the selected pair runs exact-profile model-space and full product-output
-quality gates. A candidate-specific failure is retained as disqualification
-evidence and promotes the next confirmed candidate. Sweep FPS is never
-published as a final product comparison.
+Only the selected pair runs exact-profile tensor-space diagnostics, shared-input
+inference parity, and full product-output quality gates. A candidate-specific
+inference or product-output failure is retained as disqualification evidence
+and promotes the next confirmed candidate. Numeric preprocessing differences
+are diagnostic and never disqualify a candidate. Sweep FPS is never published
+as a final product comparison.
 
 The project is not silently tuned during this search. Its profile is fixed in
 the same contract to the best already verified production configuration:
@@ -258,71 +261,80 @@ SHA256 is calculated; invalid output is retained for diagnosis.
 
 ## Quality Contract
 
-Quality is checked at two points:
+Quality evidence has three distinct roles:
 
-1. Model-space parity: compare several RGB/float frames before YUV conversion
-   and encoding.
-2. Product-output parity: compare decoded final MP4 frames with PSNR/SSIM and
-   visual crops.
+1. Shared-input inference parity is a mandatory gate. Every TensorRT runtime
+   receives the exact same canonical FP32 RGB tensor and its output is compared.
+2. Production preprocessing is a non-gating diagnostic. It measures the RGB
+   tensors produced by each implementation's real decode/colorspace path.
+3. Product-output parity is a mandatory gate. Decoded final MP4 frames are
+   compared with PSNR/SSIM and retained visual crops.
 
 A pixel diff of only the final MP4 conflates model output, colorspace conversion,
 and lossy encoding. VMAF or quality claims require a separate reference
 degradation dataset and are not inferred from the throughput workload.
 
-Model-space capture is a separate GPU acceptance job and never runs inside a
-timed benchmark process. The canonical frames are zero-based indices `0`, `499`,
-and `999`. Each implementation stores raw little-endian FP32 planar RGB tensors
-with CHW layout at two boundaries:
+Tensor capture is a separate GPU acceptance job and never runs inside a timed
+benchmark process. The canonical frames are zero-based indices `0`, `499`, and
+`999`. Raw tensors use little-endian FP32 planar RGB with CHW layout.
+
+The project reference runs its production `NVDEC -> CV-CUDA -> TensorRT` path
+and stores two boundaries:
 
 ```text
 input:  normalized RGB immediately before TensorRT
 output: RGB immediately after TensorRT, before clipping, YUV conversion, or encode
 ```
 
-The project reference uses its production `NVDEC -> CV-CUDA -> TensorRT` path.
-The model-space capture and the production NVCodec pipeline import the same
-frame processor; capture adds only a synchronized device-to-host copy after the
-shared normalized model input and raw model output boundaries.
-The vstrt and VSGAN captures use `RGBS` immediately before and after
-`core.trt.Model`. VapourSynth's physical `G,B,R` plane serialization is
-normalized to logical RGB CHW after capture. Every raw tensor is size-checked
-and hashed. The report also requires identical input-video and ONNX hashes;
-the vstrt comparison requires the exact same serialized engine as the project.
-The pinned VSGAN runtime uses its native TRT10.16 engine built from the same
-ONNX.
-Each capture records its immutable Docker image ID, clean repository revision,
-and source state. Captures from different revisions cannot form a valid report.
+The capture imports the same `NvcodecFrameProcessor` as production and adds only
+synchronized device-to-host copies at those boundaries. The resulting input is
+the canonical inference tensor.
 
-Acceptance limits are fixed in each workload manifest:
+For shared-input inference, that tensor is packed losslessly into a one-frame
+`gbrpf32le` NUT file and loaded as `RGBS` by each external graph. This bypasses
+BestSource video decode and zimg YUV-to-RGB conversion. The tensor captured
+immediately before `core.trt.Model` must be byte-identical to the project
+reference; only the TensorRT output is compared with numeric tolerances:
 
-| Stage | RMSE | p99 absolute error | Minimum PSNR |
-|---|---:|---:|---:|
-| model input | `0.003922` (`1/255`) | `0.011765` (`3/255`) | `48 dB` |
-| model output | `0.007843` (`2/255`) | `0.015686` (`4/255`) | `42 dB` |
+| Stage | Input rule | RMSE | p99 absolute error | Minimum PSNR |
+|---|---|---:|---:|---:|
+| model input | exact FP32 bytes | `0` | `0` | exact |
+| model output | normalized RGB | `0.007843` (`2/255`) | `0.015686` (`4/255`) | `42 dB` |
 
-All values use normalized RGB where `1.0` is the PSNR data range. These limits
-allow small decoder/colorspace and TensorRT-version differences but reject a
-materially different preprocessing or model result. They must not be changed
-after observing GPU results without invalidating and explaining the campaign.
-`max_abs` remains in every tensor report as a diagnostic, but it is not an
-acceptance limit: a single finite edge pixel is not representative across
-millions of tensor elements and differs between NVDEC/CV-CUDA and
-BestSource/zimg chroma reconstruction. Non-finite values always fail the gate.
+The shared-input output limits allow small TensorRT-version differences while
+rejecting a materially different engine result. `max_abs` remains diagnostic,
+not an acceptance limit; non-finite inference tensors fail the gate. vstrt uses
+the exact project engine. Pinned VSGAN uses its native TRT10.16 engine built
+from the same ONNX because serialized engines are runtime-version-specific.
 
-The v2 gate originally used `max_abs` as a hard limit and input p99 `2/255`.
-The first RTX 3090 acceptance run showed high aggregate equivalence
-(input/output PSNR `50–54 dB`, RMSE within limits, and valid final-MP4
-comparisons) while isolated decoder/colorspace edge pixels exceeded that
-maximum. The affected campaigns remain evidence for the rejected v2
-methodology and are not reused by this versioned contract.
+The preprocessing diagnostic separately captures the actual RGB tensor before
+TensorRT in each production graph: NVDEC/CV-CUDA for trtvideo and
+BestSource/zimg for the measured VapourSynth paths. It reports RMSE, p99,
+PSNR, range extrema, and the fraction outside `[0, 1]`, but has no numeric
+acceptance threshold. Decoder, chroma reconstruction, nominal-range handling,
+and clipping are product-path choices; forcing approximate equality here would
+conflate preprocessing policy with inference correctness. The final MP4 gate
+is what prevents a different preprocessing path from silently reducing output
+quality.
 
-Run the gate with `make -C benchmarks model-space-parity`. It writes capture
-manifests, raw tensors, logs, and `model-space-parity.json` under the ignored
-`artefacts/benchmarks/comparative/quality/model-space/<profile>/` tree. Captures
-use the same requests, streams, threads, and CUDA Graph settings as the selected
-campaign profile. The report and campaign aggregator reject mixed profile
-evidence. A valid report is required in addition to the product-output quality
-report before campaign results can be published.
+The former combined model-space gate compared each product's production input
+and output in one thresholded report. Legal luma excursions in the Madrid clip
+exposed that this could reject different preprocessing semantics before testing
+the model itself. Contract v3 therefore separates exact shared-input inference
+from non-gating production preprocessing. Evidence from the former contract is
+historical and cannot satisfy a v3 campaign.
+
+Every raw tensor and capture manifest is size-checked and hashed. Reports
+require identical video and ONNX hashes, immutable image IDs, clean repository
+revisions, exact execution profiles, and matching frame sets. Captures from
+different revisions or profiles cannot form one report.
+
+Run `make -C benchmarks tensor-quality`. It writes production and shared-input
+captures plus `inference-parity.json` and `preprocessing-diagnostic.json` under
+the ignored
+`artefacts/benchmarks/comparative/quality/model-space/<profile>/` tree. A valid
+inference report and a structurally complete preprocessing diagnostic are both
+required evidence; preprocessing metric values do not affect acceptance.
 
 Product-output parity uses one separate canonical retained-output run per
 implementation. These runs use the workload warmup and the complete 1000-frame
@@ -342,13 +354,14 @@ the center quarter and an upper-left quarter. FFmpeg decodes each product once
 to generate its complete crop matrix. Run manifests, metric logs/statistics,
 MP4 hashes, and every PNG crop are hashed in `product-output-parity.json`.
 
-`make -C benchmarks quality-gates` runs both quality jobs. The campaign
-aggregator verifies both reports against the measured workload, input, ONNX, and
-engine hashes, as well as the exact Docker image IDs and clean repository
-revision. For product-output evidence it reloads the original run manifests
-rather than trusting only report metadata. A stable campaign becomes
-publishable only when both reports are valid and their referenced evidence is
-still present.
+`make -C benchmarks quality-gates` runs tensor quality and product-output
+quality. The campaign aggregator verifies all three reports against the
+measured workload, input, ONNX, and engine hashes, as well as exact image IDs,
+clean repository revision, and tensor-quality contract version. For
+product-output evidence it reloads the original run manifests rather than
+trusting only report metadata. A stable campaign becomes publishable only when
+inference and product-output gates are valid, preprocessing evidence is
+complete, and every referenced artifact is unchanged.
 
 ## Timing Contract
 
@@ -548,5 +561,5 @@ The runner stores an append-only event log with actual order, UTC timestamps,
 and observed idle intervals; the aggregator validates this log instead of
 reconstructing order from directory names. Its immutable config records the
 execution profile and runner arguments used by every round. A campaign is
-publishable only after product-output evidence matches the same profile and
-both quality gates match the measured revision and asset contracts.
+publishable only after product-output and tensor-space evidence match the same
+profile, measured revision, and asset contracts.
