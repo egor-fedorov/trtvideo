@@ -11,7 +11,6 @@ import pytest
 from benchmarks.scripts.quality.capture_vspipe import (
     build_capture_command,
     normalize_vapoursynth_rgbs,
-    serialize_vapoursynth_rgbs,
 )
 from benchmarks.scripts.quality.model_space import (
     CAPTURE_STAGE_CONTRACTS,
@@ -321,38 +320,48 @@ def test_vspipe_production_capture_uses_requested_video_frame(tmp_path: Path) ->
 def test_vspipe_shared_input_capture_bypasses_video_preprocessing(tmp_path: Path) -> None:
     command = build_capture_command(
         _vspipe_args(implementation="vstrt", execution_profile="tuned"),
-        input_path=Path("/app/artefacts/input.nut"),
+        input_path=Path("/app/artefacts/input.f32"),
         output_path=tmp_path / "output.f32",
         frame_index=999,
         stage="output",
         shared_input=True,
+        shared_input_shape=(3, 720, 1280),
     )
 
     assert command[command.index("--start") + 1] == "0"
     assert command[command.index("--end") + 1] == "0"
-    assert "model_input=/app/artefacts/input.nut" in command
+    assert "model_input=/app/artefacts/input.f32" in command
+    assert "model_width=1280" in command
+    assert "model_height=720" in command
     assert not any(value.startswith("source=") for value in command)
     assert "num_streams=3" in command
     assert "cuda_graph=1" in command
 
 
-def test_vapoursynth_plane_serialization_round_trips_rgb(tmp_path: Path) -> None:
-    source = tmp_path / "source.f32"
+def test_vspipe_shared_input_requires_tensor_shape(tmp_path: Path) -> None:
+    with pytest.raises(ModelSpaceError, match="requires its tensor shape"):
+        build_capture_command(
+            _vspipe_args(implementation="vstrt", execution_profile="tuned"),
+            input_path=Path("/app/artefacts/input.f32"),
+            output_path=tmp_path / "output.f32",
+            frame_index=0,
+            stage="input",
+            shared_input=True,
+        )
+
+
+def test_vapoursynth_output_normalization_reorders_gbr_to_rgb(tmp_path: Path) -> None:
     physical_gbr = tmp_path / "physical.f32"
     output = tmp_path / "output.f32"
-    logical_rgb = np.concatenate(
-        [
-            np.full(4, 0.1, dtype="<f4"),
-            np.full(4, 0.2, dtype="<f4"),
-            np.full(4, 0.3, dtype="<f4"),
-        ]
-    )
-    logical_rgb.tofile(source)
+    green = np.full(4, 0.2, dtype="<f4")
+    blue = np.full(4, 0.3, dtype="<f4")
+    red = np.full(4, 0.1, dtype="<f4")
+    np.concatenate([green, blue, red]).tofile(physical_gbr)
 
-    serialize_vapoursynth_rgbs(source, physical_gbr, shape=(3, 2, 2))
     normalize_vapoursynth_rgbs(physical_gbr, output, shape=(3, 2, 2))
 
-    assert np.array_equal(np.fromfile(output, dtype="<f4"), logical_rgb)
+    expected_rgb = np.concatenate([red, green, blue])
+    assert np.array_equal(np.fromfile(output, dtype="<f4"), expected_rgb)
 
 
 def test_workload_manifests_fix_tensor_quality_contract() -> None:

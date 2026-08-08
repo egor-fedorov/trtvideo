@@ -290,11 +290,13 @@ The capture imports the same `NvcodecFrameProcessor` as production and adds only
 synchronized device-to-host copies at those boundaries. The resulting input is
 the canonical inference tensor.
 
-For shared-input inference, that tensor is packed losslessly into a one-frame
-`gbrpf32le` NUT file and loaded as `RGBS` by each external graph. This bypasses
-BestSource video decode and zimg YUV-to-RGB conversion. The tensor captured
-immediately before `core.trt.Model` must be byte-identical to the project
-reference; only the TensorRT output is compared with numeric tolerances:
+For shared-input inference, each external VSScript reads the canonical FP32 CHW
+file directly and copies its R, G, and B planes into a writable one-frame
+`RGBS` clip. This bypasses container demux, BestSource video decode, and zimg
+YUV-to-RGB conversion without asking a media decoder to interpret FP32 tensors.
+The tensor captured immediately before `core.trt.Model` must be byte-identical
+to the project reference; only the TensorRT output is compared with numeric
+tolerances:
 
 | Stage | Input rule | RMSE | p99 absolute error | Minimum PSNR |
 |---|---|---:|---:|---:|

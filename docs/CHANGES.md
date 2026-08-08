@@ -91,10 +91,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
   data, content hashes, output validation, and machine-checked workload
   contract versions.
 - Added shared-input TensorRT parity, production-preprocessing diagnostics, and
-  full decoded-product PSNR/SSIM quality evidence. Comparative results are
-  publishable only when performance evidence and all quality contracts refer to
-  the same assets, engines, images, and clean repository revision; numeric
-  preprocessing differences are reported but do not gate acceptance.
+  full decoded-product PSNR/SSIM quality evidence. Shared FP32 tensors are
+  injected directly into writable VapourSynth `RGBS` frames without a media
+  decoder. Comparative results are publishable only when performance evidence
+  and all quality contracts refer to the same assets, engines, images, and
+  clean repository revision; numeric preprocessing differences are reported but
+  do not gate acceptance.
 - Added upstream-default and adaptive best-tuned comparison profiles. Tuned
   selection uses short reconnaissance, full confirmation for the strongest
   candidates, explicit resource-limit evidence, and winner-only quality gates.

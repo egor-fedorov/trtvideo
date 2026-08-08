@@ -65,9 +65,12 @@ def build_capture_command(
     frame_index: int,
     stage: str,
     shared_input: bool = False,
+    shared_input_shape: tuple[int, int, int] | None = None,
     profile: VapourSynthExecutionProfile | None = None,
 ) -> list[str]:
     """Build one raw RGBS vspipe capture command."""
+    if shared_input and shared_input_shape is None:
+        raise ModelSpaceError("Shared input capture requires its tensor shape")
     profile = profile or resolve_execution_profile(args, args.implementation)
     command = [
         "vspipe",
@@ -94,6 +97,16 @@ def build_capture_command(
             f"model_space_stage={stage}",
         ]
     )
+    if shared_input:
+        assert shared_input_shape is not None
+        command.extend(
+            [
+                "--arg",
+                f"model_width={shared_input_shape[2]}",
+                "--arg",
+                f"model_height={shared_input_shape[1]}",
+            ]
+        )
     if profile.vapoursynth_threads is not None:
         command.extend(["--arg", f"vs_threads={profile.vapoursynth_threads}"])
     command.extend([args.script, str(output_path)])
@@ -148,80 +161,6 @@ def normalize_vapoursynth_rgbs(
     finally:
         if temporary_path.exists():
             temporary_path.unlink()
-
-
-def serialize_vapoursynth_rgbs(
-    source_path: Path,
-    output_path: Path,
-    *,
-    shape: tuple[int, int, int],
-) -> None:
-    """Rewrite logical RGB CHW as VapourSynth/FFmpeg physical GBR planes."""
-    plane_bytes = shape[1] * shape[2] * 4
-    expected_size = shape[0] * plane_bytes
-    if source_path.stat().st_size != expected_size:
-        raise ModelSpaceError(
-            f"Unexpected canonical RGB tensor size: {source_path.stat().st_size} != {expected_size}"
-        )
-
-    temporary_path = output_path.with_suffix(f"{output_path.suffix}.tmp")
-    try:
-        with source_path.open("rb") as source, temporary_path.open("wb") as output:
-            for plane_index in (1, 2, 0):
-                source.seek(plane_index * plane_bytes)
-                remaining = plane_bytes
-                while remaining:
-                    chunk = source.read(min(1024 * 1024, remaining))
-                    if not chunk:
-                        raise ModelSpaceError("Canonical RGB tensor ended inside a plane")
-                    output.write(chunk)
-                    remaining -= len(chunk)
-        os.replace(temporary_path, output_path)
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
-
-
-def _package_shared_input(
-    source_path: Path,
-    output_path: Path,
-    *,
-    shape: tuple[int, int, int],
-    log_path: Path,
-) -> None:
-    """Pack one exact RGBS tensor in a lossless one-frame NUT container."""
-    raw_path = output_path.with_suffix(".gbr.f32")
-    serialize_vapoursynth_rgbs(source_path, raw_path, shape=shape)
-    command = [
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-y",
-        "-f",
-        "rawvideo",
-        "-pixel_format",
-        "gbrpf32le",
-        "-video_size",
-        f"{shape[2]}x{shape[1]}",
-        "-framerate",
-        "1",
-        "-i",
-        str(raw_path),
-        "-frames:v",
-        "1",
-        "-c:v",
-        "rawvideo",
-        "-pix_fmt",
-        "gbrpf32le",
-        "-f",
-        "nut",
-        str(output_path),
-    ]
-    try:
-        _run_command(command, log_path)
-    finally:
-        raw_path.unlink(missing_ok=True)
 
 
 def capture(args: argparse.Namespace) -> Path:
@@ -304,43 +243,34 @@ def capture(args: argparse.Namespace) -> Path:
                     f"{source_artifact.shape} != {input_shape}"
                 )
             source_tensor = canonical_manifest_path.parent / source_artifact.path
-            packed_input = output_dir / f"input.frame-{frame_index:06d}.nut"
-            _package_shared_input(
-                source_tensor,
-                packed_input,
-                shape=input_shape,
-                log_path=output_dir / f"input.frame-{frame_index:06d}.ffmpeg.log",
-            )
-            try:
-                for stage, shape in (("input", input_shape), ("output", output_shape)):
-                    output_path = output_dir / f"{stage}.frame-{frame_index:06d}.f32"
-                    raw_path = output_dir / f"{stage}.frame-{frame_index:06d}.gbr.f32"
-                    log_path = output_dir / f"{stage}.frame-{frame_index:06d}.log"
-                    command = build_capture_command(
-                        args,
-                        input_path=packed_input,
-                        output_path=raw_path,
-                        frame_index=frame_index,
+            for stage, shape in (("input", input_shape), ("output", output_shape)):
+                output_path = output_dir / f"{stage}.frame-{frame_index:06d}.f32"
+                raw_path = output_dir / f"{stage}.frame-{frame_index:06d}.gbr.f32"
+                log_path = output_dir / f"{stage}.frame-{frame_index:06d}.log"
+                command = build_capture_command(
+                    args,
+                    input_path=source_tensor,
+                    output_path=raw_path,
+                    frame_index=frame_index,
+                    stage=stage,
+                    shared_input=True,
+                    shared_input_shape=input_shape,
+                    profile=profile,
+                )
+                try:
+                    _run_command(command, log_path)
+                    normalize_vapoursynth_rgbs(raw_path, output_path, shape=shape)
+                finally:
+                    raw_path.unlink(missing_ok=True)
+                artifacts.append(
+                    create_tensor_artifact(
                         stage=stage,
-                        shared_input=True,
-                        profile=profile,
+                        frame_index=frame_index,
+                        shape=shape,
+                        path=output_path,
+                        root=output_dir,
                     )
-                    try:
-                        _run_command(command, log_path)
-                        normalize_vapoursynth_rgbs(raw_path, output_path, shape=shape)
-                    finally:
-                        raw_path.unlink(missing_ok=True)
-                    artifacts.append(
-                        create_tensor_artifact(
-                            stage=stage,
-                            frame_index=frame_index,
-                            shape=shape,
-                            path=output_path,
-                            root=output_dir,
-                        )
-                    )
-            finally:
-                packed_input.unlink(missing_ok=True)
+                )
     else:
         for frame_index in frame_indices:
             stage = "input"
