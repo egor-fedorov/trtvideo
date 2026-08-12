@@ -58,6 +58,13 @@ def _relative(path: Path, root: Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
 
 
+def _contains_cuda_oom(stderr: str) -> bool:
+    normalized = stderr.casefold()
+    return any(marker.casefold() in normalized for marker in _CUDA_OOM_MARKERS) or (
+        "cudamalloc" in normalized and "out of memory" in normalized
+    )
+
+
 def detect_cuda_oom(
     *,
     root: Path,
@@ -98,7 +105,7 @@ def detect_cuda_oom(
             if stderr_path.parent != manifest_path.parent or not stderr_path.is_file():
                 continue
             stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
-            if not any(marker in stderr for marker in _CUDA_OOM_MARKERS):
+            if not _contains_cuda_oom(stderr):
                 continue
             return ResourceLimitEvidence(
                 kind="cuda-out-of-memory",

@@ -57,7 +57,25 @@ def test_detect_cuda_oom_returns_hashed_evidence(tmp_path: Path) -> None:
     assert evidence.stderr_sha256 == hashlib.sha256(stderr_path.read_bytes()).hexdigest()
 
 
+def test_detect_cuda_oom_accepts_vstrt_cuda_malloc_failure(tmp_path: Path) -> None:
+    suite_path, _ = _invalid_suite(
+        tmp_path,
+        "operator(): 'cudaMalloc(&d_data.data, size)' failed: out of memory\n",
+    )
+
+    evidence = detect_cuda_oom(root=tmp_path, suite_path=suite_path)
+
+    assert evidence is not None
+    assert evidence.kind == "cuda-out-of-memory"
+
+
 def test_detect_cuda_oom_does_not_accept_unrelated_failure(tmp_path: Path) -> None:
     suite_path, _ = _invalid_suite(tmp_path, "Failed to initialize VSScript\n")
+
+    assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is None
+
+
+def test_detect_cuda_oom_rejects_generic_out_of_memory(tmp_path: Path) -> None:
+    suite_path, _ = _invalid_suite(tmp_path, "Host allocator failed: out of memory\n")
 
     assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is None

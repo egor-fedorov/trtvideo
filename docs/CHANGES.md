@@ -100,6 +100,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added upstream-default and adaptive best-tuned comparison profiles. Tuned
   selection uses short reconnaissance, full confirmation for the strongest
   candidates, explicit resource-limit evidence, and winner-only quality gates.
+  CUDA resource ceilings recognize both TensorRT API errors and vstrt
+  `cudaMalloc` allocation failures while retaining hashed raw evidence.
 - Added reproducible Nsight Systems/NVTX diagnostics and generated light/dark
   benchmark figures. Privacy-reviewed RTX 3090 evidence and a validated compact
   JSON exporter are published under `benchmarks/results/`.
