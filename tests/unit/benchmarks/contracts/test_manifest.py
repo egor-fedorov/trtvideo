@@ -36,11 +36,17 @@ def _manifest() -> dict[str, Any]:
             "workload_manifest": {"sha256": "workload"},
         },
         "environment": {
+            "gpu": {
+                "name": "NVIDIA GeForce RTX 3090",
+                "driver_version": "595.84",
+                "power_limit_w": 350.0,
+            },
+            "cpu": {"model": "Test CPU", "logical_cores": 12},
             "image": {
                 "id": "image",
                 "repository_revision": "revision",
                 "source_dirty": "0",
-            }
+            },
         },
         "reproducibility": {"publishable": True},
         "measured": {"validation": {"valid": True}},
@@ -72,6 +78,19 @@ def test_validate_run_manifest_returns_complete_performance_identity() -> None:
 
     assert identity.workload_sha256 == "workload"
     assert identity.warmup_frames == 30
+    assert identity.environment["gpu"]["power_limit_w"] == 350.0
+
+
+@pytest.mark.parametrize("key", ["gpu", "cpu"])
+def test_validate_run_manifest_requires_hardware_contract(key: str) -> None:
+    manifest = _manifest()
+    manifest["environment"].pop(key)
+
+    with pytest.raises(ManifestContractError, match=key.upper()):
+        validate_run_manifest(
+            manifest,
+            expectation=RunExpectation(require_hardware_environment=True),
+        )
 
 
 def test_quality_run_can_omit_performance_only_identity_fields() -> None:

@@ -48,10 +48,10 @@ def test_workload_benchmark_contract_versions_are_explicit() -> None:
     realesrgan = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     span = json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8"))
 
-    assert realesrgan["benchmark"]["contract_version"] == 1
+    assert realesrgan["benchmark"]["contract_version"] == 2
     assert realesrgan["benchmark"]["measured_frames"] == 1000
     assert realesrgan["benchmark"]["warmup_frames"] == 30
-    assert span["benchmark"]["contract_version"] == 1
+    assert span["benchmark"]["contract_version"] == 2
     assert span["benchmark"]["measured_frames"] == 1000
     assert span["benchmark"]["warmup_frames"] == 100
 

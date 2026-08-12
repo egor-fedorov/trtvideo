@@ -85,11 +85,17 @@ def _candidate_evidence(
                     "workload_manifest": {"sha256": SHA["workload_manifest"]},
                 },
                 "environment": {
+                    "gpu": {
+                        "name": "NVIDIA GeForce RTX 3090",
+                        "driver_version": "595.84",
+                        "power_limit_w": 350.0,
+                    },
+                    "cpu": {"model": "Test CPU", "logical_cores": 12},
                     "image": {
                         "id": image_id,
                         "repository_revision": "a" * 40,
                         "source_dirty": "0",
-                    }
+                    },
                 },
                 "reproducibility": {"publishable": True},
                 "measured": {"validation": {"valid": True}},
@@ -370,6 +376,26 @@ def test_rank_rejects_missing_confirmation_evidence(tmp_path: Path) -> None:
 
     assert report["status"] == "invalid"
     assert "vsgan-s5-tauto-g1" in report["errors"][0]
+
+
+def test_rank_rejects_environment_drift_between_search_stages(tmp_path: Path) -> None:
+    contract, workload, sweep_dir = _complete_search(tmp_path)
+    candidate_dir = candidate_directory(sweep_dir, contract.candidate("vstrt-s2-g0"))
+    for manifest_path in (candidate_dir / "confirmation" / "performance").glob(
+        "run-*/manifest.json"
+    ):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["environment"]["gpu"]["power_limit_w"] = 320.0
+        _write_json(manifest_path, manifest)
+
+    with pytest.raises(TuningEvidenceError, match="CPU/GPU environment contract"):
+        rank_tuned_candidates(
+            contract=contract,
+            workload=workload,
+            variant="1080p",
+            sweep_dir=sweep_dir,
+            root=tmp_path,
+        )
 
 
 def test_rank_rejects_unproven_early_stop(tmp_path: Path) -> None:

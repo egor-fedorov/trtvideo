@@ -98,3 +98,48 @@ def test_shared_input_failure_aborts_tuning_instead_of_disqualifying_candidates(
 
     with pytest.raises(workflow.TuningWorkflowError, match="Shared-input inference"):
         workflow._failed_inference_implementations(report)
+
+
+def _invalid_product_report(path: Path, *, hashes: tuple[str, str]) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "comparisons": [
+                    {
+                        "implementation": implementation,
+                        "status": "invalid",
+                        "output_sha256": output_hash,
+                        "errors": ["PSNR below threshold"],
+                    }
+                    for implementation, output_hash in zip(
+                        ("vs-mlrt", "VSGAN-tensorrt-docker"),
+                        hashes,
+                        strict=True,
+                    )
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_identical_invalid_product_outputs_are_a_common_path_failure(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "product.json"
+    _invalid_product_report(report, hashes=("a" * 64, "a" * 64))
+
+    failure = workflow._common_product_output_failure(report)
+
+    assert failure is not None
+    assert "same invalid MP4" in failure
+    assert "not evidence against either scheduling candidate" in failure
+
+
+def test_distinct_invalid_product_outputs_remain_candidate_specific(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "product.json"
+    _invalid_product_report(report, hashes=("a" * 64, "b" * 64))
+
+    assert workflow._common_product_output_failure(report) is None

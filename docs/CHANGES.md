@@ -144,6 +144,14 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- The measured VapourSynth graphs now clamp zimg float RGB excursions to the
+  model's `[0, 1]` input domain before TensorRT, matching the saturation already
+  present in the production CV-CUDA path. Workload benchmark contract versions
+  were advanced, and tuned quality now aborts byte-identical cross-implementation
+  product failures instead of exhausting scheduling candidates.
+- Tuned ranking now rejects recorded CPU/GPU, driver, and power-limit drift
+  across all reconnaissance and confirmation candidates instead of allowing
+  mixed-environment evidence to participate in one selection.
 - Separated inference correctness from preprocessing equivalence after legal
   luma excursions in the live-action workload exposed that the former combined
   model-space gate conflated decode/colorspace policy with TensorRT output.

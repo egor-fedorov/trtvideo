@@ -189,14 +189,22 @@ remeasured over 1000 frames with bitrate validation enabled.
 Only the selected pair runs exact-profile tensor-space diagnostics, shared-input
 inference parity, and full product-output quality gates. A candidate-specific
 inference or product-output failure is retained as disqualification evidence
-and promotes the next confirmed candidate. Numeric preprocessing differences
-are diagnostic and never disqualify a candidate. Sweep FPS is never published
-as a final product comparison.
+and promotes the next confirmed candidate. If both external wrappers instead
+produce the same byte-identical invalid MP4, tuning stops with a common
+product-path failure rather than attributing it to scheduling and exhausting
+the shortlist. Numeric preprocessing differences are diagnostic and never
+disqualify a candidate. Sweep FPS is never published as a final product
+comparison.
 
 The project is not silently tuned during this search. Its profile is fixed in
 the same contract to the best already verified production configuration:
 `nvcodec` with CUDA Graph disabled. Changing that profile creates a new tuning
 contract and requires a new sweep.
+
+Ranking fails closed when any reconnaissance or confirmation candidate changes
+the recorded CPU, GPU, driver, power-limit, persistence, or repository contract.
+Candidate results from different execution environments therefore cannot be
+combined into one tuned selection.
 
 Selection, full quality, and the rotated campaign are performed separately for
 720p and 1080p. A single-resolution final campaign remains evidence only. The
@@ -313,11 +321,14 @@ The preprocessing diagnostic separately captures the actual RGB tensor before
 TensorRT in each production graph: NVDEC/CV-CUDA for trtvideo and
 BestSource/zimg for the measured VapourSynth paths. It reports RMSE, p99,
 PSNR, range extrema, and the fraction outside `[0, 1]`, but has no numeric
-acceptance threshold. Decoder, chroma reconstruction, nominal-range handling,
-and clipping are product-path choices; forcing approximate equality here would
-conflate preprocessing policy with inference correctness. The final MP4 gate
-is what prevents a different preprocessing path from silently reducing output
-quality.
+acceptance threshold. Every measured path nevertheless presents the model with
+normalized RGB in `[0, 1]`: the project saturates while converting through its
+CV-CUDA `U8` buffer, while the VapourSynth graphs apply `std.Limiter` after
+zimg because float RGB otherwise preserves legal YUV/chroma excursions outside
+the model domain. Decoder, chroma reconstruction, and nominal-range conversion
+remain product-path choices; forcing approximate equality here would conflate
+preprocessing policy with inference correctness. The final MP4 gate is what
+prevents a different preprocessing path from silently reducing output quality.
 
 The former combined model-space gate compared each product's production input
 and output in one thresholded report. Legal luma excursions in the Madrid clip
@@ -412,7 +423,8 @@ and warm-cache results are not mixed.
 Each workload declares `benchmark.contract_version`. Every run manifest records
 the corresponding `benchmark_contract_version`; campaign aggregation rejects
 missing, non-canonical, or mixed versions. The final `campaign.json` publishes
-the version so results from different frame-budget contracts cannot be merged.
+the version so results from different frame-budget, preprocessing, or runner
+contracts cannot be merged.
 
 Lifecycle scopes use one boundary contract:
 

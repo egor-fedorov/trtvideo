@@ -152,7 +152,7 @@ def test_trtexec_plan_is_diagnostic() -> None:
     plan, _ = build_trtexec_plan(args)
 
     assert plan["implementation"]["role"] == "diagnostic"
-    assert plan["benchmark_contract_version"] == 1
+    assert plan["benchmark_contract_version"] == 2
     assert "--iterations=1000" in plan["commands"]["measured"][0]
     assert plan["parameters"]["data_transfers"] is False
     assert plan["assets"][0]["present"] is False
@@ -249,7 +249,7 @@ def test_vsgan_plan_uses_upstream_defaults() -> None:
     plan, _ = build_vsgan_plan(common_args())
     vspipe, _ = plan["commands"]["measured"]
 
-    assert plan["benchmark_contract_version"] == 1
+    assert plan["benchmark_contract_version"] == 2
     assert vspipe[vspipe.index("--end") + 1] == "999"
     assert plan["parameters"]["execution_profile"] == "upstream-default"
     assert plan["implementation"]["exact_model_match"] is True

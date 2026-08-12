@@ -246,6 +246,7 @@ def _validate_suite(
                         implementation=assessment.candidate.implementation,
                         execution_profile=assessment.candidate.execution_profile(),
                         require_media_validation=True,
+                        require_hardware_environment=True,
                     ),
                     checksum_length=64,
                 )
@@ -271,7 +272,10 @@ def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
     for assessment in assessments:
         identity = assessment.identity
         if identity is not None and identity.shared_model_key() != shared_key:
-            assessment.reject("Candidate changed shared workload, model, encoder, or revision")
+            raise TuningEvidenceError(
+                "Tuned evidence changed shared workload, model, encoder, revision, "
+                "or CPU/GPU environment contract"
+            )
     for implementation in PRODUCTS:
         implementation_assessments = [
             assessment
@@ -289,6 +293,37 @@ def _enforce_shared_contract(assessments: list[CandidateAssessment]) -> None:
             assert identity is not None
             if identity.implementation_key() != expected:
                 assessment.reject("Candidate changed implementation image or engine")
+
+
+def _enforce_tuning_session_contract(assessments: list[CandidateAssessment]) -> None:
+    identities = [
+        assessment.identity for assessment in assessments if assessment.identity is not None
+    ]
+    if not identities:
+        return
+    expected_session = identities[0].tuning_session_key()
+    if any(identity.tuning_session_key() != expected_session for identity in identities[1:]):
+        raise TuningEvidenceError(
+            "Tuned evidence changed shared workload, model, encoder, revision, "
+            "or CPU/GPU environment contract"
+        )
+    for implementation in PRODUCTS:
+        implementation_identities = [
+            assessment.identity
+            for assessment in assessments
+            if assessment.candidate.implementation == implementation
+            and assessment.identity is not None
+        ]
+        if not implementation_identities:
+            continue
+        expected_implementation = implementation_identities[0].tuning_implementation_key()
+        if any(
+            identity.tuning_implementation_key() != expected_implementation
+            for identity in implementation_identities[1:]
+        ):
+            raise TuningEvidenceError(
+                f"Tuned evidence changed {implementation} image or engine between search stages"
+            )
 
 
 def _validate_disqualification(
@@ -791,6 +826,7 @@ def rank_tuned_candidates(
     )
     _enforce_shared_contract(reconnaissance)
     _enforce_shared_contract(assessments)
+    _enforce_tuning_session_contract([*reconnaissance, *assessments])
     disqualifications = disqualifications or {}
     for assessment in assessments:
         rejection = disqualifications.get(assessment.candidate.candidate_id)
@@ -831,6 +867,11 @@ def rank_tuned_candidates(
         (assessment.identity for assessment in assessments if assessment.identity is not None),
         None,
     )
+    hardware_environment = (
+        first_identity.environment
+        if first_identity is not None and first_identity.environment is not None
+        else {}
+    )
     report = {
         "schema_version": 2,
         "document_type": "tuned-candidate-selection",
@@ -857,7 +898,8 @@ def rank_tuned_candidates(
         "environment": {
             "repository_revision": (
                 first_identity.repository_revision if first_identity is not None else None
-            )
+            ),
+            **hardware_environment,
         },
         "reconnaissance": [assessment.as_dict() for assessment in reconnaissance],
         "candidates": [assessment.as_dict() for assessment in assessments],

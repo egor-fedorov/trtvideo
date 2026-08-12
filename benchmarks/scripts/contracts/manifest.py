@@ -112,6 +112,7 @@ class RunIdentity:
     workload_sha256: str | None
     image_id: str
     repository_revision: str
+    environment: dict[str, Any] | None
     frames: int
     warmup_frames: int | None
     encoder: dict[str, Any]
@@ -126,6 +127,7 @@ class RunIdentity:
             self.onnx_sha256,
             self.workload_sha256,
             self.repository_revision,
+            json.dumps(self.environment, sort_keys=True),
             self.frames,
             self.warmup_frames,
             json.dumps(self.encoder, sort_keys=True),
@@ -134,6 +136,24 @@ class RunIdentity:
     def implementation_key(self) -> tuple[Any, ...]:
         """Return shared fields plus implementation-specific engine/image."""
         return (*self.shared_model_key(), self.engine_sha256, self.image_id)
+
+    def tuning_session_key(self) -> tuple[Any, ...]:
+        """Return cross-stage fields that must not change during tuning."""
+        return (
+            self.workload_id,
+            self.variant,
+            self.benchmark_contract_version,
+            self.input_sha256,
+            self.onnx_sha256,
+            self.workload_sha256,
+            self.repository_revision,
+            json.dumps(self.environment, sort_keys=True),
+            json.dumps(self.encoder, sort_keys=True),
+        )
+
+    def tuning_implementation_key(self) -> tuple[Any, ...]:
+        """Return the tuning session plus implementation image and engine."""
+        return (*self.tuning_session_key(), self.engine_sha256, self.image_id)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -146,6 +166,7 @@ class RunIdentity:
             "workload_sha256": self.workload_sha256,
             "image_id": self.image_id,
             "repository_revision": self.repository_revision,
+            "environment": self.environment,
             "frames": self.frames,
             "warmup_frames": self.warmup_frames,
             "encoder": self.encoder,
@@ -167,6 +188,7 @@ class RunExpectation:
     require_media_validation: bool = False
     require_workload_identity: bool = True
     require_warmup_frames: bool = True
+    require_hardware_environment: bool = False
 
 
 def extract_run_identity(
@@ -175,14 +197,28 @@ def extract_run_identity(
     checksum_length: int | None = None,
     require_workload_identity: bool = True,
     require_warmup_frames: bool = True,
+    require_hardware_environment: bool = False,
 ) -> RunIdentity:
     """Extract and structurally validate immutable run fields."""
     parameters = manifest.get("parameters")
-    image = manifest.get("environment", {}).get("image")
+    environment = manifest.get("environment")
+    if not isinstance(environment, dict):
+        raise ManifestContractError("Run manifest has no environment contract")
+    image = environment.get("image")
+    gpu = environment.get("gpu")
+    cpu = environment.get("cpu")
     if not isinstance(parameters, dict):
         raise ManifestContractError("Run manifest has no parameters")
     if not isinstance(image, dict):
         raise ManifestContractError("Run manifest has no image identity")
+    if require_hardware_environment:
+        if not isinstance(gpu, dict) or not gpu:
+            raise ManifestContractError("Run manifest has no GPU contract")
+        if not isinstance(cpu, dict) or not cpu:
+            raise ManifestContractError("Run manifest has no CPU contract")
+    elif not isinstance(gpu, dict) or not isinstance(cpu, dict):
+        gpu = None
+        cpu = None
     encoder = parameters.get("encoder")
     if not isinstance(encoder, dict):
         raise ManifestContractError("Run manifest has no encoder contract")
@@ -246,6 +282,11 @@ def extract_run_identity(
         workload_sha256=workload_sha256,
         image_id=image_id,
         repository_revision=revision,
+        environment=(
+            {"gpu": dict(gpu), "cpu": dict(cpu)}
+            if isinstance(gpu, dict) and isinstance(cpu, dict)
+            else None
+        ),
         frames=frames,
         warmup_frames=warmup_frames,
         encoder=encoder,
@@ -298,4 +339,5 @@ def validate_run_manifest(
         checksum_length=checksum_length,
         require_workload_identity=expectation.require_workload_identity,
         require_warmup_frames=expectation.require_warmup_frames,
+        require_hardware_environment=expectation.require_hardware_environment,
     )

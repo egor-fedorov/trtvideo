@@ -77,6 +77,7 @@ else:
         matrix_in_s="709",
         range_in_s="limited",
     )
+    rgb = core.std.Limiter(rgb, min=0.0, max=1.0)
 if model_space_stage == "input":
     rgb.set_output()
 else:

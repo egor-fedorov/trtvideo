@@ -746,6 +746,39 @@ def _failed_implementations(report_path: Path) -> dict[str, str]:
     return failures
 
 
+def _common_product_output_failure(report_path: Path) -> str | None:
+    """Identify one byte-identical invalid output shared by both competitors."""
+    report = _load_json(report_path)
+    comparisons = [
+        comparison for comparison in report.get("comparisons", []) if isinstance(comparison, dict)
+    ]
+    if (
+        len(comparisons) != len(PRODUCTS)
+        or {comparison.get("implementation") for comparison in comparisons}
+        != set(PRODUCTS.values())
+        or any(comparison.get("status") == "valid" for comparison in comparisons)
+    ):
+        return None
+    output_hashes: set[str] = set()
+    for comparison in comparisons:
+        output_hash = comparison.get("output_sha256")
+        if not isinstance(output_hash, str) or not output_hash:
+            return None
+        output_hashes.add(output_hash)
+    if len(output_hashes) != 1:
+        return None
+    output_sha256 = next(iter(output_hashes))
+    reasons = sorted(
+        {str(error) for comparison in comparisons for error in comparison.get("errors", [])}
+    )
+    detail = "; ".join(reasons) if reasons else "product-output gate failed"
+    return (
+        "Both external implementations produced the same invalid MP4 "
+        f"({output_sha256[:12]}): {detail}. This is a common product-path "
+        "failure, not evidence against either scheduling candidate"
+    )
+
+
 def _failed_inference_implementations(report_path: Path) -> dict[str, str]:
     """Return model-output failures; shared-input or identity failures are fatal."""
     report = _load_json(report_path)
@@ -880,6 +913,9 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             accepted_artifact=product_report,
         )
         if product_result != 0:
+            common_failure = _common_product_output_failure(product_report)
+            if common_failure is not None:
+                raise TuningWorkflowError(common_failure)
             failures = _failed_implementations(product_report)
             if not failures:
                 raise TuningWorkflowError(
