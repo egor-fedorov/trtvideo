@@ -54,6 +54,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-14
+
 ### Added
 
 - Licensed the project source and documentation under Apache License 2.0;
