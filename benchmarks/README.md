@@ -49,18 +49,25 @@ make -C benchmarks figures
 make -C benchmarks figures-check
 ```
 
-A completed copied tuned session is converted into the compact publication
-snapshot by the benchmark-specific exporter. The source path is relative to the
-repository root:
+A completed copied session is converted into compact tuned and diagnostic
+publication snapshots by benchmark-specific exporters. Source paths are
+relative to the repository root:
 
 ```bash
 make -C benchmarks publish-tuned \
-  TUNED_PUBLICATION_SOURCE=artefacts/benchmarks/01082026tune/comparative/tuning
+  TUNED_PUBLICATION_SOURCE=artefacts/benchmarks/session/comparative/tuning
+
+make -C benchmarks publish-diagnostics \
+  DIAGNOSTICS_PUBLICATION_SOURCE=artefacts/benchmarks/session/diagnostics
 ```
 
-The exporter requires both valid cross-resolution matrices, one clean revision,
-independent candidate provenance, and identical vs-mlrt/VSGAN tensor and MP4
-fingerprints before replacing `results/rtx-3090/tuned.json`.
+The tuned exporter requires both valid Madrid cross-resolution matrices, one
+clean revision, independent candidate provenance, and passing numerical quality
+gates. It records tensor and MP4 identity per workload without requiring
+separately built TensorRT 11 and 10.16 engines to be byte-identical. The
+diagnostics exporter requires four valid Madrid `trtexec` suites, the matching
+clean environment, a valid Nsight output contract, and retained trace/SQLite
+evidence; overlap and copy findings are recomputed from SQLite.
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
 The goal coordinator runs on the host and requires Python `>=3.10,<3.13`.

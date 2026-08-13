@@ -15,14 +15,13 @@ different contracts or revisions.
 
 ## Publication Status
 
-- [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated
-  upstream-default, best-tuned, `trtexec`, and Nsight evidence for RealESRGAN
-  and SPAN at `720p -> 1440p` and `1080p -> 4K`. This snapshot uses the legacy
-  Sintel media contract and remains historical after the canonical workflow's
-  move to the CC0 Madrid live-action source.
+- [RTX 3090 comparative benchmark](rtx-3090/README.md) - validated best-tuned,
+  `trtexec`, and Nsight evidence for RealESRGAN and SPAN at `720p -> 1440p` and
+  `1080p -> 4K`, measured from the pinned CC0 Madrid live-action contract in one
+  clean session.
 
 The snapshots were measured after the repository privacy rewrite and corrected
-limited-range color path. Every result class records its own clean revision,
-hardware, driver, and active power policy; classes from different sessions are
-not aggregated. Both current tuned workload matrices are machine-validated and
-publishable.
+limited-range color path. Every result class records its clean revision,
+hardware, driver, active power policy, and raw-evidence hashes. Both tuned
+workload matrices are machine-validated and publishable; diagnostic overlap and
+copy findings are regenerated from the retained Nsight SQLite export.

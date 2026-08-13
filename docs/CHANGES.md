@@ -103,8 +103,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
   CUDA resource ceilings recognize both TensorRT API errors and vstrt
   `cudaMalloc` allocation failures while retaining hashed raw evidence.
 - Added reproducible Nsight Systems/NVTX diagnostics and generated light/dark
-  benchmark figures. Privacy-reviewed RTX 3090 evidence and a validated compact
-  JSON exporter are published under `benchmarks/results/`.
+  benchmark figures. Privacy-reviewed RTX 3090 evidence and validated compact
+  tuned/diagnostic JSON exporters are published under `benchmarks/results/`.
 
 ### Changed
 
@@ -136,11 +136,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
   used as end-to-end benchmark throughput.
 - Reworked the root README to lead with exact tuned throughput, attributed CPU,
   peak VRAM, and a three-command validated demo before implementation details.
-- Replaced the canonical animated Sintel benchmark input with a 70-second CC0
-  live-action Madrid source. Preparation now records deterministic frame
-  dropping by timestamp to 24 fps and restores ordinary x264 input B-frames,
-  while the independent NVENC output contract remains B-frame-free. Legacy
-  Sintel manifests and published snapshots remain immutable historical evidence.
+- The canonical benchmark input is a 70-second CC0 live-action Madrid source.
+  Preparation records deterministic frame dropping by timestamp to 24 fps and
+  ordinary x264 input B-frames, while the independent NVENC output contract
+  remains B-frame-free.
 
 ### Fixed
 

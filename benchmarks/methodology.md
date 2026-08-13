@@ -83,11 +83,6 @@ The downloadable source is compressed rather than a camera master; this does
 not vary between implementations because every run consumes the same prepared,
 hash-pinned H.264 asset.
 
-The previous Sintel manifests remain immutable for reproduction of published
-historical snapshots, but they are not selected by the canonical workflow.
-Results from Sintel and Madrid are different media contracts and must not be
-pooled or compared as an implementation regression.
-
 ## Inference Contract
 
 Every comparative campaign requires:

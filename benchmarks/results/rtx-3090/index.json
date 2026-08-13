@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "document_type": "published_result_index",
   "status": "valid",
   "hardware": {
@@ -10,36 +10,28 @@
   },
   "composition": {
     "unit": "methodology result class",
+    "media_contract": "CC0 Madrid live-action",
     "self_contained_result_files": true,
     "cross_contract_aggregation": false,
     "human_summary": "README.md",
-    "notes": "Each result class is self-contained and records its own clean revision, hardware, driver, and power policy. Classes from separate sessions are not aggregated."
+    "notes": "Tuned and diagnostic classes were measured in one clean session on one server. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
   },
   "result_sets": [
     {
-      "id": "upstream-default",
-      "file": "upstream-default.json",
-      "sha256": "74408e87c1b33ab2f0e4a0bf58e3a46f6de72a761903b309ab430d76f0e24eb2",
-      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
-      "date_utc": "2026-07-30",
-      "status": "valid",
-      "publishable": true
-    },
-    {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "58e594526c9d98279f088a7dada0b19bc1e3d6e09a253f5335a91f01760b1a62",
-      "measurement_revision": "cb5e645eb4ddcac35c59122bb62fd70cc7e50dcf",
-      "date_utc": "2026-07-31",
+      "sha256": "3b9b86f296fb902fea7b97d376e7a5a7dbe5de2864afd2048a1f9cec6d74294c",
+      "measurement_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
+      "date_utc": "2026-08-13",
       "status": "valid",
       "publishable": true
     },
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "eec2db01de770c35047f0553c7c33132c632b5c49590b0ce032827911c2a695f",
-      "measurement_revision": "8adbca96b829bd2f791fe5bce5c27029e283b79d",
-      "date_utc": "2026-07-30",
+      "sha256": "53ee66beff163ded732fba9b9b07aec7cf16d016c806c7ef55a8bf35852ba760",
+      "measurement_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
+      "date_utc": "2026-08-13",
       "status": "valid",
       "publishable": true
     }

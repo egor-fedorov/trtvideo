@@ -6,16 +6,16 @@ TensorRT, and NVENC.
 
 ## Same Throughput, Lower Resource Use
 
-Across four validated best-tuned workloads, `trtvideo` stays within 1.9% of the
-fastest external result while using 2.1-13.7x lower attributed CPU use and
+Across four validated best-tuned workloads, `trtvideo` stays within 3.4% of the
+fastest external result while using 2.2-14.9x lower attributed CPU use and
 1.7-3.7x lower peak VRAM.
 
 | Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
 |---|---:|---:|---:|
-| RealESRGAN_x2plus 720p -> 1440p | 6.078 / 6.192 VSGAN (-1.9%) | 1.01 / 2.13 | 2.18 / 3.67 GiB |
-| RealESRGAN_x2plus 1080p -> 4K | 2.754 / 2.782 vs-mlrt (-1.0%) | 1.01 / 2.13 | 4.16 / 7.45 GiB |
-| SPAN 720p -> 1440p | 54.517 / 55.583 VSGAN (-1.9%) | 0.56 / 5.41 | 1.46 / 3.84 GiB |
-| SPAN 1080p -> 4K | 25.505 / 25.232 VSGAN (+1.1%) | 0.47 / 6.46 | 2.59 / 9.67 GiB |
+| RealESRGAN_x2plus 720p -> 1440p | 6.171 / 6.376 VSGAN (-3.2%) | 1.01 / 2.17 | 2.18 / 3.67 GiB |
+| RealESRGAN_x2plus 1080p -> 4K | 2.811 / 2.848 vs-mlrt (-1.3%) | 1.01 / 2.17 | 4.17 / 7.45 GiB |
+| SPAN 720p -> 1440p | 55.333 / 55.655 VSGAN (-0.6%) | 0.55 / 5.94 | 1.47 / 3.84 GiB |
+| SPAN 1080p -> 4K | 26.027 / 25.188 VSGAN (+3.3%) | 0.47 / 6.98 | 2.59 / 9.67 GiB |
 
 These end-to-end measurements were recorded on an RTX 3090 at a 350 W board
 limit with a Ryzen 5 5600. CPU use is attributed to the measured child-process
@@ -28,12 +28,11 @@ contract; all implementations fall inside the predeclared +/-5% parity band.
 </picture>
 
 Source: the privacy-reviewed [RTX 3090 tuned result](benchmarks/results/rtx-3090/tuned.json),
-measured on 2026-07-31 from revision `cb5e645`. See the
+measured on 2026-08-13 from revision `a885280`. See the
 [full result report](benchmarks/results/rtx-3090/README.md) and
 [benchmark methodology](benchmarks/methodology.md) for the complete provenance,
-quality gates, and tuning contract. This historical snapshot used the pinned
-Sintel media contract; new canonical runs use the CC0 live-action Madrid
-contract and are not compared across those inputs.
+quality gates, and tuning contract. The complete snapshot uses the pinned CC0
+live-action Madrid contract and one clean measurement session.
 
 ## Quick Start
 

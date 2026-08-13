@@ -6,9 +6,9 @@ import pytest
 
 from benchmarks.scripts.report.publish_tuned import (
     CANONICAL_WORKLOADS,
-    LEGACY_SINTEL_WORKLOADS,
     EvidenceSource,
     PublicationError,
+    _identity_interpretation,
     _intra_session_reproducibility,
     _run_observations,
     _tensor_set_digest,
@@ -41,22 +41,36 @@ def test_evidence_source_maps_only_canonical_paths(tmp_path: Path) -> None:
         source.resolve("artefacts/benchmarks/project/suite.json")
 
 
-@pytest.mark.parametrize(
-    ("workloads", "expected"),
-    (
-        (CANONICAL_WORKLOADS, CANONICAL_WORKLOADS),
-        (LEGACY_SINTEL_WORKLOADS, LEGACY_SINTEL_WORKLOADS),
-    ),
-)
-def test_publication_detects_complete_media_contract(
-    tmp_path: Path,
-    workloads: tuple[tuple[str, str, str], ...],
-    expected: tuple[tuple[str, str, str], ...],
-) -> None:
-    for base in {item[0] for item in workloads}:
+def test_publication_requires_complete_canonical_media_contract(tmp_path: Path) -> None:
+    for base in {item[0] for item in CANONICAL_WORKLOADS}:
         (tmp_path / f"{base}-matrix.json").write_text("{}\n", encoding="utf-8")
 
-    assert _workloads_for_source(EvidenceSource(tmp_path)) == expected
+    assert _workloads_for_source(EvidenceSource(tmp_path)) == CANONICAL_WORKLOADS
+
+
+def test_publication_rejects_incomplete_canonical_media_contract(tmp_path: Path) -> None:
+    (tmp_path / "realesrgan_x2plus_madrid-matrix.json").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(PublicationError, match="complete canonical Madrid matrix"):
+        _workloads_for_source(EvidenceSource(tmp_path))
+
+
+def test_identity_interpretation_does_not_overclaim_mixed_outputs() -> None:
+    identities = [
+        {
+            "candidate_tensor_sha256_sets_identical": True,
+            "candidate_mp4_sha256_identical": True,
+        },
+        {
+            "candidate_tensor_sha256_sets_identical": False,
+            "candidate_mp4_sha256_identical": False,
+        },
+    ]
+
+    interpretation = _identity_interpretation(identities)
+
+    assert "reported per workload" in interpretation
+    assert "quality gates pass" in interpretation
 
 
 def test_run_observations_summarize_all_campaign_rounds(tmp_path: Path) -> None:

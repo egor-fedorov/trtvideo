@@ -35,6 +35,8 @@ RESULTS_DIR ?= benchmarks/results/rtx-3090
 FIGURES_DIR ?= $(RESULTS_DIR)/figures
 TUNED_PUBLICATION_SOURCE ?=
 TUNED_PUBLICATION_OUTPUT ?= $(RESULTS_DIR)/tuned.json
+DIAGNOSTICS_PUBLICATION_SOURCE ?=
+DIAGNOSTICS_PUBLICATION_OUTPUT ?= $(RESULTS_DIR)/diagnostics.json
 CAMPAIGN_NAME ?= $(WORKLOAD_NAME)-$(VARIANT)
 CAMPAIGN_DIR ?= artefacts/benchmarks/comparative/campaigns/$(EXECUTION_PROFILE)/$(CAMPAIGN_NAME)
 CAMPAIGN_IDLE_SECONDS ?= 10
@@ -66,7 +68,7 @@ RESUME ?= 0
 .PHONY: aggregate-campaign run-campaign run-comparative
 .PHONY: run-tuned-sweep rank-tuned run-tuned-quality run-tuned-campaign
 .PHONY: verify-tuned-matrix
-.PHONY: publish-tuned figures figures-check
+.PHONY: publish-tuned publish-diagnostics figures figures-check
 
 help:
 	@printf '%s\n' \
@@ -95,6 +97,7 @@ help:
 		'run-tuned-campaign  Run the rotated campaign for validated tuned winners' \
 		'verify-tuned-matrix Require valid tuned evidence for 720p and 1080p' \
 		'publish-tuned       Build publication JSON from a copied tuned evidence root' \
+		'publish-diagnostics Build publication JSON from copied diagnostic evidence' \
 		'figures             Regenerate published SVG figures from result JSON' \
 		'figures-check       Require committed SVG figures to match result JSON' \
 		'run-campaign        Low-level comparative campaign coordinator' \
@@ -563,6 +566,16 @@ publish-tuned:
 		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.publish_tuned \
 			--source-dir /app/$(TUNED_PUBLICATION_SOURCE) \
 			--output /app/$(TUNED_PUBLICATION_OUTPUT)
+
+publish-diagnostics:
+	@test -n "$(DIAGNOSTICS_PUBLICATION_SOURCE)" || \
+		{ echo 'ERROR: set DIAGNOSTICS_PUBLICATION_SOURCE relative to the repository root' >&2; exit 2; }
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-e PYTHONPATH=/app \
+		-v "$(ROOT):/app" \
+		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.publish_diagnostics \
+			--source-dir /app/$(DIAGNOSTICS_PUBLICATION_SOURCE) \
+			--output /app/$(DIAGNOSTICS_PUBLICATION_OUTPUT)
 
 figures:
 	docker run --rm --user "$$(id -u):$$(id -g)" \

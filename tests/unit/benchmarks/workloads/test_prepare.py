@@ -20,10 +20,6 @@ from benchmarks.scripts.workloads.prepare import (
 
 MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_madrid.json")
 SPAN_MANIFEST_PATH = Path("benchmarks/workloads/liveaction_span_madrid.json")
-LEGACY_MANIFEST_PATHS = (
-    Path("benchmarks/workloads/realesrgan_x2plus_sintel.json"),
-    Path("benchmarks/workloads/liveaction_span_sintel.json"),
-)
 
 
 @pytest.fixture
@@ -37,11 +33,6 @@ def test_manifest_is_valid(manifest: dict) -> None:
 
 def test_span_manifest_is_valid() -> None:
     validate_manifest(json.loads(SPAN_MANIFEST_PATH.read_text(encoding="utf-8")))
-
-
-def test_legacy_sintel_manifests_remain_valid() -> None:
-    for path in LEGACY_MANIFEST_PATHS:
-        validate_manifest(json.loads(path.read_text(encoding="utf-8")))
 
 
 def test_workload_benchmark_contract_versions_are_explicit() -> None:
@@ -215,20 +206,6 @@ def test_build_ffmpeg_command_pins_media_contract(manifest: dict, tmp_path: Path
         "keyint=24:min-keyint=24:scenecut=0:bframes=3:"
         "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited"
     )
-
-
-def test_legacy_sintel_command_preserves_original_timing_contract(tmp_path: Path) -> None:
-    legacy = json.loads(LEGACY_MANIFEST_PATHS[0].read_text(encoding="utf-8"))
-    command = build_ffmpeg_command(
-        legacy,
-        tmp_path / "source.y4m",
-        legacy["clip"]["variants"][0],
-        tmp_path / "output.mp4",
-    )
-
-    assert command[command.index("-vf") + 1] == ("scale=1280:720:flags=lanczos,setsar=1")
-    assert command[command.index("-r") + 1] == "24/1"
-    assert "bframes=0" in command[command.index("-x264-params") + 1]
 
 
 def test_build_model_commands_use_static_variants(manifest: dict, tmp_path: Path) -> None:

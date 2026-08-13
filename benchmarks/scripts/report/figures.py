@@ -637,7 +637,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--results-dir",
         type=Path,
         default=DEFAULT_RESULTS_DIR,
-        help="Directory containing tuned.json and upstream-default.json",
+        help="Directory containing the published tuned.json",
     )
     parser.add_argument(
         "--output-dir",

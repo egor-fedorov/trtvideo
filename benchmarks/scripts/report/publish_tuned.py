@@ -18,12 +18,6 @@ CANONICAL_WORKLOADS = (
     ("liveaction_span_madrid", "SPAN", "720p"),
     ("liveaction_span_madrid", "SPAN", "1080p"),
 )
-LEGACY_SINTEL_WORKLOADS = (
-    ("realesrgan_x2plus_sintel", "RealESRGAN_x2plus", "720p"),
-    ("realesrgan_x2plus_sintel", "RealESRGAN_x2plus", "1080p"),
-    ("liveaction_span_sintel", "SPAN", "720p"),
-    ("liveaction_span_sintel", "SPAN", "1080p"),
-)
 
 
 class PublicationError(RuntimeError):
@@ -63,12 +57,34 @@ class EvidenceSource:
 
 
 def _workloads_for_source(source: EvidenceSource) -> tuple[tuple[str, str, str], ...]:
-    """Select the canonical contract while retaining legacy Sintel publication support."""
-    for workloads in (CANONICAL_WORKLOADS, LEGACY_SINTEL_WORKLOADS):
-        bases = {base for base, _, _ in workloads}
-        if all((source.root / f"{base}-matrix.json").is_file() for base in bases):
-            return workloads
-    raise PublicationError("Tuned evidence does not contain a complete known workload matrix")
+    """Require the complete canonical Madrid workload contract."""
+    missing = [
+        f"{base}-matrix.json"
+        for base in dict.fromkeys(base for base, _, _ in CANONICAL_WORKLOADS)
+        if not (source.root / f"{base}-matrix.json").is_file()
+    ]
+    if missing:
+        raise PublicationError(
+            "Tuned evidence does not contain the complete canonical Madrid matrix: "
+            + ", ".join(missing)
+        )
+    return CANONICAL_WORKLOADS
+
+
+def _identity_interpretation(identities: list[dict[str, Any]]) -> str:
+    tensors_identical = all(item["candidate_tensor_sha256_sets_identical"] for item in identities)
+    outputs_identical = all(item["candidate_mp4_sha256_identical"] for item in identities)
+    if tensors_identical and outputs_identical:
+        return (
+            "Independent vs-mlrt and VSGAN captures are byte-identical for every "
+            "published workload."
+        )
+    return (
+        "Identity is reported per workload. vs-mlrt and VSGAN use independent "
+        "captures and separately built TensorRT 11 and TensorRT 10.16 engines; "
+        "non-identical outputs remain publishable only when the numerical inference "
+        "and decoded-product quality gates pass."
+    )
 
 
 def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
@@ -508,10 +524,13 @@ def build_document(
         },
         "external_output_identity": {
             "status": "verified",
-            "interpretation": (
-                "vs-mlrt and VSGAN execute libvstrt.so through the same VapourSynth graph "
-                "and produce byte-identical candidate tensors and MP4 outputs."
+            "all_candidate_tensor_sets_identical": all(
+                item["candidate_tensor_sha256_sets_identical"] for item in identities
             ),
+            "all_candidate_mp4_outputs_identical": all(
+                item["candidate_mp4_sha256_identical"] for item in identities
+            ),
+            "interpretation": _identity_interpretation(identities),
             "tensor_set_digest": (
                 "SHA-256 of ordered stage<TAB>frame_index<TAB>artifact_sha256<LF> records"
             ),
