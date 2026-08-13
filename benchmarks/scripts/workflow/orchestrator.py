@@ -78,13 +78,8 @@ def _build_steps(
     benchmark_dir = root / "benchmarks"
     steps = [
         Step(
-            key="build:production",
-            label="Build production image",
-            command=_make(root, "build"),
-        ),
-        Step(
             key="build:benchmark",
-            label="Build project benchmark image",
+            label="Build project benchmark and model-tools image",
             command=_make(benchmark_dir, "build"),
         ),
     ]

@@ -8,16 +8,13 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 ## 1. Open-Source Release
 
-- audit dependency, model, and benchmark-media licenses and document any
-  redistribution restrictions;
 - enable GitHub private vulnerability reporting and verify repository topics
   and issue forms when the repository becomes public;
-- move full production and benchmark image builds to a larger or self-hosted
-  GitHub Actions runner; hosted runners continue to perform static Dockerfile
-  validation;
-- publish versioned production images to GHCR from a trusted release-only
-  runner after the redistribution-license audit, and record each immutable
-  image digest in its GitHub release; benchmark images remain internal;
+- provision an isolated release runner for the protected GHCR workflow; hosted
+  runners continue to perform static Dockerfile validation, while benchmark
+  images remain internal;
+- complete the maintainer review of the recorded release SBOM and publish the
+  first versioned production image with its immutable digest;
 - publish the first public versioned GitHub release.
 
 ## 2. Later

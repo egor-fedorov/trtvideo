@@ -1,0 +1,209 @@
+name: Publish Production Image
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghcr-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.repository.private == false
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - trtvideo-release
+    environment: ghcr-release
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
+      NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+
+    steps:
+      - name: Check out the released tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Validate release contract
+        id: release
+        env:
+          APPROVED: ${{ vars.GHCR_REDISTRIBUTION_APPROVED }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          for command in docker git gh python3; do
+            command -v "$command" >/dev/null || {
+              echo "Release runner is missing required command: $command" >&2
+              exit 2
+            }
+          done
+          docker info >/dev/null
+
+          if [[ "$APPROVED" != "true" ]]; then
+            echo "GHCR_REDISTRIBUTION_APPROVED must be true in ghcr-release." >&2
+            exit 2
+          fi
+
+          version="$({
+            python3 - <<'PY'
+          import tomllib
+
+          with open("pyproject.toml", "rb") as source:
+              print(tomllib.load(source)["project"]["version"])
+          PY
+          })"
+          if [[ "$RELEASE_TAG" != "v$version" ]]; then
+            echo "Release tag $RELEASE_TAG does not match project version $version." >&2
+            exit 2
+          fi
+
+          revision="$(git rev-parse HEAD)"
+          tag_revision="$(git rev-parse "$RELEASE_TAG^{commit}")"
+          if [[ "$revision" != "$tag_revision" ]]; then
+            echo "Checkout does not resolve to the released tag." >&2
+            exit 2
+          fi
+          git merge-base --is-ancestor "$revision" origin/main || {
+            echo "Released revision is not contained in origin/main." >&2
+            exit 2
+          }
+          test -z "$(git status --porcelain)" || {
+            echo "Release checkout is dirty." >&2
+            exit 2
+          }
+
+          available_kib="$(df --output=avail -k . | tail -n 1)"
+          required_kib=$((80 * 1024 * 1024))
+          if (( available_kib < required_kib )); then
+            echo "Release runner needs at least 80 GiB free; found $((available_kib / 1024 / 1024)) GiB." >&2
+            exit 2
+          fi
+
+          {
+            echo "version=$version"
+            echo "revision=$revision"
+            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Log in to NVIDIA NGC
+        if: env.NGC_API_KEY != ''
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: nvcr.io
+          username: $oauthtoken
+          password: ${{ secrets.NGC_API_KEY }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.release.outputs.version }}
+            type=raw,value=${{ github.event.release.tag_name }}
+            type=raw,value=sha-${{ steps.release.outputs.revision }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - name: Build and push production image
+        id: image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.release.outputs.build_date }}
+            VERSION=${{ steps.release.outputs.version }}
+            VCS_REF=${{ steps.release.outputs.revision }}
+            VCS_DIRTY=0
+
+      - name: Create signed GitHub provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Smoke-test published digest
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          reference="$IMAGE_NAME@$IMAGE_DIGEST"
+          docker pull "$reference"
+          docker run --rm "$reference" trtvideo --help >/dev/null
+          docker run --rm "$reference" build-engine --help >/dev/null
+          docker run --rm "$reference" sh -euc '
+            command -v trtvideo
+            command -v build-engine
+            ! command -v export-onnx
+            ! command -v prepare-onnx
+            ! command -v benchmark-trtvideo
+            python3 -c "import importlib.util; assert importlib.util.find_spec(\"torch\") is None"
+            test -f /usr/share/doc/trtvideo/LICENSE
+            test -f /usr/share/doc/trtvideo/THIRD_PARTY_NOTICES.md
+            test -f /usr/share/doc/trtvideo/LICENSING.md
+            test -f /opt/nvidia/entrypoint.d/30-container-license.txt
+          '
+
+      - name: Attach immutable digest to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          cat > trtvideo-image-digest.txt <<EOF
+          image=$IMAGE_NAME
+          digest=$IMAGE_DIGEST
+          release=$RELEASE_TAG
+          source_revision=${{ steps.release.outputs.revision }}
+          ubuntu_packages:
+          EOF
+          docker run --rm "$IMAGE_NAME@$IMAGE_DIGEST" \
+            dpkg-query -W -f='  ${binary:Package}=${Version}\n' \
+            ffmpeg libx264-164 >> trtvideo-image-digest.txt
+          gh release upload "$RELEASE_TAG" trtvideo-image-digest.txt --clobber
+          {
+            echo "### Published production image"
+            echo
+            echo "\`$IMAGE_NAME@$IMAGE_DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log out of registries
+        if: always()
+        run: |
+          docker logout ghcr.io || true
+          docker logout nvcr.io || true

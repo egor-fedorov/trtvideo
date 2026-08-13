@@ -63,7 +63,8 @@ The self-contained manual GPU smoke test is:
 make demo
 ```
 
-It uses pinned RealESRGAN weights and a generated 24-frame 720p rich-media MKV.
+It builds the non-published `model-tools` target, then uses pinned RealESRGAN
+weights and a generated 24-frame 720p rich-media MKV.
 The workflow covers model export, FP16 conversion, TensorRT engine build,
 NVDEC/CV-CUDA/TensorRT/NVENC processing, mux, full decode, frame/timestamp/color
 validation, and preservation of auxiliary media. Generated artifacts are
@@ -149,4 +150,6 @@ GitHub Actions builds the same checks image for pull requests and pushes to
 CLI smoke, and benchmark-figure drift as separate steps. A separate workflow
 runs BuildKit static validation for the production Dockerfile without
 downloading the 26 GB runtime image. Full production and benchmark builds remain
-a GPU-host or self-hosted-runner acceptance check.
+a GPU-host or self-hosted-runner acceptance check. Versioned releases build only
+the production target, smoke-test `trtvideo` and `build-engine` by immutable
+digest, and verify that model-conversion and benchmark commands are absent.

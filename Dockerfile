@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=nvcr.io/nvidia/tensorrt:26.06-py3
+ARG BASE_IMAGE=nvcr.io/nvidia/tensorrt:26.06-py3@sha256:7cd94ee931d2b5b85ad1c5af723d485b2625f6ce167e1e4abe577850b96ceac3
 FROM ${BASE_IMAGE} AS runtime
 
 ARG BASE_IMAGE
@@ -38,29 +38,48 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+ARG BUILD_DATE=unknown
+ARG VERSION=dev
 ARG VCS_REF=unknown
 ARG VCS_DIRTY=unknown
 ENV TRTVIDEO_BASE_IMAGE="${BASE_IMAGE}" \
     TRTVIDEO_BUILD_REVISION="${VCS_REF}" \
     TRTVIDEO_BUILD_DIRTY="${VCS_DIRTY}"
-LABEL org.opencontainers.image.revision="${VCS_REF}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.description="GPU-resident TensorRT video processing" \
+      org.opencontainers.image.documentation="https://github.com/egor-fedorov/trtvideo#readme" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.source="https://github.com/egor-fedorov/trtvideo" \
+      org.opencontainers.image.title="trtvideo" \
+      org.opencontainers.image.url="https://github.com/egor-fedorov/trtvideo" \
+      org.opencontainers.image.version="${VERSION}"
 
-COPY README.md ./
+COPY README.md LICENSE ./
+COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/doc/trtvideo/
+COPY docs/LICENSING.md /usr/share/doc/trtvideo/LICENSING.md
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv pip install --python "${VIRTUAL_ENV}" --no-deps .
 
 ENTRYPOINT []
 
-FROM runtime AS benchmark
+FROM runtime AS model-tools
 
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    uv export --frozen --no-emit-project --no-dev --extra benchmark \
-        --output-file /tmp/benchmark-requirements.txt && \
-    uv pip install --python "${VIRTUAL_ENV}" -r /tmp/benchmark-requirements.txt && \
-    rm /tmp/benchmark-requirements.txt
+    uv sync --frozen --no-dev --active --inexact --no-install-project \
+        --extra docker --extra export
+
+FROM model-tools AS benchmark
+
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --active --inexact --no-install-project \
+        --extra docker --extra export --extra benchmark
 
 COPY benchmarks/ benchmarks/
 COPY --chmod=755 benchmarks/bin/benchmark-trtvideo /usr/local/bin/benchmark-trtvideo
 
 FROM runtime AS production
+
+# PyTorch model export and ONNX rewriting are confined to model-tools.
+RUN rm -f "${VIRTUAL_ENV}/bin/export-onnx" \
+          "${VIRTUAL_ENV}/bin/prepare-onnx"

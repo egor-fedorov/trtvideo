@@ -13,13 +13,6 @@ Add notable new changes to `Unreleased`, grouped by purpose:
 ```text
 ## Unreleased
 
-### Fixed
-
-- Corrected the production CV-CUDA color path for limited-range NV12. Y and UV
-  code values are now expanded on the GPU before RGB inference and compressed
-  before NVENC, while full-range input remains unchanged. Model-space capture
-  continues to execute this shared production path.
-
 ### Added
 ### Changed
 ### Fixed
@@ -64,7 +57,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 ### Added
 
 - Licensed the project source and documentation under Apache License 2.0;
-  third-party dependencies, models, and media retain their own licenses.
+  added a redistribution inventory and third-party notices for dependencies,
+  models, and media. A release-only GHCR workflow publishes the production
+  target with a pinned base, SBOM, provenance, signed attestation, OCI metadata,
+  and an immutable digest attached to the GitHub release.
 - Added a self-contained `make demo` GPU workflow with pinned
   RealESRGAN_x2plus weights, generated rich-media input, engine compilation,
   full output validation, and reusable verified intermediates. Model export
@@ -75,33 +71,27 @@ Before `1.0.0`, use pragmatic semantic versioning:
   publishes the result atomically.
 - Added GitHub Actions checks for Ruff, mypy, compileall, unit and media
   integration tests, CLI smoke tests, benchmark-figure drift, and static
-  Dockerfile validation. The lightweight checks image avoids downloading the
-  TensorRT production base for regular CI.
+  Dockerfile validation without downloading the TensorRT production base for
+  regular CI.
 - Added contribution and security policies, structured bug and feature issue
   forms, and complete package discovery metadata for the public repository.
 - Added one goal-based benchmark interface for project regression, comparative,
-  adaptive tuned, and diagnostic workflows. It prepares and verifies pinned
-  assets, builds GPU-specific engines and images, runs smoke checks, records
-  revision-bound resume state, and retains low-level Make targets for debugging.
-- Added reproducible RealESRGAN_x2plus and SPAN x2 workloads at 720p and 1080p,
-  pinned stock VSGAN and vs-mlrt environments, and diagnostic `trtexec`
-  measurements.
+  adaptive tuned, and diagnostic workflows, with reproducible RealESRGAN_x2plus
+  and SPAN x2 workloads, pinned external environments, verified assets,
+  GPU-specific engines, smoke checks, and revision-bound resume state.
 - Added externally timed rotated campaigns with process-attributed CPU use,
   NVML power/utilization/VRAM sampling, lifecycle scopes, sanitized environment
   data, content hashes, output validation, and machine-checked workload
   contract versions.
 - Added shared-input TensorRT parity, production-preprocessing diagnostics, and
-  full decoded-product PSNR/SSIM quality evidence. Shared FP32 tensors are
-  injected directly into writable VapourSynth `RGBS` frames without a media
-  decoder. Comparative results are publishable only when performance evidence
-  and all quality contracts refer to the same assets, engines, images, and
-  clean repository revision; numeric preprocessing differences are reported but
-  do not gate acceptance.
+  full decoded-product PSNR/SSIM evidence. Comparative results are publishable
+  only when performance and quality evidence share the same assets, engines,
+  images, contracts, clean repository revision, and recorded hardware, driver,
+  and power-limit environment. Capture evidence fails closed on suspected
+  cross-implementation output reuse.
 - Added upstream-default and adaptive best-tuned comparison profiles. Tuned
   selection uses short reconnaissance, full confirmation for the strongest
   candidates, explicit resource-limit evidence, and winner-only quality gates.
-  CUDA resource ceilings recognize both TensorRT API errors and vstrt
-  `cudaMalloc` allocation failures while retaining hashed raw evidence.
 - Added reproducible Nsight Systems/NVTX diagnostics and generated light/dark
   benchmark figures. Privacy-reviewed RTX 3090 evidence and validated compact
   tuned/diagnostic JSON exporters are published under `benchmarks/results/`.
@@ -116,26 +106,25 @@ Before `1.0.0`, use pragmatic semantic versioning:
   NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC. Runtime inference uses
   CV-CUDA-owned buffers and direct TensorRT bindings without importing PyTorch;
   PyTorch remains limited to model export.
+- Split local model export and ONNX conversion into the non-published
+  `model-tools` image. The production image now contains only processing and
+  engine-build commands; model-tools use CPU-only PyTorch, and benchmark builds
+  inherit that toolchain without requiring a separate production build.
 - NVENC packets now stream into one long-lived FFmpeg mux process instead of a
   temporary elementary-stream file. MP4 `faststart`, stream preservation,
   shortened-output duration, and atomic publication are part of the same output
   contract.
 - Replaced the single-subclass pipeline hierarchy with one explicit
-  `NvcodecPipeline` orchestrator and typed `ProcessConfig`. Video metadata,
-  FFprobe adaptation, SDR color policy, NVCodec frame processing, output
-  preservation, muxing, profiling, and benchmark lifecycle recording now have
-  separate module boundaries.
+  `NvcodecPipeline` orchestrator and typed `ProcessConfig`, with separate media,
+  NVCodec, muxing, profiling, and benchmark instrumentation boundaries.
 - Moved benchmark orchestration, CPU/NVML sampling, environment collection, and
   suite policy out of the production package and into the optional benchmark
   image. Benchmark Make targets live under `benchmarks/`; the root Makefile
   contains project build and quality checks.
 - Comparative campaigns use explicit `execution_profile` terminology,
-  immutable runner settings, append-only scheduling evidence, rotated order,
-  three initial runs plus two when needed, and a four-of-five stability
-  consensus after extension. Stage profiling remains diagnostic and is never
-  used as end-to-end benchmark throughput.
-- Reworked the root README to lead with exact tuned throughput, attributed CPU,
-  peak VRAM, and a three-command validated demo before implementation details.
+  immutable settings, rotated order, adaptive stability checks, and
+  machine-readable scheduling evidence. Stage profiling remains diagnostic and
+  is never reported as end-to-end throughput.
 - The canonical benchmark input is a 70-second CC0 live-action Madrid source.
   Preparation records deterministic frame dropping by timestamp to 24 fps and
   ordinary x264 input B-frames, while the independent NVENC output contract
@@ -143,17 +132,6 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
-- The measured VapourSynth graphs now clamp zimg float RGB excursions to the
-  model's `[0, 1]` input domain before TensorRT, matching the saturation already
-  present in the production CV-CUDA path. Workload benchmark contract versions
-  were advanced, and tuned quality now aborts byte-identical cross-implementation
-  product failures instead of exhausting scheduling candidates.
-- Tuned ranking now rejects recorded CPU/GPU, driver, and power-limit drift
-  across all reconnaissance and confirmation candidates instead of allowing
-  mixed-environment evidence to participate in one selection.
-- Separated inference correctness from preprocessing equivalence after legal
-  luma excursions in the live-action workload exposed that the former combined
-  model-space gate conflated decode/colorspace policy with TensorRT output.
 - Corrected limited-range NV12 handling: video-range Y/UV values are expanded
   before RGB inference and compressed again before NVENC, while full-range input
   remains unchanged. Production and the trtvideo tensor reference capture share

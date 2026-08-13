@@ -116,6 +116,10 @@ cross its host/device boundary.
   expectations.
 - [Security](SECURITY.md) - supported revisions and private vulnerability
   reporting.
+- [Licensing](docs/LICENSING.md) - distribution boundary and audited release
+  inventory.
+- [Third-Party Notices](THIRD_PARTY_NOTICES.md) - licenses and terms retained by
+  container dependencies.
 - [Roadmap](docs/ROADMAP.md) - current development directions.
 - [Changes](docs/CHANGES.md) - versioned changes and versioning rules.
 - [Performance Log](docs/PERFORMANCE_LOG.md) - measured performance changes.
@@ -134,12 +138,27 @@ GPU runs require a host with the following components already configured:
 
 ## Build The Image
 
+Build the production image used for engine compilation and video processing:
+
 ```bash
 make build
 ```
 
-The default image is `trtvideo:latest`. Use
+The default production image is `trtvideo:latest`. It contains `trtvideo` and
+`build-engine`, but not PyTorch or model conversion tools. Use
 `make build IMAGE=example/name:tag` to select another name.
+
+Model export, ONNX preparation, and the self-contained demo use a separate
+local image:
+
+```bash
+make build-model-tools
+```
+
+That target writes `trtvideo:model-tools` by default. Versioned GitHub releases
+publish only the production target to `ghcr.io/egor-fedorov/trtvideo`; the
+release records its immutable digest, SBOM, and build provenance. Model-tools
+and benchmark images are not published.
 
 The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
 required for NVDEC/NVENC through PyNvVideoCodec. Containers run with
@@ -156,7 +175,7 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 
 ## Demo Details
 
-The target builds the production image, downloads the pinned
+The target builds the local model-tools image, downloads the pinned
 `RealESRGAN_x2plus` v0.2.1 weights, verifies their size and SHA256, and creates a
 one-second 720p MKV with two audio tracks, a subtitle, chapters, metadata, and an
 attachment. It then exports only the 720p ONNX, converts it to mixed FP16,
@@ -208,12 +227,22 @@ arguments to export only selected resolutions.
 
 ## Docker Workflow
 
+Build both local targets before following the complete model-to-video workflow:
+
+```bash
+make build-model-tools
+make build
+```
+
+The first two conversion steps use `trtvideo:model-tools`; engine compilation
+and video processing use the narrower `trtvideo:latest` production image.
+
 ### 1. Export `.pth` To ONNX
 
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  trtvideo:latest export-onnx \
+  trtvideo:model-tools export-onnx \
   --model_path models/pretrained/RealESRGAN_x2plus.pth \
   --size 1280x720
 ```
@@ -230,7 +259,7 @@ input shapes. Without `--size`, the command creates default variants for
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  trtvideo:latest prepare-onnx \
+  trtvideo:model-tools prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720
 ```
@@ -241,7 +270,7 @@ builder flag. Create the mixed-precision variant during this step:
 ```bash
 docker run --rm \
   -v "$PWD/models:/app/models" \
-  trtvideo:latest prepare-onnx \
+  trtvideo:model-tools prepare-onnx \
   models/onnx/model.onnx \
   --size 1280x720 \
   --precision fp16
@@ -453,13 +482,23 @@ commands, and artifact layout are documented in
 
 ## CLI Reference
 
-Available commands:
+Production image commands:
 
 ```bash
 trtvideo
+build-engine
+```
+
+The local model-tools image also provides:
+
+```bash
 export-onnx
 prepare-onnx
-build-engine
+```
+
+The internal benchmark image additionally provides:
+
+```bash
 benchmark-trtvideo
 ```
 
@@ -468,8 +507,8 @@ Use `--help` to view all arguments:
 ```bash
 docker run --rm trtvideo:latest trtvideo --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
-docker run --rm trtvideo:latest export-onnx --help
-docker run --rm trtvideo:latest prepare-onnx --help
+docker run --rm trtvideo:model-tools export-onnx --help
+docker run --rm trtvideo:model-tools prepare-onnx --help
 docker run --rm trtvideo:latest build-engine --help
 ```
 
@@ -516,3 +555,5 @@ The test-layer architecture is documented in `docs/TESTING.md`.
 The source code and documentation in this repository are licensed under the
 [Apache License 2.0](LICENSE). Third-party dependencies, model weights, and
 media assets retain their own licenses and are not relicensed by this project.
+See the audited [distribution boundary](docs/LICENSING.md) and
+[third-party notices](THIRD_PARTY_NOTICES.md).

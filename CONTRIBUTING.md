@@ -56,6 +56,8 @@ and remaining risks. Update the canonical document when behavior changes:
 - `README.md` for public workflows and CLI usage;
 - `docs/ARCHITECTURE.md` for runtime architecture;
 - `docs/TESTING.md` for test contracts;
+- `docs/LICENSING.md` and `THIRD_PARTY_NOTICES.md` when the distributed image or
+  its dependency boundary changes;
 - `docs/CHANGES.md` for notable release-facing changes;
 - `docs/PERFORMANCE_LOG.md` only when a comparable measurement exists.
 

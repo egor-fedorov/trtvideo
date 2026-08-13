@@ -1,4 +1,5 @@
 IMAGE ?= trtvideo:latest
+MODEL_TOOLS_IMAGE ?= trtvideo:model-tools
 DEV_IMAGE ?= trtvideo:dev
 DOCKER_RUN ?= docker run --rm -e PYTHONPATH=/app/src -v "$$PWD:/app"
 DEMO_DIR := $(CURDIR)/.demo
@@ -6,27 +7,38 @@ DEMO_GPU_ID ?= 0
 DEMO_FORCE ?= 0
 DEMO_FORCE_ARG = $(if $(filter 1 true yes,$(DEMO_FORCE)),--force,)
 
-.PHONY: build build-dev demo demo-clean figures figures-check format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
+.PHONY: build build-model-tools build-dev demo demo-clean figures figures-check format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
+		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" \
 		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
 		--target production \
 		-t $(IMAGE) .
+
+build-model-tools:
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" \
+		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
+		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
+		--target model-tools \
+		-t $(MODEL_TOOLS_IMAGE) .
 
 build-dev:
 	DOCKER_BUILDKIT=1 docker build \
 		-f docker/checks.Dockerfile \
 		-t $(DEV_IMAGE) .
 
-demo: build
+demo: build-model-tools
 	mkdir -p "$(DEMO_DIR)"
 	docker run --rm --gpus all \
 		--user "$$(id -u):$$(id -g)" \
 		-e HOME=/tmp \
 		-v "$(DEMO_DIR):/app/.demo" \
-		$(IMAGE) python3 -m trtvideo.cli.demo \
+		$(MODEL_TOOLS_IMAGE) python3 -m trtvideo.cli.demo \
 			--root /app/.demo \
 			--gpu-id "$(DEMO_GPU_ID)" $(DEMO_FORCE_ARG)
 	@printf 'Validated output: %s/output/demo_1440p.mkv\n' "$(DEMO_DIR)"

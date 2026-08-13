@@ -61,7 +61,7 @@ def test_project_goal_covers_complete_selected_matrix_without_competitors() -> N
     )
     targets = _targets(plan)
 
-    assert len(plan) == 18
+    assert len(plan) == 17
     assert targets.count("prepare") == 2
     assert targets.count("build-project-engine") == 4
     assert targets.count("run-project") == 8
@@ -89,7 +89,7 @@ def test_comparative_goal_covers_build_quality_and_campaign() -> None:
     )
     targets = _targets(plan)
 
-    assert len(plan) == 13
+    assert len(plan) == 12
     assert "build-vstrt" in targets
     assert "build-vsgan" in targets
     assert "build-vsgan-engine" in targets
@@ -109,7 +109,7 @@ def test_tuned_goal_runs_each_phase_then_verifies_both_model_matrices() -> None:
     )
     targets = _targets(plan)
 
-    assert len(plan) == 42
+    assert len(plan) == 41
     assert targets.count("run-tuned-sweep") == 4
     assert targets.count("run-tuned-quality") == 4
     assert targets.count("run-tuned-campaign") == 4

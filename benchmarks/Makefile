@@ -1,7 +1,6 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 HOST_PYTHON ?= python3
-IMAGE ?= trtvideo:latest
 BENCHMARK_IMAGE ?= trtvideo:benchmark
 VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
 VSGAN_IMAGE ?= trtvideo:benchmark-vsgan
@@ -105,6 +104,8 @@ help:
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
+		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("$(ROOT)/pyproject.toml", "rb"))["project"]["version"])')" \
 		--build-arg VCS_REF="$$(git -C "$(ROOT)" rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git -C "$(ROOT)" status --porcelain)"; then echo 0; else echo 1; fi)" \
 		--target benchmark \
@@ -130,7 +131,7 @@ build-project-engine:
 	mkdir -p "$(ROOT)/$(dir $(ENGINE))" "$(ROOT)/models/cache"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/models:/app/models" \
-		$(IMAGE) build-engine \
+		$(BENCHMARK_IMAGE) build-engine \
 			/app/$(ONNX) \
 			-o /app/$(ENGINE) \
 			--timing-cache /app/$(TRT_TIMING_CACHE)
@@ -155,7 +156,7 @@ prepare:
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
-		$(IMAGE) python3 -m benchmarks.scripts.workloads.prepare prepare \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.workloads.prepare prepare \
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
 verify:
@@ -164,7 +165,7 @@ verify:
 		-v "$(ROOT)/models:/app/models" \
 		-v "$(ROOT)/videos:/app/videos" \
 		-v "$(ROOT)/benchmarks:/app/benchmarks:ro" \
-		$(IMAGE) python3 -m benchmarks.scripts.workloads.prepare verify \
+		$(BENCHMARK_IMAGE) python3 -m benchmarks.scripts.workloads.prepare verify \
 			--manifest /app/$(MANIFEST) --root /app $(ARGS)
 
 run-project:
