@@ -1,6 +1,7 @@
 """GPU-resident TensorRT video processing CLI."""
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -12,6 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="trtvideo",
         description="GPU-resident TensorRT video processing",
+        epilog="Run 'trtvideo doctor' to check the static runtime environment.",
     )
     parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")
@@ -87,9 +89,9 @@ def process_config_from_args(args: argparse.Namespace) -> ProcessConfig:
     )
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     from trtvideo.pipelines.nvcodec import NvcodecPipeline
 
     try:

@@ -61,6 +61,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   ONNX Runtime CPU under strict numerical thresholds; benchmark asset
   locks bind the evidence to checkpoint, toolchain, exporter contract, and
   generated FP32 ONNX hashes without adding work to timed campaigns.
+- Added `trtvideo doctor`, a fast static environment readiness check for
+  Docker execution, the NVIDIA driver and selected GPU, CUDA, TensorRT,
+  CV-CUDA, NVDEC/NVENC, PyNvVideoCodec, VRAM, and writable disk capacity.
 
 ### Fixed
 

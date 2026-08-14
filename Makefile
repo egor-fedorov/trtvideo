@@ -85,6 +85,7 @@ test-media-integration:
 
 cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo --help
+	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo doctor --help
 	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-trtvideo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help

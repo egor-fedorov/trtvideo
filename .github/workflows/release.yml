@@ -171,6 +171,7 @@ jobs:
           reference="$IMAGE_NAME@$IMAGE_DIGEST"
           docker pull "$reference"
           docker run --rm "$reference" trtvideo --help >/dev/null
+          docker run --rm "$reference" trtvideo doctor --help >/dev/null
           docker run --rm "$reference" build-engine --help >/dev/null
           docker run --rm "$reference" sh -euc '
             command -v trtvideo

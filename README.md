@@ -164,6 +164,29 @@ The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
 required for NVDEC/NVENC through PyNvVideoCodec. Containers run with
 `--gpus all`.
 
+## Environment Check
+
+After building the production image, verify the static runtime environment
+before preparing a model or processing a video:
+
+```bash
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/app" \
+  trtvideo:latest trtvideo doctor
+```
+
+The command actively initializes CUDA, TensorRT, and a minimal CV-CUDA device
+allocation. It also checks Docker execution, the NVIDIA driver, the selected
+GPU, NVDEC/NVENC driver entry points, PyNvVideoCodec, available VRAM, and free
+space plus write access on the selected filesystem. Use `--gpu-id` and
+`--disk-path` when the defaults do not describe the intended run.
+
+`doctor` answers whether the static runtime prerequisites are usable. It does
+not validate a model-specific TensorRT engine, input codec, required VRAM, or
+throughput; those remain workload-dependent and require a short processing
+smoke test.
+
 Build the development image with Ruff and mypy:
 
 ```bash
@@ -510,6 +533,7 @@ Use `--help` to view all arguments:
 
 ```bash
 docker run --rm trtvideo:latest trtvideo --help
+docker run --rm trtvideo:latest trtvideo doctor --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
 docker run --rm trtvideo:model-tools export-onnx --help
 docker run --rm trtvideo:model-tools prepare-onnx --help
