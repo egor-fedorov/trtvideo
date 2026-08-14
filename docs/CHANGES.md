@@ -54,6 +54,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Fixed
+
+- Removed the release runner's implicit Python 3.11 requirement; GHCR release
+  validation now reads the controlled project version with POSIX `awk` instead
+  of importing `tomllib` from the host Python installation.
+
 ## 0.4.0 - 2026-08-14
 
 ### Added
