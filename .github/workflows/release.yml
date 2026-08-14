@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for command in docker git gh python3; do
+          for command in awk docker git gh; do
             command -v "$command" >/dev/null || {
               echo "Release runner is missing required command: $command" >&2
               exit 2
@@ -60,14 +60,21 @@ jobs:
             exit 2
           fi
 
-          version="$({
-            python3 - <<'PY'
-          import tomllib
-
-          with open("pyproject.toml", "rb") as source:
-              print(tomllib.load(source)["project"]["version"])
-          PY
-          })"
+          version="$(
+            awk '
+              $0 == "[project]" { in_project = 1; next }
+              /^\[/ { in_project = 0 }
+              in_project && /^version = "[^"]+"$/ {
+                value = $0
+                sub(/^version = "/, "", value)
+                sub(/"$/, "", value)
+                print value
+                found = 1
+                exit
+              }
+              END { if (!found) exit 1 }
+            ' pyproject.toml
+          )"
           if [[ "$RELEASE_TAG" != "v$version" ]]; then
             echo "Release tag $RELEASE_TAG does not match project version $version." >&2
             exit 2
