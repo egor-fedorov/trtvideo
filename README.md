@@ -37,7 +37,28 @@ live-action Madrid contract and one clean measurement session.
 ## Quick Start
 
 On a Linux host with an NVIDIA driver, Docker, and working
-`docker run --gpus all` passthrough:
+`docker run --gpus all` passthrough, pull the published production image:
+
+```bash
+docker pull ghcr.io/egor-fedorov/trtvideo:latest
+```
+
+Process a video with a prepared static TensorRT engine:
+
+```bash
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/egor-fedorov/trtvideo:latest trtvideo \
+  --engine /work/model.engine \
+  --input /work/input.mp4 \
+  --output /work/output.mp4
+```
+
+Use a version tag instead of `latest` for reproducible deployments. TensorRT
+engines are GPU- and runtime-specific, so they are not bundled in the image.
+
+If you do not have a prepared model and engine, run the self-contained demo:
 
 ```bash
 git clone https://github.com/egor-fedorov/trtvideo.git
@@ -45,8 +66,8 @@ cd trtvideo
 make demo
 ```
 
-The demo builds the image and a GPU-specific TensorRT engine, processes a
-generated rich-media clip, validates the complete result, and writes
+The demo builds the model-tools image and a GPU-specific TensorRT engine,
+processes a generated rich-media clip, validates the complete result, and writes
 `.demo/output/demo_1440p.mkv`. See the [Docker workflow](#docker-workflow) to
 prepare a model and process your own video.
 
