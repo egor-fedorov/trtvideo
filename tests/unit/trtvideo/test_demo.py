@@ -11,7 +11,11 @@ from trtvideo.demo.config import (
     DemoPaths,
     DemoVideoContract,
 )
-from trtvideo.demo.media import build_demo_input_command, validate_demo_probe
+from trtvideo.demo.media import (
+    build_demo_input_command,
+    validate_demo_chroma,
+    validate_demo_probe,
+)
 from trtvideo.demo.workflow import process_command
 
 
@@ -130,6 +134,21 @@ def test_demo_probe_rejects_non_monotonic_timestamps() -> None:
             packets,
             DemoVideoContract(width=2560, height=1440),
         )
+
+
+def test_demo_chroma_accepts_rich_color_output() -> None:
+    observed = validate_demo_chroma({"ULOW": 21.0, "UHIGH": 227.0, "VLOW": 26.0, "VHIGH": 229.0})
+
+    assert observed == {
+        "frame_index": 12,
+        "u_percentile_span": 206.0,
+        "v_percentile_span": 203.0,
+    }
+
+
+def test_demo_chroma_rejects_desaturated_output() -> None:
+    with pytest.raises(DemoError, match="chroma validation failed"):
+        validate_demo_chroma({"ULOW": 99.0, "UHIGH": 159.0, "VLOW": 98.0, "VHIGH": 156.0})
 
 
 def test_demo_parser_accepts_gpu_and_force() -> None:

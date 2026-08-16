@@ -10,7 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from trtvideo.demo import DemoError
-from trtvideo.demo.config import DEMO_FRAMES, DemoPaths, DemoVideoContract
+from trtvideo.demo.config import (
+    DEMO_COLOR_FRAME_INDEX,
+    DEMO_FRAMES,
+    DEMO_MIN_CHROMA_PERCENTILE_SPAN,
+    DemoPaths,
+    DemoVideoContract,
+)
 
 
 def write_demo_media_assets(paths: DemoPaths) -> None:
@@ -174,6 +180,63 @@ def _probe_video(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     if not isinstance(packets, list):
         raise DemoError("ffprobe packets field is not a list")
     return probe, packets
+
+
+def _probe_chroma(path: Path) -> dict[str, float]:
+    command = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        str(path),
+        "-vf",
+        (f"select=eq(n\\,{DEMO_COLOR_FRAME_INDEX}),signalstats,metadata=print:file=-"),
+        "-frames:v",
+        "1",
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise DemoError(f"cannot inspect demo chroma: {shlex.join(command)}") from exc
+
+    wanted = {"ULOW", "UHIGH", "VLOW", "VHIGH"}
+    observed: dict[str, float] = {}
+    prefix = "lavfi.signalstats."
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if not separator or not key.startswith(prefix):
+            continue
+        name = key.removeprefix(prefix)
+        if name not in wanted:
+            continue
+        try:
+            observed[name] = float(value)
+        except ValueError as exc:
+            raise DemoError(f"invalid FFmpeg signalstats value: {line}") from exc
+    if observed.keys() != wanted:
+        missing = ", ".join(sorted(wanted - observed.keys()))
+        raise DemoError(f"FFmpeg signalstats omitted demo chroma fields: {missing}")
+    return observed
+
+
+def validate_demo_chroma(stats: dict[str, float]) -> dict[str, float | int]:
+    """Reject severe color-channel compression in the deterministic demo frame."""
+    u_span = stats["UHIGH"] - stats["ULOW"]
+    v_span = stats["VHIGH"] - stats["VLOW"]
+    if min(u_span, v_span) < DEMO_MIN_CHROMA_PERCENTILE_SPAN:
+        raise DemoError(
+            "demo chroma validation failed: expected U/V percentile spans >= "
+            f"{DEMO_MIN_CHROMA_PERCENTILE_SPAN:.0f}, got U={u_span:.1f}, V={v_span:.1f}"
+        )
+    return {
+        "frame_index": DEMO_COLOR_FRAME_INDEX,
+        "u_percentile_span": u_span,
+        "v_percentile_span": v_span,
+    }
 
 
 def _strictly_increasing(packets: list[dict[str, Any]], key: str) -> bool:
@@ -347,4 +410,6 @@ def validate_demo_video(path: Path, contract: DemoVideoContract) -> dict[str, An
     except (OSError, subprocess.CalledProcessError) as exc:
         raise DemoError(f"full decode failed for {path}") from exc
     probe, packets = _probe_video(path)
-    return validate_demo_probe(probe, packets, contract)
+    observed = validate_demo_probe(probe, packets, contract)
+    observed["chroma"] = validate_demo_chroma(_probe_chroma(path))
+    return observed
