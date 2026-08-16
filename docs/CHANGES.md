@@ -61,6 +61,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   ONNX Runtime CPU under strict numerical thresholds; benchmark asset
   locks bind the evidence to checkpoint, toolchain, exporter contract, and
   generated FP32 ONNX hashes without adding work to timed campaigns.
+- Added `trtvideo doctor`, a fast static environment readiness check for
+  Docker execution, the NVIDIA driver and selected GPU, CUDA, TensorRT,
+  CV-CUDA, NVDEC/NVENC, PyNvVideoCodec, VRAM, and writable disk capacity.
 
 ### Fixed
 
@@ -71,9 +74,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
   cached demo models and engines automatically, benchmark asset verification
   rejects legacy graphs, and demo validation now checks that the deterministic
   color fixture retains a broad chroma range.
-- Removed the release runner's implicit Python 3.11 requirement; GHCR release
-  validation now reads the controlled project version with POSIX `awk` instead
-  of importing `tomllib` from the host Python installation.
+- Removed the implicit Python 3.11 requirement from release validation and
+  Docker image builds. The release workflow uses POSIX `awk`, while Makefiles
+  read the controlled project version with POSIX `sed`, preserving the
+  benchmark orchestrator's Python 3.10 contract and failing before a build if
+  the version is unavailable.
 
 ## 0.4.0 - 2026-08-14
 

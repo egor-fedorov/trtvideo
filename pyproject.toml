@@ -89,7 +89,7 @@ dev = [
 ]
 
 [project.scripts]
-trtvideo = "trtvideo.cli.process:main"
+trtvideo = "trtvideo.cli.main:main"
 export-onnx = "trtvideo.cli.export_onnx:main"
 prepare-onnx = "trtvideo.cli.prepare_onnx:main"
 build-engine = "trtvideo.cli.build_engine:main"

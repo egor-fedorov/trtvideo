@@ -37,7 +37,28 @@ live-action Madrid contract and one clean measurement session.
 ## Quick Start
 
 On a Linux host with an NVIDIA driver, Docker, and working
-`docker run --gpus all` passthrough:
+`docker run --gpus all` passthrough, pull the published production image:
+
+```bash
+docker pull ghcr.io/egor-fedorov/trtvideo:latest
+```
+
+Process a video with a prepared static TensorRT engine:
+
+```bash
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/egor-fedorov/trtvideo:latest trtvideo \
+  --engine /work/model.engine \
+  --input /work/input.mp4 \
+  --output /work/output.mp4
+```
+
+Use a version tag instead of `latest` for reproducible deployments. TensorRT
+engines are GPU- and runtime-specific, so they are not bundled in the image.
+
+If you do not have a prepared model and engine, run the self-contained demo:
 
 ```bash
 git clone https://github.com/egor-fedorov/trtvideo.git
@@ -45,8 +66,8 @@ cd trtvideo
 make demo
 ```
 
-The demo builds the image and a GPU-specific TensorRT engine, processes a
-generated rich-media clip, validates the complete result, and writes
+The demo builds the model-tools image and a GPU-specific TensorRT engine,
+processes a generated rich-media clip, validates the complete result, and writes
 `.demo/output/demo_1440p.mkv`. See the [Docker workflow](#docker-workflow) to
 prepare a model and process your own video.
 
@@ -163,6 +184,29 @@ and benchmark images are not published.
 The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
 required for NVDEC/NVENC through PyNvVideoCodec. Containers run with
 `--gpus all`.
+
+## Environment Check
+
+After building the production image, verify the static runtime environment
+before preparing a model or processing a video:
+
+```bash
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/app" \
+  trtvideo:latest trtvideo doctor
+```
+
+The command actively initializes CUDA, TensorRT, and a minimal CV-CUDA device
+allocation. It also checks Docker execution, the NVIDIA driver, the selected
+GPU, NVDEC/NVENC driver entry points, PyNvVideoCodec, available VRAM, and free
+space plus write access on the selected filesystem. Use `--gpu-id` and
+`--disk-path` when the defaults do not describe the intended run.
+
+`doctor` answers whether the static runtime prerequisites are usable. It does
+not validate a model-specific TensorRT engine, input codec, required VRAM, or
+throughput; those remain workload-dependent and require a short processing
+smoke test.
 
 Build the development image with Ruff and mypy:
 
@@ -510,6 +554,7 @@ Use `--help` to view all arguments:
 
 ```bash
 docker run --rm trtvideo:latest trtvideo --help
+docker run --rm trtvideo:latest trtvideo doctor --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
 docker run --rm trtvideo:model-tools export-onnx --help
 docker run --rm trtvideo:model-tools prepare-onnx --help

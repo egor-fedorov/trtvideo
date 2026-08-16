@@ -1,6 +1,7 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 HOST_PYTHON ?= python3
+PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' "$(ROOT)/pyproject.toml")
 BENCHMARK_IMAGE ?= trtvideo:benchmark
 VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
 VSGAN_IMAGE ?= trtvideo:benchmark-vsgan
@@ -52,6 +53,10 @@ TUNING_720_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-720p
 TUNING_1080_DIR ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-1080p
 TUNING_MATRIX_OUTPUT ?= artefacts/benchmarks/comparative/tuning/$(WORKLOAD_NAME)-matrix.json
 RESUME ?= 0
+
+ifeq ($(strip $(PROJECT_VERSION)),)
+$(error Could not read the project version from $(ROOT)/pyproject.toml)
+endif
 
 .PHONY: help build build-vstrt build-vsgan build-project-engine build-vsgan-engine prepare verify
 .PHONY: run-project run-trtvideo plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
@@ -105,7 +110,7 @@ help:
 build:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("$(ROOT)/pyproject.toml", "rb"))["project"]["version"])')" \
+		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git -C "$(ROOT)" rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git -C "$(ROOT)" status --porcelain)"; then echo 0; else echo 1; fi)" \
 		--target benchmark \

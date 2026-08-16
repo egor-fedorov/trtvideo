@@ -2,17 +2,22 @@ IMAGE ?= trtvideo:latest
 MODEL_TOOLS_IMAGE ?= trtvideo:model-tools
 DEV_IMAGE ?= trtvideo:dev
 DOCKER_RUN ?= docker run --rm -e PYTHONPATH=/app/src -v "$$PWD:/app"
+PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' pyproject.toml)
 DEMO_DIR := $(CURDIR)/.demo
 DEMO_GPU_ID ?= 0
 DEMO_FORCE ?= 0
 DEMO_FORCE_ARG = $(if $(filter 1 true yes,$(DEMO_FORCE)),--force,)
+
+ifeq ($(strip $(PROJECT_VERSION)),)
+$(error Could not read the project version from pyproject.toml)
+endif
 
 .PHONY: build build-model-tools build-dev demo demo-clean figures figures-check format format-check lint typecheck compile test-unit test-media-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" \
+		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
 		--target production \
@@ -21,7 +26,7 @@ build:
 build-model-tools:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-		--build-arg VERSION="$$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" \
+		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
 		--target model-tools \
@@ -80,6 +85,7 @@ test-media-integration:
 
 cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo --help
+	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo doctor --help
 	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-trtvideo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
