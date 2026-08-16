@@ -3,11 +3,13 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from benchmarks.scripts.workloads.prepare import (
     WorkloadError,
+    _validate_onnx_operators,
     build_ffmpeg_command,
     build_model_commands,
     download_source,
@@ -215,6 +217,23 @@ def test_build_model_commands_use_static_variants(manifest: dict, tmp_path: Path
     assert commands[0][commands[0].index("--name") + 1] == "realesrgan_x2plus"
     assert [command[0] for command in commands[1:]] == ["prepare-onnx", "prepare-onnx"]
     assert all("fp16" in command for command in commands[1:])
+
+
+def _onnx_model_with(operator: str) -> SimpleNamespace:
+    return SimpleNamespace(graph=SimpleNamespace(node=[SimpleNamespace(op_type=operator)]))
+
+
+def test_verify_onnx_rejects_incompatible_space_to_depth(tmp_path: Path) -> None:
+    path = tmp_path / "legacy-realesrgan.onnx"
+
+    with pytest.raises(WorkloadError, match="incompatible SpaceToDepth"):
+        _validate_onnx_operators(_onnx_model_with("SpaceToDepth"), path)
+
+
+def test_verify_onnx_allows_span_depth_to_space(tmp_path: Path) -> None:
+    path = tmp_path / "span.onnx"
+
+    _validate_onnx_operators(_onnx_model_with("DepthToSpace"), path)
 
 
 def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:

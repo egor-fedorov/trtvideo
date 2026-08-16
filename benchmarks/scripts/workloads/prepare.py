@@ -307,6 +307,15 @@ def validate_video_probe(
         )
 
 
+def _validate_onnx_operators(model: Any, path: Path) -> None:
+    """Reject ONNX operators that violate the PyTorch export contract."""
+    if any(node.op_type == "SpaceToDepth" for node in model.graph.node):
+        raise WorkloadError(
+            f"ONNX contains incompatible SpaceToDepth channel ordering: {path}; "
+            "rebuild the model assets"
+        )
+
+
 def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     """Validate static mixed-FP16 ONNX with FP32 graph I/O."""
     if not path.is_file():
@@ -320,6 +329,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
 
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         raise WorkloadError(f"ONNX must have one input and one output: {path}")
+    _validate_onnx_operators(model, path)
 
     def tensor_shape(value: Any) -> list[int]:
         return [dimension.dim_value for dimension in value.type.tensor_type.shape.dim]
