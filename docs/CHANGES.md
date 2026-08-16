@@ -67,6 +67,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Made resumed tuned workflows start untouched winner campaigns normally while
+  retaining strict resume checks for campaigns that already have immutable
+  evidence. Benchmark environment manifests now query the CUDA runtime directly
+  through CUDA bindings instead of relying on `torch.version.cuda`, which is
+  unavailable with the CPU-only model-export toolchain.
 - Preserved PyTorch channel ordering when exporting x2 RRDB models that use
   `pixel_unshuffle`. The ONNX exporter previously emitted an incompatible
   `SpaceToDepth` operation, which mixed RGB channels and desaturated

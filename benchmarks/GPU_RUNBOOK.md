@@ -161,6 +161,10 @@ Resume the exact workflow after a transient failure:
 benchmarks/bin/run-benchmark.sh comparative --resume
 ```
 
+For tuned workflows, this same command resumes campaigns that already have an
+immutable config and starts later campaign stages that had not yet begun. Do
+not invoke `run-tuned-campaign` manually to bridge those two states.
+
 The saved context includes the goal, profile, GPU id, matrix hash, repository
 revision, and selected combinations. Resume rejects any mismatch and skips only
 steps explicitly recorded as successful. It does not infer completion from

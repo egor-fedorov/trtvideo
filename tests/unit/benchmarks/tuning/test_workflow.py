@@ -11,6 +11,28 @@ from benchmarks.scripts.tuning.contract import load_tuning_contract
 from benchmarks.scripts.tuning.resource_limit import ResourceLimitEvidence
 
 
+def test_campaign_resume_starts_untouched_later_stage(tmp_path: Path) -> None:
+    campaign_dir = tmp_path / "winner-campaign"
+
+    assert workflow._resume_existing_campaign(campaign_dir, workflow_resume=True) is False
+
+
+def test_campaign_resume_continues_existing_campaign(tmp_path: Path) -> None:
+    campaign_dir = tmp_path / "winner-campaign"
+    campaign_dir.mkdir()
+    (campaign_dir / "campaign.config.json").write_text("{}\n", encoding="utf-8")
+
+    assert workflow._resume_existing_campaign(campaign_dir, workflow_resume=True) is True
+
+
+def test_campaign_resume_rejects_partial_directory_without_config(tmp_path: Path) -> None:
+    campaign_dir = tmp_path / "winner-campaign"
+    campaign_dir.mkdir()
+
+    with pytest.raises(workflow.TuningWorkflowError, match="without its immutable config"):
+        workflow._resume_existing_campaign(campaign_dir, workflow_resume=True)
+
+
 def test_reconnaissance_stops_at_hashed_resource_ceiling(
     tmp_path: Path,
     monkeypatch,
