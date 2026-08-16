@@ -64,6 +64,10 @@
   "model": {
     "name": "RealESRGAN_x2plus",
     "export_name": "realesrgan_x2plus",
+    "export_conformance": {
+      "contract_version": 1,
+      "report_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus.export-conformance.json"
+    },
     "source": {
       "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
       "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb",

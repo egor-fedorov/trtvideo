@@ -342,6 +342,13 @@ All video runners use one explicit NVENC contract: H.264 P4/HQ, CBR,
 target=min=max bitrate, a two-second VBV buffer with 50% initial occupancy,
 single pass, lookahead/AQ disabled, a one-second GOP, and zero B-frames.
 
+Asset preparation also runs a model export-conformance preflight once per
+checkpoint. A deterministic 16x16 RGB probe must match between the original
+FP32 PyTorch model and FP32 ONNX before engines are built. The JSON evidence is
+bound to source, toolchain, export-contract, and full-size FP32 ONNX hashes and
+is summarized in the asset lock. It is not repeated per resolution candidate
+or included in benchmark timing.
+
 Run the independent tensor-space quality job after the GPU smoke tests:
 
 ```bash

@@ -275,6 +275,13 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     _validate_source(_require_dict(model, "source"), "model.source")
     if not isinstance(model.get("export_name"), str) or not model["export_name"]:
         raise WorkloadError("Manifest field 'model.export_name' is required")
+    export_conformance = _require_dict(model, "export_conformance")
+    if export_conformance.get("contract_version") != 1:
+        raise WorkloadError("Manifest model export-conformance contract_version must be 1")
+    _validate_relative_path(
+        export_conformance.get("report_path"),
+        "model.export_conformance.report_path",
+    )
     _validate_relative_path(model.get("weights_path"), "model.weights_path")
     _validate_relative_path(model.get("onnx_dir"), "model.onnx_dir")
     model_variants = _require_list(model, "variants")

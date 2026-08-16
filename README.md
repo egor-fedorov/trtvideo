@@ -248,7 +248,11 @@ docker run --rm \
 ```
 
 Without `--size`, the exporter creates the default 1280x720 and 1920x1080
-variants.
+variants. Before writing them, it exports a deterministic 16x16 probe and
+compares ONNX Runtime CPU output with the original FP32 PyTorch model.
+The command fails on a shape, finite-value, or numerical-contract mismatch and
+writes `NAME.export-conformance.json` beside successful ONNX variants. This
+model-tools preflight is not part of video runtime or benchmark timing.
 
 ### 2. Prepare ONNX
 

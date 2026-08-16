@@ -65,9 +65,10 @@ release SBOM attached to the GHCR image manifest.
 ## Local Model-Tools And Benchmark Targets
 
 The `model-tools` target additionally installs CPU-only PyTorch and torchvision
-(BSD-family), Spandrel (MIT), ONNX Script (MIT), and ONNX Converter Common
-(MIT). The `benchmark` target additionally installs its diagnostic packages.
-The release workflow does not publish either target to GHCR.
+(BSD-family), Spandrel (MIT), ONNX Runtime (MIT), ONNX Script (MIT), and ONNX
+Converter Common (MIT). The `benchmark` target additionally installs its
+diagnostic packages. The release workflow does not publish either target to
+GHCR.
 
 ## Assets Not Included
 

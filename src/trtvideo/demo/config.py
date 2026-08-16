@@ -32,6 +32,7 @@ class DemoPaths:
     onnx_dir: Path
     fp32_onnx: Path
     fp16_onnx: Path
+    export_conformance: Path
     engine: Path
     engine_manifest: Path
     timing_cache: Path
@@ -54,6 +55,7 @@ class DemoPaths:
             onnx_dir=onnx_dir,
             fp32_onnx=onnx_dir / "realesrgan_x2plus_720p.onnx",
             fp16_onnx=onnx_dir / "realesrgan_x2plus_720p_fp16.onnx",
+            export_conformance=onnx_dir / "realesrgan_x2plus.export-conformance.json",
             engine=engine,
             engine_manifest=Path(f"{engine}.json"),
             timing_cache=model_dir / "cache" / "trt.cache",

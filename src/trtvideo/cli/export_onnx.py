@@ -11,9 +11,22 @@ Usage:
 import argparse
 import os
 import sys
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from trtvideo.cli.prepare_onnx import TARGETS, TargetSpec, parse_size
+from trtvideo.models.export_conformance import (
+    EXPORT_CONTRACT_METADATA_KEY,
+    EXPORT_CONTRACT_METADATA_VALUE,
+    EXPORT_PROBE_HEIGHT,
+    EXPORT_PROBE_WIDTH,
+    build_conformance_report,
+    compare_outputs,
+    conformance_report_path,
+    deterministic_probe,
+    write_conformance_report,
+)
 
 PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY = "trtvideo.pixel_unshuffle_order"
 PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE = "channel-major-v1"
@@ -123,10 +136,11 @@ def _validate_channel_major_unshuffle_graph(model: Any) -> None:
         )
 
 
-def _set_pixel_unshuffle_export_metadata(model: Any) -> None:
+def _set_export_metadata(model: Any) -> None:
     import onnx
 
     properties = {item.key: item.value for item in model.metadata_props}
+    properties[EXPORT_CONTRACT_METADATA_KEY] = EXPORT_CONTRACT_METADATA_VALUE
     properties[PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY] = PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE
     onnx.helper.set_model_props(model, properties)
 
@@ -174,11 +188,55 @@ def export_onnx(
 
     model_proto = onnx_program.model_proto
     _validate_channel_major_unshuffle_graph(model_proto)
-    _set_pixel_unshuffle_export_metadata(model_proto)
+    _set_export_metadata(model_proto)
     onnx.save(model_proto, output_path, convert_attribute=True)
 
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
     print(f"  Done: {size_mb:.1f} MB")
+
+
+def run_export_conformance(model: Any, output_dir: Path) -> dict[str, Any]:
+    """Compare the source model with a small ONNX graph from the same exporter."""
+    import onnxruntime
+    import torch
+
+    torch.set_num_threads(1)
+    probe = deterministic_probe(torch)
+    with torch.inference_mode():
+        reference = model(probe).detach().to(device="cpu", dtype=torch.float32)
+
+    with tempfile.TemporaryDirectory(prefix=".export-probe-", dir=output_dir) as temporary:
+        probe_path = Path(temporary) / "probe.onnx"
+        export_onnx(
+            model,
+            EXPORT_PROBE_HEIGHT,
+            EXPORT_PROBE_WIDTH,
+            str(probe_path),
+        )
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+        session = onnxruntime.InferenceSession(
+            str(probe_path),
+            sess_options=options,
+            providers=["CPUExecutionProvider"],
+        )
+        inputs = session.get_inputs()
+        if len(inputs) != 1:
+            raise RuntimeError(f"Expected one ONNX probe input, got {len(inputs)}")
+        outputs = session.run(
+            None,
+            {inputs[0].name: probe.numpy()},
+        )
+    if len(outputs) != 1:
+        raise RuntimeError(f"Expected one ONNX probe output, got {len(outputs)}")
+    candidate = torch.from_numpy(outputs[0])
+    return {
+        "probe": probe,
+        "output_shape": list(reference.shape),
+        "metrics": compare_outputs(reference, candidate, torch),
+    }
 
 
 def export_filename(model_name: str, height: int) -> str:
@@ -214,6 +272,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output model basename (default: realesrgan_x2plus)",
     )
     parser.add_argument(
+        "--conformance-report",
+        type=Path,
+        help="Evidence path (default: OUTPUT_DIR/NAME.export-conformance.json)",
+    )
+    parser.add_argument(
         "--size",
         action="append",
         default=[],
@@ -237,20 +300,43 @@ def main() -> None:
             print(*a, **kw)
 
     os.makedirs(args.output_dir, exist_ok=True)
+    output_dir = Path(args.output_dir)
+    report_path = args.conformance_report or conformance_report_path(output_dir, args.name)
+    report_path.unlink(missing_ok=True)
 
     # Load model
     log("Loading model...")
     model = load_model(args.model_path)
     log(f"  Model loaded: {type(model).__name__}")
 
+    log("\n--- Validate source-model export conformance ---")
+    conformance = run_export_conformance(
+        model,
+        output_dir,
+    )
+
     targets = [parse_size(size) for size in args.size] or TARGETS
+    exported_paths: list[Path] = []
 
     for target in targets:
         input_h, input_w = target["h"], target["w"]
         filename = export_filename_for_target(args.name, target)
-        output_path = os.path.join(args.output_dir, filename)
+        output_path = output_dir / filename
         log(f"\n--- Export {filename} ---")
-        export_onnx(model, input_h, input_w, output_path)
+        export_onnx(model, input_h, input_w, str(output_path))
+        exported_paths.append(output_path)
+
+    report = build_conformance_report(
+        model_name=args.name,
+        weights_path=Path(args.model_path),
+        probe=conformance["probe"],
+        output_shape=conformance["output_shape"],
+        metrics=conformance["metrics"],
+        exported_paths=exported_paths,
+        output_dir=output_dir,
+    )
+    write_conformance_report(report_path, report)
+    log(f"Export conformance: valid ({report_path})")
 
     log("\n=== All ONNX models exported ===")
     log(f"Files in: {args.output_dir}/")

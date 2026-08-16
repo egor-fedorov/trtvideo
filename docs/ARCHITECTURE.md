@@ -336,6 +336,14 @@ tensors to FP16 while retaining the FP32 I/O required by the current video
 contract. `build-engine` then compiles the prepared ONNX without a separate
 FP16 flag.
 
+`export-onnx` validates graph generation before any engine is built. It runs a
+small deterministic RGB tensor through the original Spandrel/PyTorch model and
+an FP32 ONNX graph produced by the same export path, then enforces shape,
+finite-value, RMSE, maximum-error, and PSNR limits. Successful evidence is
+bound to the checkpoint hash, exporter/tool versions, and generated static
+FP32 ONNX hashes. This model-tools operation is outside the production image
+and all performance timing.
+
 ## Known Limitations
 
 - Only full-frame video upscaling with batch size 1 is implemented.

@@ -9,6 +9,7 @@ import pytest
 
 from benchmarks.scripts.workloads.prepare import (
     WorkloadError,
+    _validate_onnx_export_metadata,
     _validate_onnx_operators,
     build_ffmpeg_command,
     build_model_commands,
@@ -18,6 +19,10 @@ from benchmarks.scripts.workloads.prepare import (
     validate_manifest,
     validate_video_probe,
     verify_source_file,
+)
+from trtvideo.models.export_conformance import (
+    EXPORT_CONTRACT_METADATA_KEY,
+    EXPORT_CONTRACT_METADATA_VALUE,
 )
 
 MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_madrid.json")
@@ -97,6 +102,14 @@ def test_manifest_rejects_missing_measurement_contract(manifest: dict) -> None:
     del invalid["benchmark"]["warmup_frames"]
 
     with pytest.raises(WorkloadError, match="benchmark fields are missing"):
+        validate_manifest(invalid)
+
+
+def test_manifest_rejects_missing_export_conformance_contract(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    del invalid["model"]["export_conformance"]
+
+    with pytest.raises(WorkloadError, match="export_conformance"):
         validate_manifest(invalid)
 
 
@@ -215,12 +228,19 @@ def test_build_model_commands_use_static_variants(manifest: dict, tmp_path: Path
 
     assert commands[0][0] == "export-onnx"
     assert commands[0][commands[0].index("--name") + 1] == "realesrgan_x2plus"
+    assert commands[0][commands[0].index("--conformance-report") + 1].endswith(
+        "realesrgan_x2plus.export-conformance.json"
+    )
     assert [command[0] for command in commands[1:]] == ["prepare-onnx", "prepare-onnx"]
     assert all("fp16" in command for command in commands[1:])
 
 
 def _onnx_model_with(operator: str) -> SimpleNamespace:
     return SimpleNamespace(graph=SimpleNamespace(node=[SimpleNamespace(op_type=operator)]))
+
+
+def _onnx_model_with_metadata(key: str, value: str) -> SimpleNamespace:
+    return SimpleNamespace(metadata_props=[SimpleNamespace(key=key, value=value)])
 
 
 def test_verify_onnx_rejects_incompatible_space_to_depth(tmp_path: Path) -> None:
@@ -234,6 +254,23 @@ def test_verify_onnx_allows_span_depth_to_space(tmp_path: Path) -> None:
     path = tmp_path / "span.onnx"
 
     _validate_onnx_operators(_onnx_model_with("DepthToSpace"), path)
+
+
+def test_verify_onnx_rejects_stale_export_metadata(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.onnx"
+
+    with pytest.raises(WorkloadError, match="export contract is missing or stale"):
+        _validate_onnx_export_metadata(_onnx_model_with_metadata("other", "value"), path)
+
+
+def test_verify_onnx_accepts_current_export_metadata(tmp_path: Path) -> None:
+    _validate_onnx_export_metadata(
+        _onnx_model_with_metadata(
+            EXPORT_CONTRACT_METADATA_KEY,
+            EXPORT_CONTRACT_METADATA_VALUE,
+        ),
+        tmp_path / "current.onnx",
+    )
 
 
 def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:

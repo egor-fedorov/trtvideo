@@ -68,8 +68,10 @@ weights and a generated 24-frame 720p rich-media MKV.
 The workflow covers model export, FP16 conversion, TensorRT engine build,
 NVDEC/CV-CUDA/TensorRT/NVENC processing, mux, full decode, frame/timestamp/color
 validation, a deterministic chroma-range regression check, and preservation of
-auxiliary media. Generated artifacts are cached in `.demo/`; use
-`DEMO_FORCE=1` to rebuild them.
+auxiliary media. Model export first compares a small deterministic source-model
+probe between FP32 PyTorch and ONNX Runtime CPU and retains the evidence
+beside the ONNX. Generated artifacts are cached in `.demo/`; use `DEMO_FORCE=1`
+to rebuild them.
 
 Validate that:
 
@@ -95,6 +97,12 @@ Canonical benchmark assets are prepared and verified without a GPU:
 make -C benchmarks prepare
 make -C benchmarks verify
 ```
+
+Preparation runs export conformance once per checkpoint, before engine builds.
+The cached evidence is bound to the source SHA256, exporter contract, tool
+versions, and generated FP32 ONNX hashes; verification rejects a missing or
+stale report. It never runs inside a timed suite, tuned candidate, or campaign
+round.
 
 `prepare` downloads large ignored assets and is therefore excluded from the
 regular quality gate. Pure-Python workload-manifest and preparation-command

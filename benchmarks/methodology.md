@@ -264,14 +264,26 @@ SHA256 is calculated; invalid output is retained for diagnosis.
 
 ## Quality Contract
 
-Quality evidence has three distinct roles:
+Quality evidence has four distinct roles:
 
-1. Shared-input inference parity is a mandatory gate. Every TensorRT runtime
+1. Source-model export conformance is a mandatory CPU preflight. One
+   deterministic 16x16 RGB probe compares the original FP32 PyTorch checkpoint
+   with an FP32 ONNX graph from the same exporter. It requires `max_abs <=
+   0.0001`, `RMSE <= 0.00001`, and `PSNR >= 80 dB`; evidence is bound to the
+   checkpoint, export contract, tool versions, and full-size FP32 ONNX hashes.
+2. Shared-input inference parity is a mandatory gate. Every TensorRT runtime
    receives the exact same canonical FP32 RGB tensor and its output is compared.
-2. Production preprocessing is a non-gating diagnostic. It measures the RGB
+3. Production preprocessing is a non-gating diagnostic. It measures the RGB
    tensors produced by each implementation's real decode/colorspace path.
-3. Product-output parity is a mandatory gate. Decoded final MP4 frames are
+4. Product-output parity is a mandatory gate. Decoded final MP4 frames are
    compared with PSNR/SSIM and retained visual crops.
+
+Export conformance runs once during asset preparation, before TensorRT engine
+builds. It is cached in the workload asset lock and never executes inside a
+timed suite, tuned candidate, or campaign round. The runtime gates remain
+necessary: export conformance catches a common ONNX defect, while shared-input
+and product-output evidence cover TensorRT/runtime differences and the complete
+video path.
 
 A pixel diff of only the final MP4 conflates model output, colorspace conversion,
 and lossy encoding. VMAF or quality claims require a separate reference
