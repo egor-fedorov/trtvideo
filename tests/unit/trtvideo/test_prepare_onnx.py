@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -38,6 +39,12 @@ def test_export_parser_accepts_selected_sizes() -> None:
     args = build_parser().parse_args(["--size", "1280x720", "--size", "640x360"])
 
     assert args.size == ["1280x720", "640x360"]
+
+
+def test_export_parser_accepts_explicit_conformance_report() -> None:
+    args = build_parser().parse_args(["--conformance-report", "/tmp/model-report.json"])
+
+    assert args.conformance_report == Path("/tmp/model-report.json")
 
 
 def test_pixel_unshuffle_transposes_spatial_offsets_after_channels() -> None:

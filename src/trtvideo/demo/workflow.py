@@ -37,6 +37,13 @@ from trtvideo.demo.media import (
     validate_demo_video,
     write_demo_media_assets,
 )
+from trtvideo.models.export_conformance import (
+    EXPORT_CONTRACT_METADATA_KEY,
+    EXPORT_CONTRACT_METADATA_VALUE,
+    ExportConformanceError,
+    export_tool_versions,
+    validate_conformance_report,
+)
 
 
 def _sha256_file(path: Path) -> str:
@@ -108,6 +115,8 @@ def _valid_onnx(path: Path, *, fp16: bool) -> bool:
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         return False
     metadata = {item.key: item.value for item in model.metadata_props}
+    if metadata.get(EXPORT_CONTRACT_METADATA_KEY) != EXPORT_CONTRACT_METADATA_VALUE:
+        return False
     if metadata.get(PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY) != PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE:
         return False
 
@@ -127,6 +136,31 @@ def _valid_onnx(path: Path, *, fp16: bool) -> bool:
     return any(
         initializer.data_type == onnx.TensorProto.FLOAT16 for initializer in model.graph.initializer
     )
+
+
+def _valid_export_conformance(paths: DemoPaths) -> bool:
+    if not paths.export_conformance.is_file() or not paths.fp32_onnx.is_file():
+        return False
+    try:
+        report = json.loads(paths.export_conformance.read_text(encoding="utf-8"))
+        if not isinstance(report, dict):
+            return False
+        validate_conformance_report(
+            report,
+            model_name="realesrgan_x2plus",
+            source_sha256=MODEL_SHA256,
+            source_size_bytes=MODEL_SIZE_BYTES,
+            exported_files={
+                paths.fp32_onnx.name: (
+                    _sha256_file(paths.fp32_onnx),
+                    paths.fp32_onnx.stat().st_size,
+                )
+            },
+            tool_versions=export_tool_versions(),
+        )
+    except (ExportConformanceError, OSError, json.JSONDecodeError):
+        return False
+    return True
 
 
 def _valid_engine_cache(paths: DemoPaths) -> bool:
@@ -185,7 +219,7 @@ def _prepare_model(paths: DemoPaths, *, force: bool) -> None:
     paths.onnx_dir.mkdir(parents=True, exist_ok=True)
     _ensure_cached(
         paths.fp32_onnx,
-        lambda: _valid_onnx(paths.fp32_onnx, fp16=False),
+        lambda: _valid_onnx(paths.fp32_onnx, fp16=False) and _valid_export_conformance(paths),
         [
             "export-onnx",
             "--model_path",
@@ -299,6 +333,7 @@ def _write_report(
         "assets": {
             "weights": asset(paths.weights),
             "onnx": asset(paths.fp16_onnx),
+            "export_conformance": asset(paths.export_conformance),
             "engine": asset(paths.engine),
             "input": asset(paths.input_video),
             "output": asset(paths.output_video),

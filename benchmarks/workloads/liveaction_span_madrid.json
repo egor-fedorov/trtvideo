@@ -64,6 +64,10 @@
   "model": {
     "name": "2xLiveActionV1_SPAN",
     "export_name": "liveaction_span",
+    "export_conformance": {
+      "contract_version": 1,
+      "report_path": "models/benchmarks/liveaction-span/onnx/liveaction_span.export-conformance.json"
+    },
     "source": {
       "url": "https://raw.githubusercontent.com/jcj83429/upscaling/f73a3a02874360ec6ced18f8bdd8e43b5d7bba57/2xLiveActionV1_SPAN/2xLiveActionV1_SPAN_490000.pth",
       "sha256": "8b166c75831ea7f694d9058ee9c8df8148af8cc1d2b57e69e6581b15cab572f7",

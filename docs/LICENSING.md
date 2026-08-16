@@ -1,7 +1,7 @@
 # Licensing And Redistribution Audit
 
 This document records the public distribution boundary and release inventory
-reviewed on 2026-08-13. It is a technical record, not legal advice. The evidence
+reviewed on 2026-08-16. It is a technical record, not legal advice. The evidence
 must be reviewed again when the TensorRT base, Ubuntu release, direct
 dependencies, model assets, or benchmark media change.
 
@@ -19,8 +19,8 @@ dependencies, model assets, or benchmark media change.
 The production image is intentionally narrower than the local toolchain. It
 contains `trtvideo`, `build-engine`, TensorRT, CUDA Python bindings, CV-CUDA,
 PyNvVideoCodec, ONNX, and FFmpeg. PyTorch, torchvision, Spandrel, ONNX Script,
-and ONNX conversion tools exist only in the non-published `model-tools` and
-benchmark targets.
+ONNX Runtime, and ONNX conversion tools exist only in the non-published
+`model-tools` and benchmark targets.
 
 ## NVIDIA Components And Benchmark Publication
 

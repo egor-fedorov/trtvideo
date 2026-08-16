@@ -54,6 +54,14 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Added
+
+- Added cached source-model export conformance before engine builds. A
+  deterministic FP32 probe now compares the original PyTorch checkpoint with
+  ONNX Runtime CPU under strict numerical thresholds; benchmark asset
+  locks bind the evidence to checkpoint, toolchain, exporter contract, and
+  generated FP32 ONNX hashes without adding work to timed campaigns.
+
 ### Fixed
 
 - Preserved PyTorch channel ordering when exporting x2 RRDB models that use

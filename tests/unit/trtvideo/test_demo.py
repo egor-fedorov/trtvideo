@@ -82,6 +82,9 @@ def test_demo_paths_stay_under_cache_root(tmp_path: Path) -> None:
     paths = DemoPaths.under(tmp_path)
 
     assert paths.weights == tmp_path / "models" / "RealESRGAN_x2plus.pth"
+    assert paths.export_conformance == (
+        tmp_path / "models" / "onnx" / "realesrgan_x2plus.export-conformance.json"
+    )
     assert paths.output_video == tmp_path / "output" / "demo_1440p.mkv"
     assert paths.report == tmp_path / "demo-result.json"
 

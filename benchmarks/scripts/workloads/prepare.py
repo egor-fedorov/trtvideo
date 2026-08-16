@@ -21,6 +21,14 @@ from benchmarks.scripts.workloads.manifest import repo_path as repo_path
 from benchmarks.scripts.workloads.manifest import (
     validate_manifest as validate_manifest,
 )
+from trtvideo.models.export_conformance import (
+    EXPORT_CONFORMANCE_SCHEMA_VERSION,
+    EXPORT_CONTRACT_METADATA_KEY,
+    EXPORT_CONTRACT_METADATA_VALUE,
+    ExportConformanceError,
+    export_tool_versions,
+    validate_conformance_report,
+)
 
 DOWNLOAD_CHUNK_SIZE = 8 * 1024 * 1024
 PROGRESS_STEP = 256 * 1024 * 1024
@@ -195,6 +203,8 @@ def build_model_commands(manifest: dict[str, Any], root: Path) -> list[list[str]
             str(onnx_dir),
             "--name",
             model["export_name"],
+            "--conformance-report",
+            str(repo_path(root, model["export_conformance"]["report_path"])),
             "--quiet",
         ]
     ]
@@ -316,6 +326,15 @@ def _validate_onnx_operators(model: Any, path: Path) -> None:
         )
 
 
+def _validate_onnx_export_metadata(model: Any, path: Path) -> None:
+    """Require the semantic exporter version on canonical ONNX artifacts."""
+    metadata = {item.key: item.value for item in model.metadata_props}
+    if metadata.get(EXPORT_CONTRACT_METADATA_KEY) != EXPORT_CONTRACT_METADATA_VALUE:
+        raise WorkloadError(
+            f"ONNX export contract is missing or stale: {path}; rebuild the model assets"
+        )
+
+
 def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     """Validate static mixed-FP16 ONNX with FP32 graph I/O."""
     if not path.is_file():
@@ -330,6 +349,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         raise WorkloadError(f"ONNX must have one input and one output: {path}")
     _validate_onnx_operators(model, path)
+    _validate_onnx_export_metadata(model, path)
 
     def tensor_shape(value: Any) -> list[int]:
         return [dimension.dim_value for dimension in value.type.tensor_type.shape.dim]
@@ -360,6 +380,55 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     }
 
 
+def verify_export_conformance(
+    manifest: dict[str, Any],
+    root: Path,
+) -> dict[str, Any]:
+    """Validate source-model semantic evidence and its exported FP32 identities."""
+    model = manifest["model"]
+    contract = model["export_conformance"]
+    report_path = repo_path(root, contract["report_path"])
+    if not report_path.is_file():
+        raise WorkloadError(f"Model export-conformance report is missing: {report_path}")
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WorkloadError(f"Cannot read export-conformance report {report_path}: {exc}") from exc
+    if not isinstance(report, dict):
+        raise WorkloadError(f"Export-conformance report root must be an object: {report_path}")
+
+    onnx_dir = repo_path(root, model["onnx_dir"])
+    exported_files: dict[str, tuple[str, int]] = {}
+    try:
+        for variant in model["variants"]:
+            path = repo_path(root, variant["fp32_path"])
+            exported_files[path.relative_to(onnx_dir).as_posix()] = (
+                sha256_file(path),
+                path.stat().st_size,
+            )
+        comparison = validate_conformance_report(
+            report,
+            model_name=model["export_name"],
+            source_sha256=model["source"]["sha256"],
+            source_size_bytes=model["source"]["size_bytes"],
+            exported_files=exported_files,
+            tool_versions=export_tool_versions(),
+        )
+    except (OSError, ExportConformanceError, ValueError) as exc:
+        raise WorkloadError(f"Invalid export-conformance report {report_path}: {exc}") from exc
+
+    return {
+        "contract_version": EXPORT_CONFORMANCE_SCHEMA_VERSION,
+        "path": contract["report_path"],
+        "sha256": sha256_file(report_path),
+        "size_bytes": report_path.stat().st_size,
+        "source_sha256": model["source"]["sha256"],
+        "tools": report["tools"],
+        "comparison": comparison,
+        "exports": report["exports"],
+    }
+
+
 def prepare_clips(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
     """Create deterministic compressed inputs from the pinned source."""
     clip = manifest["clip"]
@@ -386,6 +455,7 @@ def prepare_model(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
     variants = model["variants"]
     if not force:
         try:
+            verify_export_conformance(manifest, root)
             for variant in variants:
                 verify_onnx(
                     repo_path(root, variant["fp16_path"]),
@@ -411,6 +481,7 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
     source_path = repo_path(root, clip["source_path"])
     weight_hash = verify_source_file(weight_path, model["source"])
     source_hash = verify_source_file(source_path, clip["source"])
+    export_conformance = verify_export_conformance(manifest, root)
 
     assets: list[dict[str, Any]] = []
     for variant in clip["variants"]:
@@ -470,6 +541,7 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
                 "attribution": clip["source"]["attribution"],
             },
         },
+        "model_export_conformance": export_conformance,
         "assets": assets,
     }
 
