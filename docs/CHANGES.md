@@ -60,8 +60,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   `pixel_unshuffle`. The ONNX exporter previously emitted an incompatible
   `SpaceToDepth` operation, which mixed RGB channels and desaturated
   RealESRGAN_x2plus output. Versioned export metadata now invalidates affected
-  cached demo models and engines automatically, and demo validation now checks
-  that the deterministic color fixture retains a broad chroma range.
+  cached demo models and engines automatically, benchmark asset verification
+  rejects legacy graphs, and demo validation now checks that the deterministic
+  color fixture retains a broad chroma range.
 - Removed the release runner's implicit Python 3.11 requirement; GHCR release
   validation now reads the controlled project version with POSIX `awk` instead
   of importing `tomllib` from the host Python installation.
