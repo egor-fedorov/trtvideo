@@ -15,6 +15,10 @@ from typing import Any
 
 from trtvideo.cli.prepare_onnx import TARGETS, TargetSpec, parse_size
 
+PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY = "trtvideo.pixel_unshuffle_order"
+PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE = "channel-major-v1"
+PIXEL_UNSHUFFLE_TRANSPOSE_PERMUTATION = (0, 1, 3, 5, 2, 4)
+
 
 def load_model(model_path: str) -> Any:
     """Load an image-to-image model supported by Spandrel.
@@ -73,6 +77,60 @@ def freeze_reparameterized_convs(model: Any) -> int:
     return replaced
 
 
+def _translate_pixel_unshuffle(self: Any, downscale_factor: int) -> Any:
+    """Translate aten.pixel_unshuffle while preserving PyTorch channel order."""
+    from onnxscript import opset18 as op
+
+    input_shape = op.Shape(self)
+    batch = op.Slice(input_shape, [0], [1])
+    channels = op.Slice(input_shape, [1], [2])
+    height = op.Slice(input_shape, [2], [3])
+    width = op.Slice(input_shape, [3], [4])
+    factor = op.Constant(value_ints=[downscale_factor])
+    output_h = op.Div(height, factor)
+    output_w = op.Div(width, factor)
+
+    expanded_shape = op.Concat(
+        batch,
+        channels,
+        output_h,
+        factor,
+        output_w,
+        factor,
+        axis=0,
+    )
+    expanded = op.Reshape(self, expanded_shape)
+    transposed = op.Transpose(expanded, perm=PIXEL_UNSHUFFLE_TRANSPOSE_PERMUTATION)
+
+    output_channels = op.Mul(channels, op.Mul(factor, factor))
+    output_shape = op.Concat(batch, output_channels, output_h, output_w, axis=0)
+    return op.Reshape(transposed, output_shape)
+
+
+def _pixel_unshuffle_translation_table(torch: Any) -> dict[Any, Any]:
+    """Return custom ONNX translations required by the export contract."""
+    return {
+        torch.ops.aten.pixel_unshuffle.default: _translate_pixel_unshuffle,
+    }
+
+
+def _validate_channel_major_unshuffle_graph(model: Any) -> None:
+    """Reject the incompatible ONNX lowering that caused RGB channel mixing."""
+    if any(node.op_type == "SpaceToDepth" for node in model.graph.node):
+        raise RuntimeError(
+            "ONNX export lowered PyTorch pixel_unshuffle to SpaceToDepth with "
+            "incompatible channel ordering"
+        )
+
+
+def _set_pixel_unshuffle_export_metadata(model: Any) -> None:
+    import onnx
+
+    properties = {item.key: item.value for item in model.metadata_props}
+    properties[PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY] = PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE
+    onnx.helper.set_model_props(model, properties)
+
+
 def export_onnx(
     model: Any,
     input_h: int,
@@ -93,31 +151,31 @@ def export_onnx(
     replaced = freeze_reparameterized_convs(model)
     if replaced:
         print(f"  Reparameterized {replaced} mutable convolution blocks")
+    print("  Pixel-unshuffle: channel-major ONNX translation registered")
     dummy_input = torch.randn(1, 3, input_h, input_w, dtype=torch.float32)
 
     print(f"  Export: input {input_w}x{input_h} -> output {input_w * 2}x{input_h * 2}")
     print(f"  File: {output_path}")
 
-    torch.onnx.export(
+    onnx_program = torch.onnx.export(
         model,
         (dummy_input,),
-        output_path,
+        f=None,
         opset_version=18,
         input_names=["input"],
         output_names=["output"],
         dynamo=True,
+        custom_translation_table=_pixel_unshuffle_translation_table(torch),
         # Fixed dimensions — no dynamic_axes
         # This gives TensorRT maximum optimization freedom
     )
+    if onnx_program is None:
+        raise RuntimeError("PyTorch ONNX exporter did not return an ONNXProgram")
 
-    # New PyTorch exporter stores weights in a separate .data file.
-    # Merge everything into a single .onnx for convenience.
-    data_file = output_path + ".data"
-    if os.path.exists(data_file):
-        print("  Merging weights into a single file...")
-        model_proto = onnx.load(output_path, load_external_data=True)
-        onnx.save(model_proto, output_path, convert_attribute=True)
-        os.remove(data_file)
+    model_proto = onnx_program.model_proto
+    _validate_channel_major_unshuffle_graph(model_proto)
+    _set_pixel_unshuffle_export_metadata(model_proto)
+    onnx.save(model_proto, output_path, convert_attribute=True)
 
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
     print(f"  Done: {size_mb:.1f} MB")

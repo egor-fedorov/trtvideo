@@ -60,7 +60,7 @@ class NvcodecPipeline:
         self._frame_processor: NvcodecFrameProcessor | None = None
         self._profiler: ProfileCollector | None = None
         self._working_output_path: Path | None = None
-        self._total_frames = 0
+        self._total_frames: int | None = None
         self._nvtx = NvtxAnnotator.from_environment()
         self._lifecycle = LifecycleRecorder(config.benchmark_lifecycle_path)
         self._lifecycle.mark_phase("pipeline_created")
@@ -80,9 +80,9 @@ class NvcodecPipeline:
         self._log_input(info)
         self._color = SdrColorContract.from_video_info(info)
         self._validate_video_input(info)
-        self._total_frames = (
-            self.config.max_frames if self.config.max_frames > 0 else info.nb_frames
-        )
+        self._total_frames = self.config.max_frames if self.config.max_frames > 0 else None
+        if self._total_frames is None and info.nb_frames > 0:
+            self._total_frames = info.nb_frames
 
         frame_times: list[float] = []
         transaction = AtomicOutputTransaction(
@@ -138,7 +138,10 @@ class NvcodecPipeline:
             self._setup_encoder()
             self._lifecycle.mark_phase("encoder_initialized")
 
-            self._log(f"\nProcessing: {self._total_frames} frames")
+            if self._total_frames is None:
+                self._log("\nProcessing: all available frames")
+            else:
+                self._log(f"\nProcessing: {self._total_frames} frames")
             self._log(
                 f"Output: {self.config.output_path} ({runtime.output_w}x{runtime.output_h})\n"
             )
@@ -316,9 +319,14 @@ class NvcodecPipeline:
                 recent = frame_times[-self.config.log_interval :]
                 average = sum(recent) / len(recent)
                 fps = 1.0 / average if average > 0 else 0.0
+                progress = (
+                    f"{frame_index}/{self._total_frames}"
+                    if self._total_frames is not None
+                    else str(frame_index)
+                )
                 self._log(
-                    f"  Frame {frame_index}/{self._total_frames}  |  "
-                    f"{frame_time:.3f}s  |  avg {average:.3f}s/frame  |  {fps:.1f} fps"
+                    f"  Frame {progress}  |  {frame_time:.3f}s  |  "
+                    f"avg {average:.3f}s/frame  |  {fps:.1f} fps"
                 )
 
     def _process_frame(self, raw_frame: Any) -> None:

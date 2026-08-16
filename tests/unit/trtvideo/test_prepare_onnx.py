@@ -1,8 +1,16 @@
+from __future__ import annotations
+
 import os
 
 import pytest
 
-from trtvideo.cli.export_onnx import build_parser, export_filename, export_filename_for_target
+from trtvideo.cli.export_onnx import (
+    PIXEL_UNSHUFFLE_TRANSPOSE_PERMUTATION,
+    _validate_channel_major_unshuffle_graph,
+    build_parser,
+    export_filename,
+    export_filename_for_target,
+)
 from trtvideo.cli.prepare_onnx import ONNXPrecision, is_dynamic, output_path_for_variant, parse_size
 
 
@@ -30,6 +38,19 @@ def test_export_parser_accepts_selected_sizes() -> None:
     args = build_parser().parse_args(["--size", "1280x720", "--size", "640x360"])
 
     assert args.size == ["1280x720", "640x360"]
+
+
+def test_pixel_unshuffle_transposes_spatial_offsets_after_channels() -> None:
+    assert PIXEL_UNSHUFFLE_TRANSPOSE_PERMUTATION == (0, 1, 3, 5, 2, 4)
+
+
+def test_channel_major_export_rejects_onnx_space_to_depth() -> None:
+    node = type("Node", (), {"op_type": "SpaceToDepth"})()
+    graph = type("Graph", (), {"node": [node]})()
+    model = type("Model", (), {"graph": graph})()
+
+    with pytest.raises(RuntimeError, match="incompatible channel ordering"):
+        _validate_channel_major_unshuffle_graph(model)
 
 
 @pytest.mark.parametrize(

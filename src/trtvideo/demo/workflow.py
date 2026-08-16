@@ -12,6 +12,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from trtvideo.cli.export_onnx import (
+    PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY,
+    PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE,
+)
 from trtvideo.demo import DemoError
 from trtvideo.demo.config import (
     DEMO_BITRATE_MBPS,
@@ -102,6 +106,9 @@ def _valid_onnx(path: Path, *, fp16: bool) -> bool:
     except (ImportError, OSError):
         return False
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
+        return False
+    metadata = {item.key: item.value for item in model.metadata_props}
+    if metadata.get(PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY) != PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE:
         return False
 
     def shape(value: Any) -> list[int]:

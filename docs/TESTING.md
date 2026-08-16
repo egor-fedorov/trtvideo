@@ -67,8 +67,9 @@ It builds the non-published `model-tools` target, then uses pinned RealESRGAN
 weights and a generated 24-frame 720p rich-media MKV.
 The workflow covers model export, FP16 conversion, TensorRT engine build,
 NVDEC/CV-CUDA/TensorRT/NVENC processing, mux, full decode, frame/timestamp/color
-validation, and preservation of auxiliary media. Generated artifacts are
-cached in `.demo/`; use `DEMO_FORCE=1` to rebuild them.
+validation, a deterministic chroma-range regression check, and preservation of
+auxiliary media. Generated artifacts are cached in `.demo/`; use
+`DEMO_FORCE=1` to rebuild them.
 
 Validate that:
 
