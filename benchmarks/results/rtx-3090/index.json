@@ -14,24 +14,24 @@
     "self_contained_result_files": true,
     "cross_contract_aggregation": false,
     "human_summary": "README.md",
-    "notes": "Tuned and diagnostic classes were measured in one clean session on one server. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
+    "notes": "Tuned and diagnostic classes were measured in one controlled session on one server. Invalid attempts were rejected before aggregation; only retained valid evidence is published. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
   },
   "result_sets": [
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "3b9b86f296fb902fea7b97d376e7a5a7dbe5de2864afd2048a1f9cec6d74294c",
-      "measurement_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
-      "date_utc": "2026-08-13",
+      "sha256": "18b82552e17d23cdc861d23e93c4c31c3704c513626e9872d9cfc824f731a674",
+      "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
+      "date_utc": "2026-08-16",
       "status": "valid",
       "publishable": true
     },
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "53ee66beff163ded732fba9b9b07aec7cf16d016c806c7ef55a8bf35852ba760",
-      "measurement_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
-      "date_utc": "2026-08-13",
+      "sha256": "c7891af519152376828be6ce72ebbc0514a2d24a19bd5b586b67dde847fa2a3c",
+      "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
+      "date_utc": "2026-08-16",
       "status": "valid",
       "publishable": true
     }

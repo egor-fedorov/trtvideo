@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import importlib.metadata
 import json
 import os
@@ -78,12 +79,21 @@ def _cpu_model() -> str:
     return platform.processor() or "unknown"
 
 
-def _torch_cuda_version() -> str | None:
+def _cuda_runtime_version(*, importer: Any = importlib.import_module) -> str | None:
+    """Read the loaded CUDA runtime version without depending on PyTorch."""
     try:
-        import torch
-    except ImportError:
+        cudart = importer("cuda.bindings.runtime")
+        result = cudart.cudaRuntimeGetVersion()
+        values = result if isinstance(result, tuple) else (result,)
+        if len(values) != 2 or values[0] != cudart.cudaError_t.cudaSuccess:
+            return None
+        version = int(values[1])
+    except Exception:
         return None
-    return torch.version.cuda
+    major = version // 1000
+    minor = (version % 1000) // 10
+    patch = version % 10
+    return f"{major}.{minor}.{patch}" if patch else f"{major}.{minor}"
 
 
 def collect_image_identity(*, default_reference: str = "unknown") -> dict[str, str]:
@@ -112,7 +122,7 @@ def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
             "python": platform.python_version(),
             "trtvideo": _package_version("trtvideo"),
             "torch": _package_version("torch"),
-            "cuda": _torch_cuda_version(),
+            "cuda": _cuda_runtime_version(),
             "tensorrt": _package_version("tensorrt"),
             "cvcuda": _package_version("cvcuda-cu12") or _package_version("cvcuda"),
             "pynvvideocodec": _package_version("pynvvideocodec"),

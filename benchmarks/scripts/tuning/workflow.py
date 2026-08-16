@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast, overload
 
+from benchmarks.scripts.campaign.core import CONFIG_NAME
 from benchmarks.scripts.contracts.manifest import execution_profile
 from benchmarks.scripts.tuning.adaptive import (
     CandidatePoint,
@@ -66,6 +67,20 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
         json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n",
         encoding="utf-8",
     )
+
+
+def _resume_existing_campaign(campaign_dir: Path, *, workflow_resume: bool) -> bool:
+    """Resume existing campaign evidence but start an untouched later stage."""
+    if not workflow_resume:
+        return False
+    config_path = campaign_dir / CONFIG_NAME
+    if config_path.is_file():
+        return True
+    if campaign_dir.exists():
+        raise TuningWorkflowError(
+            f"Tuned winner campaign directory exists without its immutable config: {campaign_dir}"
+        )
+    return False
 
 
 def _sha256(path: Path) -> str:
@@ -1001,6 +1016,10 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         label="VSGAN engine",
     )
     campaign_dir = paths.sweep_dir / "winner-campaign" / signature
+    campaign_resume = _resume_existing_campaign(
+        campaign_dir,
+        workflow_resume=args.resume,
+    )
     variables = {
         **_base_make_variables(
             paths,
@@ -1014,7 +1033,7 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         "MODEL_SPACE_DIR": paths.relative(inference_report.parent),
         "PRODUCT_OUTPUT_DIR": paths.relative(product_report.parent),
         "CAMPAIGN_DIR": paths.relative(campaign_dir),
-        "RESUME": "1" if args.resume else "0",
+        "RESUME": "1" if campaign_resume else "0",
     }
     if preprocessing_report.parent != inference_report.parent:
         raise TuningWorkflowError("Tensor-space quality reports are not co-located")

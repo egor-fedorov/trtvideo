@@ -4,8 +4,8 @@
   "status": "valid",
   "publishable": true,
   "scope": {
-    "date_utc": "2026-08-13",
-    "measurement_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
+    "date_utc": "2026-08-16",
+    "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
     "source_dirty": false,
     "execution_profile": "tuned",
     "claim_scope": "Best validated throughput selected by the predeclared adaptive two-stage search, followed by independent quality gates and rotated winner campaigns."
@@ -28,22 +28,22 @@
     },
     "project_runtime": {
       "image": {
-        "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3",
-        "id": "sha256:d895fb70bcd13a677be7fdce99dfa3b53b428b4fee2ba41d5cad3464108ea563",
+        "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3@sha256:7cd94ee931d2b5b85ad1c5af723d485b2625f6ce167e1e4abe577850b96ceac3",
+        "id": "sha256:8fc0d7a0754c59d264ee1735fa49669323e676d6bb1c6c47e6da49667feb82a3",
         "reference": "trtvideo:benchmark",
-        "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d",
+        "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
         "source_dirty": "0"
       },
       "software": {
-        "cuda": "13.0",
+        "cuda": null,
         "cvcuda": "0.16.0",
         "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
         "nvidia_ml_py": "13.610.43",
         "pynvvideocodec": "2.1.0",
         "python": "3.12.3",
         "tensorrt": "11.0.0.114",
-        "torch": "2.11.0",
-        "trtvideo": "0.3.1"
+        "torch": "2.11.0+cpu",
+        "trtvideo": "0.4.0"
       }
     },
     "implementations": {
@@ -153,24 +153,24 @@
         "workload": "RealESRGAN_x2plus",
         "variant": "720p",
         "candidate_tensor_sha256_sets_identical": true,
-        "candidate_tensor_set_sha256": "0f93f8ad24339c48c1db72377df1f5e667f37e11765d9aac3e21e6419bf03858",
+        "candidate_tensor_set_sha256": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd",
         "candidate_tensor_set_sha256_by_implementation": {
-          "vstrt": "0f93f8ad24339c48c1db72377df1f5e667f37e11765d9aac3e21e6419bf03858",
-          "vsgan": "0f93f8ad24339c48c1db72377df1f5e667f37e11765d9aac3e21e6419bf03858"
+          "vstrt": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd",
+          "vsgan": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd"
         },
         "candidate_mp4_sha256_identical": true,
-        "candidate_mp4_sha256": "3027d4d7d7ae7dd92276f907f712a98c049f75a7b5da8a75053637a7e6c37829",
+        "candidate_mp4_sha256": "21b0eb7a5ff9e985647d7188c907286f704197dcb791173443b5188c151faaca",
         "candidate_mp4_sha256_by_implementation": {
-          "vs-mlrt": "3027d4d7d7ae7dd92276f907f712a98c049f75a7b5da8a75053637a7e6c37829",
-          "VSGAN-tensorrt-docker": "3027d4d7d7ae7dd92276f907f712a98c049f75a7b5da8a75053637a7e6c37829"
+          "vs-mlrt": "21b0eb7a5ff9e985647d7188c907286f704197dcb791173443b5188c151faaca",
+          "VSGAN-tensorrt-docker": "21b0eb7a5ff9e985647d7188c907286f704197dcb791173443b5188c151faaca"
         },
         "capture_manifest_sha256": {
-          "vstrt": "9025c8ce3dd13e8ec865c443941ed25d12ce0f0dc742d04bf12446410bf59702",
-          "vsgan": "e4574d311484ae888cf3dc2e07dc50ce50996d417c96486adca66a4c71c869ec"
+          "vstrt": "a27615ca51f3e325fd9b00b9ae2ca9def509147df06bb71a5144dd3c75a6f24f",
+          "vsgan": "33e8a336ff4fb2ecc62f3e9348dbc5938a068622e018aedf703b190101660751"
         },
         "run_manifest_sha256": {
-          "vs-mlrt": "421d915619f06629503132dc09d620cc01072e8377fb8ecafa47c56af4d1519a",
-          "VSGAN-tensorrt-docker": "4ed4157b5e830d85417fec63f2937ce66c7c3a51126a6c2975962c534528d79a"
+          "vs-mlrt": "4c29e4eac16cb5b90a23ced2d37243d6f1a1cfb8d4decb49cb18ad8d388d96c1",
+          "VSGAN-tensorrt-docker": "b2ac5702775618163602a0723e26c5b999ddadd90c75ef94f370e66497808902"
         }
       },
       {
@@ -179,70 +179,70 @@
         "candidate_tensor_sha256_sets_identical": false,
         "candidate_tensor_set_sha256": null,
         "candidate_tensor_set_sha256_by_implementation": {
-          "vstrt": "e65a9e36732c72ff6d4641ae1d2fca20923f3587bbc96704d34b7808584bb936",
-          "vsgan": "f82d28abf51e4c2257dab672cc1aa94f766eb20ada33a407c6a5766b932caf4f"
+          "vstrt": "65218f35ec61035d341b9d3f3b3c091110431db678af6ffef8765d4812453fad",
+          "vsgan": "fa47f7da0f6376eeaee91b75f69aa86ea31e95d76e6ab4b26cf58aaccb324e2c"
         },
         "candidate_mp4_sha256_identical": false,
         "candidate_mp4_sha256": null,
         "candidate_mp4_sha256_by_implementation": {
-          "vs-mlrt": "7bc12d68f2f8479f2c267af8ddef13ade92c75ef7082dcb02c3f1e1c2a87a7c5",
-          "VSGAN-tensorrt-docker": "fcc8a0b7c8a24dcd2bf9e296cbf78fd1922af616b41178c8d03bce5f5795a166"
+          "vs-mlrt": "1fca89dfa5140f61ae2e2a6fe2ff168d32b22e2e60f0242a22942721b831b24a",
+          "VSGAN-tensorrt-docker": "8183c2911148b9bb5514ce32bc6fdbeac26c0e96d328741db124204225e878c1"
         },
         "capture_manifest_sha256": {
-          "vstrt": "bfb33e78e82ac9eafe2925f01d94c8b0796c9c98c166fdd9386ee3489a116747",
-          "vsgan": "57ff9da555d73f62ffa80b2b00b4139c8816807c2265d78047ce1daab2863173"
+          "vstrt": "f902be1d9e7f97ddb63d8020f937007a4125edfb395527ec312c98b4de517846",
+          "vsgan": "a578636d176f1d6bdcdb1b24e807b9f0cc1945daca4e7ed12980da7204e5da45"
         },
         "run_manifest_sha256": {
-          "vs-mlrt": "4329f979e5cfcf5c4e00afa9591553c8e4c6c7e79dc473f474f68f049c7ce49f",
-          "VSGAN-tensorrt-docker": "509920c0beda10f6bef764447585816356554da89e340edc969185e1e0c3e18b"
+          "vs-mlrt": "f6967b2725f6a1c8dd54e459f879cb459f566aaeee315e235c7a7c24b4931f36",
+          "VSGAN-tensorrt-docker": "ae0c957d320fa7fa013b9a2a0c4d9137260b7c8c5031eb57229d06844b225828"
         }
       },
       {
         "workload": "SPAN",
         "variant": "720p",
         "candidate_tensor_sha256_sets_identical": true,
-        "candidate_tensor_set_sha256": "4b1beb53352b2b4c313b18290e00fd76a00baf5783540c3a1137a4db4b2e0aa9",
+        "candidate_tensor_set_sha256": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650",
         "candidate_tensor_set_sha256_by_implementation": {
-          "vstrt": "4b1beb53352b2b4c313b18290e00fd76a00baf5783540c3a1137a4db4b2e0aa9",
-          "vsgan": "4b1beb53352b2b4c313b18290e00fd76a00baf5783540c3a1137a4db4b2e0aa9"
+          "vstrt": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650",
+          "vsgan": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650"
         },
         "candidate_mp4_sha256_identical": true,
-        "candidate_mp4_sha256": "e0f31dcf509cf9b5335103d0f13fa74b57b2fbedac9ed38f371da36514f55617",
+        "candidate_mp4_sha256": "852c47855a6675f4a131d72b9d0b3534b282e484f5659eff0f784097eea00859",
         "candidate_mp4_sha256_by_implementation": {
-          "vs-mlrt": "e0f31dcf509cf9b5335103d0f13fa74b57b2fbedac9ed38f371da36514f55617",
-          "VSGAN-tensorrt-docker": "e0f31dcf509cf9b5335103d0f13fa74b57b2fbedac9ed38f371da36514f55617"
+          "vs-mlrt": "852c47855a6675f4a131d72b9d0b3534b282e484f5659eff0f784097eea00859",
+          "VSGAN-tensorrt-docker": "852c47855a6675f4a131d72b9d0b3534b282e484f5659eff0f784097eea00859"
         },
         "capture_manifest_sha256": {
-          "vstrt": "f04beee1254091534ade01a2861055ad2ee611bf082dd65e8356ee7c8eedb324",
-          "vsgan": "6b5e674df0280bb95128ff9899d55f41fa6bd034eee2067109a213726c69fa6b"
+          "vstrt": "4fd3dd67d7f76dc233554a66ef409517b892d09a4584a78d10c153d51315ad3d",
+          "vsgan": "64283d219090e3acf4bd81157b7623c1e1be06fbc9fc98f0fc2de958e2120ed9"
         },
         "run_manifest_sha256": {
-          "vs-mlrt": "79836ba01a775cfa0e726161bdce8cf13cf9d3b05f9ab5bdb6575467c1b6bcf5",
-          "VSGAN-tensorrt-docker": "ea0d60238f1bb4c02dc89960322b5d760d9a4cc97497c73961543871b8c4e6cd"
+          "vs-mlrt": "3dfffcbde12a21d483dfe96a1d54af5358f9f9dfa2535d8501ecaeda5f303615",
+          "VSGAN-tensorrt-docker": "f09d49f25ae3c372e4ff6264b8e1f05d85a01867f0e1a7aba333c258002dc4d1"
         }
       },
       {
         "workload": "SPAN",
         "variant": "1080p",
         "candidate_tensor_sha256_sets_identical": true,
-        "candidate_tensor_set_sha256": "73e912bf42e8adf7fbe852b1243f002d5f3aeae5d542f1f7f11f32a642a169a8",
+        "candidate_tensor_set_sha256": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92",
         "candidate_tensor_set_sha256_by_implementation": {
-          "vstrt": "73e912bf42e8adf7fbe852b1243f002d5f3aeae5d542f1f7f11f32a642a169a8",
-          "vsgan": "73e912bf42e8adf7fbe852b1243f002d5f3aeae5d542f1f7f11f32a642a169a8"
+          "vstrt": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92",
+          "vsgan": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92"
         },
         "candidate_mp4_sha256_identical": true,
-        "candidate_mp4_sha256": "c5ee1984510f0aed21e6d171f462d67a2b5f8921fe38c9e341dc2a4bbfc8d6fb",
+        "candidate_mp4_sha256": "f38a5f0f0dec69aef735427118cd5f25de45fa7b61ad22d44697b272b9473020",
         "candidate_mp4_sha256_by_implementation": {
-          "vs-mlrt": "c5ee1984510f0aed21e6d171f462d67a2b5f8921fe38c9e341dc2a4bbfc8d6fb",
-          "VSGAN-tensorrt-docker": "c5ee1984510f0aed21e6d171f462d67a2b5f8921fe38c9e341dc2a4bbfc8d6fb"
+          "vs-mlrt": "f38a5f0f0dec69aef735427118cd5f25de45fa7b61ad22d44697b272b9473020",
+          "VSGAN-tensorrt-docker": "f38a5f0f0dec69aef735427118cd5f25de45fa7b61ad22d44697b272b9473020"
         },
         "capture_manifest_sha256": {
-          "vstrt": "3a307ee999b4dc899ec4fad8f77d8ab485c2818ec4febfc6839f6a5bd3314786",
-          "vsgan": "1b7f6a0fd8214357b297d7aedfd04403676b9d3ae40c5f36e6fa70c68b306a3f"
+          "vstrt": "36f4d61f39b2b37970163c6b87e064147b3a52f616873daf4f998d6711408787",
+          "vsgan": "dd72d05abd7a586438b4de38b3b6a6bedbba8ecfdd25a4ac3db3799dde24722c"
         },
         "run_manifest_sha256": {
-          "vs-mlrt": "464f1a3cd05947dcf775297f1097cd3bc1c0f481258669d8441a5bd21d5b258d",
-          "VSGAN-tensorrt-docker": "94e5f3646572d4971a3f8bb10f271c707131e025839bf346b9a25aa817eda75e"
+          "vs-mlrt": "92b126a55ab70246817df93147dc6cf9cda8397b45f7e5f050222bc562b39ddb",
+          "VSGAN-tensorrt-docker": "8ea01c38b6530689ad17ed009e9449b50d544b845e74c6ccfe7c517118405673"
         }
       }
     ]
@@ -250,7 +250,7 @@
   "publication_matrices": [
     {
       "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-matrix.json",
-      "sha256": "cf1d9f476c9e8e6a2d8e7d91f151d2a5e11c8cc4a734c95d3924bb099339b515",
+      "sha256": "0cda260fac17f7dbf47eec858456df93888b3b33e0953f8e570ec22c0b0370f2",
       "evidence": {
         "benchmark_contract_version": 2,
         "document_type": "tuned-publication-matrix",
@@ -260,7 +260,7 @@
             "name": "NVIDIA GeForce RTX 3090",
             "power_limit_w": 350.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "publishable": true,
         "schema_version": 1,
@@ -271,20 +271,20 @@
           "1080p": {
             "campaign": {
               "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
-              "sha256": "9b5abcbdc1330015b4953a8e08cf8c69c57cbbcfd6e3c75b0ec9890c45cad2e7"
+              "sha256": "dc77d302c205c9082967f6c5bd549a0785b0d78848ed2bdf74fc10db5c391af4"
             },
             "quality": {
               "inference_parity": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
-                "sha256": "a306adcb4835688d05f9bf4233a002892c1fb70da6df6d1ed077d50bb1fa7076"
+                "sha256": "ad7272dec5130f1a76ee9b9fa469531b6efa17ca7eea1467e4e53ab92a99cd9b"
               },
               "preprocessing_diagnostic": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
-                "sha256": "33aafd2466386ab2fb8f48e92288ff7ffa69a77e2365384b0d93e097c0424049"
+                "sha256": "ab3414e60469126cfa0181e79ade5aa102c011e1615166ef9c845a522cf0ecaa"
               },
               "product_output": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
-                "sha256": "ee2e8570ba246c9a91738d81985e636fc30d63fc2ff1e65f098ee3a92e4879de"
+                "sha256": "49ff35a4df0b2927c51f3243e1e1eecec6f6b13278ac7ed3b3bf5a8093fa7518"
               }
             },
             "winners": {
@@ -297,8 +297,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 2.83156962278119,
-                "relative_spread": 0.0010602194800544732,
+                "median_fps": 2.814377814514477,
+                "relative_spread": 0.0014119990282055112,
                 "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
               },
               "vstrt": {
@@ -310,8 +310,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 2.846686881910796,
-                "relative_spread": 0.0017159373306374032,
+                "median_fps": 2.8342627590633866,
+                "relative_spread": 0.0061038152264687095,
                 "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
               }
             }
@@ -319,20 +319,20 @@
           "720p": {
             "campaign": {
               "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
-              "sha256": "38d9af8736bd641c8b867130ab90c6ffd31f6d4dad42e2d30a462519b21dd60a"
+              "sha256": "efa0e5be3b32b2a9acb0a69a414fa165705c37fbfd734e646524123f530d26ec"
             },
             "quality": {
               "inference_parity": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
-                "sha256": "d5e4af61e332b72dd60dd6d71862b3abd04abc478f93f3c7c205b08a9af98088"
+                "sha256": "56a32875a3d32a32b83d502f5cfb209d8025703a6c7ade057e406c16fe4ca2cd"
               },
               "preprocessing_diagnostic": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
-                "sha256": "ba44b57320bf71651467fa79585eccdf0848cd6f389c822663a0fc3839b96fc6"
+                "sha256": "c1ca0dce7ae91bab565e78c301cc49ade3e0ec7e83a4721da61353737a9125c1"
               },
               "product_output": {
                 "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
-                "sha256": "eb32bc3cc2896e3a0655449db3040a32db4d94abf5c1a68eb8798869c1c5ad15"
+                "sha256": "24c10cf75be5bdb1b12014cf1f3f560ff9fc07fbe950433ed7b6fc5296156384"
               }
             },
             "winners": {
@@ -345,8 +345,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 6.369456567870516,
-                "relative_spread": 0.003879936165476712,
+                "median_fps": 6.346434177034014,
+                "relative_spread": 0.002500615976801851,
                 "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
               },
               "vstrt": {
@@ -358,8 +358,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 6.322990855480948,
-                "relative_spread": 0.0015079820158777125,
+                "median_fps": 6.278593899268914,
+                "relative_spread": 0.0015413832100318052,
                 "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
               }
             }
@@ -370,7 +370,7 @@
     },
     {
       "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-matrix.json",
-      "sha256": "cf43f9ebc0a77781715fd6696a6b36228b02e3d96ef83bacf850f5db665e9b22",
+      "sha256": "485faf8fc7087c0676b558b3d6528c957be15a9484a5438403dce1cc723d9aa0",
       "evidence": {
         "benchmark_contract_version": 2,
         "document_type": "tuned-publication-matrix",
@@ -380,7 +380,7 @@
             "name": "NVIDIA GeForce RTX 3090",
             "power_limit_w": 350.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "publishable": true,
         "schema_version": 1,
@@ -390,21 +390,21 @@
         "variants": {
           "1080p": {
             "campaign": {
-              "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s5-tauto-g0__vstrt-s5-g0/campaign.json",
-              "sha256": "0be1d9187e182b92b48887bf3c891dde2c1daca8227c529948a5173914220f95"
+              "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s5-tauto-g0__vstrt-s6-g0/campaign.json",
+              "sha256": "15fbca3ebc2d6d53cb8c241e65ecfc351d322c518f1748fd69a7c2e7bea4839e"
             },
             "quality": {
               "inference_parity": {
-                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/tensor-quality/inference-parity.json",
-                "sha256": "b6d4722ce94b625db0344a19bb527739da67a57604fe24eb9773ebfe646ba387"
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/tensor-quality/inference-parity.json",
+                "sha256": "2f41e7de0435d0b1d9a0a6ff11e561e48cfa8b44472a36bf245fc0ab4db07527"
               },
               "preprocessing_diagnostic": {
-                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/tensor-quality/preprocessing-diagnostic.json",
-                "sha256": "9bd866c03e0b0025d6d4596449fdc7ade58cd304e06147336bd188beab42dc2d"
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/tensor-quality/preprocessing-diagnostic.json",
+                "sha256": "a147b84d69b5e0af60d2f04b9c7f47bde02fc063e3a95fcad37d9076597bdf3a"
               },
               "product_output": {
-                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/product-output/product-output-parity.json",
-                "sha256": "3246778ced972f838e2684625e05071f55d03b55bfa1ae48206c9eeef5600e9b"
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/product-output/product-output-parity.json",
+                "sha256": "ae741ebab27046638ac90f7fc0ee284afc95031ecc8e92a3e4a5585bfb744407"
               }
             },
             "winners": {
@@ -417,42 +417,42 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 25.139631264619826,
-                "relative_spread": 0.005860865931850658,
+                "median_fps": 25.10085433788416,
+                "relative_spread": 0.0017461888450629806,
                 "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph"
               },
               "vstrt": {
-                "candidate_id": "vstrt-s5-g0",
+                "candidate_id": "vstrt-s6-g0",
                 "execution_profile": {
                   "cuda_graph": false,
                   "execution_profile": "tuned",
-                  "num_streams": 5,
+                  "num_streams": 6,
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 25.22471401671687,
-                "relative_spread": 0.009201333383097676,
-                "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph"
+                "median_fps": 25.231443335405647,
+                "relative_spread": 0.004065437764487703,
+                "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph"
               }
             }
           },
           "720p": {
             "campaign": {
               "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-campaign/vsgan-s4-tauto-g0__vstrt-s4-g0/campaign.json",
-              "sha256": "d580c04ef1f348a3ec90c4828fc175c080e3afafbcd72b7fcd925df81d6fc206"
+              "sha256": "5b6c941f08a69427d411b546f96801777c41e1905f682d369f314f2d60e401c6"
             },
             "quality": {
               "inference_parity": {
                 "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/tensor-quality/inference-parity.json",
-                "sha256": "8a9c331219f704f2d4d31f1b0ca5f7e3fd0af4082f89d59f9cae479bf10d90ff"
+                "sha256": "4b8b3339851a60b94a1d44c344290b45cfb1facaddb79784e555116bf124b6ac"
               },
               "preprocessing_diagnostic": {
                 "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/tensor-quality/preprocessing-diagnostic.json",
-                "sha256": "642574c0150e4654e60aa59cdd570babec8dd97ad17c38ada912ccf704631665"
+                "sha256": "5dc9610314bf1ec1755e31795429fa7feff1cba8c2844358d879e1a9d4288677"
               },
               "product_output": {
                 "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/product-output/product-output-parity.json",
-                "sha256": "090fc019f48fcccf78029bec6b27ed5bdfc4e11ed15ef9089c262e3623fe0b09"
+                "sha256": "1140b2ac5a53a112d50415a5349c8e19e92edf715f6033e1661b2c15367c7439"
               }
             },
             "winners": {
@@ -465,8 +465,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 55.386637882743464,
-                "relative_spread": 0.009038748267962554,
+                "median_fps": 55.07952631547222,
+                "relative_spread": 0.002693025622106699,
                 "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph"
               },
               "vstrt": {
@@ -478,8 +478,8 @@
                   "vapoursynth_threads": "auto",
                   "vspipe_requests": "auto"
                 },
-                "median_fps": 55.366964708025066,
-                "relative_spread": 0.0023573462545195727,
+                "median_fps": 55.42370838818492,
+                "relative_spread": 0.006002142408862372,
                 "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph"
               }
             }
@@ -498,7 +498,7 @@
       "status": "valid",
       "selection": {
         "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/selection.json",
-        "sha256": "e1e9fdb526626338d1340f1e744e1c2daf04bd64f9ca790a2bb3b99f31d15c37",
+        "sha256": "a6d4182cbaae23882dbaea66218b729627ee8195e4f6306636c282f3ee2591bf",
         "policy": {
           "equivalence_margin": 0.01,
           "max_relative_spread": 0.05,
@@ -507,7 +507,7 @@
         },
         "search": {
           "state_path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/search-state.json",
-          "state_sha256": "d81e1d5f537dce5b0bda30e8b129f2187fcb60a49d6b46f5481ebd77e1ff0ce0",
+          "state_sha256": "c6e3b72a1c6f7c692e8665703d545c1b18d39f5d85550ba2c8bff208d4f0ad58",
           "completion": {
             "vsgan": "decline-confirmed",
             "vstrt": "decline-confirmed"
@@ -527,8 +527,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 6.369456567870516,
-            "relative_spread": 0.003879936165476712,
+            "median_fps": 6.346434177034014,
+            "relative_spread": 0.002500615976801851,
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
           },
           "vstrt": {
@@ -540,8 +540,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 6.322990855480948,
-            "relative_spread": 0.0015079820158777125,
+            "median_fps": 6.278593899268914,
+            "relative_spread": 0.0015413832100318052,
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
           }
         },
@@ -558,7 +558,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.557034830303462,
+            "median_fps": 5.512452907991287,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -577,7 +577,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.047809227139361,
+            "median_fps": 6.00191777670205,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -596,7 +596,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.936379320720872,
+            "median_fps": 5.896146959762838,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -615,7 +615,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.814028426015456,
+            "median_fps": 5.77660889862217,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -634,7 +634,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.455146771505882,
+            "median_fps": 5.420394915990045,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -653,7 +653,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.610193848384554,
+            "median_fps": 5.606339234194735,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -672,7 +672,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.101790368229208,
+            "median_fps": 6.060969896465855,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -691,7 +691,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.000305508195084,
+            "median_fps": 5.97354898221944,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -710,7 +710,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.87607625639305,
+            "median_fps": 5.868877012893074,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -729,7 +729,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 5.51093147425783,
+            "median_fps": 5.492880308765182,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -750,8 +750,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.322990855480948,
-            "relative_spread": 0.0015079820158777125,
+            "median_fps": 6.278593899268914,
+            "relative_spread": 0.0015413832100318052,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
@@ -769,8 +769,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.260027535511115,
-            "relative_spread": 0.0016203855095168617,
+            "median_fps": 6.236299198957202,
+            "relative_spread": 0.00210275171627747,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
@@ -788,8 +788,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.22442949142562,
-            "relative_spread": 0.0010328206038923487,
+            "median_fps": 6.178935728264526,
+            "relative_spread": 0.0014440429831818907,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
@@ -807,8 +807,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
-            "median_fps": 6.319041232746812,
-            "relative_spread": 0.0018962750146654175,
+            "median_fps": 6.276882328817518,
+            "relative_spread": 0.001724409684729683,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
@@ -826,8 +826,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.369456567870516,
-            "relative_spread": 0.003879936165476712,
+            "median_fps": 6.346434177034014,
+            "relative_spread": 0.002500615976801851,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g0/confirmation/performance/suite.json"
@@ -845,8 +845,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.346859414020133,
-            "relative_spread": 0.0014441831617455609,
+            "median_fps": 6.3170102224112386,
+            "relative_spread": 0.0009420199294022598,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s3-tauto-g0/confirmation/performance/suite.json"
@@ -864,8 +864,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 6.290920354018479,
-            "relative_spread": 0.0011320524065296955,
+            "median_fps": 6.249965649251297,
+            "relative_spread": 0.0013253179447969628,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g0/confirmation/performance/suite.json"
@@ -883,8 +883,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
-            "median_fps": 6.367035910060923,
-            "relative_spread": 0.00019381543353775096,
+            "median_fps": 6.342094702236373,
+            "relative_spread": 0.001557128086165023,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g1/confirmation/performance/suite.json"
@@ -898,18 +898,18 @@
         "comparisons": [
           {
             "implementation": "vstrt",
-            "confirmation_fps": 6.322990855480948,
-            "final_campaign_fps": 6.320791209409075,
-            "delta_percent": -0.03478806346788321
+            "confirmation_fps": 6.278593899268914,
+            "final_campaign_fps": 6.2710471043291225,
+            "delta_percent": -0.12019880662564875
           },
           {
             "implementation": "vsgan",
-            "confirmation_fps": 6.369456567870516,
-            "final_campaign_fps": 6.376489995978006,
-            "delta_percent": 0.11042430437422368
+            "confirmation_fps": 6.346434177034014,
+            "final_campaign_fps": 6.344528122410765,
+            "delta_percent": -0.030033473444768255
           }
         ],
-        "max_absolute_delta_percent": 0.11042430437422368
+        "max_absolute_delta_percent": 0.12019880662564875
       },
       "final_campaign": {
         "execution_profile": "tuned",
@@ -920,7 +920,7 @@
         "publishable": true,
         "campaign": {
           "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
-          "sha256": "38d9af8736bd641c8b867130ab90c6ffd31f6d4dad42e2d30a462519b21dd60a"
+          "sha256": "efa0e5be3b32b2a9acb0a69a414fa165705c37fbfd734e646524123f530d26ec"
         },
         "environment": {
           "cpu": {
@@ -936,7 +936,7 @@
             "power_limit_w": 350.0,
             "total_memory_mib": 24576.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "parameters": {
           "cpu_accounting": {
@@ -987,12 +987,12 @@
         },
         "assets": {
           "input_sha256": "a70afffe67cf02fa6a406ec1fa37069b888ed800b477268e35966c9e896e6d7f",
-          "onnx_sha256": "2d54d2c7bc0d12dc7fa725c50cf4a97672959ff1c081d88116e3fe2268b26a76"
+          "onnx_sha256": "2822218bdd0dd07f4c98036fed8bf0f712c50d3b6755672e9af165071a149066"
         },
         "quality": {
           "inference_parity": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
-            "sha256": "d5e4af61e332b72dd60dd6d71862b3abd04abc478f93f3c7c205b08a9af98088",
+            "sha256": "56a32875a3d32a32b83d502f5cfb209d8025703a6c7ade057e406c16fe4ca2cd",
             "status": "valid",
             "contract_version": 3,
             "frame_indices": [
@@ -1026,7 +1026,7 @@
           },
           "preprocessing_diagnostic": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
-            "sha256": "ba44b57320bf71651467fa79585eccdf0848cd6f389c822663a0fc3839b96fc6",
+            "sha256": "c1ca0dce7ae91bab565e78c301cc49ade3e0ec7e83a4721da61353737a9125c1",
             "status": "complete",
             "acceptance_gate": false,
             "contract_version": 3,
@@ -1060,21 +1060,21 @@
           },
           "product_output": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
-            "sha256": "eb32bc3cc2896e3a0655449db3040a32db4d94abf5c1a68eb8798869c1c5ad15",
+            "sha256": "24c10cf75be5bdb1b12014cf1f3f560ff9fc07fbe950433ed7b6fc5296156384",
             "status": "valid",
             "comparisons": [
               {
                 "implementation": "vs-mlrt",
                 "status": "valid",
-                "psnr_average_db": 45.310801,
-                "ssim": 0.991847,
+                "psnr_average_db": 44.71862,
+                "ssim": 0.991528,
                 "compared_frames": 1000
               },
               {
                 "implementation": "VSGAN-tensorrt-docker",
                 "status": "valid",
-                "psnr_average_db": 45.310801,
-                "ssim": 0.991847,
+                "psnr_average_db": 44.71862,
+                "ssim": 0.991528,
                 "compared_frames": 1000
               }
             ]
@@ -1084,49 +1084,49 @@
           {
             "implementation": "trtvideo",
             "product": "trtvideo",
-            "image_id": "sha256:d895fb70bcd13a677be7fdce99dfa3b53b428b4fee2ba41d5cad3464108ea563",
-            "engine_sha256": "42465951b4d51f0b8c11e9152712d5bd1e5ed48b6438cf63f285d2b90d80eb36",
+            "image_id": "sha256:8fc0d7a0754c59d264ee1735fa49669323e676d6bb1c6c47e6da49667feb82a3",
+            "engine_sha256": "c3af501777e092990e38937fc10ad504377786b61f59cfe4cbb29cb58f03aee7",
             "relative_to_trtvideo_percent": 0.0,
-            "fps_median": 6.1707757532631105,
+            "fps_median": 6.139543593124412,
             "fps_runs": [
-              6.1707757532631105,
-              6.161904184853234,
-              6.172725893532961
+              6.139543593124412,
+              6.133481436891986,
+              6.149654832601879
             ],
-            "fps_spread": 0.0017537031181217026,
-            "wall_sec": 162.054179245,
-            "startup_sec": 1.543590153,
-            "steady_state_sec": 159.407390614,
-            "finalize_sec": 1.110748171,
-            "cpu_cores": 1.0087081046695285,
-            "cpu_capacity_percent": 8.40590087224607,
-            "gpu_util_percent": 98.4885164494103,
-            "power_w": 338.86301128913783,
-            "joules_per_frame": 54.8968182183754,
+            "fps_spread": 0.00263429935215461,
+            "wall_sec": 162.878556823,
+            "startup_sec": 1.553186023,
+            "steady_state_sec": 160.452272042,
+            "finalize_sec": 0.873098758,
+            "cpu_cores": 1.0101365590255709,
+            "cpu_capacity_percent": 8.417804658546423,
+            "gpu_util_percent": 98.70450339296731,
+            "power_w": 338.2683901199505,
+            "joules_per_frame": 55.062778872618274,
             "peak_vram_mib": 2233.875,
-            "output_bitrate_mbps": 34.50118,
-            "output_size_mib": 171.37560558319092,
+            "output_bitrate_mbps": 34.483799,
+            "output_size_mib": 171.28932857513428,
             "lifecycle_intervals_sec": {
-              "cleanup_completed_to_output_committed": 8.7656e-05,
-              "decoder_initialized_to_encoder_initialized": 0.194692448,
-              "encoder_drained_to_mux_input_closed": 8.997e-06,
-              "encoder_initialized_to_first_frame_completed": 0.168929275,
-              "first_frame_completed_to_last_frame_completed": 159.407390614,
-              "frame_loop_completed_to_encoder_drained": 0.005475977,
-              "last_frame_completed_to_frame_loop_completed": 0.153731139,
-              "mux_completed_to_pipeline_finalized": 3.536e-06,
-              "mux_input_closed_to_mux_completed": 0.438630653,
-              "output_committed_to_reporting_started": 1.052e-06,
-              "pipeline_created_to_video_probed": 0.051588643,
-              "pipeline_finalized_to_cleanup_completed": 5.1979e-05,
-              "preservation_preflight_completed_to_runtime_initialized": 0.919868408,
-              "process_started_to_pipeline_created": 0.14136572,
-              "reporting_started_to_process_finished": 0.509914508,
-              "runtime_initialized_to_decoder_initialized": 0.01168076,
-              "video_probed_to_preservation_preflight_completed": 0.055454952
+              "cleanup_completed_to_output_committed": 6.8148e-05,
+              "decoder_initialized_to_encoder_initialized": 0.194354334,
+              "encoder_drained_to_mux_input_closed": 1.0931e-05,
+              "encoder_initialized_to_first_frame_completed": 0.168941901,
+              "first_frame_completed_to_last_frame_completed": 160.452272042,
+              "frame_loop_completed_to_encoder_drained": 0.005553521,
+              "last_frame_completed_to_frame_loop_completed": 0.155035757,
+              "mux_completed_to_pipeline_finalized": 2.585e-06,
+              "mux_input_closed_to_mux_completed": 0.202796359,
+              "output_committed_to_reporting_started": 1.092e-06,
+              "pipeline_created_to_video_probed": 0.051135978,
+              "pipeline_finalized_to_cleanup_completed": 3.5177e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.927908247,
+              "process_started_to_pipeline_created": 0.14347306,
+              "reporting_started_to_process_finished": 0.509229683,
+              "runtime_initialized_to_decoder_initialized": 0.011836065,
+              "video_probed_to_preservation_preflight_completed": 0.057424692
             },
             "session_observations": {
-              "peak_temperature_c": 67,
+              "peak_temperature_c": 64,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "sw_power_cap"
@@ -1134,7 +1134,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0017537031181217026,
+              "full_relative_spread": 0.00263429935215461,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1144,31 +1144,31 @@
           {
             "implementation": "vsgan",
             "product": "VSGAN-tensorrt-docker",
-            "image_id": "sha256:77311fc08c2fceb4ac69948b433962e5efa8b55c015007b438aeb5dc8e85f156",
-            "engine_sha256": "561bf809adbd191d642cabc47b3584670acdaccc3bc865f96ff841104f288fdb",
-            "relative_to_trtvideo_percent": 3.3336852762169134,
-            "fps_median": 6.376489995978006,
+            "image_id": "sha256:5bb9248f3d9e0c1e31a18cc0d79c0b7882530f91a1ddaacbc5561cbfcbd59f72",
+            "engine_sha256": "a67217524a9b0cd3f4c2713e63c8bb2835549386c81502376d251884e4b65d83",
+            "relative_to_trtvideo_percent": 3.3387584301203255,
+            "fps_median": 6.344528122410765,
             "fps_runs": [
-              6.380318986340681,
-              6.376489995978006,
-              6.369182770269443
+              6.346501395805546,
+              6.341564832514972,
+              6.344528122410765
             ],
-            "fps_spread": 0.0017464492343377052,
-            "wall_sec": 156.826090942,
-            "startup_sec": 2.610032657,
-            "steady_state_sec": 154.113704589,
-            "finalize_sec": 0.011510027,
-            "cpu_cores": 2.1746766383483296,
-            "cpu_capacity_percent": 18.122305319569413,
-            "gpu_util_percent": 97.8952442159383,
-            "power_w": 338.44735950454634,
-            "joules_per_frame": 53.09327930553962,
+            "fps_spread": 0.0007780820252236886,
+            "wall_sec": 157.616134834,
+            "startup_sec": 2.623168174,
+            "steady_state_sec": 154.980041585,
+            "finalize_sec": 0.012545169,
+            "cpu_cores": 2.16833287869061,
+            "cpu_capacity_percent": 18.069440655755084,
+            "gpu_util_percent": 98.00319284802043,
+            "power_w": 338.3719979091352,
+            "joules_per_frame": 53.33270315592614,
             "peak_vram_mib": 3762.5625,
-            "output_bitrate_mbps": 34.88313,
-            "output_size_mib": 173.27265739440918,
+            "output_bitrate_mbps": 34.960613,
+            "output_size_mib": 173.6576633453369,
             "lifecycle_intervals_sec": {},
             "session_observations": {
-              "peak_temperature_c": 66,
+              "peak_temperature_c": 64,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "sw_power_cap"
@@ -1176,7 +1176,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0017464492343377052,
+              "full_relative_spread": 0.0007780820252236886,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1186,31 +1186,31 @@
           {
             "implementation": "vstrt",
             "product": "vs-mlrt",
-            "image_id": "sha256:836260e1d67b57efa7f53f9a3d373030725eab481a161fae87eb0fddc0e31f75",
-            "engine_sha256": "42465951b4d51f0b8c11e9152712d5bd1e5ed48b6438cf63f285d2b90d80eb36",
-            "relative_to_trtvideo_percent": 2.4310631619798517,
-            "fps_median": 6.320791209409075,
+            "image_id": "sha256:9296b026b06fdd15e5f8dd6bfffac90a7d43c1cea9c1acf788a448339812b367",
+            "engine_sha256": "c3af501777e092990e38937fc10ad504377786b61f59cfe4cbb29cb58f03aee7",
+            "relative_to_trtvideo_percent": 2.1419102122180567,
+            "fps_median": 6.2710471043291225,
             "fps_runs": [
-              6.320791209409075,
-              6.312774409789205,
-              6.329064298057759
+              6.258833642697299,
+              6.2710471043291225,
+              6.2810468707161204
             ],
-            "fps_spread": 0.0025771913244507097,
-            "wall_sec": 158.208041821,
-            "startup_sec": 2.917653491,
-            "steady_state_sec": 155.471303517,
-            "finalize_sec": 0.021116582,
-            "cpu_cores": 2.165608051181372,
-            "cpu_capacity_percent": 18.046733759844766,
-            "gpu_util_percent": 97.85168682367919,
-            "power_w": 337.34715064161736,
-            "joules_per_frame": 53.43880974401586,
+            "fps_spread": 0.003542188034831831,
+            "wall_sec": 159.463002488,
+            "startup_sec": 2.654843873,
+            "steady_state_sec": 156.834175082,
+            "finalize_sec": 0.020052562,
+            "cpu_cores": 2.1666639760279187,
+            "cpu_capacity_percent": 18.05553313356599,
+            "gpu_util_percent": 98.0202403542062,
+            "power_w": 337.19195882717975,
+            "joules_per_frame": 53.76964216939216,
             "peak_vram_mib": 3764.5625,
-            "output_bitrate_mbps": 34.88313,
-            "output_size_mib": 173.27265739440918,
+            "output_bitrate_mbps": 34.960613,
+            "output_size_mib": 173.6576633453369,
             "lifecycle_intervals_sec": {},
             "session_observations": {
-              "peak_temperature_c": 66,
+              "peak_temperature_c": 64,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -1219,7 +1219,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0025771913244507097,
+              "full_relative_spread": 0.003542188034831831,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1237,7 +1237,7 @@
       "status": "valid",
       "selection": {
         "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/selection.json",
-        "sha256": "3543040f0d56f4baf33e8178a38d300ecf245704584005af06315f7b04db9fc7",
+        "sha256": "064c2732a850912794c0f8d3f6dd9e87c489b365664cbd920ef59fc169d875ac",
         "policy": {
           "equivalence_margin": 0.01,
           "max_relative_spread": 0.05,
@@ -1246,7 +1246,7 @@
         },
         "search": {
           "state_path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/search-state.json",
-          "state_sha256": "cc87470cf2efd3597ce782bdd033cbe77ae3b365ee20299f09b521e758f6ead6",
+          "state_sha256": "e90fadbed2b342b3592fc3f32600c778b42f85fa64a37353a06e5fb6cfacedde",
           "completion": {
             "vsgan": "resource-ceiling",
             "vstrt": "resource-ceiling"
@@ -1258,7 +1258,7 @@
               "num_streams": 8,
               "run_manifest": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/run-01/manifest.json",
               "stderr": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/run-01/warmup.stderr.log",
-              "stderr_sha256": "9299917c37b66d37287ddfb9ec8b4d9ce5800e770f7efdab5e9442827b9bda5e",
+              "stderr_sha256": "4bdcd01fe78ec7bf27c8495e260d9bc7747f352165ee2d269155d6f894cdc907",
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/suite.json"
             },
             "vstrt": {
@@ -1267,7 +1267,7 @@
               "num_streams": 8,
               "run_manifest": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/manifest.json",
               "stderr": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/warmup.stderr.log",
-              "stderr_sha256": "681a4e29b4c3f44fc5adf66e26413e2e46602fcc6d7437dbe0c79a553c1bc594",
+              "stderr_sha256": "37c6069d568564d90d94babc500fb68e7bab64d7734eae4c6009d3b0bd52cee5",
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
             }
           }
@@ -1282,8 +1282,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 2.83156962278119,
-            "relative_spread": 0.0010602194800544732,
+            "median_fps": 2.814377814514477,
+            "relative_spread": 0.0014119990282055112,
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
           },
           "vstrt": {
@@ -1295,8 +1295,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 2.846686881910796,
-            "relative_spread": 0.0017159373306374032,
+            "median_fps": 2.8342627590633866,
+            "relative_spread": 0.0061038152264687095,
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
           }
         },
@@ -1313,7 +1313,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.4501442567885445,
+            "median_fps": 2.4400587000805913,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1332,7 +1332,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.798369856529564,
+            "median_fps": 2.7738104191825386,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1351,7 +1351,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.7848029135784755,
+            "median_fps": 2.767581080962073,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1370,7 +1370,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.7664724024137377,
+            "median_fps": 2.7566881199253315,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1389,11 +1389,30 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.755657520050553,
+            "median_fps": 2.7422141664557813,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 2.7304990095654795,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
             }
           },
           {
@@ -1408,7 +1427,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.4296493722184556,
+            "median_fps": 2.4205611158547256,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1427,7 +1446,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.7798663515208943,
+            "median_fps": 2.7646673377224937,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1446,7 +1465,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.768370046151322,
+            "median_fps": 2.760711530564011,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1465,7 +1484,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.746407897858814,
+            "median_fps": 2.737406468876444,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -1484,11 +1503,30 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.734865372824279,
+            "median_fps": 2.7226237712468713,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s6-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 2.700894716649988,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s6-tauto-g0/reconnaissance/performance/suite.json"
             }
           }
         ],
@@ -1505,8 +1543,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.846686881910796,
-            "relative_spread": 0.0017159373306374032,
+            "median_fps": 2.8342627590633866,
+            "relative_spread": 0.0061038152264687095,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
@@ -1524,8 +1562,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.848626522268805,
-            "relative_spread": 0.0003715560026187112,
+            "median_fps": 2.837284143212606,
+            "relative_spread": 0.00274501811315296,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
@@ -1543,8 +1581,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.8397799363200025,
-            "relative_spread": 0.002340946230257233,
+            "median_fps": 2.827601591942921,
+            "relative_spread": 0.004352516094692293,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
@@ -1562,8 +1600,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
-            "median_fps": 2.839063670213346,
-            "relative_spread": 0.0012557526538110992,
+            "median_fps": 2.8274458394304727,
+            "relative_spread": 0.00278140474081426,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
@@ -1581,8 +1619,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.83156962278119,
-            "relative_spread": 0.0010602194800544732,
+            "median_fps": 2.814377814514477,
+            "relative_spread": 0.0014119990282055112,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g0/confirmation/performance/suite.json"
@@ -1600,8 +1638,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.8266734567798335,
-            "relative_spread": 0.0006376777757580413,
+            "median_fps": 2.819103690490783,
+            "relative_spread": 0.0035988983225100596,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s3-tauto-g0/confirmation/performance/suite.json"
@@ -1619,8 +1657,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 2.8128277079031734,
-            "relative_spread": 0.0016210152847214011,
+            "median_fps": 2.809541221837082,
+            "relative_spread": 0.0003826416247251497,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s4-tauto-g0/confirmation/performance/suite.json"
@@ -1638,8 +1676,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
-            "median_fps": 2.819019682144173,
-            "relative_spread": 0.0006037815063190392,
+            "median_fps": 2.802796495446804,
+            "relative_spread": 0.004979493892772774,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g1/confirmation/performance/suite.json"
@@ -1653,18 +1691,18 @@
         "comparisons": [
           {
             "implementation": "vstrt",
-            "confirmation_fps": 2.846686881910796,
-            "final_campaign_fps": 2.8477653646686636,
-            "delta_percent": 0.037885542126914196
+            "confirmation_fps": 2.8342627590633866,
+            "final_campaign_fps": 2.829724303069915,
+            "delta_percent": -0.1601282724743358
           },
           {
             "implementation": "vsgan",
-            "confirmation_fps": 2.83156962278119,
-            "final_campaign_fps": 2.8336209215637678,
-            "delta_percent": 0.0724438758656687
+            "confirmation_fps": 2.814377814514477,
+            "final_campaign_fps": 2.8215935648078974,
+            "delta_percent": 0.25638882797494045
           }
         ],
-        "max_absolute_delta_percent": 0.0724438758656687
+        "max_absolute_delta_percent": 0.25638882797494045
       },
       "final_campaign": {
         "execution_profile": "tuned",
@@ -1675,7 +1713,7 @@
         "publishable": true,
         "campaign": {
           "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
-          "sha256": "9b5abcbdc1330015b4953a8e08cf8c69c57cbbcfd6e3c75b0ec9890c45cad2e7"
+          "sha256": "dc77d302c205c9082967f6c5bd549a0785b0d78848ed2bdf74fc10db5c391af4"
         },
         "environment": {
           "cpu": {
@@ -1691,7 +1729,7 @@
             "power_limit_w": 350.0,
             "total_memory_mib": 24576.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "parameters": {
           "cpu_accounting": {
@@ -1742,12 +1780,12 @@
         },
         "assets": {
           "input_sha256": "ca3a399fae12fd75a21be05a0de86f0b94bafbcd21d1b18c1730757949db30f6",
-          "onnx_sha256": "2064303966aacc3081b6ed06db485ca57d39bb16b684d6638580b11d98314f47"
+          "onnx_sha256": "390fbe24fb4b37a2f8e197b40f96bc65c268cc5bd79bb4349b9a337e013c0967"
         },
         "quality": {
           "inference_parity": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
-            "sha256": "a306adcb4835688d05f9bf4233a002892c1fb70da6df6d1ed077d50bb1fa7076",
+            "sha256": "ad7272dec5130f1a76ee9b9fa469531b6efa17ca7eea1467e4e53ab92a99cd9b",
             "status": "valid",
             "contract_version": 3,
             "frame_indices": [
@@ -1774,14 +1812,14 @@
                 "implementation": "VSGAN-tensorrt-docker",
                 "status": "valid",
                 "max_p99_abs": 0.0009765625,
-                "max_rmse": 0.0002560895589312127,
-                "min_psnr_db": 71.83216255722232
+                "max_rmse": 0.00027638005216423724,
+                "min_psnr_db": 71.16986611073438
               }
             ]
           },
           "preprocessing_diagnostic": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
-            "sha256": "33aafd2466386ab2fb8f48e92288ff7ffa69a77e2365384b0d93e097c0424049",
+            "sha256": "ab3414e60469126cfa0181e79ade5aa102c011e1615166ef9c845a522cf0ecaa",
             "status": "complete",
             "acceptance_gate": false,
             "contract_version": 3,
@@ -1815,21 +1853,21 @@
           },
           "product_output": {
             "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
-            "sha256": "ee2e8570ba246c9a91738d81985e636fc30d63fc2ff1e65f098ee3a92e4879de",
+            "sha256": "49ff35a4df0b2927c51f3243e1e1eecec6f6b13278ac7ed3b3bf5a8093fa7518",
             "status": "valid",
             "comparisons": [
               {
                 "implementation": "vs-mlrt",
                 "status": "valid",
-                "psnr_average_db": 46.095431,
-                "ssim": 0.992978,
+                "psnr_average_db": 45.172837,
+                "ssim": 0.99248,
                 "compared_frames": 1000
               },
               {
                 "implementation": "VSGAN-tensorrt-docker",
                 "status": "valid",
-                "psnr_average_db": 46.095403,
-                "ssim": 0.992978,
+                "psnr_average_db": 45.172017,
+                "ssim": 0.992476,
                 "compared_frames": 1000
               }
             ]
@@ -1839,49 +1877,49 @@
           {
             "implementation": "trtvideo",
             "product": "trtvideo",
-            "image_id": "sha256:d895fb70bcd13a677be7fdce99dfa3b53b428b4fee2ba41d5cad3464108ea563",
-            "engine_sha256": "ec90fb9fc33420ee74207d7912eb760d97b3893b2675fad1bab09591208253c8",
+            "image_id": "sha256:8fc0d7a0754c59d264ee1735fa49669323e676d6bb1c6c47e6da49667feb82a3",
+            "engine_sha256": "58d6bc5e39a429b99f47754edeba95ff86f81fe13ac19c491c34149a8397076a",
             "relative_to_trtvideo_percent": 0.0,
-            "fps_median": 2.810775805063133,
+            "fps_median": 2.8033325163990575,
             "fps_runs": [
-              2.8084913227759434,
-              2.810806185159145,
-              2.810775805063133
+              2.7971706143426016,
+              2.8033325163990575,
+              2.8049774474883193
             ],
-            "fps_spread": 0.0008235670660860301,
-            "wall_sec": 355.773661563,
-            "startup_sec": 1.438691442,
-            "steady_state_sec": 352.910366921,
-            "finalize_sec": 1.4246032,
-            "cpu_cores": 1.005292783892866,
-            "cpu_capacity_percent": 8.377439865773884,
-            "gpu_util_percent": 99.36368778280543,
-            "power_w": 342.0043423429084,
-            "joules_per_frame": 121.77511091786731,
+            "fps_spread": 0.002784840221432518,
+            "wall_sec": 356.718296581,
+            "startup_sec": 1.462325975,
+            "steady_state_sec": 354.263947592,
+            "finalize_sec": 0.988727697,
+            "cpu_cores": 1.006537972617791,
+            "cpu_capacity_percent": 8.387816438481591,
+            "gpu_util_percent": 99.47687535250986,
+            "power_w": 341.41881013699293,
+            "joules_per_frame": 122.0192845716841,
             "peak_vram_mib": 4268.3125,
-            "output_bitrate_mbps": 58.844117,
-            "output_size_mib": 292.28835010528564,
+            "output_bitrate_mbps": 58.970795,
+            "output_size_mib": 292.9176664352417,
             "lifecycle_intervals_sec": {
-              "cleanup_completed_to_output_committed": 9.0653e-05,
-              "decoder_initialized_to_encoder_initialized": 0.203110589,
-              "encoder_drained_to_mux_input_closed": 8.737e-06,
-              "encoder_initialized_to_first_frame_completed": 0.366232769,
-              "first_frame_completed_to_last_frame_completed": 352.910366921,
-              "frame_loop_completed_to_encoder_drained": 0.012030157,
-              "last_frame_completed_to_frame_loop_completed": 0.341691965,
-              "mux_completed_to_pipeline_finalized": 3.767e-06,
-              "mux_input_closed_to_mux_completed": 0.748311677,
-              "output_committed_to_reporting_started": 1.252e-06,
-              "pipeline_created_to_video_probed": 0.056850083,
-              "pipeline_finalized_to_cleanup_completed": 5.197e-05,
-              "preservation_preflight_completed_to_runtime_initialized": 0.598864965,
-              "process_started_to_pipeline_created": 0.141444214,
-              "reporting_started_to_process_finished": 0.317713967,
-              "runtime_initialized_to_decoder_initialized": 0.011811309,
-              "video_probed_to_preservation_preflight_completed": 0.060421247
+              "cleanup_completed_to_output_committed": 8.7888e-05,
+              "decoder_initialized_to_encoder_initialized": 0.203608873,
+              "encoder_drained_to_mux_input_closed": 1.0009e-05,
+              "encoder_initialized_to_first_frame_completed": 0.366576869,
+              "first_frame_completed_to_last_frame_completed": 354.263947592,
+              "frame_loop_completed_to_encoder_drained": 0.01205099,
+              "last_frame_completed_to_frame_loop_completed": 0.340527153,
+              "mux_completed_to_pipeline_finalized": 4.208e-06,
+              "mux_input_closed_to_mux_completed": 0.316279787,
+              "output_committed_to_reporting_started": 1.232e-06,
+              "pipeline_created_to_video_probed": 0.05618153,
+              "pipeline_finalized_to_cleanup_completed": 4.2571e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.620066333,
+              "process_started_to_pipeline_created": 0.141947374,
+              "reporting_started_to_process_finished": 0.320429376,
+              "runtime_initialized_to_decoder_initialized": 0.012418408,
+              "video_probed_to_preservation_preflight_completed": 0.063262527
             },
             "session_observations": {
-              "peak_temperature_c": 68,
+              "peak_temperature_c": 65,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "sw_power_cap"
@@ -1889,7 +1927,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0008235670660860301,
+              "full_relative_spread": 0.002784840221432518,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1899,31 +1937,31 @@
           {
             "implementation": "vsgan",
             "product": "VSGAN-tensorrt-docker",
-            "image_id": "sha256:77311fc08c2fceb4ac69948b433962e5efa8b55c015007b438aeb5dc8e85f156",
-            "engine_sha256": "002ffe1e40a0e2a612c7a3c287788adaa6b24570b955f007c33d1470f39eed37",
-            "relative_to_trtvideo_percent": 0.8127690746264182,
-            "fps_median": 2.8336209215637678,
+            "image_id": "sha256:5bb9248f3d9e0c1e31a18cc0d79c0b7882530f91a1ddaacbc5561cbfcbd59f72",
+            "engine_sha256": "23160fd24be73bd05642838d8401c4287caa06e1fa67eeba860bbe65639dbf63",
+            "relative_to_trtvideo_percent": 0.651405008218453,
+            "fps_median": 2.8215935648078974,
             "fps_runs": [
-              2.8323761228600306,
-              2.8336209215637678,
-              2.835830173537172
+              2.8215935648078974,
+              2.8156993700030726,
+              2.822279489509592
             ],
-            "fps_spread": 0.001218952983744579,
-            "wall_sec": 352.905355967,
-            "startup_sec": 3.063646502,
-            "steady_state_sec": 349.830151939,
-            "finalize_sec": 0.011557526,
-            "cpu_cores": 2.1711763197826013,
-            "cpu_capacity_percent": 18.093135998188345,
-            "gpu_util_percent": 99.09714285714286,
-            "power_w": 340.499449322652,
-            "joules_per_frame": 120.17102819137389,
+            "fps_spread": 0.002332057879841164,
+            "wall_sec": 354.409654343,
+            "startup_sec": 3.106848708,
+            "steady_state_sec": 351.347706893,
+            "finalize_sec": 0.01191209,
+            "cpu_cores": 2.1693436382969273,
+            "cpu_capacity_percent": 18.077863652474395,
+            "gpu_util_percent": 99.02416145537237,
+            "power_w": 340.0590561262387,
+            "joules_per_frame": 120.68693282416605,
             "peak_vram_mib": 7623.3125,
-            "output_bitrate_mbps": 59.716083,
-            "output_size_mib": 296.61986351013184,
+            "output_bitrate_mbps": 59.865955,
+            "output_size_mib": 297.3642158508301,
             "lifecycle_intervals_sec": {},
             "session_observations": {
-              "peak_temperature_c": 68,
+              "peak_temperature_c": 66,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -1932,7 +1970,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.001218952983744579,
+              "full_relative_spread": 0.002332057879841164,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1942,31 +1980,31 @@
           {
             "implementation": "vstrt",
             "product": "vs-mlrt",
-            "image_id": "sha256:836260e1d67b57efa7f53f9a3d373030725eab481a161fae87eb0fddc0e31f75",
-            "engine_sha256": "ec90fb9fc33420ee74207d7912eb760d97b3893b2675fad1bab09591208253c8",
-            "relative_to_trtvideo_percent": 1.3159911060462326,
-            "fps_median": 2.8477653646686636,
+            "image_id": "sha256:9296b026b06fdd15e5f8dd6bfffac90a7d43c1cea9c1acf788a448339812b367",
+            "engine_sha256": "58d6bc5e39a429b99f47754edeba95ff86f81fe13ac19c491c34149a8397076a",
+            "relative_to_trtvideo_percent": 0.9414433184957494,
+            "fps_median": 2.829724303069915,
             "fps_runs": [
-              2.842231228445002,
-              2.8477653646686636,
-              2.8481654007959576
+              2.829724303069915,
+              2.838226353794663,
+              2.8276664207703504
             ],
-            "fps_spread": 0.002083799608134518,
-            "wall_sec": 351.152525558,
-            "startup_sec": 3.104922177,
-            "steady_state_sec": 348.036831616,
-            "finalize_sec": 0.020382385,
-            "cpu_cores": 2.167612190145785,
-            "cpu_capacity_percent": 18.06343491788154,
-            "gpu_util_percent": 99.04905335628227,
-            "power_w": 340.9949445182596,
-            "joules_per_frame": 119.77544596217243,
+            "fps_spread": 0.0037317886455780903,
+            "wall_sec": 353.391317633,
+            "startup_sec": 3.091912058,
+            "steady_state_sec": 350.293708296,
+            "finalize_sec": 0.017672365,
+            "cpu_cores": 2.1668428681754635,
+            "cpu_capacity_percent": 18.057023901462195,
+            "gpu_util_percent": 99.0481755986317,
+            "power_w": 340.50661411374404,
+            "joules_per_frame": 120.26760655673341,
             "peak_vram_mib": 7625.3125,
-            "output_bitrate_mbps": 59.712301,
-            "output_size_mib": 296.6010580062866,
+            "output_bitrate_mbps": 59.870451,
+            "output_size_mib": 297.38655185699463,
             "lifecycle_intervals_sec": {},
             "session_observations": {
-              "peak_temperature_c": 67,
+              "peak_temperature_c": 64,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -1975,7 +2013,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.002083799608134518,
+              "full_relative_spread": 0.0037317886455780903,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -1993,7 +2031,7 @@
       "status": "valid",
       "selection": {
         "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/selection.json",
-        "sha256": "e6ed9689227bb0479a829e9a46ffff78c1190057847a7546e8688dcedb2020da",
+        "sha256": "c1af1209d53f084204b29bc05fbba431502fe57ed887732396a000c7568a7807",
         "policy": {
           "equivalence_margin": 0.01,
           "max_relative_spread": 0.05,
@@ -2002,7 +2040,7 @@
         },
         "search": {
           "state_path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/search-state.json",
-          "state_sha256": "f6de6d94b7d17bcd0288db21933a110b0b01cd11cc1f6f479cd29d98bc47fee0",
+          "state_sha256": "dea113fc44c2c128e8f40e4236f155712db1bbdca17bcb582d297a2c281eeef1",
           "completion": {
             "vsgan": "range-exhausted",
             "vstrt": "range-exhausted"
@@ -2022,8 +2060,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 55.386637882743464,
-            "relative_spread": 0.009038748267962554,
+            "median_fps": 55.07952631547222,
+            "relative_spread": 0.002693025622106699,
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph"
           },
           "vstrt": {
@@ -2035,8 +2073,8 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 55.366964708025066,
-            "relative_spread": 0.0023573462545195727,
+            "median_fps": 55.42370838818492,
+            "relative_spread": 0.006002142408862372,
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph"
           }
         },
@@ -2053,7 +2091,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 28.203541430352637,
+            "median_fps": 27.888007398342996,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2072,7 +2110,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 44.19205254701756,
+            "median_fps": 43.06734057297327,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2091,7 +2129,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 51.60682951083229,
+            "median_fps": 52.233641379382554,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2110,7 +2148,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.27709073129325,
+            "median_fps": 55.05018571844608,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2129,7 +2167,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.409216757357584,
+            "median_fps": 55.20355430539849,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2148,7 +2186,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 54.94111877312524,
+            "median_fps": 54.955323724733326,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2167,7 +2205,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 54.73577036620374,
+            "median_fps": 54.71264030861693,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2186,7 +2224,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 54.54614257165373,
+            "median_fps": 54.26827243907433,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2205,7 +2243,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 27.607585118349384,
+            "median_fps": 27.85066779588603,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2224,7 +2262,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 44.71713302147032,
+            "median_fps": 43.012059155881644,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2243,7 +2281,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 52.28655952102973,
+            "median_fps": 51.91719204546049,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2262,7 +2300,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.50489884927329,
+            "median_fps": 55.037042909032905,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2281,7 +2319,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.458656850056265,
+            "median_fps": 54.955074481053735,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2300,7 +2338,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.02536818564594,
+            "median_fps": 54.80801245467886,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2319,7 +2357,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.033779282171245,
+            "median_fps": 54.67256438484366,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2338,7 +2376,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 54.8000379388773,
+            "median_fps": 54.548715469648904,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2359,8 +2397,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.38547087916442,
-            "relative_spread": 0.0025351811474257266,
+            "median_fps": 55.25954827749488,
+            "relative_spread": 0.0023845551355059042,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/suite.json"
@@ -2378,8 +2416,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.366964708025066,
-            "relative_spread": 0.0023573462545195727,
+            "median_fps": 55.42370838818492,
+            "relative_spread": 0.006002142408862372,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
@@ -2397,8 +2435,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.14737724894609,
-            "relative_spread": 0.003174303649701176,
+            "median_fps": 55.14893151498585,
+            "relative_spread": 0.003012615995496509,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
@@ -2416,8 +2454,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --cuda-graph",
-            "median_fps": 54.62398300339897,
-            "relative_spread": 0.01870546859250489,
+            "median_fps": 54.69120562100968,
+            "relative_spread": 0.006008409263401841,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/suite.json"
@@ -2435,8 +2473,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.386637882743464,
-            "relative_spread": 0.009038748267962554,
+            "median_fps": 55.07952631547222,
+            "relative_spread": 0.002693025622106699,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g0/confirmation/performance/suite.json"
@@ -2454,30 +2492,30 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 55.30154480717803,
-            "relative_spread": 0.00418947538710451,
+            "median_fps": 55.07432853794733,
+            "relative_spread": 0.0027680626559577408,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s5-tauto-g0/confirmation/performance/suite.json"
             }
           },
           {
-            "candidate_id": "vsgan-s7-tauto-g0",
+            "candidate_id": "vsgan-s6-tauto-g0",
             "implementation": "vsgan",
             "status": "eligible",
             "execution_profile": {
               "cuda_graph": false,
               "execution_profile": "tuned",
-              "num_streams": 7,
+              "num_streams": 6,
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 54.79522942407021,
-            "relative_spread": 0.0034038818576749477,
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 54.94033333960204,
+            "relative_spread": 0.002572310188483422,
             "errors": [],
             "evidence": {
-              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s7-tauto-g0/confirmation/performance/suite.json"
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s6-tauto-g0/confirmation/performance/suite.json"
             }
           },
           {
@@ -2492,8 +2530,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --cuda-graph",
-            "median_fps": 54.493517687256336,
-            "relative_spread": 0.016749424541807414,
+            "median_fps": 54.171523010532894,
+            "relative_spread": 0.006842765859001565,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g1/confirmation/performance/suite.json"
@@ -2507,18 +2545,18 @@
         "comparisons": [
           {
             "implementation": "vstrt",
-            "confirmation_fps": 55.366964708025066,
-            "final_campaign_fps": 55.45146419876238,
-            "delta_percent": 0.15261716292904737
+            "confirmation_fps": 55.42370838818492,
+            "final_campaign_fps": 55.22566504845669,
+            "delta_percent": -0.3573260351709795
           },
           {
             "implementation": "vsgan",
-            "confirmation_fps": 55.386637882743464,
-            "final_campaign_fps": 55.65470294637261,
-            "delta_percent": 0.48398869091250685
+            "confirmation_fps": 55.07952631547222,
+            "final_campaign_fps": 55.15995988539796,
+            "delta_percent": 0.14603170235170104
           }
         ],
-        "max_absolute_delta_percent": 0.48398869091250685
+        "max_absolute_delta_percent": 0.3573260351709795
       },
       "final_campaign": {
         "execution_profile": "tuned",
@@ -2529,7 +2567,7 @@
         "publishable": true,
         "campaign": {
           "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-campaign/vsgan-s4-tauto-g0__vstrt-s4-g0/campaign.json",
-          "sha256": "d580c04ef1f348a3ec90c4828fc175c080e3afafbcd72b7fcd925df81d6fc206"
+          "sha256": "5b6c941f08a69427d411b546f96801777c41e1905f682d369f314f2d60e401c6"
         },
         "environment": {
           "cpu": {
@@ -2545,7 +2583,7 @@
             "power_limit_w": 350.0,
             "total_memory_mib": 24576.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "parameters": {
           "cpu_accounting": {
@@ -2596,12 +2634,12 @@
         },
         "assets": {
           "input_sha256": "a70afffe67cf02fa6a406ec1fa37069b888ed800b477268e35966c9e896e6d7f",
-          "onnx_sha256": "ac23121b272436661345f468bd83d7ed26e8a5ed01bf73ce283588d28b274c3a"
+          "onnx_sha256": "6d99c8b6a728bb41b4ef1015b19456f6111d05df7fc0cac436567d90785a83f5"
         },
         "quality": {
           "inference_parity": {
             "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/tensor-quality/inference-parity.json",
-            "sha256": "8a9c331219f704f2d4d31f1b0ca5f7e3fd0af4082f89d59f9cae479bf10d90ff",
+            "sha256": "4b8b3339851a60b94a1d44c344290b45cfb1facaddb79784e555116bf124b6ac",
             "status": "valid",
             "contract_version": 3,
             "frame_indices": [
@@ -2635,7 +2673,7 @@
           },
           "preprocessing_diagnostic": {
             "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/tensor-quality/preprocessing-diagnostic.json",
-            "sha256": "642574c0150e4654e60aa59cdd570babec8dd97ad17c38ada912ccf704631665",
+            "sha256": "5dc9610314bf1ec1755e31795429fa7feff1cba8c2844358d879e1a9d4288677",
             "status": "complete",
             "acceptance_gate": false,
             "contract_version": 3,
@@ -2669,21 +2707,21 @@
           },
           "product_output": {
             "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s4-tauto-g0__vstrt-s4-g0/product-output/product-output-parity.json",
-            "sha256": "090fc019f48fcccf78029bec6b27ed5bdfc4e11ed15ef9089c262e3623fe0b09",
+            "sha256": "1140b2ac5a53a112d50415a5349c8e19e92edf715f6033e1661b2c15367c7439",
             "status": "valid",
             "comparisons": [
               {
                 "implementation": "vs-mlrt",
                 "status": "valid",
-                "psnr_average_db": 45.229551,
-                "ssim": 0.9919,
+                "psnr_average_db": 45.228726,
+                "ssim": 0.991896,
                 "compared_frames": 1000
               },
               {
                 "implementation": "VSGAN-tensorrt-docker",
                 "status": "valid",
-                "psnr_average_db": 45.229551,
-                "ssim": 0.9919,
+                "psnr_average_db": 45.228726,
+                "ssim": 0.991896,
                 "compared_frames": 1000
               }
             ]
@@ -2693,49 +2731,49 @@
           {
             "implementation": "trtvideo",
             "product": "trtvideo",
-            "image_id": "sha256:d895fb70bcd13a677be7fdce99dfa3b53b428b4fee2ba41d5cad3464108ea563",
-            "engine_sha256": "395d8abce06034be87e681bad50aa90acf7200481659151e282529bb6b5975dd",
+            "image_id": "sha256:8fc0d7a0754c59d264ee1735fa49669323e676d6bb1c6c47e6da49667feb82a3",
+            "engine_sha256": "695b2d50a211d30fe2d7a2e2aaa7c4d9079b08a39b2d95c9fd839af9b00dc6be",
             "relative_to_trtvideo_percent": 0.0,
-            "fps_median": 55.332650362097915,
+            "fps_median": 55.759996475562296,
             "fps_runs": [
-              55.31392625645146,
-              55.332650362097915,
-              55.45671094659605
+              55.83003109353646,
+              55.70143565050135,
+              55.759996475562296
             ],
-            "fps_spread": 0.0025804780578953255,
-            "wall_sec": 18.072512223,
-            "startup_sec": 0.826493306,
-            "steady_state_sec": 16.587030495,
-            "finalize_sec": 0.651544947,
-            "cpu_cores": 0.5542024261347757,
-            "cpu_capacity_percent": 4.61835355112313,
-            "gpu_util_percent": 91.9171270718232,
-            "power_w": 315.9181643286649,
-            "joules_per_frame": 5.699375675760454,
-            "peak_vram_mib": 1503.875,
-            "output_bitrate_mbps": 34.482975,
-            "output_size_mib": 171.28529453277588,
+            "fps_spread": 0.002306231190159216,
+            "wall_sec": 17.934004003,
+            "startup_sec": 0.83734126,
+            "steady_state_sec": 16.692965891,
+            "finalize_sec": 0.403696852,
+            "cpu_cores": 0.5608270083724191,
+            "cpu_capacity_percent": 4.673558403103492,
+            "gpu_util_percent": 93.58659217877096,
+            "power_w": 316.46006468196094,
+            "joules_per_frame": 5.670002129731687,
+            "peak_vram_mib": 1399.5625,
+            "output_bitrate_mbps": 34.485744,
+            "output_size_mib": 171.29906558990479,
             "lifecycle_intervals_sec": {
-              "cleanup_completed_to_output_committed": 9.0322e-05,
-              "decoder_initialized_to_encoder_initialized": 0.193428118,
-              "encoder_drained_to_mux_input_closed": 1.1772e-05,
-              "encoder_initialized_to_first_frame_completed": 0.027498699,
-              "first_frame_completed_to_last_frame_completed": 16.587030495,
-              "frame_loop_completed_to_encoder_drained": 0.005283783,
-              "last_frame_completed_to_frame_loop_completed": 0.044860413,
-              "mux_completed_to_pipeline_finalized": 4.709e-06,
-              "mux_input_closed_to_mux_completed": 0.445670545,
-              "output_committed_to_reporting_started": 1.192e-06,
-              "pipeline_created_to_video_probed": 0.051527738,
-              "pipeline_finalized_to_cleanup_completed": 5.4694e-05,
-              "preservation_preflight_completed_to_runtime_initialized": 0.346058365,
-              "process_started_to_pipeline_created": 0.141795078,
-              "reporting_started_to_process_finished": 0.156521419,
-              "runtime_initialized_to_decoder_initialized": 0.011043031,
-              "video_probed_to_preservation_preflight_completed": 0.055231314
+              "cleanup_completed_to_output_committed": 8.8627e-05,
+              "decoder_initialized_to_encoder_initialized": 0.194353246,
+              "encoder_drained_to_mux_input_closed": 1.529e-05,
+              "encoder_initialized_to_first_frame_completed": 0.027305523,
+              "first_frame_completed_to_last_frame_completed": 16.692965891,
+              "frame_loop_completed_to_encoder_drained": 0.005367151,
+              "last_frame_completed_to_frame_loop_completed": 0.045402222,
+              "mux_completed_to_pipeline_finalized": 3.928e-06,
+              "mux_input_closed_to_mux_completed": 0.195610863,
+              "output_committed_to_reporting_started": 1.102e-06,
+              "pipeline_created_to_video_probed": 0.051190724,
+              "pipeline_finalized_to_cleanup_completed": 4.6832e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.352909175,
+              "process_started_to_pipeline_created": 0.142923756,
+              "reporting_started_to_process_finished": 0.158320725,
+              "runtime_initialized_to_decoder_initialized": 0.011130407,
+              "video_probed_to_preservation_preflight_completed": 0.057366638
             },
             "session_observations": {
-              "peak_temperature_c": 54,
+              "peak_temperature_c": 51,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -2744,7 +2782,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0025804780578953255,
+              "full_relative_spread": 0.002306231190159216,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -2754,28 +2792,28 @@
           {
             "implementation": "vsgan",
             "product": "VSGAN-tensorrt-docker",
-            "image_id": "sha256:77311fc08c2fceb4ac69948b433962e5efa8b55c015007b438aeb5dc8e85f156",
-            "engine_sha256": "e9cd9fa34491cbc0eecee8014bdcb2cc2afdf5ee6097d9943d1ec3bc38869d4c",
-            "relative_to_trtvideo_percent": 0.5820299265753226,
-            "fps_median": 55.65470294637261,
+            "image_id": "sha256:5bb9248f3d9e0c1e31a18cc0d79c0b7882530f91a1ddaacbc5561cbfcbd59f72",
+            "engine_sha256": "8182cf1971da7ead5e6b9433d2c226210de96da13dad3b037cc03c663ec71649",
+            "relative_to_trtvideo_percent": -1.0761058609953689,
+            "fps_median": 55.15995988539796,
             "fps_runs": [
-              55.65470294637261,
-              55.4238076593178,
-              55.67905252925122
+              54.97460057896642,
+              55.15995988539796,
+              55.17449382738114
             ],
-            "fps_spread": 0.00458622284228824,
-            "wall_sec": 17.967933473,
-            "startup_sec": 1.227480694,
-            "steady_state_sec": 16.728127969,
-            "finalize_sec": 0.01232481,
-            "cpu_cores": 5.935080578979613,
-            "cpu_capacity_percent": 49.4590048248301,
-            "gpu_util_percent": 90.0,
-            "power_w": 309.3025638794546,
-            "joules_per_frame": 5.557527890814373,
+            "fps_spread": 0.0036238831360651653,
+            "wall_sec": 18.129092227,
+            "startup_sec": 1.224456283,
+            "steady_state_sec": 16.893426359,
+            "finalize_sec": 0.011209585,
+            "cpu_cores": 5.929511894693942,
+            "cpu_capacity_percent": 49.412599122449514,
+            "gpu_util_percent": 89.46666666666667,
+            "power_w": 311.16800488293154,
+            "joules_per_frame": 5.641193458614253,
             "peak_vram_mib": 3934.5625,
-            "output_bitrate_mbps": 34.896374,
-            "output_size_mib": 173.3385181427002,
+            "output_bitrate_mbps": 34.902878,
+            "output_size_mib": 173.37084865570068,
             "lifecycle_intervals_sec": {},
             "session_observations": {
               "peak_temperature_c": 51,
@@ -2787,7 +2825,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.00458622284228824,
+              "full_relative_spread": 0.0036238831360651653,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -2797,28 +2835,28 @@
           {
             "implementation": "vstrt",
             "product": "vs-mlrt",
-            "image_id": "sha256:836260e1d67b57efa7f53f9a3d373030725eab481a161fae87eb0fddc0e31f75",
-            "engine_sha256": "395d8abce06034be87e681bad50aa90acf7200481659151e282529bb6b5975dd",
-            "relative_to_trtvideo_percent": 0.2147264515380165,
-            "fps_median": 55.45146419876238,
+            "image_id": "sha256:9296b026b06fdd15e5f8dd6bfffac90a7d43c1cea9c1acf788a448339812b367",
+            "engine_sha256": "695b2d50a211d30fe2d7a2e2aaa7c4d9079b08a39b2d95c9fd839af9b00dc6be",
+            "relative_to_trtvideo_percent": -0.958270195264066,
+            "fps_median": 55.22566504845669,
             "fps_runs": [
-              55.45146419876238,
-              55.51627525865106,
-              55.233966815224505
+              55.17377925357887,
+              55.39648933745214,
+              55.22566504845669
             ],
-            "fps_spread": 0.005091090875700609,
-            "wall_sec": 18.033788908,
-            "startup_sec": 1.282966202,
-            "steady_state_sec": 16.734053099,
-            "finalize_sec": 0.020417718,
-            "cpu_cores": 5.917047085970251,
-            "cpu_capacity_percent": 49.308725716418756,
-            "gpu_util_percent": 89.10614525139665,
-            "power_w": 307.7843869551593,
-            "joules_per_frame": 5.569949399257811,
+            "fps_spread": 0.0040327279658443965,
+            "wall_sec": 18.107522999,
+            "startup_sec": 1.508193296,
+            "steady_state_sec": 16.598413684,
+            "finalize_sec": 0.017786479,
+            "cpu_cores": 5.881607937534118,
+            "cpu_capacity_percent": 49.01339947945098,
+            "gpu_util_percent": 89.88888888888889,
+            "power_w": 308.7663012674715,
+            "joules_per_frame": 5.588417644626775,
             "peak_vram_mib": 3936.5625,
-            "output_bitrate_mbps": 34.896374,
-            "output_size_mib": 173.3385181427002,
+            "output_bitrate_mbps": 34.902878,
+            "output_size_mib": 173.37084865570068,
             "lifecycle_intervals_sec": {},
             "session_observations": {
               "peak_temperature_c": 51,
@@ -2830,7 +2868,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.005091090875700609,
+              "full_relative_spread": 0.0040327279658443965,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -2848,7 +2886,7 @@
       "status": "valid",
       "selection": {
         "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/selection.json",
-        "sha256": "10d458091e9ef54e1fa6b0f14d87417db8f0adf62b3644554103b60523418f58",
+        "sha256": "fd28cebf42acc911021561ba0f52e5a5c12314271b2087af3b4e2e05a57e17fc",
         "policy": {
           "equivalence_margin": 0.01,
           "max_relative_spread": 0.05,
@@ -2857,7 +2895,7 @@
         },
         "search": {
           "state_path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/search-state.json",
-          "state_sha256": "046d4a67d0235926435b9fc78b7f771a6eaeb4f0c6cee60a00a9cff74a4a8aac",
+          "state_sha256": "64bbf21d30478b27936d4cbc66d4ba0af952e717b226370e1db84fcd469b4081",
           "completion": {
             "vsgan": "range-exhausted",
             "vstrt": "range-exhausted"
@@ -2877,22 +2915,22 @@
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 25.139631264619826,
-            "relative_spread": 0.005860865931850658,
+            "median_fps": 25.10085433788416,
+            "relative_spread": 0.0017461888450629806,
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph"
           },
           "vstrt": {
-            "candidate_id": "vstrt-s5-g0",
+            "candidate_id": "vstrt-s6-g0",
             "execution_profile": {
               "cuda_graph": false,
               "execution_profile": "tuned",
-              "num_streams": 5,
+              "num_streams": 6,
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "median_fps": 25.22471401671687,
-            "relative_spread": 0.009201333383097676,
-            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph"
+            "median_fps": 25.231443335405647,
+            "relative_spread": 0.004065437764487703,
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph"
           }
         },
         "reconnaissance": [
@@ -2908,7 +2946,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 10.226178507137828,
+            "median_fps": 10.557539424378287,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2927,7 +2965,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 17.966608951368688,
+            "median_fps": 18.042196764455817,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2946,7 +2984,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 22.299929741774456,
+            "median_fps": 22.621490820874243,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2965,7 +3003,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 24.532867308006516,
+            "median_fps": 24.366144731612273,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -2984,7 +3022,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.16291990791754,
+            "median_fps": 24.960832265124345,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3003,7 +3041,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.358514210170934,
+            "median_fps": 25.115124527399463,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3022,7 +3060,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.222121278276468,
+            "median_fps": 25.147684788970732,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3041,7 +3079,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.113944420094185,
+            "median_fps": 25.045553592971004,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3060,7 +3098,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
-            "median_fps": 10.417949661476028,
+            "median_fps": 10.295843846587779,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3079,7 +3117,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
-            "median_fps": 18.251994769433576,
+            "median_fps": 17.512235112061838,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3098,7 +3136,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
-            "median_fps": 21.801513501160233,
+            "median_fps": 21.553277245257345,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3117,7 +3155,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
-            "median_fps": 24.5404635786117,
+            "median_fps": 24.765193263566296,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3136,7 +3174,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.209369543518385,
+            "median_fps": 25.00964080762371,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3155,7 +3193,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.29342977822047,
+            "median_fps": 25.09626389141292,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3174,7 +3212,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.191324834728402,
+            "median_fps": 25.055420469764158,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3193,7 +3231,7 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.063844470587625,
+            "median_fps": 24.883331821928465,
             "relative_spread": 0.0,
             "errors": [],
             "evidence": {
@@ -3202,25 +3240,6 @@
           }
         ],
         "candidates": [
-          {
-            "candidate_id": "vstrt-s6-g0",
-            "implementation": "vstrt",
-            "status": "eligible",
-            "execution_profile": {
-              "cuda_graph": false,
-              "execution_profile": "tuned",
-              "num_streams": 6,
-              "vapoursynth_threads": "auto",
-              "vspipe_requests": "auto"
-            },
-            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.35981584191687,
-            "relative_spread": 0.0031598847214256223,
-            "errors": [],
-            "evidence": {
-              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
-            }
-          },
           {
             "candidate_id": "vstrt-s7-g0",
             "implementation": "vstrt",
@@ -3233,49 +3252,68 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.276631039376543,
-            "relative_spread": 0.0021645510058893548,
+            "median_fps": 25.15438797916199,
+            "relative_spread": 0.002228012186860601,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/suite.json"
             }
           },
           {
-            "candidate_id": "vstrt-s5-g0",
+            "candidate_id": "vstrt-s6-g0",
             "implementation": "vstrt",
             "status": "eligible",
             "execution_profile": {
               "cuda_graph": false,
               "execution_profile": "tuned",
-              "num_streams": 5,
+              "num_streams": 6,
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.22471401671687,
-            "relative_spread": 0.009201333383097676,
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 25.231443335405647,
+            "relative_spread": 0.004065437764487703,
             "errors": [],
             "evidence": {
-              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/suite.json"
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
             }
           },
           {
-            "candidate_id": "vstrt-s5-g1",
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 25.026930046631435,
+            "relative_spread": 0.005562513987508607,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g1",
             "implementation": "vstrt",
             "status": "eligible",
             "execution_profile": {
               "cuda_graph": true,
               "execution_profile": "tuned",
-              "num_streams": 5,
+              "num_streams": 6,
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             },
-            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --cuda-graph",
-            "median_fps": 25.00863927382575,
-            "relative_spread": 0.00519529208894291,
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --cuda-graph",
+            "median_fps": 25.092340782014862,
+            "relative_spread": 0.005370973756155642,
             "errors": [],
             "evidence": {
-              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g1/confirmation/performance/suite.json"
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/suite.json"
             }
           },
           {
@@ -3290,30 +3328,11 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.23498089460404,
-            "relative_spread": 0.0006101852394408962,
+            "median_fps": 25.127438618112627,
+            "relative_spread": 0.0032421945668351933,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s6-tauto-g0/confirmation/performance/suite.json"
-            }
-          },
-          {
-            "candidate_id": "vsgan-s5-tauto-g0",
-            "implementation": "vsgan",
-            "status": "eligible",
-            "execution_profile": {
-              "cuda_graph": false,
-              "execution_profile": "tuned",
-              "num_streams": 5,
-              "vapoursynth_threads": "auto",
-              "vspipe_requests": "auto"
-            },
-            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.139631264619826,
-            "relative_spread": 0.005860865931850658,
-            "errors": [],
-            "evidence": {
-              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g0/confirmation/performance/suite.json"
             }
           },
           {
@@ -3328,11 +3347,30 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
-            "median_fps": 25.21835252595433,
-            "relative_spread": 0.0026930704663766917,
+            "median_fps": 25.139681216186865,
+            "relative_spread": 0.0032974568942390997,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s7-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s5-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 25.10085433788416,
+            "relative_spread": 0.0017461888450629806,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g0/confirmation/performance/suite.json"
             }
           },
           {
@@ -3347,8 +3385,8 @@
               "vspipe_requests": "auto"
             },
             "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --cuda-graph",
-            "median_fps": 24.958660125759092,
-            "relative_spread": 0.004389633716369638,
+            "median_fps": 24.82254067429123,
+            "relative_spread": 0.005901591467560448,
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g1/confirmation/performance/suite.json"
@@ -3362,18 +3400,18 @@
         "comparisons": [
           {
             "implementation": "vstrt",
-            "confirmation_fps": 25.22471401671687,
-            "final_campaign_fps": 25.18142339494337,
-            "delta_percent": -0.17161987146736557
+            "confirmation_fps": 25.231443335405647,
+            "final_campaign_fps": 25.26766476756137,
+            "delta_percent": 0.14355671879022758
           },
           {
             "implementation": "vsgan",
-            "confirmation_fps": 25.139631264619826,
-            "final_campaign_fps": 25.18752839472093,
-            "delta_percent": 0.19052439392184262
+            "confirmation_fps": 25.10085433788416,
+            "final_campaign_fps": 25.187467104366686,
+            "delta_percent": 0.3450590378981655
           }
         ],
-        "max_absolute_delta_percent": 0.19052439392184262
+        "max_absolute_delta_percent": 0.3450590378981655
       },
       "final_campaign": {
         "execution_profile": "tuned",
@@ -3383,8 +3421,8 @@
         "status": "valid",
         "publishable": true,
         "campaign": {
-          "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s5-tauto-g0__vstrt-s5-g0/campaign.json",
-          "sha256": "0be1d9187e182b92b48887bf3c891dde2c1daca8227c529948a5173914220f95"
+          "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s5-tauto-g0__vstrt-s6-g0/campaign.json",
+          "sha256": "15fbca3ebc2d6d53cb8c241e65ecfc351d322c518f1748fd69a7c2e7bea4839e"
         },
         "environment": {
           "cpu": {
@@ -3400,7 +3438,7 @@
             "power_limit_w": 350.0,
             "total_memory_mib": 24576.0
           },
-          "repository_revision": "a8852808c3ecc3b4c8a6753915a05ea89240d91d"
+          "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c"
         },
         "parameters": {
           "cpu_accounting": {
@@ -3436,7 +3474,7 @@
             "vstrt": {
               "cuda_graph": false,
               "execution_profile": "tuned",
-              "num_streams": 5,
+              "num_streams": 6,
               "vapoursynth_threads": "auto",
               "vspipe_requests": "auto"
             }
@@ -3451,12 +3489,12 @@
         },
         "assets": {
           "input_sha256": "ca3a399fae12fd75a21be05a0de86f0b94bafbcd21d1b18c1730757949db30f6",
-          "onnx_sha256": "ec21ef4ce581665dd4389965db329cc45d930223490dee38ba182d376670f3e8"
+          "onnx_sha256": "1aea80f546eed4b5cd75b2f2f520e2360bc0f88d90be09ce9122fe347f1934bc"
         },
         "quality": {
           "inference_parity": {
-            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/tensor-quality/inference-parity.json",
-            "sha256": "b6d4722ce94b625db0344a19bb527739da67a57604fe24eb9773ebfe646ba387",
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/tensor-quality/inference-parity.json",
+            "sha256": "2f41e7de0435d0b1d9a0a6ff11e561e48cfa8b44472a36bf245fc0ab4db07527",
             "status": "valid",
             "contract_version": 3,
             "frame_indices": [
@@ -3489,8 +3527,8 @@
             ]
           },
           "preprocessing_diagnostic": {
-            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/tensor-quality/preprocessing-diagnostic.json",
-            "sha256": "9bd866c03e0b0025d6d4596449fdc7ade58cd304e06147336bd188beab42dc2d",
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/tensor-quality/preprocessing-diagnostic.json",
+            "sha256": "a147b84d69b5e0af60d2f04b9c7f47bde02fc063e3a95fcad37d9076597bdf3a",
             "status": "complete",
             "acceptance_gate": false,
             "contract_version": 3,
@@ -3523,22 +3561,22 @@
             ]
           },
           "product_output": {
-            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s5-g0/product-output/product-output-parity.json",
-            "sha256": "3246778ced972f838e2684625e05071f55d03b55bfa1ae48206c9eeef5600e9b",
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s5-tauto-g0__vstrt-s6-g0/product-output/product-output-parity.json",
+            "sha256": "ae741ebab27046638ac90f7fc0ee284afc95031ecc8e92a3e4a5585bfb744407",
             "status": "valid",
             "comparisons": [
               {
                 "implementation": "vs-mlrt",
                 "status": "valid",
-                "psnr_average_db": 45.790996,
-                "ssim": 0.99305,
+                "psnr_average_db": 45.791238,
+                "ssim": 0.993051,
                 "compared_frames": 1000
               },
               {
                 "implementation": "VSGAN-tensorrt-docker",
                 "status": "valid",
-                "psnr_average_db": 45.790996,
-                "ssim": 0.99305,
+                "psnr_average_db": 45.791238,
+                "ssim": 0.993051,
                 "compared_frames": 1000
               }
             ]
@@ -3548,49 +3586,49 @@
           {
             "implementation": "trtvideo",
             "product": "trtvideo",
-            "image_id": "sha256:d895fb70bcd13a677be7fdce99dfa3b53b428b4fee2ba41d5cad3464108ea563",
-            "engine_sha256": "158582360914784491334079fd9d8d65c92373dda0bcccf7a4618d218c98ee11",
+            "image_id": "sha256:8fc0d7a0754c59d264ee1735fa49669323e676d6bb1c6c47e6da49667feb82a3",
+            "engine_sha256": "fef0fb530bf553d4ae32fd3de121b4e26f81df75d2117035528f96125d15b02e",
             "relative_to_trtvideo_percent": 0.0,
-            "fps_median": 26.02717591989321,
+            "fps_median": 26.097186056789628,
             "fps_runs": [
-              25.951858390011573,
-              26.02717591989321,
-              26.064619914891413
+              26.097186056789628,
+              26.186424270777646,
+              26.075556660907324
             ],
-            "fps_spread": 0.004332453325973546,
-            "wall_sec": 38.421379372,
-            "startup_sec": 0.870948963,
-            "steady_state_sec": 36.50462747,
-            "finalize_sec": 1.045802939,
-            "cpu_cores": 0.4697635680606024,
-            "cpu_capacity_percent": 3.9146964005050195,
-            "gpu_util_percent": 94.8041775456919,
-            "power_w": 325.995827695994,
-            "joules_per_frame": 12.522911893321231,
+            "fps_spread": 0.004248259165914096,
+            "wall_sec": 38.318307492,
+            "startup_sec": 0.880985437,
+            "steady_state_sec": 36.836334755,
+            "finalize_sec": 0.608678859,
+            "cpu_cores": 0.47498201421465014,
+            "cpu_capacity_percent": 3.9581834517887513,
+            "gpu_util_percent": 96.36125654450262,
+            "power_w": 327.2233582458863,
+            "joules_per_frame": 12.523109801483727,
             "peak_vram_mib": 2652.3125,
-            "output_bitrate_mbps": 58.847372,
-            "output_size_mib": 292.3045873641968,
+            "output_bitrate_mbps": 58.850347,
+            "output_size_mib": 292.3193635940552,
             "lifecycle_intervals_sec": {
-              "cleanup_completed_to_output_committed": 9.0332e-05,
-              "decoder_initialized_to_encoder_initialized": 0.201481021,
-              "encoder_drained_to_mux_input_closed": 1.088e-05,
-              "encoder_initialized_to_first_frame_completed": 0.044569432,
-              "first_frame_completed_to_last_frame_completed": 36.50462747,
-              "frame_loop_completed_to_encoder_drained": 0.01178571,
-              "last_frame_completed_to_frame_loop_completed": 0.099581305,
-              "mux_completed_to_pipeline_finalized": 4.338e-06,
-              "mux_input_closed_to_mux_completed": 0.766475014,
-              "output_committed_to_reporting_started": 1.163e-06,
-              "pipeline_created_to_video_probed": 0.056314999,
-              "pipeline_finalized_to_cleanup_completed": 5.5085e-05,
-              "preservation_preflight_completed_to_runtime_initialized": 0.354828245,
-              "process_started_to_pipeline_created": 0.141801944,
-              "reporting_started_to_process_finished": 0.16894087,
-              "runtime_initialized_to_decoder_initialized": 0.011667366,
-              "video_probed_to_preservation_preflight_completed": 0.060647256
+              "cleanup_completed_to_output_committed": 8.255e-05,
+              "decoder_initialized_to_encoder_initialized": 0.201433927,
+              "encoder_drained_to_mux_input_closed": 1.1121e-05,
+              "encoder_initialized_to_first_frame_completed": 0.044391958,
+              "first_frame_completed_to_last_frame_completed": 36.836334755,
+              "frame_loop_completed_to_encoder_drained": 0.011960247,
+              "last_frame_completed_to_frame_loop_completed": 0.099110433,
+              "mux_completed_to_pipeline_finalized": 4.459e-06,
+              "mux_input_closed_to_mux_completed": 0.32701295,
+              "output_committed_to_reporting_started": 1.072e-06,
+              "pipeline_created_to_video_probed": 0.05631175,
+              "pipeline_finalized_to_cleanup_completed": 4.2522e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.361956784,
+              "process_started_to_pipeline_created": 0.142238849,
+              "reporting_started_to_process_finished": 0.170284784,
+              "runtime_initialized_to_decoder_initialized": 0.011804098,
+              "video_probed_to_preservation_preflight_completed": 0.062795706
             },
             "session_observations": {
-              "peak_temperature_c": 58,
+              "peak_temperature_c": 56,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -3599,7 +3637,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.004332453325973546,
+              "full_relative_spread": 0.004248259165914096,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -3609,25 +3647,25 @@
           {
             "implementation": "vsgan",
             "product": "VSGAN-tensorrt-docker",
-            "image_id": "sha256:77311fc08c2fceb4ac69948b433962e5efa8b55c015007b438aeb5dc8e85f156",
-            "engine_sha256": "b7241e05434d193b6b5129093e500beee8abaf647eebbe7c473e71a4519c8a86",
-            "relative_to_trtvideo_percent": -3.226041610340513,
-            "fps_median": 25.18752839472093,
+            "image_id": "sha256:5bb9248f3d9e0c1e31a18cc0d79c0b7882530f91a1ddaacbc5561cbfcbd59f72",
+            "engine_sha256": "c2601fb5117e5cdb7b9d2fe84c572eff97bcae3420ba6db1ea4af3cbb39b9062",
+            "relative_to_trtvideo_percent": -3.4858890550242383,
+            "fps_median": 25.187467104366686,
             "fps_runs": [
-              25.157149995920822,
-              25.18752839472093,
-              25.294707917250502
+              25.259377814276267,
+              25.187467104366686,
+              24.93515870804919
             ],
-            "fps_spread": 0.0054613505213362305,
-            "wall_sec": 39.702188493,
-            "startup_sec": 2.405975087,
-            "steady_state_sec": 37.164974418,
-            "finalize_sec": 0.012532104,
-            "cpu_cores": 6.977546468914206,
-            "cpu_capacity_percent": 58.14622057428506,
-            "gpu_util_percent": 92.39949109414758,
-            "power_w": 316.8459744773583,
-            "joules_per_frame": 12.577801272816892,
+            "fps_spread": 0.012872239391267226,
+            "wall_sec": 39.702285103,
+            "startup_sec": 2.322227595,
+            "steady_state_sec": 37.298093448,
+            "finalize_sec": 0.013490778,
+            "cpu_cores": 6.991111839339207,
+            "cpu_capacity_percent": 58.259265327826725,
+            "gpu_util_percent": 92.40561224489795,
+            "power_w": 318.5441656014778,
+            "joules_per_frame": 12.673130918967681,
             "peak_vram_mib": 9903.3125,
             "output_bitrate_mbps": 59.712001,
             "output_size_mib": 296.599648475647,
@@ -3642,7 +3680,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0054613505213362305,
+              "full_relative_spread": 0.012872239391267226,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
@@ -3652,31 +3690,31 @@
           {
             "implementation": "vstrt",
             "product": "vs-mlrt",
-            "image_id": "sha256:836260e1d67b57efa7f53f9a3d373030725eab481a161fae87eb0fddc0e31f75",
-            "engine_sha256": "158582360914784491334079fd9d8d65c92373dda0bcccf7a4618d218c98ee11",
-            "relative_to_trtvideo_percent": -3.2494978615924763,
-            "fps_median": 25.18142339494337,
+            "image_id": "sha256:9296b026b06fdd15e5f8dd6bfffac90a7d43c1cea9c1acf788a448339812b367",
+            "engine_sha256": "fef0fb530bf553d4ae32fd3de121b4e26f81df75d2117035528f96125d15b02e",
+            "relative_to_trtvideo_percent": -3.17858518318086,
+            "fps_median": 25.26766476756137,
             "fps_runs": [
-              25.18142339494337,
-              25.091284192031093,
-              25.24835520293828
+              25.26766476756137,
+              25.236487915652667,
+              25.333815271742388
             ],
-            "fps_spread": 0.0062375747567442645,
-            "wall_sec": 39.711813916,
-            "startup_sec": 2.574223441,
-            "steady_state_sec": 37.106626192,
-            "finalize_sec": 0.023525467,
-            "cpu_cores": 6.995258554232796,
-            "cpu_capacity_percent": 58.2938212852733,
-            "gpu_util_percent": 91.86734693877551,
-            "power_w": 316.64264532675725,
-            "joules_per_frame": 12.597332701450743,
-            "peak_vram_mib": 9905.3125,
+            "fps_spread": 0.0038518540191600954,
+            "wall_sec": 39.576273043,
+            "startup_sec": 2.456068244,
+            "steady_state_sec": 37.105022846,
+            "finalize_sec": 0.023374555,
+            "cpu_cores": 8.14456746975097,
+            "cpu_capacity_percent": 67.87139558125807,
+            "gpu_util_percent": 92.91259640102828,
+            "power_w": 318.07071415934786,
+            "joules_per_frame": 12.588053430552357,
+            "peak_vram_mib": 11755.3125,
             "output_bitrate_mbps": 59.712001,
             "output_size_mib": 296.599648475647,
             "lifecycle_intervals_sec": {},
             "session_observations": {
-              "peak_temperature_c": 57,
+              "peak_temperature_c": 56,
               "power_cap_observed": true,
               "throttle_reasons": [
                 "gpu_idle",
@@ -3685,7 +3723,7 @@
             },
             "stability": {
               "consensus": null,
-              "full_relative_spread": 0.0062375747567442645,
+              "full_relative_spread": 0.0038518540191600954,
               "outlier": null,
               "policy": "full-range-3-then-consensus-4-of-5",
               "status": "stable",
