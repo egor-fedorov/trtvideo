@@ -307,10 +307,11 @@ path available inside the container may be used. With
 commands as `models/`.
 
 `export-onnx` loads compatible image-to-image `.pth` checkpoints through
-Spandrel. The current exporter creates 720p and 1080p variants for 2x upscaling
-and has been verified with both `validated` models in the compatibility matrix.
-An existing ONNX file can be passed directly to `prepare-onnx`. Use one or more
-`--size WIDTHxHEIGHT` arguments to export only selected resolutions.
+Spandrel. It infers a uniform integer scale from the source model and requires
+every exported resolution to preserve it. The published compatibility matrix
+currently validates 2x models. An existing ONNX file can be passed directly to
+`prepare-onnx`. Use one or more `--size WIDTHxHEIGHT` arguments to export only
+selected resolutions.
 
 ## Docker Workflow
 

@@ -21,8 +21,10 @@ from benchmarks.scripts.workloads.prepare import (
     verify_source_file,
 )
 from trtvideo.models.export_conformance import (
+    EXPORT_CONFORMANCE_SCHEMA_VERSION,
     EXPORT_CONTRACT_METADATA_KEY,
     EXPORT_CONTRACT_METADATA_VALUE,
+    EXPORT_SCALE_METADATA_KEY,
 )
 
 MANIFEST_PATH = Path("benchmarks/workloads/realesrgan_x2plus_madrid.json")
@@ -52,6 +54,15 @@ def test_workload_benchmark_contract_versions_are_explicit() -> None:
     assert span["benchmark"]["contract_version"] == 2
     assert span["benchmark"]["measured_frames"] == 1000
     assert span["benchmark"]["warmup_frames"] == 100
+    assert realesrgan["model"]["scale"] == 2
+    assert span["model"]["scale"] == 2
+    assert (
+        realesrgan["model"]["export_conformance"]["contract_version"]
+        == EXPORT_CONFORMANCE_SCHEMA_VERSION
+    )
+    assert (
+        span["model"]["export_conformance"]["contract_version"] == EXPORT_CONFORMANCE_SCHEMA_VERSION
+    )
 
 
 def test_canonical_workloads_share_pinned_madrid_media_contract() -> None:
@@ -110,6 +121,14 @@ def test_manifest_rejects_missing_export_conformance_contract(manifest: dict) ->
     del invalid["model"]["export_conformance"]
 
     with pytest.raises(WorkloadError, match="export_conformance"):
+        validate_manifest(invalid)
+
+
+def test_manifest_rejects_invalid_model_scale(manifest: dict) -> None:
+    invalid = copy.deepcopy(manifest)
+    invalid["model"]["scale"] = True
+
+    with pytest.raises(WorkloadError, match="model.scale"):
         validate_manifest(invalid)
 
 
@@ -239,8 +258,10 @@ def _onnx_model_with(operator: str) -> SimpleNamespace:
     return SimpleNamespace(graph=SimpleNamespace(node=[SimpleNamespace(op_type=operator)]))
 
 
-def _onnx_model_with_metadata(key: str, value: str) -> SimpleNamespace:
-    return SimpleNamespace(metadata_props=[SimpleNamespace(key=key, value=value)])
+def _onnx_model_with_metadata(metadata: dict[str, str]) -> SimpleNamespace:
+    return SimpleNamespace(
+        metadata_props=[SimpleNamespace(key=key, value=value) for key, value in metadata.items()]
+    )
 
 
 def test_verify_onnx_rejects_incompatible_space_to_depth(tmp_path: Path) -> None:
@@ -260,17 +281,38 @@ def test_verify_onnx_rejects_stale_export_metadata(tmp_path: Path) -> None:
     path = tmp_path / "legacy.onnx"
 
     with pytest.raises(WorkloadError, match="export contract is missing or stale"):
-        _validate_onnx_export_metadata(_onnx_model_with_metadata("other", "value"), path)
+        _validate_onnx_export_metadata(
+            _onnx_model_with_metadata({"other": "value"}),
+            path,
+            scale=2,
+        )
 
 
 def test_verify_onnx_accepts_current_export_metadata(tmp_path: Path) -> None:
     _validate_onnx_export_metadata(
         _onnx_model_with_metadata(
-            EXPORT_CONTRACT_METADATA_KEY,
-            EXPORT_CONTRACT_METADATA_VALUE,
+            {
+                EXPORT_CONTRACT_METADATA_KEY: EXPORT_CONTRACT_METADATA_VALUE,
+                EXPORT_SCALE_METADATA_KEY: "2",
+            }
         ),
         tmp_path / "current.onnx",
+        scale=2,
     )
+
+
+def test_verify_onnx_rejects_stale_export_scale(tmp_path: Path) -> None:
+    with pytest.raises(WorkloadError, match="export scale is missing or stale"):
+        _validate_onnx_export_metadata(
+            _onnx_model_with_metadata(
+                {
+                    EXPORT_CONTRACT_METADATA_KEY: EXPORT_CONTRACT_METADATA_VALUE,
+                    EXPORT_SCALE_METADATA_KEY: "4",
+                }
+            ),
+            tmp_path / "wrong-scale.onnx",
+            scale=2,
+        )
 
 
 def test_validate_video_probe_accepts_canonical_clip(manifest: dict) -> None:

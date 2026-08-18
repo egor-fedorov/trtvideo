@@ -18,6 +18,7 @@ from trtvideo.models.export_conformance import (
     EXPORT_RMSE_THRESHOLD,
     ExportConformanceError,
     conformance_report_path,
+    infer_upscale_scale,
     validate_conformance_report,
 )
 
@@ -31,7 +32,7 @@ TOOLS = {
 EXPORTS = {"model_720p.onnx": ("b" * 64, 1234)}
 
 
-def _valid_report() -> dict:
+def _valid_report(*, scale: int = 2) -> dict:
     return {
         "document_type": EXPORT_CONFORMANCE_DOCUMENT_TYPE,
         "schema_version": EXPORT_CONFORMANCE_SCHEMA_VERSION,
@@ -39,6 +40,7 @@ def _valid_report() -> dict:
         "export_contract": EXPORT_CONTRACT_METADATA_VALUE,
         "model": {
             "name": "model",
+            "scale": scale,
             "source_sha256": "a" * 64,
             "source_size_bytes": 42,
         },
@@ -46,7 +48,12 @@ def _valid_report() -> dict:
             "version": EXPORT_PROBE_VERSION,
             "input_shape": [1, 3, EXPORT_PROBE_HEIGHT, EXPORT_PROBE_WIDTH],
             "input_sha256": EXPORT_PROBE_SHA256,
-            "output_shape": [1, 3, EXPORT_PROBE_HEIGHT * 2, EXPORT_PROBE_WIDTH * 2],
+            "output_shape": [
+                1,
+                3,
+                EXPORT_PROBE_HEIGHT * scale,
+                EXPORT_PROBE_WIDTH * scale,
+            ],
         },
         "comparison": {
             "reference": "pytorch-fp32",
@@ -94,6 +101,61 @@ def test_validate_conformance_report_accepts_bound_evidence() -> None:
     comparison = _validate(_valid_report())
 
     assert comparison["metrics"]["psnr_db"] == EXPORT_MIN_PSNR_DB + 10
+
+
+def test_validate_conformance_report_accepts_inferred_non_x2_scale() -> None:
+    report = _valid_report(scale=4)
+
+    comparison = validate_conformance_report(
+        report,
+        model_name="model",
+        source_sha256="a" * 64,
+        source_size_bytes=42,
+        exported_files=EXPORTS,
+        tool_versions=TOOLS,
+        expected_scale=4,
+    )
+
+    assert comparison["metrics"]["psnr_db"] == EXPORT_MIN_PSNR_DB + 10
+
+
+def test_validate_conformance_report_rejects_unexpected_scale() -> None:
+    with pytest.raises(ExportConformanceError, match="scale must be 2x"):
+        validate_conformance_report(
+            _valid_report(scale=4),
+            model_name="model",
+            source_sha256="a" * 64,
+            source_size_bytes=42,
+            exported_files=EXPORTS,
+            tool_versions=TOOLS,
+            expected_scale=2,
+        )
+
+
+def test_validate_conformance_report_rejects_scale_shape_disagreement() -> None:
+    report = _valid_report(scale=4)
+    report["probe"]["output_shape"] = [
+        1,
+        3,
+        EXPORT_PROBE_HEIGHT * 2,
+        EXPORT_PROBE_WIDTH * 2,
+    ]
+
+    with pytest.raises(ExportConformanceError, match="does not match its model scale"):
+        _validate(report)
+
+
+def test_validate_conformance_report_rejects_missing_scale() -> None:
+    report = _valid_report()
+    del report["model"]["scale"]
+
+    with pytest.raises(ExportConformanceError, match="model scale is invalid"):
+        _validate(report)
+
+
+def test_infer_upscale_scale_rejects_non_uniform_output() -> None:
+    with pytest.raises(ExportConformanceError, match="scale must be uniform"):
+        infer_upscale_scale([1, 3, 16, 16], [1, 3, 48, 64])
 
 
 def test_validate_conformance_report_rejects_relaxed_threshold() -> None:

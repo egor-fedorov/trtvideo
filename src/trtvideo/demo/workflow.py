@@ -26,6 +26,7 @@ from trtvideo.demo.config import (
     MODEL_ATTRIBUTION,
     MODEL_LICENSE_URL,
     MODEL_NAME,
+    MODEL_SCALE,
     MODEL_SHA256,
     MODEL_SIZE_BYTES,
     MODEL_URL,
@@ -40,6 +41,7 @@ from trtvideo.demo.media import (
 from trtvideo.models.export_conformance import (
     EXPORT_CONTRACT_METADATA_KEY,
     EXPORT_CONTRACT_METADATA_VALUE,
+    EXPORT_SCALE_METADATA_KEY,
     ExportConformanceError,
     export_tool_versions,
     validate_conformance_report,
@@ -117,6 +119,8 @@ def _valid_onnx(path: Path, *, fp16: bool) -> bool:
     metadata = {item.key: item.value for item in model.metadata_props}
     if metadata.get(EXPORT_CONTRACT_METADATA_KEY) != EXPORT_CONTRACT_METADATA_VALUE:
         return False
+    if metadata.get(EXPORT_SCALE_METADATA_KEY) != str(MODEL_SCALE):
+        return False
     if metadata.get(PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY) != PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE:
         return False
 
@@ -157,6 +161,7 @@ def _valid_export_conformance(paths: DemoPaths) -> bool:
                 )
             },
             tool_versions=export_tool_versions(),
+            expected_scale=MODEL_SCALE,
         )
     except (ExportConformanceError, OSError, json.JSONDecodeError):
         return False

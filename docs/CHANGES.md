@@ -71,6 +71,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
   Docker execution, the NVIDIA driver and selected GPU, CUDA, TensorRT,
   CV-CUDA, NVDEC/NVENC, PyNvVideoCodec, VRAM, and writable disk capacity.
 
+### Changed
+
+- Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred
+  from the source model. Versioned ONNX metadata and export-conformance evidence
+  now bind the inferred scale and reject full-size exports that change it.
+
 ### Fixed
 
 - Made resumed tuned workflows start untouched winner campaigns normally while

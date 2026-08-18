@@ -22,8 +22,8 @@ The production runtime accepts a TensorRT engine with this contract:
 | Value range | Normalized RGB in `[0, 1]` |
 | Execution | Full-frame only; no tiling |
 
-The runtime can structurally recognize any uniform integer scale, but the
-current exporter, conformance contract, demo, and published evidence cover only
+The runtime, exporter, and conformance contract recognize a uniform integer
+scale from tensor shapes. The demo and published evidence currently cover only
 2x models. Other scales are therefore `untested`, not supported claims.
 
 One static engine is required for each input resolution. `build-engine` can
@@ -101,7 +101,9 @@ or model weights.
 ## Start From Existing ONNX
 
 An existing ONNX file can skip `export-onnx`. It must already represent the RGB
-contract above. For a dynamic 2x graph, create a static mixed-FP16 variant:
+contract above. `prepare-onnx` cannot infer scale from symbolic output shapes,
+so pass it explicitly for a dynamic graph. For example, prepare a dynamic 2x
+graph as follows:
 
 ```bash
 docker run --rm \
@@ -143,9 +145,11 @@ numerical thresholds:
 | PSNR | `>= 80 dB` |
 
 The exporter also rejects the incompatible `SpaceToDepth` lowering for
-PyTorch `pixel_unshuffle`. Successful evidence records the source checkpoint
-SHA256 and size, deterministic probe identity, tool versions, metrics, and the
-SHA256 and size of every exported FP32 ONNX file. The report is written as
+PyTorch `pixel_unshuffle`. It infers the uniform integer scale from the source
+probe and requires every requested full-size ONNX graph to preserve that scale.
+Successful evidence records the scale, source checkpoint SHA256 and size,
+deterministic probe identity, tool versions, metrics, and the SHA256 and size of
+every exported FP32 ONNX file. The report is written as
 `NAME.export-conformance.json` only after all requested exports succeed.
 
 Benchmark asset verification treats the report as a cache contract. A changed

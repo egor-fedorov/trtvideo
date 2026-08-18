@@ -64,8 +64,9 @@
   "model": {
     "name": "RealESRGAN_x2plus",
     "export_name": "realesrgan_x2plus",
+    "scale": 2,
     "export_conformance": {
-      "contract_version": 1,
+      "contract_version": 2,
       "report_path": "models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus.export-conformance.json"
     },
     "source": {

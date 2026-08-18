@@ -100,10 +100,10 @@ make -C benchmarks verify
 ```
 
 Preparation runs export conformance once per checkpoint, before engine builds.
-The cached evidence is bound to the source SHA256, exporter contract, tool
-versions, and generated FP32 ONNX hashes; verification rejects a missing or
-stale report. It never runs inside a timed suite, tuned candidate, or campaign
-round.
+The cached evidence is bound to the inferred scale, source SHA256, exporter
+contract, tool versions, and generated FP32 ONNX hashes; verification rejects a
+missing or stale report. It never runs inside a timed suite, tuned candidate, or
+campaign round.
 
 `prepare` downloads large ignored assets and is therefore excluded from the
 regular quality gate. Pure-Python workload-manifest and preparation-command

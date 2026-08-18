@@ -25,6 +25,7 @@ from trtvideo.models.export_conformance import (
     EXPORT_CONFORMANCE_SCHEMA_VERSION,
     EXPORT_CONTRACT_METADATA_KEY,
     EXPORT_CONTRACT_METADATA_VALUE,
+    EXPORT_SCALE_METADATA_KEY,
     ExportConformanceError,
     export_tool_versions,
     validate_conformance_report,
@@ -326,16 +327,20 @@ def _validate_onnx_operators(model: Any, path: Path) -> None:
         )
 
 
-def _validate_onnx_export_metadata(model: Any, path: Path) -> None:
+def _validate_onnx_export_metadata(model: Any, path: Path, *, scale: int) -> None:
     """Require the semantic exporter version on canonical ONNX artifacts."""
     metadata = {item.key: item.value for item in model.metadata_props}
     if metadata.get(EXPORT_CONTRACT_METADATA_KEY) != EXPORT_CONTRACT_METADATA_VALUE:
         raise WorkloadError(
             f"ONNX export contract is missing or stale: {path}; rebuild the model assets"
         )
+    if metadata.get(EXPORT_SCALE_METADATA_KEY) != str(scale):
+        raise WorkloadError(
+            f"ONNX export scale is missing or stale: {path}; rebuild the model assets"
+        )
 
 
-def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
+def verify_onnx(path: Path, *, width: int, height: int, scale: int) -> dict[str, Any]:
     """Validate static mixed-FP16 ONNX with FP32 graph I/O."""
     if not path.is_file():
         raise WorkloadError(f"Prepared ONNX is missing: {path}")
@@ -349,7 +354,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     if len(model.graph.input) != 1 or len(model.graph.output) != 1:
         raise WorkloadError(f"ONNX must have one input and one output: {path}")
     _validate_onnx_operators(model, path)
-    _validate_onnx_export_metadata(model, path)
+    _validate_onnx_export_metadata(model, path, scale=scale)
 
     def tensor_shape(value: Any) -> list[int]:
         return [dimension.dim_value for dimension in value.type.tensor_type.shape.dim]
@@ -357,7 +362,7 @@ def verify_onnx(path: Path, *, width: int, height: int) -> dict[str, Any]:
     input_tensor = model.graph.input[0]
     output_tensor = model.graph.output[0]
     expected_input = [1, 3, height, width]
-    expected_output = [1, 3, height * 2, width * 2]
+    expected_output = [1, 3, height * scale, width * scale]
     if tensor_shape(input_tensor) != expected_input:
         raise WorkloadError(f"Unexpected ONNX input shape in {path}")
     if tensor_shape(output_tensor) != expected_output:
@@ -413,6 +418,7 @@ def verify_export_conformance(
             source_size_bytes=model["source"]["size_bytes"],
             exported_files=exported_files,
             tool_versions=export_tool_versions(),
+            expected_scale=model["scale"],
         )
     except (OSError, ExportConformanceError, ValueError) as exc:
         raise WorkloadError(f"Invalid export-conformance report {report_path}: {exc}") from exc
@@ -423,6 +429,7 @@ def verify_export_conformance(
         "sha256": sha256_file(report_path),
         "size_bytes": report_path.stat().st_size,
         "source_sha256": model["source"]["sha256"],
+        "scale": model["scale"],
         "tools": report["tools"],
         "comparison": comparison,
         "exports": report["exports"],
@@ -461,6 +468,7 @@ def prepare_model(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
                     repo_path(root, variant["fp16_path"]),
                     width=variant["input_width"],
                     height=variant["input_height"],
+                    scale=model["scale"],
                 )
         except WorkloadError:
             pass
@@ -512,6 +520,7 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
             path,
             width=variant["input_width"],
             height=variant["input_height"],
+            scale=model["scale"],
         )
         assets.append(
             {

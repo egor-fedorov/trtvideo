@@ -6,14 +6,16 @@ import hashlib
 import json
 import math
 import os
+from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
 EXPORT_CONFORMANCE_DOCUMENT_TYPE = "model-export-conformance"
-EXPORT_CONFORMANCE_SCHEMA_VERSION = 1
+EXPORT_CONFORMANCE_SCHEMA_VERSION = 2
 EXPORT_CONTRACT_METADATA_KEY = "trtvideo.export_contract"
-EXPORT_CONTRACT_METADATA_VALUE = "spandrel-image-x2-v1"
+EXPORT_CONTRACT_METADATA_VALUE = "spandrel-image-upscale-v2"
+EXPORT_SCALE_METADATA_KEY = "trtvideo.scale"
 EXPORT_PROBE_VERSION = "rgb-coordinate-pattern-v1"
 EXPORT_PROBE_HEIGHT = 16
 EXPORT_PROBE_WIDTH = 16
@@ -27,6 +29,45 @@ _EXPORT_TOOL_PACKAGES = ("torch", "onnx", "onnxruntime", "onnxscript", "spandrel
 
 class ExportConformanceError(RuntimeError):
     """Raised when an exported ONNX graph is not equivalent to its source model."""
+
+
+def infer_upscale_scale(
+    input_shape: Sequence[int],
+    output_shape: Sequence[int],
+) -> int:
+    """Return the uniform integer scale represented by two RGB NCHW shapes."""
+    if len(input_shape) != 4 or len(output_shape) != 4:
+        raise ExportConformanceError(
+            f"Expected rank-4 NCHW tensors, got {list(input_shape)} -> {list(output_shape)}"
+        )
+    if any(
+        not isinstance(dimension, int) or isinstance(dimension, bool) or dimension <= 0
+        for dimension in (*input_shape, *output_shape)
+    ):
+        raise ExportConformanceError(
+            f"Expected static positive tensor shapes, got {list(input_shape)} -> "
+            f"{list(output_shape)}"
+        )
+
+    in_n, in_c, in_h, in_w = input_shape
+    out_n, out_c, out_h, out_w = output_shape
+    if (in_n, in_c, out_n, out_c) != (1, 3, 1, 3):
+        raise ExportConformanceError(
+            "Expected batch-1 RGB input/output tensors, got "
+            f"{list(input_shape)} -> {list(output_shape)}"
+        )
+    if out_h % in_h != 0 or out_w % in_w != 0:
+        raise ExportConformanceError(
+            "Output shape must be an integer spatial scale of the input, got "
+            f"{list(input_shape)} -> {list(output_shape)}"
+        )
+    scale_h = out_h // in_h
+    scale_w = out_w // in_w
+    if scale_h != scale_w:
+        raise ExportConformanceError(
+            f"Output scale must be uniform, got {scale_w}x horizontally and {scale_h}x vertically"
+        )
+    return scale_h
 
 
 def sha256_file(path: Path) -> str:
@@ -121,6 +162,7 @@ def build_conformance_report(
     output_dir: Path,
 ) -> dict[str, Any]:
     """Build immutable evidence for one source-model export invocation."""
+    scale = infer_upscale_scale(list(probe.shape), output_shape)
     probe_sha256 = hashlib.sha256(
         probe.detach().to(device="cpu").contiguous().numpy().tobytes()
     ).hexdigest()
@@ -142,6 +184,7 @@ def build_conformance_report(
         "export_contract": EXPORT_CONTRACT_METADATA_VALUE,
         "model": {
             "name": model_name,
+            "scale": scale,
             "source_sha256": sha256_file(weights_path),
             "source_size_bytes": weights_path.stat().st_size,
         },
@@ -182,6 +225,7 @@ def validate_conformance_report(
     source_size_bytes: int,
     exported_files: dict[str, tuple[str, int]],
     tool_versions: dict[str, str] | None = None,
+    expected_scale: int | None = None,
 ) -> dict[str, Any]:
     """Validate cached evidence and return its comparison summary."""
     expected = {
@@ -197,22 +241,37 @@ def validate_conformance_report(
             )
 
     model = report.get("model")
-    if not isinstance(model, dict) or model != {
-        "name": model_name,
-        "source_sha256": source_sha256,
-        "source_size_bytes": source_size_bytes,
-    }:
+    if not isinstance(model, dict) or any(
+        model.get(field) != value
+        for field, value in {
+            "name": model_name,
+            "source_sha256": source_sha256,
+            "source_size_bytes": source_size_bytes,
+        }.items()
+    ):
         raise ExportConformanceError("Export-conformance source model identity does not match")
+    scale = model.get("scale")
+    if not isinstance(scale, int) or isinstance(scale, bool) or scale <= 0:
+        raise ExportConformanceError("Export-conformance model scale is invalid")
+    if expected_scale is not None and scale != expected_scale:
+        raise ExportConformanceError(
+            f"Export-conformance model scale must be {expected_scale}x, got {scale}x"
+        )
 
     probe = report.get("probe")
     expected_input_shape = [1, 3, EXPORT_PROBE_HEIGHT, EXPORT_PROBE_WIDTH]
-    expected_output_shape = [1, 3, EXPORT_PROBE_HEIGHT * 2, EXPORT_PROBE_WIDTH * 2]
     if not isinstance(probe, dict) or probe.get("version") != EXPORT_PROBE_VERSION:
         raise ExportConformanceError("Export-conformance probe version does not match")
     if probe.get("input_shape") != expected_input_shape:
         raise ExportConformanceError("Export-conformance probe input shape does not match")
-    if probe.get("output_shape") != expected_output_shape:
-        raise ExportConformanceError("Export-conformance probe output shape does not match")
+    output_shape = probe.get("output_shape")
+    if not isinstance(output_shape, list):
+        raise ExportConformanceError("Export-conformance probe output shape is invalid")
+    observed_scale = infer_upscale_scale(expected_input_shape, output_shape)
+    if observed_scale != scale:
+        raise ExportConformanceError(
+            "Export-conformance probe output shape does not match its model scale"
+        )
     if probe.get("input_sha256") != EXPORT_PROBE_SHA256:
         raise ExportConformanceError("Export-conformance probe input hash does not match")
 
