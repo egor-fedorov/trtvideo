@@ -1,0 +1,39 @@
+{
+  "schema_version": 3,
+  "document_type": "published_result_index",
+  "status": "valid",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_memory_mib": 24564,
+    "cpu": "AMD Ryzen 7 5700X3D 8-Core Processor",
+    "logical_cpus": 16
+  },
+  "composition": {
+    "unit": "methodology result class",
+    "media_contract": "CC0 Madrid live-action",
+    "self_contained_result_files": true,
+    "cross_contract_aggregation": false,
+    "human_summary": "README.md",
+    "notes": "Tuned and diagnostic classes were measured in one controlled session on one server. All retained campaign runs are valid; the only invalid search artifacts are the two predeclared RealESRGAN 1080p stream-8 CUDA out-of-memory resource ceilings. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
+  },
+  "result_sets": [
+    {
+      "id": "tuned",
+      "file": "tuned.json",
+      "sha256": "3913e29d2247e0ff26b19a8eadfcc98c4eb9d6d8237e941542927369caaf7a6d",
+      "measurement_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
+      "date_utc": "2026-08-18",
+      "status": "valid",
+      "publishable": true
+    },
+    {
+      "id": "diagnostics",
+      "file": "diagnostics.json",
+      "sha256": "9827ec083055153874bbb76fd555bb38296eaa413ca1e425a37dc92091cef703",
+      "measurement_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
+      "date_utc": "2026-08-18",
+      "status": "valid",
+      "publishable": true
+    }
+  ]
+}

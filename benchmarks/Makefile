@@ -32,7 +32,8 @@ NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(
 NSIGHT_FRAMES ?= 120
 REPORT_IMAGE ?= trtvideo:dev
 RESULTS_DIR ?= benchmarks/results/rtx-3090
-FIGURES_DIR ?= $(RESULTS_DIR)/figures
+PUBLISHED_RESULTS_DIRS := $(patsubst $(ROOT)/%/tuned.json,%,$(sort \
+	$(wildcard $(ROOT)/benchmarks/results/*/tuned.json)))
 TUNED_PUBLICATION_SOURCE ?=
 TUNED_PUBLICATION_OUTPUT ?= $(RESULTS_DIR)/tuned.json
 DIAGNOSTICS_PUBLICATION_SOURCE ?=
@@ -102,8 +103,8 @@ help:
 		'verify-tuned-matrix Require valid tuned evidence for 720p and 1080p' \
 		'publish-tuned       Build publication JSON from a copied tuned evidence root' \
 		'publish-diagnostics Build publication JSON from copied diagnostic evidence' \
-		'figures             Regenerate published SVG figures from result JSON' \
-		'figures-check       Require committed SVG figures to match result JSON' \
+		'figures             Regenerate SVG figures for every hardware result' \
+		'figures-check       Check SVG figures for every hardware result' \
 		'run-campaign        Low-level comparative campaign coordinator' \
 		'aggregate-campaign  Rebuild campaign.json and results.md from raw runs'
 
@@ -584,27 +585,37 @@ publish-diagnostics:
 			--output /app/$(DIAGNOSTICS_PUBLICATION_OUTPUT)
 
 figures:
-	docker run --rm --user "$$(id -u):$$(id -g)" \
-		-e HOME=/tmp \
-		-e MPLCONFIGDIR=/tmp/matplotlib \
-		-e XDG_CACHE_HOME=/tmp/cache \
-		-e PYTHONPATH=/app \
-		-v "$(ROOT):/app" \
-		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
-			--results-dir /app/$(RESULTS_DIR) \
-			--output-dir /app/$(FIGURES_DIR)
+	@test -n "$(PUBLISHED_RESULTS_DIRS)" || \
+		{ echo 'ERROR: no published tuned results found' >&2; exit 2; }
+	@set -eu; \
+	for results_dir in $(PUBLISHED_RESULTS_DIRS); do \
+		docker run --rm --user "$$(id -u):$$(id -g)" \
+			-e HOME=/tmp \
+			-e MPLCONFIGDIR=/tmp/matplotlib \
+			-e XDG_CACHE_HOME=/tmp/cache \
+			-e PYTHONPATH=/app \
+			-v "$(ROOT):/app" \
+			$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
+				--results-dir "/app/$$results_dir" \
+				--output-dir "/app/$$results_dir/figures"; \
+	done
 
 figures-check:
-	docker run --rm --user "$$(id -u):$$(id -g)" \
-		-e HOME=/tmp \
-		-e MPLCONFIGDIR=/tmp/matplotlib \
-		-e XDG_CACHE_HOME=/tmp/cache \
-		-e PYTHONPATH=/app \
-		-v "$(ROOT):/app:ro" \
-		$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
-			--results-dir /app/$(RESULTS_DIR) \
-			--output-dir /app/$(FIGURES_DIR) \
-			--check
+	@test -n "$(PUBLISHED_RESULTS_DIRS)" || \
+		{ echo 'ERROR: no published tuned results found' >&2; exit 2; }
+	@set -eu; \
+	for results_dir in $(PUBLISHED_RESULTS_DIRS); do \
+		docker run --rm --user "$$(id -u):$$(id -g)" \
+			-e HOME=/tmp \
+			-e MPLCONFIGDIR=/tmp/matplotlib \
+			-e XDG_CACHE_HOME=/tmp/cache \
+			-e PYTHONPATH=/app \
+			-v "$(ROOT):/app:ro" \
+			$(REPORT_IMAGE) python3 -m benchmarks.scripts.report.figures \
+				--results-dir "/app/$$results_dir" \
+				--output-dir "/app/$$results_dir/figures" \
+				--check; \
+	done
 
 campaign-preflight:
 	@case "$(EXECUTION_PROFILE)" in \
