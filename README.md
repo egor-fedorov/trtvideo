@@ -150,6 +150,8 @@ cross its host/device boundary.
 
 - [Architecture](docs/ARCHITECTURE.md) - inference, TensorRT runtime, and video
   pipeline architecture.
+- [Model Contract](docs/MODEL_CONTRACT.md) - supported tensor contract, model
+  preparation paths, conformance checks, and compatibility reporting.
 - [Testing](docs/TESTING.md) - test layers and the Docker-only quality gate.
 - [Contributing](CONTRIBUTING.md) - development workflow and pull-request
   expectations.
@@ -265,6 +267,29 @@ validation report.
 
 ## Models
 
+### Compatibility Matrix
+
+| Model | Task | Scale | Status | Evidence |
+|---|---|---:|---|---|
+| `RealESRGAN_x2plus` | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
+| `2xLiveActionV1_SPAN` | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
+
+Statuses describe evidence, not an architectural allowlist:
+
+- `validated` - a published benchmark run passed the shared-input inference and
+  product-output quality gates;
+- `community-reported` - a reproducible public compatibility issue records a
+  successful run, but the model has not passed the publication protocol;
+- `untested` - no accepted compatibility evidence exists yet.
+
+There are deliberately no `planned` rows. To test another model, follow the
+[model contract](docs/MODEL_CONTRACT.md) and submit the
+[model compatibility report](https://github.com/egor-fedorov/trtvideo/issues/new?template=model_compatibility.yml).
+A reviewed successful report can add a `community-reported` row; only published
+quality-gated evidence can promote it to `validated`.
+
+### Local Layout
+
 Model weights, ONNX files, and TensorRT engines are not included in the
 repository. The recommended local structure is:
 
@@ -283,9 +308,9 @@ commands as `models/`.
 
 `export-onnx` loads compatible image-to-image `.pth` checkpoints through
 Spandrel. The current exporter creates 720p and 1080p variants for 2x upscaling
-and has been verified with RealESRGAN_x2plus. An existing ONNX file can be
-passed directly to `prepare-onnx`. Use one or more `--size WIDTHxHEIGHT`
-arguments to export only selected resolutions.
+and has been verified with both `validated` models in the compatibility matrix.
+An existing ONNX file can be passed directly to `prepare-onnx`. Use one or more
+`--size WIDTHxHEIGHT` arguments to export only selected resolutions.
 
 ## Docker Workflow
 

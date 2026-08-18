@@ -1,0 +1,130 @@
+name: Model compatibility report
+description: Report a reproducible successful or failed model experiment
+title: "[Model]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow `docs/MODEL_CONTRACT.md` before submitting. A successful report may qualify as `community-reported`; `validated` requires the published benchmark quality protocol.
+        Do not upload proprietary weights, private media, credentials, hostnames, absolute host paths, or GPU UUIDs.
+
+  - type: input
+    id: model
+    attributes:
+      label: Model name and version
+      placeholder: 2xExampleModel release/tag
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Public model source
+      description: Link to the model card, release, or upstream repository.
+    validations:
+      required: true
+
+  - type: input
+    id: identity
+    attributes:
+      label: Checkpoint or ONNX SHA256
+      description: Identify the exact tested artifact without uploading it.
+    validations:
+      required: true
+
+  - type: input
+    id: license
+    attributes:
+      label: Model license
+      description: Provide the SPDX identifier or a link to the model license.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source_format
+    attributes:
+      label: Starting format
+      options:
+        - Spandrel-compatible .pth checkpoint
+        - Existing ONNX model
+    validations:
+      required: true
+
+  - type: input
+    id: contract
+    attributes:
+      label: Tensor contract
+      description: State task, scale, input/output shapes, binding dtypes, and whether the graph is static.
+      placeholder: Super-resolution, 2x, [1,3,720,1280] -> [1,3,1440,2560], FP32 I/O, static
+    validations:
+      required: true
+
+  - type: input
+    id: revision
+    attributes:
+      label: trtvideo release or commit
+      placeholder: v0.x.y or git rev-parse HEAD
+    validations:
+      required: true
+
+  - type: textarea
+    id: commands
+    attributes:
+      label: Exact preparation and runtime commands
+      description: Include export-onnx, prepare-onnx, build-engine, and the short trtvideo invocation as applicable.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: conformance
+    attributes:
+      label: Export-conformance result
+      description: Include status and metrics, or explain why source-export conformance is unavailable for an existing ONNX model.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: engine
+    attributes:
+      label: Engine sidecar
+      description: Paste the sanitized .engine.json content, or a JSON object explaining why no engine was produced. Do not attach the engine itself.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and doctor output
+      description: Include GPU model, driver, image reference/digest, TensorRT version, VRAM, and sanitized trtvideo doctor output.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: result
+    attributes:
+      label: Smoke-test and output validation
+      description: State success or failure. For success, include full decode, frame count, resolution, timestamps, pixel/color metadata, bitrate, and duration checks.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Known limitations or additional context
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I tested the exact artifact identified above and included enough information to reproduce the result.
+          required: true
+        - label: I removed private, proprietary, and host-identifying data from this report.
+          required: true
+        - label: I understand that this report does not automatically assign `validated` status.
+          required: true

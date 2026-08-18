@@ -56,6 +56,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a model compatibility matrix, a documented tensor/export contract, and
+  a structured community compatibility report for models outside the published
+  benchmark set.
 - Published a separate privacy-reviewed RTX 4090 tuned and diagnostic snapshot.
   Benchmark figure generation and validation now discover every published
   hardware directory instead of checking only the RTX 3090 result.
