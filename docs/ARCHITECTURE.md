@@ -214,6 +214,13 @@ and forwards the compressed bitstream through a pipe, but full frames do not
 move between CPU and GPU. The pipeline does not create or reread a temporary
 elementary-stream file.
 
+`GPU-resident` describes frame residency, not a CPU-free execution model. The
+current regular-enqueue path can occupy roughly one host core on launch-heavy
+models because TensorRT submits many kernels from the main thread; the runtime
+also synchronizes once per decoded batch before NVDEC surfaces may be reused.
+[Issue #9](https://github.com/egor-fedorov/trtvideo/issues/9) tracks direct CUDA
+Graph replay and blocking batch waits as separate CPU-overhead reductions.
+
 NVENC uses no B-frames, preserves the source rational FPS, and creates a GOP/IDR
 approximately once per second. This provides monotonic timestamps and a
 seek-friendly output structure. Quality is controlled by an explicit
