@@ -56,6 +56,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Published a separate privacy-reviewed RTX 4090 tuned and diagnostic snapshot.
+  Benchmark figure generation and validation now discover every published
+  hardware directory instead of checking only the RTX 3090 result.
 - Added cached source-model export conformance before engine builds. A
   deterministic FP32 probe now compares the original PyTorch checkpoint with
   ONNX Runtime CPU under strict numerical thresholds; benchmark asset

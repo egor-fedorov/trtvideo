@@ -1,0 +1,3698 @@
+{
+  "schema_version": 5,
+  "document_type": "published_tuned_results",
+  "status": "valid",
+  "publishable": true,
+  "scope": {
+    "date_utc": "2026-08-18",
+    "measurement_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
+    "source_dirty": false,
+    "execution_profile": "tuned",
+    "claim_scope": "Best validated throughput selected by the predeclared adaptive two-stage search, followed by independent quality gates and rotated winner campaigns."
+  },
+  "environment": {
+    "hardware": {
+      "cpu": {
+        "logical_cores": 16,
+        "model": "AMD Ryzen 7 5700X3D 8-Core Processor"
+      },
+      "gpu": {
+        "compute_capability": "8.9",
+        "driver_version": "595.84",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 4090",
+        "persistence_mode": 0,
+        "power_limit_w": 450.0,
+        "total_memory_mib": 24564.0
+      }
+    },
+    "project_runtime": {
+      "image": {
+        "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3@sha256:7cd94ee931d2b5b85ad1c5af723d485b2625f6ce167e1e4abe577850b96ceac3",
+        "id": "sha256:d10073459e547e94df0a03857dad5bffb68910f82163b4e948e69d50b3002917",
+        "reference": "trtvideo:benchmark",
+        "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
+        "source_dirty": "0"
+      },
+      "software": {
+        "cuda": "13.2",
+        "cvcuda": "0.16.0",
+        "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+        "nvidia_ml_py": "13.610.43",
+        "pynvvideocodec": "2.1.0",
+        "python": "3.12.3",
+        "tensorrt": "11.0.0.114",
+        "torch": "2.11.0+cpu",
+        "trtvideo": "0.4.0"
+      }
+    },
+    "implementations": {
+      "trtvideo": {
+        "product": "trtvideo"
+      },
+      "vstrt": {
+        "version": "v15.16",
+        "source": "https://github.com/AmusementClub/vs-mlrt",
+        "source_revision": "885e8bb827fc431fce8e3109e7d60b0c38aa2035",
+        "tensorrt_version": "11.0.0",
+        "product": "vs-mlrt"
+      },
+      "vsgan": {
+        "version": "2026-06-22",
+        "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
+        "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
+        "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
+        "tensorrt_version": "10.16",
+        "exact_model_match": true,
+        "exact_engine_match": false,
+        "product": "VSGAN-tensorrt-docker"
+      }
+    }
+  },
+  "methodology": {
+    "measured_frames": 1000,
+    "warmup_frames": {
+      "realesrgan_x2plus": 30,
+      "span": 100
+    },
+    "initial_rounds": 3,
+    "extra_rounds_on_spread": 2,
+    "idle_seconds": 10,
+    "spread_threshold": 0.05,
+    "stability_policy": "full-range-3-then-consensus-4-of-5",
+    "selection_uses_separate_winner_campaign": true,
+    "quality_gate_uses_selected_winners": true,
+    "adaptive_search": {
+      "schema_version": 2,
+      "selection": {
+        "metric": "median_end_to_end_fps",
+        "equivalence_margin": 0.01,
+        "max_relative_spread": 0.05,
+        "tie_breaker": "lowest_num_streams_then_graph_off"
+      },
+      "search": {
+        "minimum_streams": 1,
+        "maximum_streams": 8,
+        "decline_margin": 0.01,
+        "decline_patience": 2,
+        "sentinel_streams": 8,
+        "shortlist_size": 3,
+        "reconnaissance": {
+          "measured_frames": 300,
+          "warmup_frames": 30,
+          "initial_runs": 1,
+          "extra_runs_on_spread": 0,
+          "spread_threshold": 0.01,
+          "max_relative_spread": 0.05,
+          "idle_seconds": 0,
+          "bitrate_validation": false
+        },
+        "confirmation": {
+          "measured_frames": 1000,
+          "warmup_frames": 30,
+          "initial_runs": 3,
+          "extra_runs_on_spread": 2,
+          "spread_threshold": 0.01,
+          "max_relative_spread": 0.05,
+          "idle_seconds": 10,
+          "bitrate_validation": true
+        }
+      },
+      "project_profile": {
+        "backend": "nvcodec",
+        "cuda_graph": false
+      },
+      "implementations": {
+        "vstrt": {
+          "requests": "auto",
+          "vapoursynth_threads": "auto",
+          "probe_cuda_graph": true
+        },
+        "vsgan": {
+          "requests": "auto",
+          "vapoursynth_threads": "auto",
+          "probe_cuda_graph": true
+        }
+      }
+    }
+  },
+  "external_output_identity": {
+    "status": "verified",
+    "all_candidate_tensor_sets_identical": false,
+    "all_candidate_mp4_outputs_identical": false,
+    "interpretation": "Identity is reported per workload. vs-mlrt and VSGAN use independent captures and separately built TensorRT 11 and TensorRT 10.16 engines; non-identical outputs remain publishable only when the numerical inference and decoded-product quality gates pass.",
+    "tensor_set_digest": "SHA-256 of ordered stage<TAB>frame_index<TAB>artifact_sha256<LF> records",
+    "independent_provenance": {
+      "capture_manifest_sha256_differ": true,
+      "run_manifest_sha256_differ": true,
+      "container_image_id_differ": true,
+      "engine_sha256_differ": true
+    },
+    "workloads": [
+      {
+        "workload": "RealESRGAN_x2plus",
+        "variant": "720p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd",
+        "candidate_tensor_set_sha256_by_implementation": {
+          "vstrt": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd",
+          "vsgan": "8e5ba4a43f05291385bc62a7414f52ceb8f224ef2e5396d6b0eca1c89af3d6bd"
+        },
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "0c6d43fca1060a8e5c44f624fdec1c207dbfd911221172a7c2c2695e69311791",
+        "candidate_mp4_sha256_by_implementation": {
+          "vs-mlrt": "0c6d43fca1060a8e5c44f624fdec1c207dbfd911221172a7c2c2695e69311791",
+          "VSGAN-tensorrt-docker": "0c6d43fca1060a8e5c44f624fdec1c207dbfd911221172a7c2c2695e69311791"
+        },
+        "capture_manifest_sha256": {
+          "vstrt": "2825a9aeebcffdeb48a3a4e5faf7e7caa48447bcb6f1c188c569ba908800d849",
+          "vsgan": "6b9ecb619045af1582706d1003c11cc8c26aeb8da0a1ee1bff5365fefa825c88"
+        },
+        "run_manifest_sha256": {
+          "vs-mlrt": "48600b61f3c7352d94cebb9fd13b1147a7ea3173597bbefcfac6dbb9af881327",
+          "VSGAN-tensorrt-docker": "130888541f72485a46ae2fa00d65f54420f1567611ce24b45d9343a0e1644cea"
+        }
+      },
+      {
+        "workload": "RealESRGAN_x2plus",
+        "variant": "1080p",
+        "candidate_tensor_sha256_sets_identical": false,
+        "candidate_tensor_set_sha256": null,
+        "candidate_tensor_set_sha256_by_implementation": {
+          "vstrt": "65218f35ec61035d341b9d3f3b3c091110431db678af6ffef8765d4812453fad",
+          "vsgan": "fa47f7da0f6376eeaee91b75f69aa86ea31e95d76e6ab4b26cf58aaccb324e2c"
+        },
+        "candidate_mp4_sha256_identical": false,
+        "candidate_mp4_sha256": null,
+        "candidate_mp4_sha256_by_implementation": {
+          "vs-mlrt": "19d68a9c4d1e51a0c887ced22e206bcc78f504cfd4639813cfbb7f1ef45a842c",
+          "VSGAN-tensorrt-docker": "7e6dba1519630b9af4be522a9055143088fd28e0f8e933c7c739039c9ed93680"
+        },
+        "capture_manifest_sha256": {
+          "vstrt": "a4a911c6f6d032650e7307735878ef4fbd7e91e69738a82420e73e1c2f3e328b",
+          "vsgan": "0bde31d001858b94333053cd0c4ddbc14b763f7c567d0e3a5e7e6ba12a7e3a77"
+        },
+        "run_manifest_sha256": {
+          "vs-mlrt": "8309074ca71086fbb24d6aca23046aad6cdadc9763978c5c63ea90cc45a09909",
+          "VSGAN-tensorrt-docker": "871d7352d359f50392884a1489712e3fc89acd6561d16764043445a5f363634b"
+        }
+      },
+      {
+        "workload": "SPAN",
+        "variant": "720p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650",
+        "candidate_tensor_set_sha256_by_implementation": {
+          "vstrt": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650",
+          "vsgan": "f19f2be34769f4cfcd159f606974896aedf61b2cf3010ce26b6e99284eb84650"
+        },
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "22aa834a13578090d833f0026641f58b6f5c7bcf1cc0e1befc1aaeb155b4ddff",
+        "candidate_mp4_sha256_by_implementation": {
+          "vs-mlrt": "22aa834a13578090d833f0026641f58b6f5c7bcf1cc0e1befc1aaeb155b4ddff",
+          "VSGAN-tensorrt-docker": "22aa834a13578090d833f0026641f58b6f5c7bcf1cc0e1befc1aaeb155b4ddff"
+        },
+        "capture_manifest_sha256": {
+          "vstrt": "483e06720a1e125a539baec73260c0153bd18a0cdd13d6b9be90d1942da5d573",
+          "vsgan": "80d1cd17a0e94e50813ee27b9caafbd774a33198c577bde32dca9ebe08bb3b4a"
+        },
+        "run_manifest_sha256": {
+          "vs-mlrt": "a4b6ba4d8e99cbc96ca9d12c975ae7c256959274f5981944731c37e889367bf6",
+          "VSGAN-tensorrt-docker": "522c9893e94ea2151335eb8bdf755b7992609f4836f86a49497dd1e1659d2ad3"
+        }
+      },
+      {
+        "workload": "SPAN",
+        "variant": "1080p",
+        "candidate_tensor_sha256_sets_identical": true,
+        "candidate_tensor_set_sha256": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92",
+        "candidate_tensor_set_sha256_by_implementation": {
+          "vstrt": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92",
+          "vsgan": "bdd29794e02f8fd6bfbf88829da7797053b03f39e3837a020fa973be45c10d92"
+        },
+        "candidate_mp4_sha256_identical": true,
+        "candidate_mp4_sha256": "8fedc3709582b41d91cf3261572a89e37270d8edff801434812e4ae0b7be8153",
+        "candidate_mp4_sha256_by_implementation": {
+          "vs-mlrt": "8fedc3709582b41d91cf3261572a89e37270d8edff801434812e4ae0b7be8153",
+          "VSGAN-tensorrt-docker": "8fedc3709582b41d91cf3261572a89e37270d8edff801434812e4ae0b7be8153"
+        },
+        "capture_manifest_sha256": {
+          "vstrt": "24ee39c6a458a6c1923464cde386abb0722195c2c74a5559c5ff7192b041fab2",
+          "vsgan": "36672df7b87ed20668056c472668614d4610b9979a48c0a5921897527a6ce90a"
+        },
+        "run_manifest_sha256": {
+          "vs-mlrt": "cf41d60f2d9e693fbaa4604aa68d8699bc985c5e05f0ba1dd363c58e55eb1ab8",
+          "VSGAN-tensorrt-docker": "4a1e71a7df0e41b9197f1b4692c08889dba5e767a3f0306237f27836c45a0561"
+        }
+      }
+    ]
+  },
+  "publication_matrices": [
+    {
+      "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-matrix.json",
+      "sha256": "f51580522a5f6d019682d1d312fd42bc016f87ba779858d188744e5e692ed163",
+      "evidence": {
+        "benchmark_contract_version": 2,
+        "document_type": "tuned-publication-matrix",
+        "environment": {
+          "gpu": {
+            "driver_version": "595.84",
+            "name": "NVIDIA GeForce RTX 4090",
+            "power_limit_w": 450.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "publishable": true,
+        "schema_version": 1,
+        "scope": "cross-resolution-tuned-publication",
+        "status": "valid",
+        "tensor_quality_contract_version": 3,
+        "variants": {
+          "1080p": {
+            "campaign": {
+              "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
+              "sha256": "3d8b5936086a29bdf3f363d027c816fb72cb4b6ea2801331776e617a06e06cae"
+            },
+            "quality": {
+              "inference_parity": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
+                "sha256": "2ff393eb124fb3836d63940606ff88faf4060e8812f3899f9e5052d5daea542a"
+              },
+              "preprocessing_diagnostic": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
+                "sha256": "911c00ae4d1b904641a3fd6c542bb3e594a28303d958dc28be15a4fd7d89aa08"
+              },
+              "product_output": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
+                "sha256": "e39235db0db6502b8e2bb1871c0b0286d4e10664f802c2770b230979e0ba23fa"
+              }
+            },
+            "winners": {
+              "vsgan": {
+                "candidate_id": "vsgan-s2-tauto-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 2,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 4.467858859995338,
+                "relative_spread": 0.0024762032062809413,
+                "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
+              },
+              "vstrt": {
+                "candidate_id": "vstrt-s2-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 2,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 4.4994277543642704,
+                "relative_spread": 0.0004866708699599861,
+                "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
+              }
+            }
+          },
+          "720p": {
+            "campaign": {
+              "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-campaign/vsgan-s2-tauto-g1__vstrt-s2-g1/campaign.json",
+              "sha256": "2a3b0f257c2393a42e53269fb4626d3ba343e9401adfffc6b3fc9f10276f7244"
+            },
+            "quality": {
+              "inference_parity": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/tensor-quality/inference-parity.json",
+                "sha256": "44324a7496d82672e3804105d907864f0e6fcff7160a26212363b06b649650f1"
+              },
+              "preprocessing_diagnostic": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/tensor-quality/preprocessing-diagnostic.json",
+                "sha256": "86943e64f7614b284e86033e3922319ea0991ad526dbfa53a874925f44cb09de"
+              },
+              "product_output": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/product-output/product-output-parity.json",
+                "sha256": "5a622b82e9b0f073d7a9c97fe3a21539ab66077f9c74f66f9b451ec4b0140428"
+              }
+            },
+            "winners": {
+              "vsgan": {
+                "candidate_id": "vsgan-s2-tauto-g1",
+                "execution_profile": {
+                  "cuda_graph": true,
+                  "execution_profile": "tuned",
+                  "num_streams": 2,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 10.302898500378868,
+                "relative_spread": 0.0014041345992749756,
+                "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph"
+              },
+              "vstrt": {
+                "candidate_id": "vstrt-s2-g1",
+                "execution_profile": {
+                  "cuda_graph": true,
+                  "execution_profile": "tuned",
+                  "num_streams": 2,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 10.244199874540481,
+                "relative_spread": 0.0007028403907628405,
+                "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph"
+              }
+            }
+          }
+        },
+        "workload_id": "realesrgan-x2plus-madrid-v1"
+      }
+    },
+    {
+      "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-matrix.json",
+      "sha256": "d238612ee357fa1f5106cfbf44e0f8c27df953042beedba752f033501d77197b",
+      "evidence": {
+        "benchmark_contract_version": 2,
+        "document_type": "tuned-publication-matrix",
+        "environment": {
+          "gpu": {
+            "driver_version": "595.84",
+            "name": "NVIDIA GeForce RTX 4090",
+            "power_limit_w": 450.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "publishable": true,
+        "schema_version": 1,
+        "scope": "cross-resolution-tuned-publication",
+        "status": "valid",
+        "tensor_quality_contract_version": 3,
+        "variants": {
+          "1080p": {
+            "campaign": {
+              "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s7-tauto-g0__vstrt-s7-g0/campaign.json",
+              "sha256": "1c21135c8eeb5a4a6683f00512e935eb401f3c92f8ee0d1c5d5a1ef761b8cb6a"
+            },
+            "quality": {
+              "inference_parity": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/inference-parity.json",
+                "sha256": "92ce2aad794a123cbeaec3acd1254388887f10c8f0a239bccb402f4b021b0975"
+              },
+              "preprocessing_diagnostic": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/preprocessing-diagnostic.json",
+                "sha256": "7ef7f51d466a4f5201e2f813fcd064c6625827716d8d2dc1dbc7b56e892f9597"
+              },
+              "product_output": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/product-output/product-output-parity.json",
+                "sha256": "b06a432aab16d4aa6e132af5bce3bc98ba834863146d80aac69a78fb25c98a09"
+              }
+            },
+            "winners": {
+              "vsgan": {
+                "candidate_id": "vsgan-s7-tauto-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 7,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 38.593326756326256,
+                "relative_spread": 0.007280919435172166,
+                "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+              },
+              "vstrt": {
+                "candidate_id": "vstrt-s7-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 7,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 38.53155750247576,
+                "relative_spread": 0.003906681140719882,
+                "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+              }
+            }
+          },
+          "720p": {
+            "campaign": {
+              "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-campaign/vsgan-s7-tauto-g0__vstrt-s7-g0/campaign.json",
+              "sha256": "68a4673ba86a51a88791cf9f927d956a2dbea23e970590561d11e2c43036935f"
+            },
+            "quality": {
+              "inference_parity": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/inference-parity.json",
+                "sha256": "d6e753a3d403f00bb03d0855d2a969e1abb52f4e0b7550c5fa23fa325b321334"
+              },
+              "preprocessing_diagnostic": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/preprocessing-diagnostic.json",
+                "sha256": "56b4d4d737140a4036e5ae7619a92dfabf83d1b804bb7fb55743aa42df370a8a"
+              },
+              "product_output": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/product-output/product-output-parity.json",
+                "sha256": "6399ac493a8c75e9cdaa938f96b03609c80bff3c49ce6707480f35c153c10f96"
+              }
+            },
+            "winners": {
+              "vsgan": {
+                "candidate_id": "vsgan-s7-tauto-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 7,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 84.14149878420928,
+                "relative_spread": 0.005859355540151182,
+                "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+              },
+              "vstrt": {
+                "candidate_id": "vstrt-s7-g0",
+                "execution_profile": {
+                  "cuda_graph": false,
+                  "execution_profile": "tuned",
+                  "num_streams": 7,
+                  "vapoursynth_threads": "auto",
+                  "vspipe_requests": "auto"
+                },
+                "median_fps": 83.89300375864792,
+                "relative_spread": 0.004277536100328682,
+                "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+              }
+            }
+          }
+        },
+        "workload_id": "liveaction-span-madrid-v1"
+      }
+    }
+  ],
+  "workloads": [
+    {
+      "workload_id": "realesrgan-x2plus-madrid-v1",
+      "workload": "RealESRGAN_x2plus",
+      "variant": "720p",
+      "benchmark_contract_version": 2,
+      "status": "valid",
+      "selection": {
+        "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/selection.json",
+        "sha256": "56330a1af20a49d73912bd26eb0e4bd56b562d580b8146e1e0e658256b042218",
+        "policy": {
+          "equivalence_margin": 0.01,
+          "max_relative_spread": 0.05,
+          "metric": "median_end_to_end_fps",
+          "tie_breaker": "lowest_num_streams_then_graph_off"
+        },
+        "search": {
+          "state_path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/search-state.json",
+          "state_sha256": "0da9f7b255643606c5f7ef6eb3eb01fe70d72556b1aaf5c17ceb96432e5404fd",
+          "completion": {
+            "vsgan": "decline-confirmed",
+            "vstrt": "decline-confirmed"
+          },
+          "resource_limits": {
+            "vsgan": null,
+            "vstrt": null
+          }
+        },
+        "winners": {
+          "vsgan": {
+            "candidate_id": "vsgan-s2-tauto-g1",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 10.302898500378868,
+            "relative_spread": 0.0014041345992749756,
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph"
+          },
+          "vstrt": {
+            "candidate_id": "vstrt-s2-g1",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 10.244199874540481,
+            "relative_spread": 0.0007028403907628405,
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph"
+          }
+        },
+        "reconnaissance": [
+          {
+            "candidate_id": "vstrt-s1-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 8.558203453215427,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.436989168039968,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.085165632551352,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 8.821338135330448,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 7.953964528340234,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s1-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 8.632708576432709,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s1-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.477811680886376,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.140129185123483,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s3-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 8.886034777454695,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s8-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 8.000086694059473,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 10.129151161586742,
+            "relative_spread": 0.0007128750771659329,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.926955819642318,
+            "relative_spread": 7.245579513316098e-05,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.808800275382138,
+            "relative_spread": 0.00022303237385358626,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g1",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
+            "median_fps": 10.244199874540481,
+            "relative_spread": 0.0007028403907628405,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 10.173388277097839,
+            "relative_spread": 0.002260562579671306,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.999596089315043,
+            "relative_spread": 0.0004035497924460161,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s3-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 9.875975204257902,
+            "relative_spread": 0.0011932122308891155,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g1",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
+            "median_fps": 10.302898500378868,
+            "relative_spread": 0.0014041345992749756,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g1/confirmation/performance/suite.json"
+            }
+          }
+        ],
+        "disqualifications": {}
+      },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 10.244199874540481,
+            "final_campaign_fps": 10.23498385213942,
+            "delta_percent": -0.08996332084426628
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 10.302898500378868,
+            "final_campaign_fps": 10.28453349785433,
+            "delta_percent": -0.1782508342080935
+          }
+        ],
+        "max_absolute_delta_percent": 0.1782508342080935
+      },
+      "final_campaign": {
+        "execution_profile": "tuned",
+        "workload_id": "realesrgan-x2plus-madrid-v1",
+        "variant": "720p",
+        "benchmark_contract_version": 2,
+        "status": "valid",
+        "publishable": true,
+        "campaign": {
+          "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-campaign/vsgan-s2-tauto-g1__vstrt-s2-g1/campaign.json",
+          "sha256": "2a3b0f257c2393a42e53269fb4626d3ba343e9401adfffc6b3fc9f10276f7244"
+        },
+        "environment": {
+          "cpu": {
+            "logical_cores": 16,
+            "model": "AMD Ryzen 7 5700X3D 8-Core Processor"
+          },
+          "gpu": {
+            "compute_capability": "8.9",
+            "driver_version": "595.84",
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 4090",
+            "persistence_mode": 0,
+            "power_limit_w": 450.0,
+            "total_memory_mib": 24564.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "parameters": {
+          "cpu_accounting": {
+            "accounting": "getrusage(RUSAGE_CHILDREN)",
+            "available_logical_cpus": 16,
+            "scope": "measured-child-process-tree"
+          },
+          "encoder": {
+            "b_frames": 0,
+            "codec": "h264",
+            "gop_frames": 24,
+            "lookahead_frames": 0,
+            "max_bitrate_bps": 35000000,
+            "min_bitrate_bps": 35000000,
+            "multipass": "disabled",
+            "preset": "p4",
+            "rate_control": "cbr",
+            "spatial_aq": false,
+            "target_bitrate_bps": 35000000,
+            "temporal_aq": false,
+            "tuning": "high_quality",
+            "vbv_buffer_bits": 70000000,
+            "vbv_initial_delay_bits": 35000000
+          },
+          "execution_profiles": {
+            "vsgan": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "vstrt": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            }
+          },
+          "idle_seconds": 10.0,
+          "measured_frames": 1000,
+          "rounds": 3,
+          "spread_threshold": 0.05,
+          "stability_policy": "full-range-3-then-consensus-4-of-5",
+          "tensor_quality_contract_version": 3,
+          "warmup_frames": 30
+        },
+        "assets": {
+          "input_sha256": "a70afffe67cf02fa6a406ec1fa37069b888ed800b477268e35966c9e896e6d7f",
+          "onnx_sha256": "2822218bdd0dd07f4c98036fed8bf0f712c50d3b6755672e9af165071a149066"
+        },
+        "quality": {
+          "inference_parity": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/tensor-quality/inference-parity.json",
+            "sha256": "44324a7496d82672e3804105d907864f0e6fcff7160a26212363b06b649650f1",
+            "status": "valid",
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "thresholds": {
+              "output": {
+                "min_psnr_db": 42.0,
+                "p99_abs": 0.015686,
+                "rmse": 0.007843
+              }
+            },
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              }
+            ]
+          },
+          "preprocessing_diagnostic": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/tensor-quality/preprocessing-diagnostic.json",
+            "sha256": "86943e64f7614b284e86033e3922319ea0991ad526dbfa53a874925f44cb09de",
+            "status": "complete",
+            "acceptance_gate": false,
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "complete",
+                "max_p99_abs": 0.05168277025222778,
+                "max_rmse": 0.011583363806814642,
+                "min_psnr_db": 38.723306065026215,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "complete",
+                "max_p99_abs": 0.05168277025222778,
+                "max_rmse": 0.011583363806814642,
+                "min_psnr_db": 38.723306065026215,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              }
+            ]
+          },
+          "product_output": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/winner-quality/vsgan-s2-tauto-g1__vstrt-s2-g1/product-output/product-output-parity.json",
+            "sha256": "5a622b82e9b0f073d7a9c97fe3a21539ab66077f9c74f66f9b451ec4b0140428",
+            "status": "valid",
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "psnr_average_db": 44.717813,
+                "ssim": 0.991526,
+                "compared_frames": 1000
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "psnr_average_db": 44.717813,
+                "ssim": 0.991526,
+                "compared_frames": 1000
+              }
+            ]
+          }
+        },
+        "results": [
+          {
+            "implementation": "trtvideo",
+            "product": "trtvideo",
+            "image_id": "sha256:d10073459e547e94df0a03857dad5bffb68910f82163b4e948e69d50b3002917",
+            "engine_sha256": "a0a469c1bc72dfd3f493264b30ac31c868d43c9c298540925f40ec22576a40df",
+            "relative_to_trtvideo_percent": 0.0,
+            "fps_median": 10.46152563880464,
+            "fps_runs": [
+              10.199915595988122,
+              10.46152563880464,
+              10.461732974028832
+            ],
+            "fps_spread": 0.025026691811523047,
+            "wall_sec": 95.588352457,
+            "startup_sec": 1.575518191,
+            "steady_state_sec": 93.27780898,
+            "finalize_sec": 0.755337349,
+            "cpu_cores": 1.0209877214412062,
+            "cpu_capacity_percent": 6.3811732590075385,
+            "gpu_util_percent": 97.78947368421052,
+            "power_w": 417.86176079234764,
+            "joules_per_frame": 39.967913667006485,
+            "peak_vram_mib": 2491.0625,
+            "output_bitrate_mbps": 34.543375,
+            "output_size_mib": 171.5851821899414,
+            "lifecycle_intervals_sec": {
+              "cleanup_completed_to_output_committed": 6.4913e-05,
+              "decoder_initialized_to_encoder_initialized": 0.179587101,
+              "encoder_drained_to_mux_input_closed": 8.005e-06,
+              "encoder_initialized_to_first_frame_completed": 0.107670058,
+              "first_frame_completed_to_last_frame_completed": 93.27780898,
+              "frame_loop_completed_to_encoder_drained": 0.003945173,
+              "last_frame_completed_to_frame_loop_completed": 0.089926522,
+              "mux_completed_to_pipeline_finalized": 2.605e-06,
+              "mux_input_closed_to_mux_completed": 0.196649897,
+              "output_committed_to_reporting_started": 7.62e-07,
+              "pipeline_created_to_video_probed": 0.05441052,
+              "pipeline_finalized_to_cleanup_completed": 3.2262e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 1.00827746,
+              "process_started_to_pipeline_created": 0.151475762,
+              "reporting_started_to_process_finished": 0.46481548,
+              "runtime_initialized_to_decoder_initialized": 0.012422133,
+              "video_probed_to_preservation_preflight_completed": 0.061208663
+            },
+            "session_observations": {
+              "peak_temperature_c": 63,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.025026691811523047,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vsgan",
+            "product": "VSGAN-tensorrt-docker",
+            "image_id": "sha256:aba6b18a80036eb1aa477b1fdcb09342f1a41b56a208ab2e3b9f2dd8e0eee82f",
+            "engine_sha256": "cd486a46508bdd3f58f630dba765817fd98dd855638d8d169815330beb301be5",
+            "relative_to_trtvideo_percent": -1.6918387151277248,
+            "fps_median": 10.28453349785433,
+            "fps_runs": [
+              10.283262115901602,
+              10.300298822694288,
+              10.28453349785433
+            ],
+            "fps_spread": 0.0016565366621869766,
+            "wall_sec": 97.2333845,
+            "startup_sec": 2.981789443,
+            "steady_state_sec": 94.251533947,
+            "finalize_sec": 0.011528382,
+            "cpu_cores": 2.2775922594893827,
+            "cpu_capacity_percent": 14.234951621808642,
+            "gpu_util_percent": 96.65109034267913,
+            "power_w": 413.8698883793723,
+            "joules_per_frame": 40.22300693169138,
+            "peak_vram_mib": 4058.75,
+            "output_bitrate_mbps": 34.972469,
+            "output_size_mib": 173.71652698516846,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 64,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0016565366621869766,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vstrt",
+            "product": "vs-mlrt",
+            "image_id": "sha256:eeef867de62c6fc6523fb45fd954685491c0dc07573e335725501670fff14974",
+            "engine_sha256": "a0a469c1bc72dfd3f493264b30ac31c868d43c9c298540925f40ec22576a40df",
+            "relative_to_trtvideo_percent": -2.165475614999346,
+            "fps_median": 10.23498385213942,
+            "fps_runs": [
+              10.232840540546839,
+              10.23498385213942,
+              10.241068760216708
+            ],
+            "fps_spread": 0.0008039308892655378,
+            "wall_sec": 97.704111159,
+            "startup_sec": 2.794490958,
+            "steady_state_sec": 94.846755688,
+            "finalize_sec": 0.019354055,
+            "cpu_cores": 2.2785475855162565,
+            "cpu_capacity_percent": 14.240922409476603,
+            "gpu_util_percent": 96.4045407636739,
+            "power_w": 413.55600226795235,
+            "joules_per_frame": 40.41458484858322,
+            "peak_vram_mib": 4062.75,
+            "output_bitrate_mbps": 34.972469,
+            "output_size_mib": 173.71652698516846,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 64,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0008039308892655378,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          }
+        ]
+      }
+    },
+    {
+      "workload_id": "realesrgan-x2plus-madrid-v1",
+      "workload": "RealESRGAN_x2plus",
+      "variant": "1080p",
+      "benchmark_contract_version": 2,
+      "status": "valid",
+      "selection": {
+        "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/selection.json",
+        "sha256": "2c677da2bd3d52aab67ddd52d6c488551c19c3f5ef3a3dc430d699ddb8f91028",
+        "policy": {
+          "equivalence_margin": 0.01,
+          "max_relative_spread": 0.05,
+          "metric": "median_end_to_end_fps",
+          "tie_breaker": "lowest_num_streams_then_graph_off"
+        },
+        "search": {
+          "state_path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/search-state.json",
+          "state_sha256": "ba7bf71726a3e172327ff05260c649537112d1c71c219aee99eb1e093807e988",
+          "completion": {
+            "vsgan": "resource-ceiling",
+            "vstrt": "resource-ceiling"
+          },
+          "resource_limits": {
+            "vsgan": {
+              "candidate_id": "vsgan-s8-tauto-g0",
+              "kind": "cuda-out-of-memory",
+              "num_streams": 8,
+              "run_manifest": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/run-01/manifest.json",
+              "stderr": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/run-01/warmup.stderr.log",
+              "stderr_sha256": "96b6790bde23eead9dbda9204bd82b8f063df1292b11210176a77cf2eddf49e3",
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/suite.json"
+            },
+            "vstrt": {
+              "candidate_id": "vstrt-s8-g0",
+              "kind": "cuda-out-of-memory",
+              "num_streams": 8,
+              "run_manifest": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/manifest.json",
+              "stderr": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/warmup.stderr.log",
+              "stderr_sha256": "125de335600b6743ef57aa9be2507208d2f75e53f1b653b678e5fd00bae6c6d3",
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            }
+          }
+        },
+        "winners": {
+          "vsgan": {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 4.467858859995338,
+            "relative_spread": 0.0024762032062809413,
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
+          },
+          "vstrt": {
+            "candidate_id": "vstrt-s2-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 4.4994277543642704,
+            "relative_spread": 0.0004866708699599861,
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph"
+          }
+        },
+        "reconnaissance": [
+          {
+            "candidate_id": "vstrt-s1-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 3.7490262445126916,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.370223017628276,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.345509354344285,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.299761795769205,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s5-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.2704785579297235,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s1-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 3.6962032919605132,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s1-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.339729887130669,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.307620765639786,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s3-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.271623816894476,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s4-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s5-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.232590436255835,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.4994277543642704,
+            "relative_spread": 0.0004866708699599861,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.498690038454706,
+            "relative_spread": 0.0019495065860574865,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.479943470811733,
+            "relative_spread": 0.0020769158421787997,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g1",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
+            "median_fps": 4.493400511690976,
+            "relative_spread": 0.0009413151944361495,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.467858859995338,
+            "relative_spread": 0.0024762032062809413,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.4555882578382136,
+            "relative_spread": 0.002127762774849417,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s3-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 4.434771010555875,
+            "relative_spread": 0.0006246443782229256,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s4-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g1",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --cuda-graph",
+            "median_fps": 4.451349622070429,
+            "relative_spread": 0.0004304058205441304,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g1/confirmation/performance/suite.json"
+            }
+          }
+        ],
+        "disqualifications": {}
+      },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 4.4994277543642704,
+            "final_campaign_fps": 4.50055452944906,
+            "delta_percent": 0.025042630892269102
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 4.467858859995338,
+            "final_campaign_fps": 4.468327124750108,
+            "delta_percent": 0.010480741882057387
+          }
+        ],
+        "max_absolute_delta_percent": 0.025042630892269102
+      },
+      "final_campaign": {
+        "execution_profile": "tuned",
+        "workload_id": "realesrgan-x2plus-madrid-v1",
+        "variant": "1080p",
+        "benchmark_contract_version": 2,
+        "status": "valid",
+        "publishable": true,
+        "campaign": {
+          "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-campaign/vsgan-s2-tauto-g0__vstrt-s2-g0/campaign.json",
+          "sha256": "3d8b5936086a29bdf3f363d027c816fb72cb4b6ea2801331776e617a06e06cae"
+        },
+        "environment": {
+          "cpu": {
+            "logical_cores": 16,
+            "model": "AMD Ryzen 7 5700X3D 8-Core Processor"
+          },
+          "gpu": {
+            "compute_capability": "8.9",
+            "driver_version": "595.84",
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 4090",
+            "persistence_mode": 0,
+            "power_limit_w": 450.0,
+            "total_memory_mib": 24564.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "parameters": {
+          "cpu_accounting": {
+            "accounting": "getrusage(RUSAGE_CHILDREN)",
+            "available_logical_cpus": 16,
+            "scope": "measured-child-process-tree"
+          },
+          "encoder": {
+            "b_frames": 0,
+            "codec": "h264",
+            "gop_frames": 24,
+            "lookahead_frames": 0,
+            "max_bitrate_bps": 60000000,
+            "min_bitrate_bps": 60000000,
+            "multipass": "disabled",
+            "preset": "p4",
+            "rate_control": "cbr",
+            "spatial_aq": false,
+            "target_bitrate_bps": 60000000,
+            "temporal_aq": false,
+            "tuning": "high_quality",
+            "vbv_buffer_bits": 120000000,
+            "vbv_initial_delay_bits": 60000000
+          },
+          "execution_profiles": {
+            "vsgan": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "vstrt": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            }
+          },
+          "idle_seconds": 10.0,
+          "measured_frames": 1000,
+          "rounds": 3,
+          "spread_threshold": 0.05,
+          "stability_policy": "full-range-3-then-consensus-4-of-5",
+          "tensor_quality_contract_version": 3,
+          "warmup_frames": 30
+        },
+        "assets": {
+          "input_sha256": "ca3a399fae12fd75a21be05a0de86f0b94bafbcd21d1b18c1730757949db30f6",
+          "onnx_sha256": "390fbe24fb4b37a2f8e197b40f96bc65c268cc5bd79bb4349b9a337e013c0967"
+        },
+        "quality": {
+          "inference_parity": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/inference-parity.json",
+            "sha256": "2ff393eb124fb3836d63940606ff88faf4060e8812f3899f9e5052d5daea542a",
+            "status": "valid",
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "thresholds": {
+              "output": {
+                "min_psnr_db": 42.0,
+                "p99_abs": 0.015686,
+                "rmse": 0.007843
+              }
+            },
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "max_p99_abs": 0.0009765625,
+                "max_rmse": 0.00027638005216423724,
+                "min_psnr_db": 71.16986611073438
+              }
+            ]
+          },
+          "preprocessing_diagnostic": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/tensor-quality/preprocessing-diagnostic.json",
+            "sha256": "911c00ae4d1b904641a3fd6c542bb3e594a28303d958dc28be15a4fd7d89aa08",
+            "status": "complete",
+            "acceptance_gate": false,
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "complete",
+                "max_p99_abs": 0.05098039656877518,
+                "max_rmse": 0.010984046775478871,
+                "min_psnr_db": 39.18475252655293,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "complete",
+                "max_p99_abs": 0.05098039656877518,
+                "max_rmse": 0.010984046775478871,
+                "min_psnr_db": 39.18475252655293,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              }
+            ]
+          },
+          "product_output": {
+            "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/winner-quality/vsgan-s2-tauto-g0__vstrt-s2-g0/product-output/product-output-parity.json",
+            "sha256": "e39235db0db6502b8e2bb1871c0b0286d4e10664f802c2770b230979e0ba23fa",
+            "status": "valid",
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "psnr_average_db": 45.172324,
+                "ssim": 0.992478,
+                "compared_frames": 1000
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "psnr_average_db": 45.171903,
+                "ssim": 0.992476,
+                "compared_frames": 1000
+              }
+            ]
+          }
+        },
+        "results": [
+          {
+            "implementation": "trtvideo",
+            "product": "trtvideo",
+            "image_id": "sha256:d10073459e547e94df0a03857dad5bffb68910f82163b4e948e69d50b3002917",
+            "engine_sha256": "0050b6b4241f550bbe45908cbf4aeff73318bcc79a12944a1c6037b4a7b23cd6",
+            "relative_to_trtvideo_percent": 0.0,
+            "fps_median": 4.436081827365913,
+            "fps_runs": [
+              4.43188941362871,
+              4.436378857391071,
+              4.436081827365913
+            ],
+            "fps_spread": 0.0010120290691362792,
+            "wall_sec": 225.424155576,
+            "startup_sec": 1.373990879,
+            "steady_state_sec": 223.223574909,
+            "finalize_sec": 0.823267285,
+            "cpu_cores": 1.0112926381713416,
+            "cpu_capacity_percent": 6.320578988570885,
+            "gpu_util_percent": 99.16927199642697,
+            "power_w": 421.80949883468,
+            "joules_per_frame": 95.0796837677511,
+            "peak_vram_mib": 4420.5,
+            "output_bitrate_mbps": 58.974187,
+            "output_size_mib": 292.9344873428345,
+            "lifecycle_intervals_sec": {
+              "cleanup_completed_to_output_committed": 8.1445e-05,
+              "decoder_initialized_to_encoder_initialized": 0.185429354,
+              "encoder_drained_to_mux_input_closed": 7.955e-06,
+              "encoder_initialized_to_first_frame_completed": 0.245428032,
+              "first_frame_completed_to_last_frame_completed": 223.223574909,
+              "frame_loop_completed_to_encoder_drained": 0.008276658,
+              "last_frame_completed_to_frame_loop_completed": 0.215146058,
+              "mux_completed_to_pipeline_finalized": 3.837e-06,
+              "mux_input_closed_to_mux_completed": 0.30820263,
+              "output_committed_to_reporting_started": 9.72e-07,
+              "pipeline_created_to_video_probed": 0.059408885,
+              "pipeline_finalized_to_cleanup_completed": 3.8303e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.653141176,
+              "process_started_to_pipeline_created": 0.152777469,
+              "reporting_started_to_process_finished": 0.289609681,
+              "runtime_initialized_to_decoder_initialized": 0.01228708,
+              "video_probed_to_preservation_preflight_completed": 0.066783916
+            },
+            "session_observations": {
+              "peak_temperature_c": 65,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0010120290691362792,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vsgan",
+            "product": "VSGAN-tensorrt-docker",
+            "image_id": "sha256:aba6b18a80036eb1aa477b1fdcb09342f1a41b56a208ab2e3b9f2dd8e0eee82f",
+            "engine_sha256": "691c13aed366eac03d1ec89c1e9b74b381583874761f76e705be4c08ae811d1a",
+            "relative_to_trtvideo_percent": 0.7268868934129147,
+            "fps_median": 4.468327124750108,
+            "fps_runs": [
+              4.467364605877607,
+              4.468327124750108,
+              4.468490682612593
+            ],
+            "fps_spread": 0.0002520130472876968,
+            "wall_sec": 223.797401596,
+            "startup_sec": 2.686804957,
+            "steady_state_sec": 221.097747813,
+            "finalize_sec": 0.012731162,
+            "cpu_cores": 2.2736854421507937,
+            "cpu_capacity_percent": 14.21053401344246,
+            "gpu_util_percent": 98.75956776226924,
+            "power_w": 420.3515752594841,
+            "joules_per_frame": 94.07014697269483,
+            "peak_vram_mib": 7903.5,
+            "output_bitrate_mbps": 59.878099,
+            "output_size_mib": 297.4245357513428,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 65,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0002520130472876968,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vstrt",
+            "product": "vs-mlrt",
+            "image_id": "sha256:eeef867de62c6fc6523fb45fd954685491c0dc07573e335725501670fff14974",
+            "engine_sha256": "0050b6b4241f550bbe45908cbf4aeff73318bcc79a12944a1c6037b4a7b23cd6",
+            "relative_to_trtvideo_percent": 1.45337044247964,
+            "fps_median": 4.50055452944906,
+            "fps_runs": [
+              4.497615214125658,
+              4.50055452944906,
+              4.500972899771916
+            ],
+            "fps_spread": 0.0007460604297285149,
+            "wall_sec": 222.194841426,
+            "startup_sec": 2.676520813,
+            "steady_state_sec": 219.475498227,
+            "finalize_sec": 0.022452444,
+            "cpu_cores": 2.27228150645755,
+            "cpu_capacity_percent": 14.201759415359689,
+            "gpu_util_percent": 98.53448275862068,
+            "power_w": 421.2150232234794,
+            "joules_per_frame": 93.58310583136908,
+            "peak_vram_mib": 7907.5,
+            "output_bitrate_mbps": 59.865134,
+            "output_size_mib": 297.36011600494385,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 65,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0007460604297285149,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          }
+        ]
+      }
+    },
+    {
+      "workload_id": "liveaction-span-madrid-v1",
+      "workload": "SPAN",
+      "variant": "720p",
+      "benchmark_contract_version": 2,
+      "status": "valid",
+      "selection": {
+        "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/selection.json",
+        "sha256": "6fceb4629897c589d99ca52df128801b4b6496869cdfb3ddb70007b5c72d42a2",
+        "policy": {
+          "equivalence_margin": 0.01,
+          "max_relative_spread": 0.05,
+          "metric": "median_end_to_end_fps",
+          "tie_breaker": "lowest_num_streams_then_graph_off"
+        },
+        "search": {
+          "state_path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/search-state.json",
+          "state_sha256": "93e5288cd2b60688c90010460d5b789d7111e0276908bbcebdcd4c270890701a",
+          "completion": {
+            "vsgan": "range-exhausted",
+            "vstrt": "range-exhausted"
+          },
+          "resource_limits": {
+            "vsgan": null,
+            "vstrt": null
+          }
+        },
+        "winners": {
+          "vsgan": {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 84.14149878420928,
+            "relative_spread": 0.005859355540151182,
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+          },
+          "vstrt": {
+            "candidate_id": "vstrt-s7-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 83.89300375864792,
+            "relative_spread": 0.004277536100328682,
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+          }
+        },
+        "reconnaissance": [
+          {
+            "candidate_id": "vstrt-s1-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 32.44503471913851,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 59.0666896072711,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 74.79139846539736,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 80.74609776098703,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s5-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 80.862843177273,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 82.16632900910867,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s7-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.846379118865,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.68240342617484,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s1-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 33.29500439507309,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s1-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 61.19127547005679,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s2-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 74.49629970416815,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s3-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 80.18751214630316,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s4-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s5-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 82.5032808328909,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s5-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s6-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.43529915353471,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s6-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.4193564094531,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s7-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s8-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.61822017045843,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "vstrt-s7-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.89300375864792,
+            "relative_spread": 0.004277536100328682,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.41597470034128,
+            "relative_spread": 0.00939251396642144,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 82.95857510473516,
+            "relative_spread": 0.006709175047340483,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s7-g1",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --cuda-graph",
+            "median_fps": 84.29571229018164,
+            "relative_spread": 0.004386633020369501,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g1/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s8-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 83.8860280262275,
+            "relative_spread": 0.008088123982064288,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s8-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s6-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 82.87888721915502,
+            "relative_spread": 0.009692268242364528,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s6-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 84.14149878420928,
+            "relative_spread": 0.005859355540151182,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s7-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g1",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --cuda-graph",
+            "median_fps": 84.1763018901571,
+            "relative_spread": 0.017655113137760362,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vsgan/vsgan-s7-tauto-g1/confirmation/performance/suite.json"
+            }
+          }
+        ],
+        "disqualifications": {}
+      },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 83.89300375864792,
+            "final_campaign_fps": 84.09863926236974,
+            "delta_percent": 0.2451163917236876
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 84.14149878420928,
+            "final_campaign_fps": 84.53576433912902,
+            "delta_percent": 0.4685744378417622
+          }
+        ],
+        "max_absolute_delta_percent": 0.4685744378417622
+      },
+      "final_campaign": {
+        "execution_profile": "tuned",
+        "workload_id": "liveaction-span-madrid-v1",
+        "variant": "720p",
+        "benchmark_contract_version": 2,
+        "status": "valid",
+        "publishable": true,
+        "campaign": {
+          "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-campaign/vsgan-s7-tauto-g0__vstrt-s7-g0/campaign.json",
+          "sha256": "68a4673ba86a51a88791cf9f927d956a2dbea23e970590561d11e2c43036935f"
+        },
+        "environment": {
+          "cpu": {
+            "logical_cores": 16,
+            "model": "AMD Ryzen 7 5700X3D 8-Core Processor"
+          },
+          "gpu": {
+            "compute_capability": "8.9",
+            "driver_version": "595.84",
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 4090",
+            "persistence_mode": 0,
+            "power_limit_w": 450.0,
+            "total_memory_mib": 24564.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "parameters": {
+          "cpu_accounting": {
+            "accounting": "getrusage(RUSAGE_CHILDREN)",
+            "available_logical_cpus": 16,
+            "scope": "measured-child-process-tree"
+          },
+          "encoder": {
+            "b_frames": 0,
+            "codec": "h264",
+            "gop_frames": 24,
+            "lookahead_frames": 0,
+            "max_bitrate_bps": 35000000,
+            "min_bitrate_bps": 35000000,
+            "multipass": "disabled",
+            "preset": "p4",
+            "rate_control": "cbr",
+            "spatial_aq": false,
+            "target_bitrate_bps": 35000000,
+            "temporal_aq": false,
+            "tuning": "high_quality",
+            "vbv_buffer_bits": 70000000,
+            "vbv_initial_delay_bits": 35000000
+          },
+          "execution_profiles": {
+            "vsgan": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "vstrt": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            }
+          },
+          "idle_seconds": 10.0,
+          "measured_frames": 1000,
+          "rounds": 3,
+          "spread_threshold": 0.05,
+          "stability_policy": "full-range-3-then-consensus-4-of-5",
+          "tensor_quality_contract_version": 3,
+          "warmup_frames": 100
+        },
+        "assets": {
+          "input_sha256": "a70afffe67cf02fa6a406ec1fa37069b888ed800b477268e35966c9e896e6d7f",
+          "onnx_sha256": "6d99c8b6a728bb41b4ef1015b19456f6111d05df7fc0cac436567d90785a83f5"
+        },
+        "quality": {
+          "inference_parity": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/inference-parity.json",
+            "sha256": "d6e753a3d403f00bb03d0855d2a969e1abb52f4e0b7550c5fa23fa325b321334",
+            "status": "valid",
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "thresholds": {
+              "output": {
+                "min_psnr_db": 42.0,
+                "p99_abs": 0.015686,
+                "rmse": 0.007843
+              }
+            },
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              }
+            ]
+          },
+          "preprocessing_diagnostic": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/preprocessing-diagnostic.json",
+            "sha256": "56b4d4d737140a4036e5ae7619a92dfabf83d1b804bb7fb55743aa42df370a8a",
+            "status": "complete",
+            "acceptance_gate": false,
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "complete",
+                "max_p99_abs": 0.05168277025222778,
+                "max_rmse": 0.011583363806814642,
+                "min_psnr_db": 38.723306065026215,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "complete",
+                "max_p99_abs": 0.05168277025222778,
+                "max_rmse": 0.011583363806814642,
+                "min_psnr_db": 38.723306065026215,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              }
+            ]
+          },
+          "product_output": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/product-output/product-output-parity.json",
+            "sha256": "6399ac493a8c75e9cdaa938f96b03609c80bff3c49ce6707480f35c153c10f96",
+            "status": "valid",
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "psnr_average_db": 45.22766,
+                "ssim": 0.991895,
+                "compared_frames": 1000
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "psnr_average_db": 45.22766,
+                "ssim": 0.991895,
+                "compared_frames": 1000
+              }
+            ]
+          }
+        },
+        "results": [
+          {
+            "implementation": "trtvideo",
+            "product": "trtvideo",
+            "image_id": "sha256:d10073459e547e94df0a03857dad5bffb68910f82163b4e948e69d50b3002917",
+            "engine_sha256": "38a76168119ec524a787010425318e68dc9573bf33c0615d05b02d9046d2d454",
+            "relative_to_trtvideo_percent": 0.0,
+            "fps_median": 99.65536533798941,
+            "fps_runs": [
+              99.24529710754305,
+              99.70462524711468,
+              99.65536533798941
+            ],
+            "fps_spread": 0.004609166180002204,
+            "wall_sec": 10.03458265,
+            "startup_sec": 0.856668957,
+            "steady_state_sec": 8.82908418,
+            "finalize_sec": 0.347796482,
+            "cpu_cores": 0.7419821291720586,
+            "cpu_capacity_percent": 4.6373883073253666,
+            "gpu_util_percent": 87.22772277227723,
+            "power_w": 379.86583968368075,
+            "joules_per_frame": 3.811795164217545,
+            "peak_vram_mib": 1551.75,
+            "output_bitrate_mbps": 34.483192,
+            "output_size_mib": 171.28640365600586,
+            "lifecycle_intervals_sec": {
+              "cleanup_completed_to_output_committed": 6.2008e-05,
+              "decoder_initialized_to_encoder_initialized": 0.177919904,
+              "encoder_drained_to_mux_input_closed": 1.1402e-05,
+              "encoder_initialized_to_first_frame_completed": 0.023560317,
+              "first_frame_completed_to_last_frame_completed": 8.82908418,
+              "frame_loop_completed_to_encoder_drained": 0.003994631,
+              "last_frame_completed_to_frame_loop_completed": 0.022621486,
+              "mux_completed_to_pipeline_finalized": 3.066e-06,
+              "mux_input_closed_to_mux_completed": 0.173719365,
+              "output_committed_to_reporting_started": 9.02e-07,
+              "pipeline_created_to_video_probed": 0.054368199,
+              "pipeline_finalized_to_cleanup_completed": 3.4726e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.37028876,
+              "process_started_to_pipeline_created": 0.152280021,
+              "reporting_started_to_process_finished": 0.148633377,
+              "runtime_initialized_to_decoder_initialized": 0.011082863,
+              "video_probed_to_preservation_preflight_completed": 0.065425345
+            },
+            "session_observations": {
+              "peak_temperature_c": 60,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.004609166180002204,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vsgan",
+            "product": "VSGAN-tensorrt-docker",
+            "image_id": "sha256:aba6b18a80036eb1aa477b1fdcb09342f1a41b56a208ab2e3b9f2dd8e0eee82f",
+            "engine_sha256": "5018c52602054f6ea77a64d24279bc4a1fc88795ff71faeec754e755d1b7adb9",
+            "relative_to_trtvideo_percent": -15.171888585808713,
+            "fps_median": 84.53576433912902,
+            "fps_runs": [
+              85.01450704848729,
+              84.46103399432486,
+              84.53576433912902
+            ],
+            "fps_spread": 0.006547205889593388,
+            "wall_sec": 11.82931281,
+            "startup_sec": 1.328991415,
+            "steady_state_sec": 10.421074998,
+            "finalize_sec": 0.012552005,
+            "cpu_cores": 11.832908998878695,
+            "cpu_capacity_percent": 73.95568124299184,
+            "gpu_util_percent": 75.61739130434782,
+            "power_w": 335.6807531849994,
+            "joules_per_frame": 3.9708726337217612,
+            "peak_vram_mib": 6688.75,
+            "output_bitrate_mbps": 34.898784,
+            "output_size_mib": 173.350492477417,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.006547205889593388,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vstrt",
+            "product": "vs-mlrt",
+            "image_id": "sha256:eeef867de62c6fc6523fb45fd954685491c0dc07573e335725501670fff14974",
+            "engine_sha256": "38a76168119ec524a787010425318e68dc9573bf33c0615d05b02d9046d2d454",
+            "relative_to_trtvideo_percent": -15.610525356921567,
+            "fps_median": 84.09863926236974,
+            "fps_runs": [
+              83.87837265022003,
+              84.44442917126202,
+              84.09863926236974
+            ],
+            "fps_spread": 0.006730864209063015,
+            "wall_sec": 11.890798814,
+            "startup_sec": 1.323107568,
+            "steady_state_sec": 10.555867478,
+            "finalize_sec": 0.018743883,
+            "cpu_cores": 11.73526709035782,
+            "cpu_capacity_percent": 73.34541931473638,
+            "gpu_util_percent": 74.73504273504274,
+            "power_w": 335.05654969530144,
+            "joules_per_frame": 3.9840900237398227,
+            "peak_vram_mib": 6692.75,
+            "output_bitrate_mbps": 34.898784,
+            "output_size_mib": 173.350492477417,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 58,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.006730864209063015,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          }
+        ]
+      }
+    },
+    {
+      "workload_id": "liveaction-span-madrid-v1",
+      "workload": "SPAN",
+      "variant": "1080p",
+      "benchmark_contract_version": 2,
+      "status": "valid",
+      "selection": {
+        "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/selection.json",
+        "sha256": "76dc92b1a04b136bde4cda04f1a6172b215deca5a7ee0735e524f3e8bcea4107",
+        "policy": {
+          "equivalence_margin": 0.01,
+          "max_relative_spread": 0.05,
+          "metric": "median_end_to_end_fps",
+          "tie_breaker": "lowest_num_streams_then_graph_off"
+        },
+        "search": {
+          "state_path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/search-state.json",
+          "state_sha256": "dce8787c196d56f598d4b68db2efee78767c9eadcf1f05b5002124480eb0cbe6",
+          "completion": {
+            "vsgan": "range-exhausted",
+            "vstrt": "range-exhausted"
+          },
+          "resource_limits": {
+            "vsgan": null,
+            "vstrt": null
+          }
+        },
+        "winners": {
+          "vsgan": {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 38.593326756326256,
+            "relative_spread": 0.007280919435172166,
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+          },
+          "vstrt": {
+            "candidate_id": "vstrt-s7-g0",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "median_fps": 38.53155750247576,
+            "relative_spread": 0.003906681140719882,
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph"
+          }
+        },
+        "reconnaissance": [
+          {
+            "candidate_id": "vstrt-s1-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 16.082431650552593,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s2-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 26.86816199574441,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s3-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 33.16195519198611,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s4-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 36.13357842265023,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s5-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.02718678288314,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.20413498403833,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s7-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.55653727458055,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.20422786310573,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s1-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 1,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 1 --vs-threads auto --no-cuda-graph",
+            "median_fps": 16.14497309333685,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s1-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s2-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 2,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 2 --vs-threads auto --no-cuda-graph",
+            "median_fps": 26.514774246170937,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s2-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s3-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 3,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph",
+            "median_fps": 33.575619331445566,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s3-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s4-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 4,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 4 --vs-threads auto --no-cuda-graph",
+            "median_fps": 35.97825806262756,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s4-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s5-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 5,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 5 --vs-threads auto --no-cuda-graph",
+            "median_fps": 37.47196364916872,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s5-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s6-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 37.814375571864126,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s6-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.292150378775894,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s7-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s8-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.18497577327941,
+            "relative_spread": 0.0,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/reconnaissance/performance/suite.json"
+            }
+          }
+        ],
+        "candidates": [
+          {
+            "candidate_id": "vstrt-s7-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.53155750247576,
+            "relative_spread": 0.003906681140719882,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s8-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.3327039317372,
+            "relative_spread": 0.006886746826753245,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s6-g0",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.04803659100499,
+            "relative_spread": 0.004142581794395707,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vstrt-s7-g1",
+            "implementation": "vstrt",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --cuda-graph",
+            "median_fps": 38.74805435034034,
+            "relative_spread": 0.004636846485004939,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g1/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.593326756326256,
+            "relative_spread": 0.007280919435172166,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s7-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s8-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 8,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 8 --vs-threads auto --no-cuda-graph",
+            "median_fps": 38.2565134835172,
+            "relative_spread": 0.0028902897887046514,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s8-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s6-tauto-g0",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 6,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 6 --vs-threads auto --no-cuda-graph",
+            "median_fps": 37.97661053088168,
+            "relative_spread": 0.003557253684335525,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s6-tauto-g0/confirmation/performance/suite.json"
+            }
+          },
+          {
+            "candidate_id": "vsgan-s7-tauto-g1",
+            "implementation": "vsgan",
+            "status": "eligible",
+            "execution_profile": {
+              "cuda_graph": true,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "runner_arguments": "--requests auto --num-streams 7 --vs-threads auto --cuda-graph",
+            "median_fps": 38.64780432523421,
+            "relative_spread": 0.0038599176811494234,
+            "errors": [],
+            "evidence": {
+              "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vsgan/vsgan-s7-tauto-g1/confirmation/performance/suite.json"
+            }
+          }
+        ],
+        "disqualifications": {}
+      },
+      "intra_session_reproducibility": {
+        "scope": "Selected external profiles measured independently within one session",
+        "comparisons": [
+          {
+            "implementation": "vstrt",
+            "confirmation_fps": 38.53155750247576,
+            "final_campaign_fps": 38.621399922427216,
+            "delta_percent": 0.23316581465901987
+          },
+          {
+            "implementation": "vsgan",
+            "confirmation_fps": 38.593326756326256,
+            "final_campaign_fps": 38.53459238921713,
+            "delta_percent": -0.15218788336119893
+          }
+        ],
+        "max_absolute_delta_percent": 0.23316581465901987
+      },
+      "final_campaign": {
+        "execution_profile": "tuned",
+        "workload_id": "liveaction-span-madrid-v1",
+        "variant": "1080p",
+        "benchmark_contract_version": 2,
+        "status": "valid",
+        "publishable": true,
+        "campaign": {
+          "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-campaign/vsgan-s7-tauto-g0__vstrt-s7-g0/campaign.json",
+          "sha256": "1c21135c8eeb5a4a6683f00512e935eb401f3c92f8ee0d1c5d5a1ef761b8cb6a"
+        },
+        "environment": {
+          "cpu": {
+            "logical_cores": 16,
+            "model": "AMD Ryzen 7 5700X3D 8-Core Processor"
+          },
+          "gpu": {
+            "compute_capability": "8.9",
+            "driver_version": "595.84",
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 4090",
+            "persistence_mode": 0,
+            "power_limit_w": 450.0,
+            "total_memory_mib": 24564.0
+          },
+          "repository_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb"
+        },
+        "parameters": {
+          "cpu_accounting": {
+            "accounting": "getrusage(RUSAGE_CHILDREN)",
+            "available_logical_cpus": 16,
+            "scope": "measured-child-process-tree"
+          },
+          "encoder": {
+            "b_frames": 0,
+            "codec": "h264",
+            "gop_frames": 24,
+            "lookahead_frames": 0,
+            "max_bitrate_bps": 60000000,
+            "min_bitrate_bps": 60000000,
+            "multipass": "disabled",
+            "preset": "p4",
+            "rate_control": "cbr",
+            "spatial_aq": false,
+            "target_bitrate_bps": 60000000,
+            "temporal_aq": false,
+            "tuning": "high_quality",
+            "vbv_buffer_bits": 120000000,
+            "vbv_initial_delay_bits": 60000000
+          },
+          "execution_profiles": {
+            "vsgan": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            },
+            "vstrt": {
+              "cuda_graph": false,
+              "execution_profile": "tuned",
+              "num_streams": 7,
+              "vapoursynth_threads": "auto",
+              "vspipe_requests": "auto"
+            }
+          },
+          "idle_seconds": 10.0,
+          "measured_frames": 1000,
+          "rounds": 3,
+          "spread_threshold": 0.05,
+          "stability_policy": "full-range-3-then-consensus-4-of-5",
+          "tensor_quality_contract_version": 3,
+          "warmup_frames": 100
+        },
+        "assets": {
+          "input_sha256": "ca3a399fae12fd75a21be05a0de86f0b94bafbcd21d1b18c1730757949db30f6",
+          "onnx_sha256": "1aea80f546eed4b5cd75b2f2f520e2360bc0f88d90be09ce9122fe347f1934bc"
+        },
+        "quality": {
+          "inference_parity": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/inference-parity.json",
+            "sha256": "92ce2aad794a123cbeaec3acd1254388887f10c8f0a239bccb402f4b021b0975",
+            "status": "valid",
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "thresholds": {
+              "output": {
+                "min_psnr_db": 42.0,
+                "p99_abs": 0.015686,
+                "rmse": 0.007843
+              }
+            },
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "max_p99_abs": 0.0,
+                "max_rmse": 0.0,
+                "min_psnr_db": null
+              }
+            ]
+          },
+          "preprocessing_diagnostic": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/tensor-quality/preprocessing-diagnostic.json",
+            "sha256": "7ef7f51d466a4f5201e2f813fcd064c6625827716d8d2dc1dbc7b56e892f9597",
+            "status": "complete",
+            "acceptance_gate": false,
+            "contract_version": 3,
+            "frame_indices": [
+              0,
+              499,
+              999
+            ],
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "complete",
+                "max_p99_abs": 0.05098039656877518,
+                "max_rmse": 0.010984046775478871,
+                "min_psnr_db": 39.18475252655293,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "complete",
+                "max_p99_abs": 0.05098039656877518,
+                "max_rmse": 0.010984046775478871,
+                "min_psnr_db": 39.18475252655293,
+                "max_outside_unit_interval_fraction": 0.0,
+                "observed_min": 0.0,
+                "observed_max": 1.0
+              }
+            ]
+          },
+          "product_output": {
+            "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/winner-quality/vsgan-s7-tauto-g0__vstrt-s7-g0/product-output/product-output-parity.json",
+            "sha256": "b06a432aab16d4aa6e132af5bce3bc98ba834863146d80aac69a78fb25c98a09",
+            "status": "valid",
+            "comparisons": [
+              {
+                "implementation": "vs-mlrt",
+                "status": "valid",
+                "psnr_average_db": 45.790967,
+                "ssim": 0.993051,
+                "compared_frames": 1000
+              },
+              {
+                "implementation": "VSGAN-tensorrt-docker",
+                "status": "valid",
+                "psnr_average_db": 45.790967,
+                "ssim": 0.993051,
+                "compared_frames": 1000
+              }
+            ]
+          }
+        },
+        "results": [
+          {
+            "implementation": "trtvideo",
+            "product": "trtvideo",
+            "image_id": "sha256:d10073459e547e94df0a03857dad5bffb68910f82163b4e948e69d50b3002917",
+            "engine_sha256": "4f1f7455e30843da40d549352d409d903cf330c31a50f1a1df5a0d20f0685b7b",
+            "relative_to_trtvideo_percent": 0.0,
+            "fps_median": 48.46672053552665,
+            "fps_runs": [
+              48.407191405872396,
+              48.46672053552665,
+              48.5446966558355
+            ],
+            "fps_spread": 0.0028371065432890685,
+            "wall_sec": 20.632714344,
+            "startup_sec": 0.87950962,
+            "steady_state_sec": 19.195726517,
+            "finalize_sec": 0.539033963,
+            "cpu_cores": 0.5743066957860463,
+            "cpu_capacity_percent": 3.5894168486627893,
+            "gpu_util_percent": 93.89805825242719,
+            "power_w": 413.37403189146335,
+            "joules_per_frame": 8.530097886057783,
+            "peak_vram_mib": 2804.5,
+            "output_bitrate_mbps": 58.866408,
+            "output_size_mib": 292.3991413116455,
+            "lifecycle_intervals_sec": {
+              "cleanup_completed_to_output_committed": 8.9701e-05,
+              "decoder_initialized_to_encoder_initialized": 0.184995764,
+              "encoder_drained_to_mux_input_closed": 1.3566e-05,
+              "encoder_initialized_to_first_frame_completed": 0.029156519,
+              "first_frame_completed_to_last_frame_completed": 19.195726517,
+              "frame_loop_completed_to_encoder_drained": 0.009009693,
+              "last_frame_completed_to_frame_loop_completed": 0.049588549,
+              "mux_completed_to_pipeline_finalized": 4.108e-06,
+              "mux_input_closed_to_mux_completed": 0.30443826,
+              "output_committed_to_reporting_started": 1.533e-06,
+              "pipeline_created_to_video_probed": 0.059606096,
+              "pipeline_finalized_to_cleanup_completed": 4.6749e-05,
+              "preservation_preflight_completed_to_runtime_initialized": 0.373947661,
+              "process_started_to_pipeline_created": 0.152114908,
+              "reporting_started_to_process_finished": 0.178503568,
+              "runtime_initialized_to_decoder_initialized": 0.011393932,
+              "video_probed_to_preservation_preflight_completed": 0.06711342
+            },
+            "session_observations": {
+              "peak_temperature_c": 61,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0028371065432890685,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vsgan",
+            "product": "VSGAN-tensorrt-docker",
+            "image_id": "sha256:aba6b18a80036eb1aa477b1fdcb09342f1a41b56a208ab2e3b9f2dd8e0eee82f",
+            "engine_sha256": "902deb7b3184c2b8876dc953b698feb12e0a27c7953b4cdad0ceabc1b1ad3b98",
+            "relative_to_trtvideo_percent": -20.49267628708065,
+            "fps_median": 38.53459238921713,
+            "fps_runs": [
+              38.494382567566205,
+              38.61777811226867,
+              38.53459238921713
+            ],
+            "fps_spread": 0.0032022018932005157,
+            "wall_sec": 25.950709168,
+            "startup_sec": 2.273485743,
+            "steady_state_sec": 23.608677772,
+            "finalize_sec": 0.01264579,
+            "cpu_cores": 12.114459815500162,
+            "cpu_capacity_percent": 75.715373846876,
+            "gpu_util_percent": 80.38492063492063,
+            "power_w": 348.27875350127005,
+            "joules_per_frame": 9.047521489400781,
+            "peak_vram_mib": 13849.5,
+            "output_bitrate_mbps": 59.712001,
+            "output_size_mib": 296.59967517852783,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 60,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0032022018932005157,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          },
+          {
+            "implementation": "vstrt",
+            "product": "vs-mlrt",
+            "image_id": "sha256:eeef867de62c6fc6523fb45fd954685491c0dc07573e335725501670fff14974",
+            "engine_sha256": "4f1f7455e30843da40d549352d409d903cf330c31a50f1a1df5a0d20f0685b7b",
+            "relative_to_trtvideo_percent": -20.313568783517553,
+            "fps_median": 38.621399922427216,
+            "fps_runs": [
+              38.658516255087875,
+              38.621399922427216,
+              38.54096559417743
+            ],
+            "fps_spread": 0.0030436664943930478,
+            "wall_sec": 25.89238096,
+            "startup_sec": 2.287232929,
+            "steady_state_sec": 23.620650426,
+            "finalize_sec": 0.02342713,
+            "cpu_cores": 12.167608911494519,
+            "cpu_capacity_percent": 76.04755569684075,
+            "gpu_util_percent": 80.948,
+            "power_w": 347.80558518828275,
+            "joules_per_frame": 9.006287359948814,
+            "peak_vram_mib": 13853.5,
+            "output_bitrate_mbps": 59.712001,
+            "output_size_mib": 296.59967517852783,
+            "lifecycle_intervals_sec": {},
+            "session_observations": {
+              "peak_temperature_c": 60,
+              "power_cap_observed": true,
+              "throttle_reasons": [
+                "gpu_idle",
+                "sw_power_cap"
+              ]
+            },
+            "stability": {
+              "consensus": null,
+              "full_relative_spread": 0.0030436664943930478,
+              "outlier": null,
+              "policy": "full-range-3-then-consensus-4-of-5",
+              "status": "stable",
+              "threshold": 0.05
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

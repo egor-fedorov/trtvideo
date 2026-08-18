@@ -4,11 +4,40 @@ GPU-resident TensorRT video upscaling from compressed input to muxed output in
 one Docker command. Raw video frames stay on the GPU through NVDEC, CV-CUDA,
 TensorRT, and NVENC.
 
-## Same Throughput, Lower Resource Use
+## Measured Throughput And Resource Use
 
-Across four validated best-tuned workloads, `trtvideo` stays within 3.3% of the
-fastest external result. That external result uses 2.1-17.1x as much attributed
-CPU and 1.7-4.4x as much peak VRAM.
+Across independent validated RTX 3090 and RTX 4090 sessions, RealESRGAN stays
+within 3.3% of the fastest tuned external result. SPAN ranges from parity on RTX
+3090 to `trtvideo` advantages of 17.9% and 25.5% on RTX 4090. The fastest
+external implementation uses 2.1-21.2x as much attributed CPU and 1.6-4.9x as
+much peak VRAM.
+
+### RTX 4090
+
+| Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
+|---|---:|---:|---:|
+| RealESRGAN_x2plus 720p -> 1440p | 10.462 / 10.285 VSGAN (+1.7%) | 1.02 / 2.28 | 2.43 / 3.96 GiB |
+| RealESRGAN_x2plus 1080p -> 4K | 4.436 / 4.501 vs-mlrt (-1.4%) | 1.01 / 2.27 | 4.32 / 7.72 GiB |
+| SPAN 720p -> 1440p | 99.655 / 84.536 VSGAN (+17.9%) | 0.74 / 11.83 | 1.52 / 6.53 GiB |
+| SPAN 1080p -> 4K | 48.467 / 38.621 vs-mlrt (+25.5%) | 0.57 / 12.17 | 2.74 / 13.53 GiB |
+
+These end-to-end measurements use an RTX 4090 at its stock 450 W board limit
+with a Ryzen 7 5700X3D. RealESRGAN is inside the predeclared +/-5% parity band;
+both SPAN rows are confirmed speed advantages.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-4090/figures/throughput-resources-dark.svg">
+  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="benchmarks/results/rtx-4090/figures/throughput-resources-light.svg">
+</picture>
+
+Source: the privacy-reviewed [RTX 4090 tuned result](benchmarks/results/rtx-4090/tuned.json),
+measured on 2026-08-18 from revision `fdd59dd`. See the
+[full RTX 4090 report](benchmarks/results/rtx-4090/README.md) and
+[benchmark methodology](benchmarks/methodology.md) for complete provenance,
+quality gates, and the tuning contract.
+
+<details>
+<summary><strong>RTX 3090 independent replication</strong></summary>
 
 | Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
 |---|---:|---:|---:|
@@ -17,22 +46,11 @@ CPU and 1.7-4.4x as much peak VRAM.
 | SPAN 720p -> 1440p | 55.760 / 55.226 vs-mlrt (+1.0%) | 0.56 / 5.88 | 1.37 / 3.84 GiB |
 | SPAN 1080p -> 4K | 26.097 / 25.268 vs-mlrt (+3.3%) | 0.47 / 8.14 | 2.59 / 11.48 GiB |
 
-These end-to-end measurements were recorded on an RTX 3090 at a 350 W board
-limit with a Ryzen 5 5600. CPU use is attributed to the measured child-process
-tree, not the whole host. Every row uses the same model, input clip, and encoder
-contract; all implementations fall inside the predeclared +/-5% parity band.
+The RTX 3090 session used a 350 W board limit and Ryzen 5 5600. All four rows
+are inside the same +/-5% parity band. See the
+[full RTX 3090 report](benchmarks/results/rtx-3090/README.md).
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-3090/figures/throughput-resources-dark.svg">
-  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="benchmarks/results/rtx-3090/figures/throughput-resources-light.svg">
-</picture>
-
-Source: the privacy-reviewed [RTX 3090 tuned result](benchmarks/results/rtx-3090/tuned.json),
-measured on 2026-08-16 from revision `22e31eb`. See the
-[full result report](benchmarks/results/rtx-3090/README.md) and
-[benchmark methodology](benchmarks/methodology.md) for the complete provenance,
-quality gates, and tuning contract. The complete snapshot uses the pinned CC0
-live-action Madrid contract and one clean measurement session.
+</details>
 
 ## Quick Start
 
