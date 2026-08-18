@@ -51,12 +51,18 @@ The tools download these assets only into ignored local directories:
 |---|---|---|---|
 | RealESRGAN_x2plus v0.2.1 weights | Demo and benchmark | BSD-3-Clause project license | Download from the pinned upstream release; do not add to an image or git |
 | 2xLiveActionV1_SPAN weights | Benchmark only | CC-BY-NC-SA-4.0 | Non-commercial benchmark asset; download locally and never publish with the image |
-| Madrid-2021-05-06 source and official 720p transcode | Demo and benchmark input | CC0-1.0 | Download locally; prepared clips and raw media remain excluded |
+| Madrid-2021-05-06 source | Benchmark input | CC0-1.0 | Download locally; prepared clips and raw media remain excluded |
+| Jacqueville beach in may 2026 (0) by Poro26 | Demo input | CC-BY-SA-4.0 | Download locally; generated excerpts and enhanced outputs remain CC BY-SA 4.0 adaptations with attribution and modifications recorded in the report and MP4 metadata |
 
 The workload manifests and `src/trtvideo/demo/config.py` are the
 machine-readable sources of truth for URLs, hashes, sizes, license references,
 and attribution. Generated ONNX and TensorRT engines are also excluded because
 they derive from the selected weights and are GPU/TensorRT specific.
+
+The Jacqueville media license applies to the downloaded source and generated
+demo media, not to the Apache-2.0 project code. Redistribution of a generated
+demo video must retain attribution, the CC BY-SA 4.0 license link, and the
+record of modifications embedded by the workflow.
 
 ## Published Image Contract
 

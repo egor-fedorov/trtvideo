@@ -31,12 +31,15 @@ from trtvideo.demo.config import (
     MODEL_SIZE_BYTES,
     MODEL_URL,
     VIDEO_ATTRIBUTION,
+    VIDEO_AUTHOR,
     VIDEO_DURATION_SECONDS,
     VIDEO_LICENSE,
     VIDEO_LICENSE_URL,
+    VIDEO_MODIFICATIONS,
     VIDEO_NAME,
     VIDEO_SHA256,
     VIDEO_SIZE_BYTES,
+    VIDEO_SOURCE_PAGE_URL,
     VIDEO_START_SECONDS,
     VIDEO_URL,
     DemoPaths,
@@ -142,7 +145,7 @@ def download_video(path: Path, *, force: bool) -> None:
     """Download the pinned live-action source and verify its immutable identity."""
     _download_pinned_asset(
         path,
-        label=f"{VIDEO_NAME} 720p transcode",
+        label=f"{VIDEO_NAME} source video",
         url=VIDEO_URL,
         size_bytes=VIDEO_SIZE_BYTES,
         sha256=VIDEO_SHA256,
@@ -249,7 +252,7 @@ def _ensure_cached(
 
 def _prepare_input(paths: DemoPaths, *, force: bool) -> dict[str, Any]:
     contract = DemoVideoContract(DEMO_INPUT_WIDTH, DEMO_INPUT_HEIGHT)
-    if not force and paths.input_video.is_file():
+    if not force and _valid_input_cache(paths):
         try:
             observed = validate_demo_video(paths.input_video, contract)
         except DemoError:
@@ -260,8 +263,48 @@ def _prepare_input(paths: DemoPaths, *, force: bool) -> dict[str, Any]:
 
     paths.input_video.parent.mkdir(parents=True, exist_ok=True)
     paths.input_video.unlink(missing_ok=True)
+    paths.input_manifest.unlink(missing_ok=True)
     _run(build_demo_input_command(paths))
-    return validate_demo_video(paths.input_video, contract)
+    observed = validate_demo_video(paths.input_video, contract)
+    _write_input_manifest(paths)
+    return observed
+
+
+def _input_manifest_contract(paths: DemoPaths) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "source_sha256": VIDEO_SHA256,
+        "source_size_bytes": VIDEO_SIZE_BYTES,
+        "preparation_command": build_demo_input_command(paths),
+    }
+
+
+def _valid_input_cache(paths: DemoPaths) -> bool:
+    if not paths.input_video.is_file() or not paths.input_manifest.is_file():
+        return False
+    try:
+        manifest = json.loads(paths.input_manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(manifest, dict):
+        return False
+    return (
+        all(manifest.get(key) == value for key, value in _input_manifest_contract(paths).items())
+        and manifest.get("input_sha256") == _sha256_file(paths.input_video)
+        and manifest.get("input_size_bytes") == paths.input_video.stat().st_size
+    )
+
+
+def _write_input_manifest(paths: DemoPaths) -> None:
+    manifest = {
+        **_input_manifest_contract(paths),
+        "input_sha256": _sha256_file(paths.input_video),
+        "input_size_bytes": paths.input_video.stat().st_size,
+    }
+    paths.input_manifest.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _prepare_model(paths: DemoPaths, *, force: bool) -> None:
@@ -371,7 +414,7 @@ def _write_report(
         }
 
     report = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "valid",
         "model": {
             "name": MODEL_NAME,
@@ -385,9 +428,12 @@ def _write_report(
             "source_url": VIDEO_URL,
             "sha256": VIDEO_SHA256,
             "size_bytes": VIDEO_SIZE_BYTES,
+            "source_page_url": VIDEO_SOURCE_PAGE_URL,
+            "author": VIDEO_AUTHOR,
             "attribution": VIDEO_ATTRIBUTION,
             "license": VIDEO_LICENSE,
-            "license_reference": VIDEO_LICENSE_URL,
+            "license_url": VIDEO_LICENSE_URL,
+            "modifications": VIDEO_MODIFICATIONS,
             "excerpt_start_seconds": VIDEO_START_SECONDS,
             "excerpt_duration_seconds": VIDEO_DURATION_SECONDS,
         },
@@ -398,6 +444,7 @@ def _write_report(
             "export_conformance": asset(paths.export_conformance),
             "engine": asset(paths.engine),
             "input": asset(paths.input_video),
+            "input_manifest": asset(paths.input_manifest),
             "output": asset(paths.output_video),
         },
         "input": input_observed,

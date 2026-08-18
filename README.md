@@ -111,8 +111,8 @@ make demo
 ```
 
 The demo builds the model-tools image and a GPU-specific TensorRT engine,
-processes a five-second CC0 live-action excerpt, validates the complete result,
-and writes `.demo/output/demo_1440p.mkv`. See the
+processes a five-second CC BY-SA live-action excerpt, validates the complete
+result, and writes `.demo/output/demo_1440p.mp4`. See the
 [Docker workflow](#docker-workflow) to prepare a model and process your own
 video.
 
@@ -267,18 +267,18 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 ## Demo Details
 
 The target builds the local model-tools image, downloads the pinned
-`RealESRGAN_x2plus` v0.2.1 weights and a 23.2 MB official Wikimedia 720p
-transcode of the CC0 [`Madrid-2021-05-06`](https://commons.wikimedia.org/wiki/File:Madrid-2021-05-06.webm)
-video. It verifies both assets by size and SHA256, then prepares a five-second,
-120-frame excerpt with the source's ambient audio. It exports only the 720p
-ONNX, converts it to mixed FP16, builds a TensorRT engine on the current GPU,
-runs the `nvcodec` pipeline, and fully validates the 1440p output.
+`RealESRGAN_x2plus` v0.2.1 weights and the 20.1 MB Wikimedia original
+[`Jacqueville beach in may 2026 (0)`](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
+by Poro26 under CC BY-SA 4.0. It verifies both assets by size and SHA256, then
+prepares a five-second, 120-frame excerpt with audible surf. It exports only
+the 720p ONNX, converts it to mixed FP16, builds a TensorRT engine on the
+current GPU, runs the `nvcodec` pipeline, and fully validates the 1440p output.
 
 Verified assets are cached under the ignored `.demo/` directory. The final
 video and machine-readable validation report are:
 
 ```text
-.demo/output/demo_1440p.mkv
+.demo/output/demo_1440p.mp4
 .demo/demo-result.json
 ```
 
@@ -292,6 +292,10 @@ make demo DEMO_FORCE=1
 Remove the complete cache with `make demo-clean`. The validation report records
 the model and video URLs, immutable hashes, attribution, licenses, selected
 source interval, processed assets, and relative input/output chroma retention.
+The prepared input cache is bound to the source hash and complete FFmpeg command,
+so source or preparation changes cannot silently reuse an older clip.
+The prepared and enhanced videos remain CC BY-SA 4.0 adaptations; attribution,
+license, and modification details are also embedded in their MP4 metadata.
 
 ## Models
 

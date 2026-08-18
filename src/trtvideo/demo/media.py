@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import shlex
 import subprocess
 from fractions import Fraction
@@ -15,8 +16,15 @@ from trtvideo.demo.config import (
     DEMO_COLOR_FRAME_INDEX,
     DEMO_FPS,
     DEMO_FRAMES,
+    DEMO_MIN_AUDIO_MEAN_DBFS,
     DEMO_MIN_CHROMA_RETENTION_RATIO,
+    VIDEO_AUTHOR,
     VIDEO_DURATION_SECONDS,
+    VIDEO_LICENSE,
+    VIDEO_LICENSE_URL,
+    VIDEO_MODIFICATIONS,
+    VIDEO_NAME,
+    VIDEO_SOURCE_PAGE_URL,
     VIDEO_START_SECONDS,
     DemoPaths,
     DemoVideoContract,
@@ -41,6 +49,7 @@ _BT709_OUTPUT_ARGS = (
     "-color_primaries",
     "bt709",
 )
+_VOLUME_PATTERN = re.compile(r"(mean|max)_volume:\s+(-?(?:inf|\d+(?:\.\d+)?)) dB")
 
 
 def build_demo_input_command(paths: DemoPaths) -> list[str]:
@@ -58,7 +67,18 @@ def build_demo_input_command(paths: DemoPaths) -> list[str]:
     ]
     command += ["-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p"]
     command += ["-x264-params", _X264_PARAMS, *_BT709_OUTPUT_ARGS]
-    command += ["-c:a", "aac", "-b:a", "96k", str(paths.input_video)]
+    command += ["-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart"]
+    command += [
+        "-metadata",
+        f"title={VIDEO_NAME}",
+        "-metadata",
+        f"artist={VIDEO_AUTHOR}",
+        "-metadata",
+        f"comment={VIDEO_MODIFICATIONS}",
+        "-metadata",
+        f"copyright={VIDEO_LICENSE} ({VIDEO_LICENSE_URL}); source: {VIDEO_SOURCE_PAGE_URL}",
+    ]
+    command.append(str(paths.input_video))
     return command
 
 
@@ -146,6 +166,39 @@ def _probe_chroma(path: Path) -> dict[str, float]:
         missing = ", ".join(sorted(wanted - observed.keys()))
         raise DemoError(f"FFmpeg signalstats omitted demo chroma fields: {missing}")
     return observed
+
+
+def _probe_audio_levels(path: Path) -> dict[str, float]:
+    command = [
+        "ffmpeg",
+        "-hide_banner",
+        "-i",
+        str(path),
+        "-map",
+        "0:a:0",
+        "-af",
+        "volumedetect",
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise DemoError(f"cannot inspect demo audio: {shlex.join(command)}") from exc
+
+    levels = {name: float(value) for name, value in _VOLUME_PATTERN.findall(result.stderr)}
+    if levels.keys() != {"mean", "max"}:
+        raise DemoError("FFmpeg volumedetect omitted demo audio levels")
+    if levels["mean"] < DEMO_MIN_AUDIO_MEAN_DBFS:
+        raise DemoError(
+            "demo audio is too quiet: expected mean >= "
+            f"{DEMO_MIN_AUDIO_MEAN_DBFS:.1f} dBFS, got {levels['mean']:.1f} dBFS"
+        )
+    return {
+        "mean_dbfs": levels["mean"],
+        "peak_dbfs": levels["max"],
+    }
 
 
 def summarize_demo_chroma(stats: dict[str, float]) -> dict[str, float | int]:
@@ -311,5 +364,6 @@ def validate_demo_video(path: Path, contract: DemoVideoContract) -> dict[str, An
         raise DemoError(f"full decode failed for {path}") from exc
     probe, packets = _probe_video(path)
     observed = validate_demo_probe(probe, packets, contract)
+    observed["audio"] = _probe_audio_levels(path)
     observed["chroma"] = summarize_demo_chroma(_probe_chroma(path))
     return observed

@@ -73,10 +73,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
-- Replaced the synthetic one-second demo video with a pinned five-second CC0
-  live-action excerpt. The demo now verifies and records video provenance,
-  preserves source audio, and checks output chroma relative to the real input;
-  synthetic rich-container coverage remains isolated in integration tests.
+- Replaced the synthetic one-second demo video with a pinned five-second
+  CC BY-SA 4.0 beach excerpt with audible surf. The demo verifies and records
+  provenance, attribution, modifications, source audio, and relative chroma;
+  browser-friendly MP4 replaces the former rich MKV fixture, whose synthetic
+  coverage remains isolated in integration tests. Prepared input caches are now
+  bound to the source hash and complete FFmpeg command.
 - Documented the short-lived topic-branch policy; merged pull-request branches
   are deleted automatically by the repository.
 - Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred

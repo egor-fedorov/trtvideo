@@ -4,6 +4,7 @@ import pytest
 
 from trtvideo.cli.demo import build_parser
 from trtvideo.demo import DemoError
+from trtvideo.demo import workflow as demo_workflow
 from trtvideo.demo.config import (
     DEMO_FRAMES,
     MODEL_SHA256,
@@ -57,9 +58,9 @@ def test_demo_uses_pinned_immutable_model_source() -> None:
     assert len(MODEL_SHA256) == 64
 
 
-def test_demo_uses_pinned_cc0_live_action_source() -> None:
+def test_demo_uses_pinned_cc_by_sa_live_action_source() -> None:
     assert "upload.wikimedia.org" in VIDEO_URL
-    assert ".720p.vp9.webm" in VIDEO_URL
+    assert "Jacqueville_beach" in VIDEO_URL
     assert len(VIDEO_SHA256) == 64
 
 
@@ -70,9 +71,29 @@ def test_demo_paths_stay_under_cache_root(tmp_path: Path) -> None:
     assert paths.export_conformance == (
         tmp_path / "models" / "onnx" / "realesrgan_x2plus.export-conformance.json"
     )
-    assert paths.output_video == tmp_path / "output" / "demo_1440p.mkv"
-    assert paths.source_video == tmp_path / "sources" / "Madrid-2021-05-06.720p.vp9.webm"
+    assert paths.output_video == tmp_path / "output" / "demo_1440p.mp4"
+    assert paths.source_video == tmp_path / "sources" / "Jacqueville-beach-2026.webm"
+    assert paths.input_manifest == tmp_path / "videos" / "demo_720p.input.json"
     assert paths.report == tmp_path / "demo-result.json"
+
+
+def test_demo_input_cache_is_bound_to_source_and_prepared_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = DemoPaths.under(tmp_path)
+    paths.input_video.parent.mkdir(parents=True)
+    paths.input_video.write_bytes(b"prepared video")
+    demo_workflow._write_input_manifest(paths)
+
+    assert demo_workflow._valid_input_cache(paths)
+
+    paths.input_video.write_bytes(b"changed video")
+    assert not demo_workflow._valid_input_cache(paths)
+
+    paths.input_video.write_bytes(b"prepared video")
+    monkeypatch.setattr(demo_workflow, "VIDEO_SHA256", "0" * 64)
+    assert not demo_workflow._valid_input_cache(paths)
 
 
 def test_demo_input_is_deterministic_live_action_excerpt(tmp_path: Path) -> None:
@@ -90,7 +111,9 @@ def test_demo_input_is_deterministic_live_action_excerpt(tmp_path: Path) -> None
     assert "0:a:0" in command
     assert "-attach" not in command
     assert "sine=" not in " ".join(command)
-    assert command[-1].endswith("demo_720p.mkv")
+    assert command[command.index("-movflags") + 1] == "+faststart"
+    assert any(value.startswith("copyright=CC-BY-SA-4.0") for value in command)
+    assert command[-1].endswith("demo_720p.mp4")
 
 
 def test_demo_process_uses_explicit_engine(tmp_path: Path) -> None:
@@ -100,7 +123,7 @@ def test_demo_process_uses_explicit_engine(tmp_path: Path) -> None:
     assert "--backend" not in command
     assert command[command.index("--gpu-id") + 1] == "2"
     assert command[command.index("--bitrate-mbps") + 1] == "12.0"
-    assert command[command.index("--output") + 1].endswith("demo_1440p.mkv")
+    assert command[command.index("--output") + 1].endswith("demo_1440p.mp4")
 
 
 def test_demo_probe_accepts_video_with_source_audio() -> None:
