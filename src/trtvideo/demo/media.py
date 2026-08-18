@@ -13,6 +13,9 @@ from typing import Any
 
 from trtvideo.demo import DemoError
 from trtvideo.demo.config import (
+    DEMO_AUDIO_BITRATE_KBPS,
+    DEMO_AUDIO_CHANNELS,
+    DEMO_AUDIO_SAMPLE_RATE_HZ,
     DEMO_COLOR_FRAME_INDEX,
     DEMO_FPS,
     DEMO_FRAMES,
@@ -67,7 +70,18 @@ def build_demo_input_command(paths: DemoPaths) -> list[str]:
     ]
     command += ["-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p"]
     command += ["-x264-params", _X264_PARAMS, *_BT709_OUTPUT_ARGS]
-    command += ["-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart"]
+    command += [
+        "-c:a",
+        "aac",
+        "-b:a",
+        f"{DEMO_AUDIO_BITRATE_KBPS}k",
+        "-ac",
+        str(DEMO_AUDIO_CHANNELS),
+        "-ar",
+        str(DEMO_AUDIO_SAMPLE_RATE_HZ),
+        "-movflags",
+        "+faststart",
+    ]
     command += [
         "-metadata",
         f"title={VIDEO_NAME}",

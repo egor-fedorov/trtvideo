@@ -273,6 +273,8 @@ by Poro26 under CC BY-SA 4.0. It verifies both assets by size and SHA256, then
 prepares a five-second, 120-frame excerpt with audible surf. It exports only
 the 720p ONNX, converts it to mixed FP16, builds a TensorRT engine on the
 current GPU, runs the `nvcodec` pipeline, and fully validates the 1440p output.
+The browser-friendly MP4 uses high-bitrate AAC to avoid audible degradation
+when transcoding the source Opus track.
 
 Verified assets are cached under the ignored `.demo/` directory. The final
 video and machine-readable validation report are:

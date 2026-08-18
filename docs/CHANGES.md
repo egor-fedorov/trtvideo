@@ -78,7 +78,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   provenance, attribution, modifications, source audio, and relative chroma;
   browser-friendly MP4 replaces the former rich MKV fixture, whose synthetic
   coverage remains isolated in integration tests. Prepared input caches are now
-  bound to the source hash and complete FFmpeg command.
+  bound to the source hash and complete FFmpeg command. High-bitrate AAC and
+  a source-relative integration-test gate prevent audible degradation during
+  preparation without adding comparative analysis to the demo runtime.
 - Documented the short-lived topic-branch policy; merged pull-request branches
   are deleted automatically by the repository.
 - Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred

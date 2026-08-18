@@ -6,6 +6,9 @@ from trtvideo.cli.demo import build_parser
 from trtvideo.demo import DemoError
 from trtvideo.demo import workflow as demo_workflow
 from trtvideo.demo.config import (
+    DEMO_AUDIO_BITRATE_KBPS,
+    DEMO_AUDIO_CHANNELS,
+    DEMO_AUDIO_SAMPLE_RATE_HZ,
     DEMO_FRAMES,
     MODEL_SHA256,
     MODEL_URL,
@@ -109,6 +112,9 @@ def test_demo_input_is_deterministic_live_action_excerpt(tmp_path: Path) -> None
     assert "setparams=range=limited" in video_filter
     assert command.count("-map") == 2
     assert "0:a:0" in command
+    assert command[command.index("-b:a") + 1] == f"{DEMO_AUDIO_BITRATE_KBPS}k"
+    assert command[command.index("-ac") + 1] == str(DEMO_AUDIO_CHANNELS)
+    assert command[command.index("-ar") + 1] == str(DEMO_AUDIO_SAMPLE_RATE_HZ)
     assert "-attach" not in command
     assert "sine=" not in " ".join(command)
     assert command[command.index("-movflags") + 1] == "+faststart"

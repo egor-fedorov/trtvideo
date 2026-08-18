@@ -88,8 +88,10 @@ Validate that:
 - frames are not empty and the video does not freeze on the first frame.
 
 The GPU-free media integration test runs the exact demo preparation command
-against a local media fixture and validates its result. Engine build and
-inference still require a GPU host.
+against a deterministic broadband-audio fixture. A source-relative SI-SDR
+threshold guards the pinned audio transcode without adding comparative quality
+analysis to the demo runtime. Engine build and inference still require a GPU
+host.
 
 ### Benchmark
 
