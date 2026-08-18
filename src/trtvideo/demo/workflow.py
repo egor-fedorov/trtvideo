@@ -30,13 +30,22 @@ from trtvideo.demo.config import (
     MODEL_SHA256,
     MODEL_SIZE_BYTES,
     MODEL_URL,
+    VIDEO_ATTRIBUTION,
+    VIDEO_DURATION_SECONDS,
+    VIDEO_LICENSE,
+    VIDEO_LICENSE_URL,
+    VIDEO_NAME,
+    VIDEO_SHA256,
+    VIDEO_SIZE_BYTES,
+    VIDEO_START_SECONDS,
+    VIDEO_URL,
     DemoPaths,
     DemoVideoContract,
 )
 from trtvideo.demo.media import (
     build_demo_input_command,
+    validate_demo_color_preservation,
     validate_demo_video,
-    write_demo_media_assets,
 )
 from trtvideo.models.export_conformance import (
     EXPORT_CONTRACT_METADATA_KEY,
@@ -64,45 +73,81 @@ def _run(command: list[str]) -> None:
         raise DemoError(f"command failed: {shlex.join(command)}") from exc
 
 
+def _verify_pinned_asset(path: Path, *, size_bytes: int, sha256: str) -> bool:
+    return path.is_file() and path.stat().st_size == size_bytes and _sha256_file(path) == sha256
+
+
 def verify_pinned_weights(path: Path) -> bool:
-    """Return whether a cached model exactly matches the pinned source."""
-    return (
-        path.is_file()
-        and path.stat().st_size == MODEL_SIZE_BYTES
-        and _sha256_file(path) == MODEL_SHA256
-    )
+    """Return whether cached model weights exactly match the pinned source."""
+    return _verify_pinned_asset(path, size_bytes=MODEL_SIZE_BYTES, sha256=MODEL_SHA256)
 
 
-def download_weights(path: Path, *, force: bool) -> None:
-    """Download the pinned model and verify size plus SHA256 before use."""
-    if verify_pinned_weights(path):
-        print(f"Using verified weights: {path}")
+def verify_pinned_video(path: Path) -> bool:
+    """Return whether the cached live-action source matches the pinned transcode."""
+    return _verify_pinned_asset(path, size_bytes=VIDEO_SIZE_BYTES, sha256=VIDEO_SHA256)
+
+
+def _download_pinned_asset(
+    path: Path,
+    *,
+    label: str,
+    url: str,
+    size_bytes: int,
+    sha256: str,
+    force: bool,
+) -> None:
+    if _verify_pinned_asset(path, size_bytes=size_bytes, sha256=sha256):
+        print(f"Using verified {label}: {path}")
         return
     if path.exists() and not force:
         raise DemoError(
-            f"cached weights are invalid: {path}. Rerun with DEMO_FORCE=1 to replace them."
+            f"cached {label} is invalid: {path}. Rerun with DEMO_FORCE=1 to replace it."
         )
 
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_suffix(f"{path.suffix}.part")
     partial.unlink(missing_ok=True)
     request = urllib.request.Request(
-        MODEL_URL,
+        url,
         headers={"User-Agent": "trtvideo-demo/1"},
     )
-    print(f"Downloading pinned {MODEL_NAME} weights ({MODEL_SIZE_BYTES / 1e6:.1f} MB)...")
+    print(f"Downloading pinned {label} ({size_bytes / 1e6:.1f} MB)...")
     try:
         with urllib.request.urlopen(request, timeout=60) as response, partial.open("wb") as output:
             while chunk := response.read(8 * 1024 * 1024):
                 output.write(chunk)
     except OSError as exc:
-        raise DemoError(f"model download failed: {exc}") from exc
+        raise DemoError(f"{label} download failed: {exc}") from exc
 
-    if not verify_pinned_weights(partial):
+    if not _verify_pinned_asset(partial, size_bytes=size_bytes, sha256=sha256):
         partial.unlink(missing_ok=True)
-        raise DemoError("downloaded model failed size/SHA256 verification")
+        raise DemoError(f"downloaded {label} failed size/SHA256 verification")
     os.replace(partial, path)
-    print(f"Verified weights: {path}")
+    print(f"Verified {label}: {path}")
+
+
+def download_weights(path: Path, *, force: bool) -> None:
+    """Download the pinned model and verify size plus SHA256 before use."""
+    _download_pinned_asset(
+        path,
+        label=f"{MODEL_NAME} weights",
+        url=MODEL_URL,
+        size_bytes=MODEL_SIZE_BYTES,
+        sha256=MODEL_SHA256,
+        force=force,
+    )
+
+
+def download_video(path: Path, *, force: bool) -> None:
+    """Download the pinned live-action source and verify its immutable identity."""
+    _download_pinned_asset(
+        path,
+        label=f"{VIDEO_NAME} 720p transcode",
+        url=VIDEO_URL,
+        size_bytes=VIDEO_SIZE_BYTES,
+        sha256=VIDEO_SHA256,
+        force=force,
+    )
 
 
 def _valid_onnx(path: Path, *, fp16: bool) -> bool:
@@ -213,7 +258,6 @@ def _prepare_input(paths: DemoPaths, *, force: bool) -> dict[str, Any]:
             print(f"Using validated input: {paths.input_video}")
             return observed
 
-    write_demo_media_assets(paths)
     paths.input_video.parent.mkdir(parents=True, exist_ok=True)
     paths.input_video.unlink(missing_ok=True)
     _run(build_demo_input_command(paths))
@@ -295,7 +339,7 @@ def process_command(paths: DemoPaths, gpu_id: int) -> list[str]:
         "--bitrate-mbps",
         str(DEMO_BITRATE_MBPS),
         "--log-interval",
-        "8",
+        "24",
     ]
 
 
@@ -317,6 +361,7 @@ def _write_report(
     *,
     input_observed: dict[str, Any],
     output_observed: dict[str, Any],
+    color_preservation: dict[str, float],
 ) -> None:
     def asset(path: Path) -> dict[str, Any]:
         return {
@@ -326,7 +371,7 @@ def _write_report(
         }
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "valid",
         "model": {
             "name": MODEL_NAME,
@@ -335,8 +380,20 @@ def _write_report(
             "attribution": MODEL_ATTRIBUTION,
             "license": MODEL_LICENSE_URL,
         },
+        "video_source": {
+            "name": VIDEO_NAME,
+            "source_url": VIDEO_URL,
+            "sha256": VIDEO_SHA256,
+            "size_bytes": VIDEO_SIZE_BYTES,
+            "attribution": VIDEO_ATTRIBUTION,
+            "license": VIDEO_LICENSE,
+            "license_reference": VIDEO_LICENSE_URL,
+            "excerpt_start_seconds": VIDEO_START_SECONDS,
+            "excerpt_duration_seconds": VIDEO_DURATION_SECONDS,
+        },
         "assets": {
             "weights": asset(paths.weights),
+            "source_video": asset(paths.source_video),
             "onnx": asset(paths.fp16_onnx),
             "export_conformance": asset(paths.export_conformance),
             "engine": asset(paths.engine),
@@ -345,6 +402,7 @@ def _write_report(
         },
         "input": input_observed,
         "output": output_observed,
+        "color_preservation": color_preservation,
     }
     paths.report.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
@@ -357,9 +415,12 @@ def run_demo(root: Path, *, gpu_id: int, force: bool) -> DemoPaths:
     paths = DemoPaths.under(root)
     paths.root.mkdir(parents=True, exist_ok=True)
     print(f"Model: {MODEL_ATTRIBUTION}")
-    print(f"License: {MODEL_LICENSE_URL}")
+    print(f"Model license: {MODEL_LICENSE_URL}")
+    print(f"Video: {VIDEO_ATTRIBUTION}")
+    print(f"Video license: {VIDEO_LICENSE} ({VIDEO_LICENSE_URL})")
 
     download_weights(paths.weights, force=force)
+    download_video(paths.source_video, force=force)
     input_observed = _prepare_input(paths, force=force)
     _prepare_model(paths, force=force)
     engine_reused = _build_engine(paths, force=force)
@@ -368,9 +429,14 @@ def run_demo(root: Path, *, gpu_id: int, force: bool) -> DemoPaths:
         paths.output_video,
         DemoVideoContract(DEMO_OUTPUT_WIDTH, DEMO_OUTPUT_HEIGHT),
     )
+    color_preservation = validate_demo_color_preservation(
+        input_observed["chroma"],
+        output_observed["chroma"],
+    )
     _write_report(
         paths,
         input_observed=input_observed,
         output_observed=output_observed,
+        color_preservation=color_preservation,
     )
     return paths

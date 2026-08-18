@@ -51,12 +51,12 @@ The tools download these assets only into ignored local directories:
 |---|---|---|---|
 | RealESRGAN_x2plus v0.2.1 weights | Demo and benchmark | BSD-3-Clause project license | Download from the pinned upstream release; do not add to an image or git |
 | 2xLiveActionV1_SPAN weights | Benchmark only | CC-BY-NC-SA-4.0 | Non-commercial benchmark asset; download locally and never publish with the image |
-| Madrid-2021-05-06 source | Benchmark input | CC0-1.0 | Download locally; prepared clips and raw media remain excluded |
+| Madrid-2021-05-06 source and official 720p transcode | Demo and benchmark input | CC0-1.0 | Download locally; prepared clips and raw media remain excluded |
 
-The workload manifests are the machine-readable sources of truth for URLs,
-hashes, sizes, license references, and attribution. Generated ONNX and TensorRT
-engines are also excluded because they derive from the selected weights and are
-GPU/TensorRT specific.
+The workload manifests and `src/trtvideo/demo/config.py` are the
+machine-readable sources of truth for URLs, hashes, sizes, license references,
+and attribution. Generated ONNX and TensorRT engines are also excluded because
+they derive from the selected weights and are GPU/TensorRT specific.
 
 ## Published Image Contract
 

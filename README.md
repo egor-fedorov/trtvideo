@@ -1,8 +1,34 @@
 # trtvideo
 
+[![CI](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml)
+[![Dockerfile Validation](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml)
+[![Release](https://img.shields.io/github/v/release/egor-fedorov/trtvideo?display_name=tag&sort=semver)](https://github.com/egor-fedorov/trtvideo/releases/latest)
+[![License](https://img.shields.io/github/license/egor-fedorov/trtvideo)](LICENSE)
+
 GPU-resident TensorRT video upscaling from compressed input to muxed output in
 one Docker command. Raw video frames stay on the GPU through NVDEC, CV-CUDA,
 TensorRT, and NVENC.
+
+<details>
+<summary><strong>Contents</strong></summary>
+
+- [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Host Requirements](#host-requirements)
+- [Build The Image](#build-the-image)
+- [Environment Check](#environment-check)
+- [Demo Details](#demo-details)
+- [Models](#models)
+- [Docker Workflow](#docker-workflow)
+- [CLI Reference](#cli-reference)
+- [Encoding](#encoding)
+- [Media Contract](#media-contract)
+- [Quality Checks](#quality-checks)
+- [License](#license)
+
+</details>
 
 ## Measured Throughput And Resource Use
 
@@ -85,9 +111,10 @@ make demo
 ```
 
 The demo builds the model-tools image and a GPU-specific TensorRT engine,
-processes a generated rich-media clip, validates the complete result, and writes
-`.demo/output/demo_1440p.mkv`. See the [Docker workflow](#docker-workflow) to
-prepare a model and process your own video.
+processes a five-second CC0 live-action excerpt, validates the complete result,
+and writes `.demo/output/demo_1440p.mkv`. See the
+[Docker workflow](#docker-workflow) to prepare a model and process your own
+video.
 
 ## Architecture
 
@@ -240,11 +267,12 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 ## Demo Details
 
 The target builds the local model-tools image, downloads the pinned
-`RealESRGAN_x2plus` v0.2.1 weights, verifies their size and SHA256, and creates a
-one-second 720p MKV with two audio tracks, a subtitle, chapters, metadata, and an
-attachment. It then exports only the 720p ONNX, converts it to mixed FP16,
-builds a TensorRT engine on the current GPU, runs the `nvcodec` pipeline, and
-fully validates the 1440p output.
+`RealESRGAN_x2plus` v0.2.1 weights and a 23.2 MB official Wikimedia 720p
+transcode of the CC0 [`Madrid-2021-05-06`](https://commons.wikimedia.org/wiki/File:Madrid-2021-05-06.webm)
+video. It verifies both assets by size and SHA256, then prepares a five-second,
+120-frame excerpt with the source's ambient audio. It exports only the 720p
+ONNX, converts it to mixed FP16, builds a TensorRT engine on the current GPU,
+runs the `nvcodec` pipeline, and fully validates the 1440p output.
 
 Verified assets are cached under the ignored `.demo/` directory. The final
 video and machine-readable validation report are:
@@ -261,9 +289,9 @@ make demo DEMO_GPU_ID=1
 make demo DEMO_FORCE=1
 ```
 
-Remove the complete cache with `make demo-clean`. The demo model is attributed
-to Real-ESRGAN, Xintao Wang et al.; its pinned license is linked in the
-validation report.
+Remove the complete cache with `make demo-clean`. The validation report records
+the model and video URLs, immutable hashes, attribution, licenses, selected
+source interval, processed assets, and relative input/output chroma retention.
 
 ## Models
 

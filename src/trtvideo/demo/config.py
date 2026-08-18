@@ -13,15 +13,28 @@ MODEL_SCALE = 2
 MODEL_ATTRIBUTION = "Real-ESRGAN, Xintao Wang et al."
 MODEL_LICENSE_URL = "https://github.com/xinntao/Real-ESRGAN/blob/v0.2.1/LICENSE"
 
+VIDEO_NAME = "Madrid-2021-05-06"
+VIDEO_URL = (
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/"
+    "Madrid-2021-05-06.webm/Madrid-2021-05-06.webm.720p.vp9.webm"
+)
+VIDEO_SHA256 = "9e3f7980beda92e17f7954d293bff7ac96503177fb9be68ba4b92214a813dc7e"
+VIDEO_SIZE_BYTES = 23_170_502
+VIDEO_START_SECONDS = 40
+VIDEO_DURATION_SECONDS = 5
+VIDEO_ATTRIBUTION = "Madrid-2021-05-06 by Nicolas Vigier"
+VIDEO_LICENSE = "CC0-1.0"
+VIDEO_LICENSE_URL = "https://commons.wikimedia.org/wiki/File:Madrid-2021-05-06.webm"
+
 DEMO_FPS = "24/1"
-DEMO_FRAMES = 24
+DEMO_FRAMES = 120
 DEMO_INPUT_WIDTH = 1280
 DEMO_INPUT_HEIGHT = 720
 DEMO_OUTPUT_WIDTH = 2560
 DEMO_OUTPUT_HEIGHT = 1440
 DEMO_BITRATE_MBPS = 12.0
-DEMO_COLOR_FRAME_INDEX = DEMO_FRAMES // 2
-DEMO_MIN_CHROMA_PERCENTILE_SPAN = 160.0
+DEMO_COLOR_FRAME_INDEX = 18
+DEMO_MIN_CHROMA_RETENTION_RATIO = 0.6
 
 
 @dataclass(frozen=True)
@@ -37,11 +50,9 @@ class DemoPaths:
     engine: Path
     engine_manifest: Path
     timing_cache: Path
+    source_video: Path
     input_video: Path
     output_video: Path
-    subtitle: Path
-    attachment: Path
-    metadata: Path
     report: Path
 
     @classmethod
@@ -49,7 +60,6 @@ class DemoPaths:
         model_dir = root / "models"
         onnx_dir = model_dir / "onnx"
         engine = model_dir / "engines" / "realesrgan_x2plus_720p_fp16.engine"
-        asset_dir = root / "assets"
         return cls(
             root=root,
             weights=model_dir / "RealESRGAN_x2plus.pth",
@@ -60,11 +70,9 @@ class DemoPaths:
             engine=engine,
             engine_manifest=Path(f"{engine}.json"),
             timing_cache=model_dir / "cache" / "trt.cache",
+            source_video=root / "sources" / "Madrid-2021-05-06.720p.vp9.webm",
             input_video=root / "videos" / "demo_720p.mkv",
             output_video=root / "output" / "demo_1440p.mkv",
-            subtitle=asset_dir / "subtitle.srt",
-            attachment=asset_dir / "attachment.txt",
-            metadata=asset_dir / "metadata.ffmeta",
             report=root / "demo-result.json",
         )
 

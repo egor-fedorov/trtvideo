@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from trtvideo.demo import media as demo_media
 from trtvideo.demo.config import (
+    DEMO_FRAMES,
     DEMO_INPUT_HEIGHT,
     DEMO_INPUT_WIDTH,
     DemoPaths,
@@ -13,7 +15,6 @@ from trtvideo.demo.config import (
 from trtvideo.demo.media import (
     build_demo_input_command,
     validate_demo_video,
-    write_demo_media_assets,
 )
 from trtvideo.video.output import (
     MediaPreservationError,
@@ -316,10 +317,40 @@ def test_streaming_mux_preserves_audio_and_faststart(tmp_path: Path) -> None:
     _run(["ffmpeg", "-v", "error", "-i", str(output), "-f", "null", "-"])
 
 
-def test_self_contained_demo_input_passes_its_media_contract(tmp_path: Path) -> None:
+def test_self_contained_demo_input_passes_its_media_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     paths = DemoPaths.under(tmp_path)
-    write_demo_media_assets(paths)
+    paths.source_video.parent.mkdir(parents=True)
     paths.input_video.parent.mkdir(parents=True)
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x180:rate=24:duration=5",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=5",
+            "-c:v",
+            "rawvideo",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "pcm_s16le",
+            "-f",
+            "nut",
+            str(paths.source_video),
+        ]
+    )
+    monkeypatch.setattr(demo_media, "VIDEO_START_SECONDS", 0)
 
     _run(build_demo_input_command(paths))
     observed = validate_demo_video(
@@ -329,4 +360,4 @@ def test_self_contained_demo_input_passes_its_media_contract(tmp_path: Path) -> 
 
     assert observed["width"] == 1280
     assert observed["height"] == 720
-    assert observed["frames"] == 24
+    assert observed["frames"] == DEMO_FRAMES
