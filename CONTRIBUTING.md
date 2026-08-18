@@ -65,7 +65,9 @@ Python and must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 ## Documentation And Pull Requests
 
 Keep each pull request focused and explain the behavior change, test coverage,
-and remaining risks. Update the canonical document when behavior changes:
+and remaining risks. Use short-lived topic branches; GitHub automatically
+deletes their remote head branches after merge. Update the canonical document
+when behavior changes:
 
 - `README.md` for public workflows and CLI usage;
 - `docs/ARCHITECTURE.md` for runtime architecture;

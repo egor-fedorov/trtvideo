@@ -73,6 +73,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Documented the short-lived topic-branch policy; merged pull-request branches
+  are deleted automatically by the repository.
 - Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred
   from the source model. Versioned ONNX metadata and export-conformance evidence
   now bind the inferred scale and reject full-size exports that change it.
