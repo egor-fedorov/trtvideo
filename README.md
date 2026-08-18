@@ -9,17 +9,17 @@ GPU-resident TensorRT video upscaling from compressed input to muxed output in
 one Docker command. Raw video frames stay on the GPU through NVDEC, CV-CUDA,
 TensorRT, and NVENC.
 
-<details>
-<summary><strong>Contents</strong></summary>
-
-https://github.com/user-attachments/assets/350c2b09-184c-4671-85d3-8b5add44a149
+https://github.com/user-attachments/assets/826e16e7-754d-4e27-8094-cb86cbfaf0c6
 
 *Illustrative 2x detail crop from the pinned demo. Left: the 720p input
 scaled with Lanczos. Right: `trtvideo` with `RealESRGAN_x2plus`. Both sides
 use identical frames and final encoding. Source:
-[“Jacqueville beach in may 2026 (0)”](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
+["Jacqueville beach in may 2026 (0)"](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
 by Poro26, CC BY-SA 4.0. The comparison is silent.*
-  
+
+<details>
+<summary><strong>Contents</strong></summary>
+
 - [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
