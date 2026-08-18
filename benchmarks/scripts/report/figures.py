@@ -140,7 +140,14 @@ class WorkloadPanel:
 @dataclass(frozen=True)
 class PublishedFigureData:
     revision: str
+    gpu: str
+    cpu: str
+    power_limit_w: float
     panels: tuple[WorkloadPanel, ...]
+
+    @property
+    def hardware_label(self) -> str:
+        return f"{self.gpu} | {self.cpu} | {self.power_limit_w:g} W board limit"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -246,6 +253,14 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
     if not tuned_revision:
         raise FigureDataError("Published tuned results lack a measurement revision")
 
+    try:
+        hardware = tuned["environment"]["hardware"]
+        gpu = str(hardware["gpu"]["name"])
+        cpu = str(hardware["cpu"]["model"])
+        power_limit_w = float(hardware["gpu"]["power_limit_w"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise FigureDataError("Published tuned results lack hardware identity") from exc
+
     panels: list[WorkloadPanel] = []
     for workload in tuned.get("workloads", []):
         workload_id = str(workload.get("workload_id", ""))
@@ -289,7 +304,13 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
             0 if panel.variant == "720p" else 1,
         )
     )
-    return PublishedFigureData(revision=tuned_revision, panels=tuple(panels))
+    return PublishedFigureData(
+        revision=tuned_revision,
+        gpu=gpu,
+        cpu=cpu,
+        power_limit_w=power_limit_w,
+        panels=tuple(panels),
+    )
 
 
 def _configure_matplotlib(theme: Theme) -> None:
@@ -331,6 +352,18 @@ def _panel_heading(ax: Axes, panel: WorkloadPanel, theme: Theme) -> None:
         fontsize=10,
         fontweight="bold",
         ha="left",
+        va="bottom",
+    )
+
+
+def _hardware_footer(figure: Figure, data: PublishedFigureData, theme: Theme) -> None:
+    figure.text(
+        0.99,
+        0.015,
+        data.hardware_label,
+        color=theme.muted_text,
+        fontsize=7.5,
+        ha="right",
         va="bottom",
     )
 
@@ -480,7 +513,8 @@ def render_tuned_sweep(
         labelcolor=theme.text,
         bbox_to_anchor=(0.5, 0.995),
     )
-    figure.subplots_adjust(left=0.08, right=0.97, top=0.89, bottom=0.09, hspace=0.42)
+    _hardware_footer(figure, data, theme)
+    figure.subplots_adjust(left=0.08, right=0.97, top=0.89, bottom=0.12, hspace=0.42)
     _save_figure(figure, output_path, theme)
 
 
@@ -581,17 +615,18 @@ def render_throughput_resources(
         ncol=2,
         frameon=False,
         labelcolor=theme.text,
-        bbox_to_anchor=(0.5, 0.01),
+        bbox_to_anchor=(0.5, 0.035),
     )
     figure.text(
         0.25,
-        0.06,
+        0.09,
         "FPS delta: trtvideo versus the fastest external implementation",
         color=theme.text,
         fontsize=8,
         ha="center",
     )
-    figure.subplots_adjust(left=0.18, right=0.98, top=0.9, bottom=0.17, wspace=0.35)
+    _hardware_footer(figure, data, theme)
+    figure.subplots_adjust(left=0.18, right=0.98, top=0.9, bottom=0.2, wspace=0.35)
     _save_figure(figure, output_path, theme)
 
 
