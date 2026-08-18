@@ -46,7 +46,7 @@ demo: build-model-tools
 		$(MODEL_TOOLS_IMAGE) python3 -m trtvideo.cli.demo \
 			--root /app/.demo \
 			--gpu-id "$(DEMO_GPU_ID)" $(DEMO_FORCE_ARG)
-	@printf 'Validated output: %s/output/demo_1440p.mkv\n' "$(DEMO_DIR)"
+	@printf 'Validated output: %s/output/demo_1440p.mp4\n' "$(DEMO_DIR)"
 
 demo-clean:
 	@test "$(abspath $(DEMO_DIR))" = "$(CURDIR)/.demo" || \

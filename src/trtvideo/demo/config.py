@@ -13,15 +13,39 @@ MODEL_SCALE = 2
 MODEL_ATTRIBUTION = "Real-ESRGAN, Xintao Wang et al."
 MODEL_LICENSE_URL = "https://github.com/xinntao/Real-ESRGAN/blob/v0.2.1/LICENSE"
 
+VIDEO_NAME = "Jacqueville beach in may 2026 (0)"
+VIDEO_URL = (
+    "https://upload.wikimedia.org/wikipedia/commons/b/b9/Jacqueville_beach_in_may_2026_%280%29.webm"
+)
+VIDEO_SHA256 = "58ef8814dd23597f592a272cc65f1bb9064d2ff3173a895a96204655215c447a"
+VIDEO_SIZE_BYTES = 21_116_480
+VIDEO_START_SECONDS = 14
+VIDEO_DURATION_SECONDS = 5
+VIDEO_AUTHOR = "Poro26"
+VIDEO_ATTRIBUTION = f'"{VIDEO_NAME}" by {VIDEO_AUTHOR}'
+VIDEO_SOURCE_PAGE_URL = (
+    "https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm"
+)
+VIDEO_LICENSE = "CC-BY-SA-4.0"
+VIDEO_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+VIDEO_MODIFICATIONS = (
+    "Demo adaptation: excerpted at 14 seconds, resized to 1280x720, converted "
+    "to 24 FPS, and transcoded to H.264/AAC; enhanced output by trtvideo."
+)
+
 DEMO_FPS = "24/1"
-DEMO_FRAMES = 24
+DEMO_FRAMES = 120
 DEMO_INPUT_WIDTH = 1280
 DEMO_INPUT_HEIGHT = 720
 DEMO_OUTPUT_WIDTH = 2560
 DEMO_OUTPUT_HEIGHT = 1440
 DEMO_BITRATE_MBPS = 12.0
-DEMO_COLOR_FRAME_INDEX = DEMO_FRAMES // 2
-DEMO_MIN_CHROMA_PERCENTILE_SPAN = 160.0
+DEMO_AUDIO_BITRATE_KBPS = 512
+DEMO_AUDIO_CHANNELS = 2
+DEMO_AUDIO_SAMPLE_RATE_HZ = 48_000
+DEMO_COLOR_FRAME_INDEX = 18
+DEMO_MIN_CHROMA_RETENTION_RATIO = 0.6
+DEMO_MIN_AUDIO_MEAN_DBFS = -35.0
 
 
 @dataclass(frozen=True)
@@ -37,11 +61,10 @@ class DemoPaths:
     engine: Path
     engine_manifest: Path
     timing_cache: Path
+    source_video: Path
     input_video: Path
+    input_manifest: Path
     output_video: Path
-    subtitle: Path
-    attachment: Path
-    metadata: Path
     report: Path
 
     @classmethod
@@ -49,7 +72,6 @@ class DemoPaths:
         model_dir = root / "models"
         onnx_dir = model_dir / "onnx"
         engine = model_dir / "engines" / "realesrgan_x2plus_720p_fp16.engine"
-        asset_dir = root / "assets"
         return cls(
             root=root,
             weights=model_dir / "RealESRGAN_x2plus.pth",
@@ -60,11 +82,10 @@ class DemoPaths:
             engine=engine,
             engine_manifest=Path(f"{engine}.json"),
             timing_cache=model_dir / "cache" / "trt.cache",
-            input_video=root / "videos" / "demo_720p.mkv",
-            output_video=root / "output" / "demo_1440p.mkv",
-            subtitle=asset_dir / "subtitle.srt",
-            attachment=asset_dir / "attachment.txt",
-            metadata=asset_dir / "metadata.ffmeta",
+            source_video=root / "sources" / "Jacqueville-beach-2026.webm",
+            input_video=root / "videos" / "demo_720p.mp4",
+            input_manifest=root / "videos" / "demo_720p.input.json",
+            output_video=root / "output" / "demo_1440p.mp4",
             report=root / "demo-result.json",
         )
 

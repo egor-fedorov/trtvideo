@@ -2,18 +2,23 @@ import json
 import subprocess
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from trtvideo.demo import media as demo_media
 from trtvideo.demo.config import (
+    DEMO_AUDIO_CHANNELS,
+    DEMO_AUDIO_SAMPLE_RATE_HZ,
+    DEMO_FRAMES,
     DEMO_INPUT_HEIGHT,
     DEMO_INPUT_WIDTH,
+    VIDEO_DURATION_SECONDS,
     DemoPaths,
     DemoVideoContract,
 )
 from trtvideo.demo.media import (
     build_demo_input_command,
     validate_demo_video,
-    write_demo_media_assets,
 )
 from trtvideo.video.output import (
     MediaPreservationError,
@@ -25,9 +30,59 @@ from trtvideo.video.output import (
 
 pytestmark = pytest.mark.docker
 
+_MIN_BROADBAND_AUDIO_SI_SDR_DB = 20.0
+
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True)
+
+
+def _decode_stereo_pcm(path: Path) -> np.ndarray:
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(path),
+            "-map",
+            "0:a:0",
+            "-t",
+            str(VIDEO_DURATION_SECONDS),
+            "-vn",
+            "-ac",
+            str(DEMO_AUDIO_CHANNELS),
+            "-ar",
+            str(DEMO_AUDIO_SAMPLE_RATE_HZ),
+            "-c:a",
+            "pcm_f32le",
+            "-f",
+            "f32le",
+            "-",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    samples = np.frombuffer(result.stdout, dtype="<f4")
+    assert samples.size % DEMO_AUDIO_CHANNELS == 0
+    return samples.reshape((-1, DEMO_AUDIO_CHANNELS))
+
+
+def _minimum_audio_si_sdr_db(reference_path: Path, candidate_path: Path) -> float:
+    reference = _decode_stereo_pcm(reference_path)
+    candidate = _decode_stereo_pcm(candidate_path)
+    compared_frames = min(len(reference), len(candidate))
+    assert compared_frames > 0
+    reference = reference[:compared_frames].astype(np.float64)
+    candidate = candidate[:compared_frames].astype(np.float64)
+    reference_energy = np.sum(reference**2, axis=0)
+    assert np.all(reference_energy > 0)
+    scale = np.sum(reference * candidate, axis=0) / reference_energy
+    target = reference * scale
+    distortion = candidate - target
+    scores = 10 * np.log10(np.sum(target**2, axis=0) / np.sum(distortion**2, axis=0))
+    return float(np.min(scores))
 
 
 def _create_rich_source(tmp_path: Path) -> Path:
@@ -316,17 +371,54 @@ def test_streaming_mux_preserves_audio_and_faststart(tmp_path: Path) -> None:
     _run(["ffmpeg", "-v", "error", "-i", str(output), "-f", "null", "-"])
 
 
-def test_self_contained_demo_input_passes_its_media_contract(tmp_path: Path) -> None:
+def test_self_contained_demo_input_passes_its_media_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     paths = DemoPaths.under(tmp_path)
-    write_demo_media_assets(paths)
+    paths.source_video.parent.mkdir(parents=True)
     paths.input_video.parent.mkdir(parents=True)
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x180:rate=24:duration=5",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=color=pink:sample_rate=48000:duration=5:seed=12345",
+            "-c:v",
+            "rawvideo",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "pcm_s16le",
+            "-ac",
+            "2",
+            "-f",
+            "nut",
+            str(paths.source_video),
+        ]
+    )
+    monkeypatch.setattr(demo_media, "VIDEO_START_SECONDS", 0)
 
     _run(build_demo_input_command(paths))
     observed = validate_demo_video(
         paths.input_video,
         DemoVideoContract(DEMO_INPUT_WIDTH, DEMO_INPUT_HEIGHT),
     )
+    minimum_audio_si_sdr_db = _minimum_audio_si_sdr_db(
+        paths.source_video,
+        paths.input_video,
+    )
 
     assert observed["width"] == 1280
     assert observed["height"] == 720
-    assert observed["frames"] == 24
+    assert observed["frames"] == DEMO_FRAMES
+    assert minimum_audio_si_sdr_db >= _MIN_BROADBAND_AUDIO_SI_SDR_DB

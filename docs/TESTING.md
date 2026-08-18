@@ -65,14 +65,19 @@ make demo
 ```
 
 It builds the non-published `model-tools` target, then uses pinned RealESRGAN
-weights and a generated 24-frame 720p rich-media MKV.
+weights and a verified five-second, 120-frame excerpt of the CC BY-SA 4.0
+`Jacqueville beach in may 2026 (0)` live-action source. The prepared input and
+validated result use browser- and desktop-friendly H.264/AAC MP4 containers.
 The workflow covers model export, FP16 conversion, TensorRT engine build,
 NVDEC/CV-CUDA/TensorRT/NVENC processing, mux, full decode, frame/timestamp/color
-validation, a deterministic chroma-range regression check, and preservation of
-auxiliary media. Model export first compares a small deterministic source-model
-probe between FP32 PyTorch and ONNX Runtime CPU and retains the evidence
-beside the ONNX. Generated artifacts are cached in `.demo/`; use `DEMO_FORCE=1`
-to rebuild them.
+validation, relative input/output chroma-retention checking, and preservation
+of source audio with an audible-signal threshold. Rich-container preservation
+remains covered independently by the media integration tests. Model export
+first compares a small
+deterministic source-model probe between FP32 PyTorch and ONNX Runtime CPU and
+retains the evidence beside the ONNX. Generated artifacts are cached in
+`.demo/`; the prepared input sidecar binds its source hash and complete FFmpeg
+command. Use `DEMO_FORCE=1` to rebuild every cached artifact.
 
 Validate that:
 
@@ -82,8 +87,11 @@ Validate that:
 - `pix_fmt` and color tags are correct;
 - frames are not empty and the video does not freeze on the first frame.
 
-The GPU-free media integration test generates and validates the exact demo
-input command. Engine build and inference still require a GPU host.
+The GPU-free media integration test runs the exact demo preparation command
+against a deterministic broadband-audio fixture. A source-relative SI-SDR
+threshold guards the pinned audio transcode without adding comparative quality
+analysis to the demo runtime. Engine build and inference still require a GPU
+host.
 
 ### Benchmark
 

@@ -1,8 +1,42 @@
 # trtvideo
 
+[![CI](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml)
+[![Dockerfile Validation](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml)
+[![Release](https://img.shields.io/github/v/release/egor-fedorov/trtvideo?display_name=tag&sort=semver)](https://github.com/egor-fedorov/trtvideo/releases/latest)
+[![License](https://img.shields.io/github/license/egor-fedorov/trtvideo)](LICENSE)
+
 GPU-resident TensorRT video upscaling from compressed input to muxed output in
 one Docker command. Raw video frames stay on the GPU through NVDEC, CV-CUDA,
 TensorRT, and NVENC.
+
+https://github.com/user-attachments/assets/826e16e7-754d-4e27-8094-cb86cbfaf0c6
+
+*Illustrative 2x detail crop from the pinned demo. Left: the 720p input
+scaled with Lanczos. Right: `trtvideo` with `RealESRGAN_x2plus`. Both sides
+use identical frames and final encoding. Source:
+["Jacqueville beach in may 2026 (0)"](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
+by Poro26, CC BY-SA 4.0. The comparison is silent.*
+
+<details>
+<summary><strong>Contents</strong></summary>
+
+- [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Host Requirements](#host-requirements)
+- [Build The Image](#build-the-image)
+- [Environment Check](#environment-check)
+- [Demo Details](#demo-details)
+- [Models](#models)
+- [Docker Workflow](#docker-workflow)
+- [CLI Reference](#cli-reference)
+- [Encoding](#encoding)
+- [Media Contract](#media-contract)
+- [Quality Checks](#quality-checks)
+- [License](#license)
+
+</details>
 
 ## Measured Throughput And Resource Use
 
@@ -85,9 +119,10 @@ make demo
 ```
 
 The demo builds the model-tools image and a GPU-specific TensorRT engine,
-processes a generated rich-media clip, validates the complete result, and writes
-`.demo/output/demo_1440p.mkv`. See the [Docker workflow](#docker-workflow) to
-prepare a model and process your own video.
+processes a five-second CC BY-SA live-action excerpt, validates the complete
+result, and writes `.demo/output/demo_1440p.mp4`. See the
+[Docker workflow](#docker-workflow) to prepare a model and process your own
+video.
 
 ## Architecture
 
@@ -240,17 +275,20 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 ## Demo Details
 
 The target builds the local model-tools image, downloads the pinned
-`RealESRGAN_x2plus` v0.2.1 weights, verifies their size and SHA256, and creates a
-one-second 720p MKV with two audio tracks, a subtitle, chapters, metadata, and an
-attachment. It then exports only the 720p ONNX, converts it to mixed FP16,
-builds a TensorRT engine on the current GPU, runs the `nvcodec` pipeline, and
-fully validates the 1440p output.
+`RealESRGAN_x2plus` v0.2.1 weights and the 20.1 MB Wikimedia original
+[`Jacqueville beach in may 2026 (0)`](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
+by Poro26 under CC BY-SA 4.0. It verifies both assets by size and SHA256, then
+prepares a five-second, 120-frame excerpt with audible surf. It exports only
+the 720p ONNX, converts it to mixed FP16, builds a TensorRT engine on the
+current GPU, runs the `nvcodec` pipeline, and fully validates the 1440p output.
+The browser-friendly MP4 uses high-bitrate AAC to avoid audible degradation
+when transcoding the source Opus track.
 
 Verified assets are cached under the ignored `.demo/` directory. The final
 video and machine-readable validation report are:
 
 ```text
-.demo/output/demo_1440p.mkv
+.demo/output/demo_1440p.mp4
 .demo/demo-result.json
 ```
 
@@ -261,9 +299,13 @@ make demo DEMO_GPU_ID=1
 make demo DEMO_FORCE=1
 ```
 
-Remove the complete cache with `make demo-clean`. The demo model is attributed
-to Real-ESRGAN, Xintao Wang et al.; its pinned license is linked in the
-validation report.
+Remove the complete cache with `make demo-clean`. The validation report records
+the model and video URLs, immutable hashes, attribution, licenses, selected
+source interval, processed assets, and relative input/output chroma retention.
+The prepared input cache is bound to the source hash and complete FFmpeg command,
+so source or preparation changes cannot silently reuse an older clip.
+The prepared and enhanced videos remain CC BY-SA 4.0 adaptations; attribution,
+license, and modification details are also embedded in their MP4 metadata.
 
 ## Models
 

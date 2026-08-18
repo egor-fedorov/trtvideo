@@ -73,6 +73,14 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Replaced the synthetic one-second demo video with a pinned five-second
+  CC BY-SA 4.0 beach excerpt with audible surf. The demo verifies and records
+  provenance, attribution, modifications, source audio, and relative chroma;
+  browser-friendly MP4 replaces the former rich MKV fixture, whose synthetic
+  coverage remains isolated in integration tests. Prepared input caches are now
+  bound to the source hash and complete FFmpeg command. High-bitrate AAC and
+  a source-relative integration-test gate prevent audible degradation during
+  preparation without adding comparative analysis to the demo runtime.
 - Documented the short-lived topic-branch policy; merged pull-request branches
   are deleted automatically by the repository.
 - Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred
