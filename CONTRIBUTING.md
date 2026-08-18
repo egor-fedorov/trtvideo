@@ -15,6 +15,20 @@ weights, credentials, hostnames, or GPU UUIDs.
 Security vulnerabilities must not be filed as public issues. Follow
 [`SECURITY.md`](SECURITY.md) instead.
 
+## Report Model Compatibility
+
+Use the dedicated
+[model compatibility form](https://github.com/egor-fedorov/trtvideo/issues/new?template=model_compatibility.yml)
+for a successful or failed model experiment. Follow
+[`docs/MODEL_CONTRACT.md`](docs/MODEL_CONTRACT.md) and include the immutable
+model source and SHA256, exact conversion and runtime commands, engine sidecar,
+`trtvideo doctor` output, and complete smoke-test result. Do not upload model
+weights unless their license permits redistribution.
+
+An issue does not automatically make a model `validated`. A reproducible
+successful report may be listed as `community-reported`; `validated` requires
+published inference and product-output quality evidence.
+
 ## Development Workflow
 
 Build the lightweight checks image and run the complete gate before submitting
@@ -51,10 +65,13 @@ Python and must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 ## Documentation And Pull Requests
 
 Keep each pull request focused and explain the behavior change, test coverage,
-and remaining risks. Update the canonical document when behavior changes:
+and remaining risks. Use short-lived topic branches; GitHub automatically
+deletes their remote head branches after merge. Update the canonical document
+when behavior changes:
 
 - `README.md` for public workflows and CLI usage;
 - `docs/ARCHITECTURE.md` for runtime architecture;
+- `docs/MODEL_CONTRACT.md` for supported model and compatibility evidence;
 - `docs/TESTING.md` for test contracts;
 - `docs/LICENSING.md` and `THIRD_PARTY_NOTICES.md` when the distributed image or
   its dependency boundary changes;

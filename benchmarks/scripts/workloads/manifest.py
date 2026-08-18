@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+EXPORT_CONFORMANCE_CONTRACT_VERSION = 2
 
 
 class WorkloadError(RuntimeError):
@@ -275,9 +276,18 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
     _validate_source(_require_dict(model, "source"), "model.source")
     if not isinstance(model.get("export_name"), str) or not model["export_name"]:
         raise WorkloadError("Manifest field 'model.export_name' is required")
+    if (
+        not isinstance(model.get("scale"), int)
+        or isinstance(model["scale"], bool)
+        or model["scale"] <= 0
+    ):
+        raise WorkloadError("Manifest field 'model.scale' must be a positive integer")
     export_conformance = _require_dict(model, "export_conformance")
-    if export_conformance.get("contract_version") != 1:
-        raise WorkloadError("Manifest model export-conformance contract_version must be 1")
+    if export_conformance.get("contract_version") != EXPORT_CONFORMANCE_CONTRACT_VERSION:
+        raise WorkloadError(
+            "Manifest model export-conformance contract_version must be "
+            f"{EXPORT_CONFORMANCE_CONTRACT_VERSION}"
+        )
     _validate_relative_path(
         export_conformance.get("report_path"),
         "model.export_conformance.report_path",

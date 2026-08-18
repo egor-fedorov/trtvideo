@@ -56,6 +56,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added a model compatibility matrix, a documented tensor/export contract, and
+  a structured community compatibility report for models outside the published
+  benchmark set.
 - Published a separate privacy-reviewed RTX 4090 tuned and diagnostic snapshot.
   Benchmark figure generation and validation now discover every published
   hardware directory instead of checking only the RTX 3090 result.
@@ -67,6 +70,14 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added `trtvideo doctor`, a fast static environment readiness check for
   Docker execution, the NVIDIA driver and selected GPU, CUDA, TensorRT,
   CV-CUDA, NVDEC/NVENC, PyNvVideoCodec, VRAM, and writable disk capacity.
+
+### Changed
+
+- Documented the short-lived topic-branch policy; merged pull-request branches
+  are deleted automatically by the repository.
+- Generalized `export-onnx` from a hard-coded 2x contract to a scale inferred
+  from the source model. Versioned ONNX metadata and export-conformance evidence
+  now bind the inferred scale and reject full-size exports that change it.
 
 ### Fixed
 

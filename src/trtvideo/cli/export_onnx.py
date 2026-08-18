@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a Spandrel-supported x2 image model to static ONNX variants.
+"""Export a Spandrel-supported image upscaler to static ONNX variants.
 
 Creates ONNX files for selected resolutions, defaulting to 720p and 1080p.
 
@@ -21,10 +21,12 @@ from trtvideo.models.export_conformance import (
     EXPORT_CONTRACT_METADATA_VALUE,
     EXPORT_PROBE_HEIGHT,
     EXPORT_PROBE_WIDTH,
+    EXPORT_SCALE_METADATA_KEY,
     build_conformance_report,
     compare_outputs,
     conformance_report_path,
     deterministic_probe,
+    infer_upscale_scale,
     write_conformance_report,
 )
 
@@ -136,13 +138,44 @@ def _validate_channel_major_unshuffle_graph(model: Any) -> None:
         )
 
 
-def _set_export_metadata(model: Any) -> None:
+def _set_export_metadata(model: Any, *, scale: int) -> None:
     import onnx
 
     properties = {item.key: item.value for item in model.metadata_props}
     properties[EXPORT_CONTRACT_METADATA_KEY] = EXPORT_CONTRACT_METADATA_VALUE
+    properties[EXPORT_SCALE_METADATA_KEY] = str(scale)
     properties[PIXEL_UNSHUFFLE_EXPORT_METADATA_KEY] = PIXEL_UNSHUFFLE_EXPORT_METADATA_VALUE
     onnx.helper.set_model_props(model, properties)
+
+
+def _static_tensor_shape(value: Any) -> list[int]:
+    """Return one static ONNX tensor shape or reject dynamic dimensions."""
+    dimensions = []
+    for dimension in value.type.tensor_type.shape.dim:
+        if dimension.dim_param or dimension.dim_value <= 0:
+            raise RuntimeError("Exported ONNX graph contains a dynamic tensor shape")
+        dimensions.append(int(dimension.dim_value))
+    return dimensions
+
+
+def _validate_exported_graph_contract(
+    model: Any,
+    *,
+    input_h: int,
+    input_w: int,
+    scale: int,
+) -> None:
+    """Require every full-size graph to preserve the scale inferred by the probe."""
+    if len(model.graph.input) != 1 or len(model.graph.output) != 1:
+        raise RuntimeError("Exported ONNX graph must have exactly one input and one output")
+    input_shape = _static_tensor_shape(model.graph.input[0])
+    output_shape = _static_tensor_shape(model.graph.output[0])
+    expected_input = [1, 3, input_h, input_w]
+    if input_shape != expected_input:
+        raise RuntimeError(f"Exported ONNX input shape must be {expected_input}, got {input_shape}")
+    observed_scale = infer_upscale_scale(input_shape, output_shape)
+    if observed_scale != scale:
+        raise RuntimeError(f"Exported ONNX scale changed from probe {scale}x to {observed_scale}x")
 
 
 def export_onnx(
@@ -150,14 +183,17 @@ def export_onnx(
     input_h: int,
     input_w: int,
     output_path: str,
+    *,
+    scale: int,
 ) -> None:
     """Export model to ONNX with fixed input size.
 
     Args:
-        model: Loaded x2 image model.
+        model: Loaded image upscaler.
         input_h: Input height in pixels.
         input_w: Input width in pixels.
         output_path: Path to save .onnx file.
+        scale: Uniform spatial scale inferred from the source-model probe.
     """
     import onnx
     import torch
@@ -168,7 +204,10 @@ def export_onnx(
     print("  Pixel-unshuffle: channel-major ONNX translation registered")
     dummy_input = torch.randn(1, 3, input_h, input_w, dtype=torch.float32)
 
-    print(f"  Export: input {input_w}x{input_h} -> output {input_w * 2}x{input_h * 2}")
+    print(
+        f"  Export: input {input_w}x{input_h} -> "
+        f"output {input_w * scale}x{input_h * scale} ({scale}x)"
+    )
     print(f"  File: {output_path}")
 
     onnx_program = torch.onnx.export(
@@ -188,7 +227,13 @@ def export_onnx(
 
     model_proto = onnx_program.model_proto
     _validate_channel_major_unshuffle_graph(model_proto)
-    _set_export_metadata(model_proto)
+    _validate_exported_graph_contract(
+        model_proto,
+        input_h=input_h,
+        input_w=input_w,
+        scale=scale,
+    )
+    _set_export_metadata(model_proto, scale=scale)
     onnx.save(model_proto, output_path, convert_attribute=True)
 
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
@@ -204,6 +249,7 @@ def run_export_conformance(model: Any, output_dir: Path) -> dict[str, Any]:
     probe = deterministic_probe(torch)
     with torch.inference_mode():
         reference = model(probe).detach().to(device="cpu", dtype=torch.float32)
+    scale = infer_upscale_scale(list(probe.shape), list(reference.shape))
 
     with tempfile.TemporaryDirectory(prefix=".export-probe-", dir=output_dir) as temporary:
         probe_path = Path(temporary) / "probe.onnx"
@@ -212,6 +258,7 @@ def run_export_conformance(model: Any, output_dir: Path) -> dict[str, Any]:
             EXPORT_PROBE_HEIGHT,
             EXPORT_PROBE_WIDTH,
             str(probe_path),
+            scale=scale,
         )
         options = onnxruntime.SessionOptions()
         options.intra_op_num_threads = 1
@@ -235,6 +282,7 @@ def run_export_conformance(model: Any, output_dir: Path) -> dict[str, Any]:
     return {
         "probe": probe,
         "output_shape": list(reference.shape),
+        "scale": scale,
         "metrics": compare_outputs(reference, candidate, torch),
     }
 
@@ -252,7 +300,7 @@ def export_filename_for_target(model_name: str, target: TargetSpec) -> str:
 def build_parser() -> argparse.ArgumentParser:
     """Create the exporter CLI parser."""
     parser = argparse.ArgumentParser(
-        description="Export a Spandrel-supported x2 image model to static ONNX"
+        description="Export a Spandrel-supported image upscaler to static ONNX"
     )
     parser.add_argument(
         "--model_path",
@@ -314,6 +362,8 @@ def main() -> None:
         model,
         output_dir,
     )
+    scale = int(conformance["scale"])
+    log(f"  Detected model scale: {scale}x")
 
     targets = [parse_size(size) for size in args.size] or TARGETS
     exported_paths: list[Path] = []
@@ -323,7 +373,13 @@ def main() -> None:
         filename = export_filename_for_target(args.name, target)
         output_path = output_dir / filename
         log(f"\n--- Export {filename} ---")
-        export_onnx(model, input_h, input_w, str(output_path))
+        export_onnx(
+            model,
+            input_h,
+            input_w,
+            str(output_path),
+            scale=scale,
+        )
         exported_paths.append(output_path)
 
     report = build_conformance_report(

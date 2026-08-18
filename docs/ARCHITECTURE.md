@@ -339,10 +339,11 @@ FP16 flag.
 `export-onnx` validates graph generation before any engine is built. It runs a
 small deterministic RGB tensor through the original Spandrel/PyTorch model and
 an FP32 ONNX graph produced by the same export path, then enforces shape,
-finite-value, RMSE, maximum-error, and PSNR limits. Successful evidence is
-bound to the checkpoint hash, exporter/tool versions, and generated static
-FP32 ONNX hashes. This model-tools operation is outside the production image
-and all performance timing.
+finite-value, RMSE, maximum-error, and PSNR limits. The source output determines
+the uniform integer scale, and every full-size export must preserve it.
+Successful evidence is bound to that scale, the checkpoint hash,
+exporter/tool versions, and generated static FP32 ONNX hashes. This model-tools
+operation is outside the production image and all performance timing.
 
 ## Known Limitations
 
