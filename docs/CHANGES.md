@@ -54,6 +54,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+## 0.5.0 - 2026-08-19
+
 ### Added
 
 - Added a model compatibility matrix, a documented tensor/export contract, and
