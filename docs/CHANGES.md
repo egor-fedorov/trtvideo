@@ -73,6 +73,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Added a bounded cross-GPU SPAN scaling analysis to the published RTX 4090
+  result. The performance log now keeps current-runtime measurements in detail
+  and condenses superseded legacy experiments into a retired summary.
 - Replaced the synthetic one-second demo video with a pinned five-second
   CC BY-SA 4.0 beach excerpt with audible surf. The demo verifies and records
   provenance, attribution, modifications, source audio, and relative chroma;

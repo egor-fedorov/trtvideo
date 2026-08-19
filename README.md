@@ -17,8 +17,7 @@ use identical frames and final encoding. Source:
 ["Jacqueville beach in may 2026 (0)"](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
 by Poro26, CC BY-SA 4.0. The comparison is silent.*
 
-<details>
-<summary><strong>Contents</strong></summary>
+## Contents
 
 - [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
 - [Quick Start](#quick-start)
@@ -35,8 +34,6 @@ by Poro26, CC BY-SA 4.0. The comparison is silent.*
 - [Media Contract](#media-contract)
 - [Quality Checks](#quality-checks)
 - [License](#license)
-
-</details>
 
 ## Measured Throughput And Resource Use
 
