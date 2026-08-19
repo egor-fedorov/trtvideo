@@ -38,6 +38,35 @@ advantages. These values form an independent RTX 4090 session and are not
 aggregated row-by-row with the RTX 3090 result, which uses a different CPU and
 power policy.
 
+### Cross-GPU Scaling Observation
+
+Before collecting the RTX 4090 result, the working hypothesis was that the
+external SPAN path would close its RTX 3090 gap when given more host CPU
+capacity. The observed direction was the opposite: the Ryzen 7 5700X3D host has
+eight physical cores rather than the Ryzen 5 5600 host's six, but the SPAN gap
+grew from near parity to a confirmed `trtvideo` advantage.
+
+| SPAN input | RTX 3090 difference | RTX 4090 difference | `trtvideo` scaling | Fastest external scaling | TensorRT ceiling scaling |
+|---|---:|---:|---:|---:|---:|
+| 720p | +0.97% | +17.89% | 1.79x | 1.53x | 1.92x |
+| 1080p | +3.28% | +25.49% | 1.86x | 1.53x | 1.94x |
+
+The fastest external result used 5.88 and 8.15 attributed CPU cores on the RTX
+3090 host, then 11.83 and 12.17 cores on the RTX 4090 host. Its GPU utilization
+fell from 89.89-92.91% to 75.62-80.95% while the TensorRT-only ceiling nearly
+doubled. Additional CPU capacity was therefore used, but did not preserve the
+external path's relative throughput.
+
+This rejects available CPU core count as the primary explanation for the RTX
+3090 near-parity result. The scaling is consistent with resolution-dependent,
+per-frame host processing and transport overhead becoming a larger fraction of
+wall time as inference gets shorter. It does not isolate PCIe transfer latency:
+these are independent complete-host sessions, not a controlled CPU-only A/B,
+and the external path was not captured in Nsight Systems. It supports the
+testable prediction that `trtvideo` gains more on SPAN-like light models when
+GPU compute improves faster than the host/transport path; it is not a universal
+prediction for compute-bound models such as RealESRGAN.
+
 ### Tuned Stream Sweep
 
 <picture>
