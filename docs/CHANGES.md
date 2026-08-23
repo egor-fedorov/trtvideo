@@ -284,10 +284,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
-- Established the project and Python package as `trtvideo`.
+- Renamed the project to `ai-media-enhancer` and the Python package to
+  `ai_media`.
 - Selected a root package layout without an additional `src/` layer.
-- Renamed the Docker virtual environment to `/opt/trtvideo`.
-- Updated Docker image examples to `trtvideo:latest`.
+- Renamed the Docker virtual environment to `/opt/ai-media-enhancer`.
+- Updated Docker image examples to `ai-media-enhancer:latest`.
 
 ### Docs
 
