@@ -137,12 +137,13 @@ For the fastest external result in each row, external CPU use is 2.23-21.19x
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/throughput-resources-dark.svg">
-  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="figures/throughput-resources-light.svg">
+  <img alt="End-to-end throughput, attributed CPU, and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="figures/throughput-resources-light.svg">
 </picture>
 
-Each row compares `trtvideo` with the fastest external implementation on linear
-resource scales. The CPU panel annotates the end-to-end FPS difference for the
-same pair; it does not imply throughput parity where the difference exceeds 5%.
+Each row compares `trtvideo` with the fastest external implementation. The
+throughput panel normalizes that external result to 100% while retaining the
+measured FPS in each bar; CPU and VRAM use linear absolute scales. Normalization
+does not imply throughput parity where the difference exceeds 5%.
 
 ## Quality Gates
 

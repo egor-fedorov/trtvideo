@@ -58,8 +58,11 @@ both SPAN rows are confirmed speed advantages.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-4090/figures/throughput-resources-dark.svg">
-  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="benchmarks/results/rtx-4090/figures/throughput-resources-light.svg">
+  <img alt="End-to-end throughput, attributed CPU, and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="benchmarks/results/rtx-4090/figures/throughput-resources-light.svg">
 </picture>
+
+Each row normalizes the fastest external result to 100% while retaining the
+measured FPS in each bar; CPU and VRAM use linear absolute scales.
 
 Source: the privacy-reviewed [RTX 4090 tuned result](benchmarks/results/rtx-4090/tuned.json),
 measured on 2026-08-18 from revision `fdd59dd`. See the

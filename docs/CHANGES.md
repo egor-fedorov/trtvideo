@@ -54,6 +54,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Changed
+
+- Benchmark summary figures now show normalized end-to-end throughput with
+  absolute FPS labels alongside linear CPU and peak VRAM comparisons.
+
 ## 0.5.0 - 2026-08-19
 
 ### Added

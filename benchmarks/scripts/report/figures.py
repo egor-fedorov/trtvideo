@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+from matplotlib.ticker import PercentFormatter
 
 DEFAULT_RESULTS_DIR = Path(__file__).resolve().parents[2] / "results" / "rtx-3090"
 EXPECTED_FIGURES = (
@@ -523,34 +524,43 @@ def render_throughput_resources(
     output_path: Path,
     theme: Theme,
 ) -> None:
-    """Compare project resource use with the fastest external implementation."""
+    """Compare project throughput and resource use with the fastest external result."""
     _configure_matplotlib(theme)
-    figure, axes = plt.subplots(1, 2, figsize=(12.4, 5.6))
+    figure, axes = plt.subplots(1, 3, figsize=(15.8, 5.6))
     y_positions = list(reversed(range(len(data.panels))))
     labels = [f"{panel.workload}\n{panel.variant} -> {panel.output_label}" for panel in data.panels]
-    resource_specs = (
+    project_results = [panel.result("trtvideo") for panel in data.panels]
+    external_results = [panel.fastest_external() for panel in data.panels]
+
+    # Normalize per workload so slow models remain visible without truncating an FPS axis.
+    metric_specs = (
+        (
+            "End-to-end throughput",
+            [
+                project.fps / external.fps
+                for project, external in zip(project_results, external_results, strict=True)
+            ],
+            [1.0] * len(data.panels),
+        ),
         (
             "Attributed CPU cores",
-            lambda result: result.cpu_cores,
-            lambda value: f"{value:.2f}",
+            [result.cpu_cores for result in project_results],
+            [result.cpu_cores for result in external_results],
         ),
         (
             "Peak VRAM (GiB)",
-            lambda result: result.peak_vram_mib / 1024.0,
-            lambda value: f"{value:.1f}",
+            [result.peak_vram_mib / 1024.0 for result in project_results],
+            [result.peak_vram_mib / 1024.0 for result in external_results],
         ),
     )
     bar_offset = 0.17
     bar_height = 0.3
 
-    for axis_index, (ax, (title, value_of, format_value)) in enumerate(
-        zip(axes, resource_specs, strict=True)
+    for axis_index, (ax, (title, project_values, external_values)) in enumerate(
+        zip(axes, metric_specs, strict=True)
     ):
         _style_panel(ax, theme, horizontal_grid=False)
         ax.grid(axis="x", color=theme.grid, linewidth=0.8, alpha=0.6)
-        project_values = [value_of(panel.result("trtvideo")) for panel in data.panels]
-        external_results = [panel.fastest_external() for panel in data.panels]
-        external_values = [value_of(result) for result in external_results]
         maximum = max(project_values + external_values)
 
         ax.barh(
@@ -571,39 +581,82 @@ def render_throughput_resources(
         for index, (position, project_value, external_value) in enumerate(
             zip(y_positions, project_values, external_values, strict=True)
         ):
-            ax.text(
-                project_value + maximum * 0.018,
-                position + bar_offset,
-                format_value(project_value),
-                color=theme.project,
-                fontsize=8,
-                va="center",
-            )
             external = external_results[index]
-            ax.text(
-                external_value + maximum * 0.018,
-                position - bar_offset,
-                f"{format_value(external_value)} {IMPLEMENTATION_LABELS[external.implementation]}",
-                color=theme.text,
-                fontsize=8,
-                va="center",
-            )
             if axis_index == 0:
-                project_fps = data.panels[index].result("trtvideo").fps
-                fps_delta = (project_fps / external.fps - 1.0) * 100.0
+                project = project_results[index]
+                fps_delta = (project.fps / external.fps - 1.0) * 100.0
                 ax.text(
-                    max(project_value, external_value) + maximum * 0.16,
-                    position,
-                    f"{fps_delta:+.1f}% FPS",
-                    color=theme.text,
-                    fontsize=8.5,
+                    project_value - 0.025,
+                    position + bar_offset,
+                    f"{project.fps:.3f} FPS",
+                    color=theme.background,
+                    fontsize=8,
                     fontweight="bold",
-                    ha="left",
+                    ha="right",
+                    va="center",
+                )
+                ax.text(
+                    project_value + 0.018,
+                    position + bar_offset,
+                    f"{fps_delta:+.1f}%",
+                    color=theme.project,
+                    fontsize=8,
+                    fontweight="bold",
+                    va="center",
+                )
+                ax.text(
+                    external_value - 0.025,
+                    position - bar_offset,
+                    f"{external.fps:.3f} FPS",
+                    color=theme.background,
+                    fontsize=8,
+                    fontweight="bold",
+                    ha="right",
+                    va="center",
+                )
+                ax.text(
+                    external_value + 0.018,
+                    position - bar_offset,
+                    IMPLEMENTATION_LABELS[external.implementation],
+                    color=theme.text,
+                    fontsize=8,
+                    va="center",
+                )
+            else:
+                project_label = (
+                    f"{project_value:.2f}" if axis_index == 1 else f"{project_value:.1f}"
+                )
+                external_label = (
+                    f"{external_value:.2f}" if axis_index == 1 else f"{external_value:.1f}"
+                )
+                ax.text(
+                    project_value + maximum * 0.018,
+                    position + bar_offset,
+                    project_label,
+                    color=theme.project,
+                    fontsize=8,
+                    va="center",
+                )
+                ax.text(
+                    external_value + maximum * 0.018,
+                    position - bar_offset,
+                    f"{external_label} {IMPLEMENTATION_LABELS[external.implementation]}",
+                    color=theme.text,
+                    fontsize=8,
                     va="center",
                 )
 
-        ax.set_xlim(0, maximum * (1.32 if axis_index == 0 else 1.28))
-        ax.set_yticks(y_positions, labels)
+        if axis_index == 0:
+            ax.set_xlim(0, max(1.45, maximum * 1.15))
+            ax.xaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
+            ax.axvline(1.0, color=theme.grid, linewidth=1.0, linestyle=(0, (3, 3)))
+        else:
+            ax.set_xlim(0, maximum * 1.28)
+        ax.set_yticks(y_positions)
+        if axis_index == 0:
+            ax.set_yticklabels(labels)
+        else:
+            ax.tick_params(axis="y", labelleft=False)
         ax.set_title(title, color=theme.text, fontsize=11, fontweight="bold", loc="left")
         ax.tick_params(axis="both", colors=theme.text)
 
@@ -617,16 +670,8 @@ def render_throughput_resources(
         labelcolor=theme.text,
         bbox_to_anchor=(0.5, 0.035),
     )
-    figure.text(
-        0.25,
-        0.09,
-        "FPS delta: trtvideo versus the fastest external implementation",
-        color=theme.text,
-        fontsize=8,
-        ha="center",
-    )
     _hardware_footer(figure, data, theme)
-    figure.subplots_adjust(left=0.18, right=0.98, top=0.9, bottom=0.2, wspace=0.35)
+    figure.subplots_adjust(left=0.16, right=0.99, top=0.9, bottom=0.16, wspace=0.24)
     _save_figure(figure, output_path, theme)
 
 

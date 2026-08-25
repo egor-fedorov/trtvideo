@@ -108,12 +108,12 @@ attributed CPU and 1.68-4.43x the peak VRAM.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/throughput-resources-dark.svg">
-  <img alt="Attributed CPU and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="figures/throughput-resources-light.svg">
+  <img alt="End-to-end throughput, attributed CPU, and peak VRAM for trtvideo versus the fastest external implementation at equivalent throughput" src="figures/throughput-resources-light.svg">
 </picture>
 
-Each row compares `trtvideo` with the fastest external implementation on linear
-resource scales. The CPU panel annotates the end-to-end FPS difference for the
-same pair.
+Each row compares `trtvideo` with the fastest external implementation. The
+throughput panel normalizes that external result to 100% while retaining the
+measured FPS in each bar; CPU and VRAM use linear absolute scales.
 
 ## Quality Gates
 
