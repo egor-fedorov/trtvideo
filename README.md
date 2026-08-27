@@ -196,7 +196,10 @@ is a GStreamer-based SDK for GPU-accelerated streaming analytics and TensorRT
 inference. Choose it for multi-stream ingestion, analytics metadata, or a larger
 streaming application. `trtvideo` provides a smaller ready-made path when one
 full-frame model transforms a video file and the surrounding media must be
-preserved; DeepStream has not been benchmarked here.
+preserved.
+
+**Benchmark status:** not included because the harness has no pinned DeepStream
+pipeline implementing the same file-to-file model and media contract.
 
 ### Video2X
 
@@ -206,8 +209,9 @@ paths through ncnn and Vulkan. Choose it for a GUI, a cross-platform Vulkan
 workflow, or its packaged model set. `trtvideo` instead accepts an explicit
 static TensorRT engine and trades that generality for a reproducible NVIDIA-only
 runtime contract.
-Video2X is outside the current benchmark matrix because the harness does not yet
-bind it to the same model. Video2X 6.4.0 supplies the non-anime
+
+**Benchmark status:** excluded from the current same-model matrix. Video2X 6.4.0
+supplies the non-anime
 [`realesrgan-plus` model at x4](https://github.com/k4yt3x/video2x/tree/6.4.0/models/realesrgan),
 whereas this matrix uses the canonical
 `RealESRGAN_x2plus` checkpoint at x2. A future cross-backend comparison can
@@ -223,6 +227,9 @@ over video frames. Choose it for model exploration and custom interactive
 workflows. `trtvideo` is the narrower headless runtime for repeatedly executing
 one validated video pipeline from the command line or another service.
 
+**Benchmark status:** not included because the harness has no pinned chaiNNer
+graph implementing the canonical model and media contract.
+
 ### FFmpeg With NVIDIA Acceleration
 
 [FFmpeg with NVDEC, CUDA filters, and NVENC](https://docs.nvidia.com/video-technologies/video-codec-sdk/13.1/ffmpeg-with-nvidia-gpu/index.html)
@@ -231,14 +238,19 @@ the GPU. Use it directly when learned inference is not required. `trtvideo`
 adds an explicit full-frame TensorRT model between decode and encode, while
 still delegating concurrent muxing and media preservation to FFmpeg.
 
+**Benchmark status:** not included because the documented NVDEC/CUDA/NVENC path
+has no equivalent learned-model stage; its FPS would measure transcoding rather
+than the declared inference workload.
+
 ### VapourSynth And DGDecNV
 
 VapourSynth remains a strong choice for scriptable filtering and a broad plugin
-ecosystem; the benchmark includes measured vs-mlrt and VSGAN paths. DGDecNV can
-provide NVDEC source decoding on Windows through an AviSynth compatibility
-layer, but it is not part of the pinned Linux workflows and does not remove the
-host-memory boundaries around `libvstrt`. The exact measured configuration and
-transfer rationale are documented in the
+ecosystem. DGDecNV can provide NVDEC source decoding on Windows through an
+AviSynth compatibility layer, but it is not part of the pinned Linux workflows
+and does not remove the host-memory boundaries around `libvstrt`.
+
+**Benchmark status:** included through the pinned vs-mlrt and VSGAN paths. The
+exact measured configuration and transfer rationale are documented in the
 [architecture guide](docs/ARCHITECTURE.md#vapoursynth-benchmark-path-as-measured)
 and [benchmark methodology](benchmarks/methodology.md#purpose).
 
