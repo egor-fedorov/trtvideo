@@ -58,6 +58,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 - Benchmark summary figures now show normalized end-to-end throughput with
   absolute FPS labels alongside linear CPU and peak VRAM comparisons.
+- Documented where DeepStream, Video2X, chaiNNer, NVIDIA-accelerated FFmpeg, and
+  VapourSynth fit relative to the project's deliberately narrow runtime scope;
+  corrected the current reason Video2X remains outside the benchmark matrix.
 
 ## 0.5.0 - 2026-08-19
 

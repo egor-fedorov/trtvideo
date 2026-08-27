@@ -22,6 +22,7 @@ by Poro26, CC BY-SA 4.0. The comparison is silent.*
 - [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
+- [Scope And Alternatives](#scope-and-alternatives)
 - [Documentation](#documentation)
 - [Host Requirements](#host-requirements)
 - [Build The Image](#build-the-image)
@@ -172,14 +173,74 @@ YUV420 contracts at 1080p -> 4K. A measured SPAN 1080p Nsight trace found no
 H2D or D2H copy in the `trtvideo` frame loop. Only compressed input and output
 cross its host/device boundary.
 
-> The source filter is configurable. NVDEC decoding is available to VapourSynth
-> through DGDecNV, a closed-source AviSynth plugin made free on 2021-04-26 and
-> distributed only for Windows as `DGIndexNV.exe` and `DGDecodeNV.dll`. It has no
-> native VapourSynth integration and is loaded through an AviSynth compatibility
-> layer. DGDecNV is absent from the pinned VSGAN image and the documented
-> vs-mlrt workflow, and it cannot run in this benchmark's Linux containers. It
-> would not remove the H2D and D2H transfers around inference: frames in a
-> VapourSynth graph live in host memory regardless of where decode occurs.
+## Scope And Alternatives
+
+`trtvideo` deliberately optimizes one narrow contract: headless, file-to-file,
+full-frame TensorRT video processing in Docker with explicit model, media, and
+validation contracts. Choose it when all of the following matter:
+
+- an explicit ONNX/TensorRT model instead of a packaged model catalog;
+- repeatable batch or service execution from a headless Docker container;
+- an NVIDIA-only path that keeps raw frames on the GPU from decode through
+  learned inference and encode;
+- auditable model, media-preservation, output-quality, and benchmark evidence.
+
+If the priority is a GUI, cross-vendor execution, a general processing graph,
+or streaming analytics, one of the broader tools below is a better fit. These
+are scope boundaries, not unmeasured performance rankings.
+
+### NVIDIA DeepStream
+
+[DeepStream](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_Overview.html)
+is a GStreamer-based SDK for GPU-accelerated streaming analytics and TensorRT
+inference. Choose it for multi-stream ingestion, analytics metadata, or a larger
+streaming application. `trtvideo` provides a smaller ready-made path when one
+full-frame model transforms a video file and the surrounding media must be
+preserved; DeepStream has not been benchmarked here.
+
+### Video2X
+
+[Video2X](https://github.com/k4yt3x/video2x) is a cross-platform upscaling and
+frame-interpolation application with packaged Real-ESRGAN, Real-CUGAN, and RIFE
+paths through ncnn and Vulkan. Choose it for a GUI, a cross-platform Vulkan
+workflow, or its packaged model set. `trtvideo` instead accepts an explicit
+static TensorRT engine and trades that generality for a reproducible NVIDIA-only
+runtime contract.
+Video2X is outside the current benchmark matrix because the harness does not yet
+bind it to the same model. Video2X 6.4.0 supplies the non-anime
+[`realesrgan-plus` model at x4](https://github.com/k4yt3x/video2x/tree/6.4.0/models/realesrgan),
+whereas this matrix uses the canonical
+`RealESRGAN_x2plus` checkpoint at x2. A future cross-backend comparison can
+convert those exact x2 weights to ncnn, but the artifact must first pass the
+same model-space and product-output gates. The current exclusion is not an
+assumption that Video2X is slower or lower quality.
+
+### chaiNNer
+
+[chaiNNer](https://chainner.app/) is a visual node editor for composing image
+processing chains across PyTorch, NCNN, ONNX, and TensorRT, including iteration
+over video frames. Choose it for model exploration and custom interactive
+workflows. `trtvideo` is the narrower headless runtime for repeatedly executing
+one validated video pipeline from the command line or another service.
+
+### FFmpeg With NVIDIA Acceleration
+
+[FFmpeg with NVDEC, CUDA filters, and NVENC](https://docs.nvidia.com/video-technologies/video-codec-sdk/13.1/ffmpeg-with-nvidia-gpu/index.html)
+can keep conventional decode, resize, colorspace conversion, and encode work on
+the GPU. Use it directly when learned inference is not required. `trtvideo`
+adds an explicit full-frame TensorRT model between decode and encode, while
+still delegating concurrent muxing and media preservation to FFmpeg.
+
+### VapourSynth And DGDecNV
+
+VapourSynth remains a strong choice for scriptable filtering and a broad plugin
+ecosystem; the benchmark includes measured vs-mlrt and VSGAN paths. DGDecNV can
+provide NVDEC source decoding on Windows through an AviSynth compatibility
+layer, but it is not part of the pinned Linux workflows and does not remove the
+host-memory boundaries around `libvstrt`. The exact measured configuration and
+transfer rationale are documented in the
+[architecture guide](docs/ARCHITECTURE.md#vapoursynth-benchmark-path-as-measured)
+and [benchmark methodology](benchmarks/methodology.md#purpose).
 
 ## Documentation
 
