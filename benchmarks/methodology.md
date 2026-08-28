@@ -15,9 +15,15 @@ The following result classes are kept separate:
 3. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
    encode, or mux.
 
-Video2X is excluded from the matrix because the available version does not
-support the canonical `RealESRGAN_x2plus` and runs a different anime model. Its
-FPS cannot support a same-model performance claim.
+Video2X 6.4.0 supports Real-ESRGAN through ncnn and Vulkan, but its
+[supplied model set](https://github.com/k4yt3x/video2x/tree/6.4.0/models/realesrgan)
+contains the non-anime `realesrgan-plus` artifact at x4 while this matrix is
+bound to the canonical `RealESRGAN_x2plus` x2 checkpoint, pinned ONNX-derived
+TensorRT engines, and shared model-space captures. A future cross-backend
+comparison may convert the same x2 weights to ncnn; until that artifact passes
+the shared model-space and product-output gates, its FPS cannot support the
+current same-model claim. The exclusion is a matrix-scope decision, not a
+performance or quality conclusion about Video2X.
 
 The VapourSynth source filter is a configuration choice. DGDecNV provides NVDEC
 through a closed-source Windows-only AviSynth plugin made free on 2021-04-26. It
