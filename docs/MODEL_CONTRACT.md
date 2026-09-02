@@ -220,6 +220,14 @@ hostnames, absolute host paths, or GPU UUIDs. A maintainer reviews the evidence
 before changing the matrix; opening an issue does not assign a status
 automatically.
 
+The reporter does not need to open a second pull request. Generated conformance
+and engine-sidecar JSON may be attached without manual reformatting. After a
+successful review, the maintainer applies the `community-reported` label and
+opens the focused matrix update with the issue as its evidence link. Failed or
+incomplete reports remain useful compatibility evidence but do not create a
+matrix row. The complete triage procedure is documented in
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#report-model-compatibility).
+
 The current benchmark preparation path also requires source-export conformance
 for its `.pth` checkpoints. That preflight protects the model conversion path,
 but the public status is grounded in the published runtime and product-output

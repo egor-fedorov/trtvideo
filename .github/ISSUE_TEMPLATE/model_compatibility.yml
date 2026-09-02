@@ -1,12 +1,15 @@
 name: Model compatibility report
 description: Report a reproducible successful or failed model experiment
 title: "[Model]: "
+labels:
+  - model compatibility
 body:
   - type: markdown
     attributes:
       value: |
         Follow `docs/MODEL_CONTRACT.md` before submitting. A successful report may qualify as `community-reported`; `validated` requires the published benchmark quality protocol.
         Do not upload proprietary weights, private media, credentials, hostnames, absolute host paths, or GPU UUIDs.
+        Submit only this issue; after review, the maintainer owns any compatibility-matrix pull request.
 
   - type: input
     id: model
@@ -71,7 +74,7 @@ body:
     id: commands
     attributes:
       label: Exact preparation and runtime commands
-      description: Include export-onnx, prepare-onnx, build-engine, and the short trtvideo invocation as applicable.
+      description: Include export-onnx, prepare-onnx, build-engine, and the short trtvideo invocation as applicable. A plaintext command log may be attached without reformatting.
       render: shell
     validations:
       required: true
@@ -80,7 +83,7 @@ body:
     id: conformance
     attributes:
       label: Export-conformance result
-      description: Include status and metrics, or explain why source-export conformance is unavailable for an existing ONNX model.
+      description: Attach the generated export-conformance JSON or include its status and metrics. Explain why it is unavailable when starting from an existing ONNX model.
       render: text
     validations:
       required: true
@@ -89,7 +92,7 @@ body:
     id: engine
     attributes:
       label: Engine sidecar
-      description: Paste the sanitized .engine.json content, or a JSON object explaining why no engine was produced. Do not attach the engine itself.
+      description: Attach or paste the sanitized .engine.json, or explain why no engine was produced. Do not attach the engine itself.
       render: json
     validations:
       required: true
@@ -107,7 +110,7 @@ body:
     id: result
     attributes:
       label: Smoke-test and output validation
-      description: State success or failure. For success, include full decode, frame count, resolution, timestamps, pixel/color metadata, bitrate, and duration checks.
+      description: State success or failure. For success, attach or paste the full decode, frame count, resolution, timestamps, pixel/color metadata, bitrate, and duration checks.
       render: text
     validations:
       required: true

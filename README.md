@@ -400,8 +400,10 @@ Statuses describe evidence, not an architectural allowlist:
 There are deliberately no `planned` rows. To test another model, follow the
 [model contract](docs/MODEL_CONTRACT.md) and submit the
 [model compatibility report](https://github.com/egor-fedorov/trtvideo/issues/new?template=model_compatibility.yml).
-A reviewed successful report can add a `community-reported` row; only published
-quality-gated evidence can promote it to `validated`.
+A reviewed successful report receives the `community-reported` label, after
+which the maintainer adds the matrix row with the issue as evidence. The
+reporter does not need to open a second pull request. Only published quality-
+gated evidence can promote the model to `validated`.
 
 ### Local Layout
 
