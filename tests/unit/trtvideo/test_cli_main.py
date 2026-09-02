@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trtvideo.cli import doctor, process
+from trtvideo.cli import compatibility_report, doctor, process
 from trtvideo.cli.main import main
 
 
@@ -27,3 +27,16 @@ def test_dispatcher_preserves_processing_arguments(monkeypatch) -> None:
 
     assert main(["--engine", "model.engine", "--input", "input.mp4"]) is None
     assert received == ["--engine", "model.engine", "--input", "input.mp4"]
+
+
+def test_dispatcher_routes_compatibility_report_arguments(monkeypatch) -> None:
+    received: list[str] = []
+
+    def fake_report(arguments) -> int:
+        received.extend(arguments)
+        return 2
+
+    monkeypatch.setattr(compatibility_report, "main", fake_report)
+
+    assert main(["compatibility-report", "--model-name", "example"]) == 2
+    assert received == ["--model-name", "example"]

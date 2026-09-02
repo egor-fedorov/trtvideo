@@ -13,7 +13,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="trtvideo",
         description="GPU-resident TensorRT video processing",
-        epilog="Run 'trtvideo doctor' to check the static runtime environment.",
+        epilog=(
+            "Run 'trtvideo doctor' to check the static runtime environment or "
+            "'trtvideo compatibility-report --help' to prepare model evidence."
+        ),
     )
     parser.add_argument("--engine", required=True, help="Path to .engine file")
     parser.add_argument("--input", required=True, help="Input video")

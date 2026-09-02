@@ -200,6 +200,59 @@ count, resolution, timestamps, pixel format, color range/space/transfer/
 primaries, bitrate, and duration as described in
 the [testing contract](TESTING.md).
 
+## Build A Submission Bundle
+
+Keep the exact export, preparation, engine-build, and smoke-test commands in a
+UTF-8 text file as they are run. After the output exists, one production-image
+command checks the existing evidence, runs `doctor`, fully decodes and probes
+the output, removes local paths from structured evidence, and writes both JSON
+and an issue-ready Markdown body:
+
+```bash
+IMAGE=ghcr.io/egor-fedorov/trtvideo:vX.Y.Z
+
+docker pull "$IMAGE"
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -e TRTVIDEO_IMAGE_REF="$IMAGE" \
+  -v "$PWD:/work" \
+  "$IMAGE" \
+  trtvideo compatibility-report \
+  --model-name 2xExampleModel \
+  --model-source https://example.org/models/2xExampleModel \
+  --model-license Apache-2.0 \
+  --source-format checkpoint \
+  --source-artifact /work/models/pretrained/model.pth \
+  --export-conformance /work/models/onnx/model.export-conformance.json \
+  --engine /work/models/engines/model_720p.engine \
+  --input /work/videos/input-720p.mp4 \
+  --processed-output /work/videos/output-1440p.mp4 \
+  --expected-frames 120 \
+  --commands-file /work/compatibility-commands.txt \
+  --output-dir /work/compatibility-report
+```
+
+Replace `vX.Y.Z` with a published immutable release tag or use the published
+image digest. Do not use `latest` for compatibility evidence.
+
+For an existing ONNX model, use `--source-format onnx` and omit
+`--export-conformance`. The report records that source-checkpoint equivalence is
+unavailable without treating it as a failed community report.
+
+The command exits with status 2 when evidence is incomplete or inconsistent but
+still writes both files for diagnosis. Review the Markdown before publishing it;
+the command rejects common credentials, host home paths, GPU UUIDs, and SSH host
+identities, but automated screening cannot prove that arbitrary command text is
+safe. Submit the valid body from the host with:
+
+```bash
+gh issue create \
+  --repo egor-fedorov/trtvideo \
+  --title "[Model]: 2xExampleModel" \
+  --label "model compatibility" \
+  --body-file compatibility-report/model-compatibility-issue.md
+```
+
 ## Compatibility Status
 
 The public matrix in [`README.md`](../README.md#compatibility-matrix) uses only
@@ -220,13 +273,13 @@ hostnames, absolute host paths, or GPU UUIDs. A maintainer reviews the evidence
 before changing the matrix; opening an issue does not assign a status
 automatically.
 
-The reporter does not need to open a second pull request. Generated conformance
-and engine-sidecar JSON may be attached without manual reformatting. After a
-successful review, the maintainer applies the `community-reported` label and
-opens the focused matrix update with the issue as its evidence link. Failed or
-incomplete reports remain useful compatibility evidence but do not create a
-matrix row. The complete triage procedure is documented in
-[`CONTRIBUTING.md`](../CONTRIBUTING.md#report-model-compatibility).
+The reporter does not need to open a second pull request. The recommended
+`compatibility-report` command produces the complete issue body without manual
+JSON reformatting. After a successful review, the maintainer applies the
+`community-reported` label and opens the focused matrix update with the issue as
+its evidence link. Failed or incomplete reports remain useful compatibility
+evidence but do not create a matrix row. The complete triage procedure is
+documented in [`CONTRIBUTING.md`](../CONTRIBUTING.md#report-model-compatibility).
 
 The current benchmark preparation path also requires source-export conformance
 for its `.pth` checkpoints. That preflight protects the model conversion path,

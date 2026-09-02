@@ -54,6 +54,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Added
+
+- Added `trtvideo compatibility-report` to verify and combine source identity,
+  export conformance, static engine metadata, runtime readiness, exact commands,
+  and complete smoke-output media checks into sanitized JSON and issue-ready
+  Markdown.
+
 ### Changed
 
 - Benchmark summary figures now show normalized end-to-end throughput with

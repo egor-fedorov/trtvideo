@@ -695,6 +695,7 @@ Production image commands:
 
 ```bash
 trtvideo
+trtvideo compatibility-report
 build-engine
 ```
 
@@ -716,6 +717,7 @@ Use `--help` to view all arguments:
 ```bash
 docker run --rm trtvideo:latest trtvideo --help
 docker run --rm trtvideo:latest trtvideo doctor --help
+docker run --rm trtvideo:latest trtvideo compatibility-report --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
 docker run --rm trtvideo:model-tools export-onnx --help
 docker run --rm trtvideo:model-tools prepare-onnx --help

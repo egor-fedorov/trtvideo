@@ -26,8 +26,11 @@ model source and SHA256, exact conversion and runtime commands, engine sidecar,
 weights unless their license permits redistribution.
 
 The reporter's contribution ends with the issue. Do not open a compatibility-
-matrix pull request before review. Generated conformance JSON and the sanitized
-engine sidecar may be attached directly instead of being manually reformatted.
+matrix pull request before review. Prefer the
+[`trtvideo compatibility-report`](docs/MODEL_CONTRACT.md#build-a-submission-bundle)
+command: it collects the generated evidence and creates a complete issue body
+without manual JSON reformatting. The browser form remains available when the
+bundle command cannot run.
 
 The maintainer triages the issue as follows:
 
