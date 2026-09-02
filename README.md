@@ -582,6 +582,61 @@ path atomically only after decode, encode, and mux complete successfully. A
 failed run returns a non-zero status, removes the partial temporary file, and
 leaves an existing output untouched.
 
+Human status, interval progress, and the final summary are written to `stderr`.
+Progress uses the observed wall time for the latest frame-loop window rather
+than the asynchronous per-frame submission time:
+
+```text
+[100/1000 10.0%] window 56.42 FPS | ETA 16s | last frame body 0.02s
+```
+
+Use `--quiet` to suppress this human output. For automation, request one
+versioned completion document with `--result-json PATH`; `-` writes JSON to
+`stdout` without mixing in project log text:
+
+```bash
+mkdir -p artefacts
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  trtvideo:latest trtvideo \
+  --engine models/engines/model_720p.engine \
+  --input videos/input.mp4 \
+  --quiet \
+  --result-json - > artefacts/process-result.json
+```
+
+The result is written only after the video has been committed successfully. It
+records the engine, GPU, input/output shape and frame rate, request parameters,
+processed frame count, and distinct timing scopes. `frame_loop` covers decoded
+frame iteration; `active_pipeline` also covers encoder drain and mux
+finalization; `pipeline_wall` additionally covers in-process validation,
+probing, preflight, and runtime initialization. It does not include Docker or
+Python process startup, so use `benchmark-trtvideo` for full-process throughput.
+The separate `frame_processing` object describes the host-side frame body and
+must not be interpreted as throughput for the asynchronous GPU pipeline.
+
+Long-running integrations can also request one compact JSON event at frame 1,
+every `--log-interval`, and the final frame:
+
+```bash
+mkdir -p artefacts
+docker run --rm --gpus all \
+  -v "$PWD/models:/app/models" \
+  -v "$PWD/videos:/app/videos" \
+  -v "$PWD/artefacts:/app/artefacts" \
+  trtvideo:latest trtvideo \
+  --engine models/engines/model_720p.engine \
+  --input videos/input.mp4 \
+  --quiet \
+  --progress-jsonl /app/artefacts/process-progress.jsonl \
+  --result-json /app/artefacts/process-result.json
+```
+
+Completion documents and progress events carry independent `document_type` and
+`schema_version` fields. Report destinations must be distinct; in particular,
+`--result-json -` and `--progress-jsonl -` cannot both own `stdout`.
+
 With `--max-frames`, copied streams are shortened to the processed video
 duration. Chapters are omitted because their original timestamps may point
 beyond the shortened output.

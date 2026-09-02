@@ -17,6 +17,11 @@ make test-unit
 
 Unit tests must not import TensorRT, CV-CUDA, or PyNvVideoCodec.
 
+The production reporting contract is kept in this layer: tests cover versioned
+completion/progress serialization, wall-window ETA calculations, timing-scope
+separation, CLI mapping, and rejection of colliding output destinations without
+importing the GPU runtime.
+
 Tests are grouped by the subsystem under test:
 
 ```text

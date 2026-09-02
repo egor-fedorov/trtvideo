@@ -20,7 +20,7 @@ src/trtvideo/
   cli/          argument parsing and command entry points
   demo/         pinned quick-demo assets, orchestration, and media validation
   diagnostics/  opt-in stage timing and external profiler markers
-  pipelines/    typed process configuration and production orchestration
+  pipelines/    typed process configuration, orchestration, and reporting
   runtime/      TensorRT runtime and the common RuntimeEngine protocol
   video/        generic video metadata, frame iteration, and output contracts
     nvcodec/     NVDEC surfaces, CV-CUDA processing, and NVENC policy
@@ -51,7 +51,8 @@ creates the only production orchestrator, `NvcodecPipeline`:
 9. Flush the encoder, mux the result when required, and release resources.
 10. Atomically replace the requested output only after every subprocess has
     completed successfully.
-11. Print final throughput and an optional profile.
+11. Write human reporting to `stderr` and, when requested, versioned completion
+    JSON and interval progress JSONL to independent destinations.
 
 There is intentionally no abstract base pipeline. After removal of the former
 CPU-frame backend, inheritance only hid the order of one concrete workflow and
@@ -60,6 +61,8 @@ made speculative extension points part of the production design. The stateful
 delegating cohesive policies to typed collaborators:
 
 - `pipelines/config.py` owns validated process configuration and domain errors;
+- `pipelines/reporting.py` owns progress calculation, human rendering, and the
+  versioned production result/progress serialization contracts;
 - `video/metadata.py` owns the normalized video metadata value object;
 - `video/probe.py` adapts FFprobe output without terminating the process;
 - `video/color.py` owns SDR metadata normalization and CV-CUDA/FFmpeg mapping;
@@ -290,6 +293,14 @@ real frame time, and the largest isolated stage may be hidden by overlap in the
 normal path. Use the unprofiled benchmark for throughput and Nsight Systems for
 pipeline overlap; stage-profiler results are not used for cross-product
 comparisons.
+
+Ordinary process reporting preserves the same distinction. Progress-window FPS
+uses observed frame-loop wall time, not isolated frame-body timings. The final
+completion document exposes `frame_loop`, `active_pipeline`, and
+`pipeline_wall` separately; the last scope starts inside the production command
+and therefore still excludes Docker and Python process startup. Human output is
+sent to `stderr`, while `--result-json -` or `--progress-jsonl -` may own clean
+`stdout`. The two versioned machine streams cannot share one destination.
 
 The benchmark-image-only `benchmark-trtvideo` wrapper launches regular,
 unprofiled `trtvideo` subprocesses: a discarded warmup followed by a measured
