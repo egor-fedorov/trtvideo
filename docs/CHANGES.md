@@ -54,6 +54,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+## 0.6.0 - 2026-09-02
+
 ### Added
 
 - Added `trtvideo compatibility-report` to verify and combine source identity,
