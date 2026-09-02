@@ -13,6 +13,10 @@ def main(argv: Sequence[str] | None = None) -> int | None:
         from trtvideo.cli.doctor import main as doctor_main
 
         return doctor_main(arguments[1:])
+    if arguments and arguments[0] == "compatibility-report":
+        from trtvideo.cli.compatibility_report import main as compatibility_report_main
+
+        return compatibility_report_main(arguments[1:])
 
     from trtvideo.cli.process import main as process_main
 

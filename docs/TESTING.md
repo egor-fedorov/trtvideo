@@ -50,6 +50,7 @@ installed as a production project script.
 ```bash
 docker run --rm trtvideo:dev trtvideo --help
 docker run --rm trtvideo:dev trtvideo doctor --help
+docker run --rm trtvideo:dev trtvideo compatibility-report --help
 docker run --rm trtvideo:dev benchmark-trtvideo --help
 docker run --rm trtvideo:dev export-onnx --help
 docker run --rm trtvideo:dev prepare-onnx --help

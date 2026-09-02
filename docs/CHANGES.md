@@ -54,6 +54,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Added
+
+- Added `trtvideo compatibility-report` to verify and combine source identity,
+  export conformance, static engine metadata, runtime readiness, exact commands,
+  and complete smoke-output media checks into sanitized JSON and issue-ready
+  Markdown.
+
 ### Changed
 
 - Benchmark summary figures now show normalized end-to-end throughput with
@@ -61,6 +68,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Documented where DeepStream, Video2X, chaiNNer, NVIDIA-accelerated FFmpeg, and
   VapourSynth fit relative to the project's deliberately narrow runtime scope;
   corrected the current reason Video2X remains outside the benchmark matrix.
+- Defined maintainer-owned triage for model compatibility reports: reporters
+  submit one issue with attachable generated evidence, accepted reports receive
+  `community-reported`, and the maintainer owns the matrix pull request.
 
 ## 0.5.0 - 2026-08-19
 

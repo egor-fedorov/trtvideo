@@ -25,6 +25,25 @@ model source and SHA256, exact conversion and runtime commands, engine sidecar,
 `trtvideo doctor` output, and complete smoke-test result. Do not upload model
 weights unless their license permits redistribution.
 
+The reporter's contribution ends with the issue. Do not open a compatibility-
+matrix pull request before review. Prefer the
+[`trtvideo compatibility-report`](docs/MODEL_CONTRACT.md#build-a-submission-bundle)
+command: it collects the generated evidence and creates a complete issue body
+without manual JSON reformatting. The browser form remains available when the
+bundle command cannot run.
+
+The maintainer triages the issue as follows:
+
+1. Check provenance, license, immutable identity, tensor contract, commands,
+   generated evidence, environment, and complete output validation.
+2. Request missing or inconsistent evidence and apply the `question` label while
+   the report is incomplete.
+3. For a reproducible successful report, apply `community-reported`, open a
+   focused documentation pull request that adds the matrix row with the issue as
+   evidence, and close the issue after that pull request merges.
+4. For a failed or incompatible experiment, record the reviewed outcome and
+   close the issue without adding a matrix row.
+
 An issue does not automatically make a model `validated`. A reproducible
 successful report may be listed as `community-reported`; `validated` requires
 published inference and product-output quality evidence.
