@@ -27,9 +27,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--warmup-frames",
         type=int,
         default=1,
-        help="Frames to exclude from profiling/benchmark summaries",
+        help="Initial frames excluded from profile and frame-body summaries",
     )
-    parser.add_argument("--log-interval", type=int, default=10, help="Log every N frames")
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=10,
+        help="Emit human and JSONL progress every N frames",
+    )
+    parser.add_argument(
+        "--result-json",
+        default=None,
+        help="Write a versioned completion document to PATH, or '-' for stdout",
+    )
+    parser.add_argument(
+        "--progress-jsonl",
+        default=None,
+        help="Write interval progress events as JSON Lines to PATH, or '-' for stdout",
+    )
     parser.add_argument(
         "--profile",
         action="store_true",
@@ -62,7 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codec", default="h264", choices=["h264", "hevc"], help="NVENC codec")
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
-    verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
+    verbosity.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress human status, progress, and summary output",
+    )
     return parser
 
 
@@ -80,6 +99,10 @@ def process_config_from_args(args: argparse.Namespace) -> ProcessConfig:
         log_interval=args.log_interval,
         profile=args.profile,
         profile_json_path=Path(args.profile_json) if args.profile_json is not None else None,
+        result_json_path=Path(args.result_json) if args.result_json is not None else None,
+        progress_jsonl_path=(
+            Path(args.progress_jsonl) if args.progress_jsonl is not None else None
+        ),
         benchmark_lifecycle_path=(
             Path(args.benchmark_lifecycle_json)
             if args.benchmark_lifecycle_json is not None

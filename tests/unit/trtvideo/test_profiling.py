@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
@@ -95,3 +96,19 @@ def test_profile_report_normalizes_stage_names(tmp_path: Path) -> None:
     assert report["stage_ms"] == {"trt": 2.0}
     assert report["throughput_fps"] == 50.0
     assert report["gpu_peak_mem_mb"] == 123.5
+
+
+def test_profile_table_uses_the_requested_human_output_stream() -> None:
+    collector = ProfileCollector(
+        ["TRT inference"],
+        gpu_stages=["TRT inference"],
+        synchronize=lambda: None,
+        skip_warmup=0,
+    )
+    collector.commit((FakeEvent(1.0), FakeEvent(3.0)))
+    output = io.StringIO()
+
+    collector.print_table(1280, 720, 2560, 1440, [0.01], output=output)
+
+    assert "Profiling: 1 frames" in output.getvalue()
+    assert "TRT inference" in output.getvalue()

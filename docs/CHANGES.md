@@ -60,6 +60,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   export conformance, static engine metadata, runtime readiness, exact commands,
   and complete smoke-output media checks into sanitized JSON and issue-ready
   Markdown.
+- Added versioned production process reporting: `--result-json` writes one
+  completion document and `--progress-jsonl` writes interval progress events,
+  with `-` available as an exclusive machine-readable `stdout` destination.
 
 ### Changed
 
@@ -71,6 +74,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Defined maintainer-owned triage for model compatibility reports: reporters
   submit one issue with attachable generated evidence, accepted reports receive
   `community-reported`, and the maintainer owns the matrix pull request.
+- Human process logs now use `stderr`; progress reports percentage, wall-window
+  FPS, and frame-loop ETA, while the final summary separates frame-loop, active-
+  pipeline, and in-process wall throughput. `--quiet` suppresses human progress
+  and summary output without disabling requested machine reports.
 
 ## 0.5.0 - 2026-08-19
 

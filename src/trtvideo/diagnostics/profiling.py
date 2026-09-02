@@ -1,9 +1,10 @@
 """CUDA event-based profiling and reports for pipeline stages."""
 
 import json
+import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from trtvideo.runtime import RuntimeEngine
 from trtvideo.video.metadata import VideoMetadata
@@ -115,6 +116,7 @@ class ProfileCollector:
         out_w: int,
         out_h: int,
         frame_times: list[float],
+        output: TextIO | None = None,
     ) -> None:
         """Print the profiling table."""
         summary = self.summary(frame_times)
@@ -130,22 +132,26 @@ class ProfileCollector:
         ]
 
         total_avg = sum(ms for _, ms in rows)
+        stream = output if output is not None else sys.stderr
 
         sep = "=" * 65
         dash = "-" * 65
-        print(f"\n{sep}")
-        print(f"Profiling: {n} frames, {in_w}x{in_h} \u2192 {out_w}x{out_h}")
-        print(sep)
-        print(f"{'Stage':<40s} {'Average':>8s} {'Share':>8s}")
-        print(dash)
+        print(f"\n{sep}", file=stream)
+        print(
+            f"Profiling: {n} frames, {in_w}x{in_h} \u2192 {out_w}x{out_h}",
+            file=stream,
+        )
+        print(sep, file=stream)
+        print(f"{'Stage':<40s} {'Average':>8s} {'Share':>8s}", file=stream)
+        print(dash, file=stream)
         for label, ms in rows:
             pct = ms / total_avg * 100 if total_avg > 0 else 0
-            print(f"{label:<40s} {ms:>7.1f}ms {pct:>7.1f}%")
-        print(dash)
-        print(f"{'TOTAL':<40s} {total_avg:>7.1f}ms {'100.0%':>8s}")
+            print(f"{label:<40s} {ms:>7.1f}ms {pct:>7.1f}%", file=stream)
+        print(dash, file=stream)
+        print(f"{'TOTAL':<40s} {total_avg:>7.1f}ms {'100.0%':>8s}", file=stream)
 
-        print(f"{'FPS (processing)':<40s} {summary['processing_fps']:>7.1f}")
-        print(sep)
+        print(f"{'FPS (processing)':<40s} {summary['processing_fps']:>7.1f}", file=stream)
+        print(sep, file=stream)
 
 
 def write_profile_report(

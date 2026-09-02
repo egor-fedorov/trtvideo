@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,17 @@ from trtvideo.benchmarking.lifecycle import LifecycleRecorder
 from trtvideo.diagnostics.nvtx import NvtxAnnotator
 from trtvideo.diagnostics.profiling import ProfileCollector, write_profile_report
 from trtvideo.pipelines.config import PipelineError, ProcessConfig
+from trtvideo.pipelines.reporting import (
+    PROCESS_RESULT_DOCUMENT_TYPE,
+    PROCESS_RESULT_SCHEMA_VERSION,
+    JsonLinesWriter,
+    ProcessReportingError,
+    ProcessTimingSummary,
+    build_progress_event,
+    render_progress,
+    summarize_process_timing,
+    write_json_document,
+)
 from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
 from trtvideo.video.color import ColorContractError, SdrColorContract
 from trtvideo.video.frames import iter_limited_frames
@@ -61,6 +73,7 @@ class NvcodecPipeline:
         self._profiler: ProfileCollector | None = None
         self._working_output_path: Path | None = None
         self._total_frames: int | None = None
+        self._progress_writer: JsonLinesWriter | None = None
         self._nvtx = NvtxAnnotator.from_environment()
         self._lifecycle = LifecycleRecorder(config.benchmark_lifecycle_path)
         self._lifecycle.mark_phase("pipeline_created")
@@ -68,11 +81,22 @@ class NvcodecPipeline:
     def run(self) -> None:
         """Process the configured video and atomically publish its output."""
         try:
-            self._run()
-        except (ColorContractError, MediaPreservationError, VideoProbeError) as exc:
+            with JsonLinesWriter(self.config.progress_jsonl_path) as progress_writer:
+                self._progress_writer = progress_writer
+                try:
+                    self._run()
+                finally:
+                    self._progress_writer = None
+        except (
+            ColorContractError,
+            MediaPreservationError,
+            ProcessReportingError,
+            VideoProbeError,
+        ) as exc:
             raise PipelineError(str(exc)) from exc
 
     def _run(self) -> None:
+        pipeline_started = time.perf_counter()
         self._validate_paths()
         info = probe_video(str(self.config.input_path))
         self._info = info
@@ -81,6 +105,8 @@ class NvcodecPipeline:
         self._color = SdrColorContract.from_video_info(info)
         self._validate_video_input(info)
         self._total_frames = self.config.max_frames if self.config.max_frames > 0 else None
+        if self._total_frames is not None and info.nb_frames > 0:
+            self._total_frames = min(self._total_frames, info.nb_frames)
         if self._total_frames is None and info.nb_frames > 0:
             self._total_frames = info.nb_frames
 
@@ -95,7 +121,7 @@ class NvcodecPipeline:
                 self._working_output_path = working_output_path
                 self._lifecycle.mark_phase("preservation_preflight_completed")
                 try:
-                    wall_total = self._execute_pipeline(frame_times)
+                    frame_loop_sec, active_pipeline_sec = self._execute_pipeline(frame_times)
                 finally:
                     self._cleanup()
                     self._lifecycle.mark_phase("cleanup_completed")
@@ -103,12 +129,21 @@ class NvcodecPipeline:
         finally:
             self._working_output_path = None
 
+        pipeline_wall_sec = time.perf_counter() - pipeline_started
         self._lifecycle.mark_phase("reporting_started")
         self._lifecycle.write(len(frame_times))
-        self._report_profile(frame_times, wall_total)
-        self._print_stats(frame_times, wall_total)
+        self._report_profile(frame_times, active_pipeline_sec)
+        summary = summarize_process_timing(
+            frame_times,
+            warmup_frames=self.config.warmup_frames,
+            frame_loop_sec=frame_loop_sec,
+            active_pipeline_sec=active_pipeline_sec,
+            pipeline_wall_sec=pipeline_wall_sec,
+        )
+        self._print_stats(summary)
+        self._write_result(summary)
 
-    def _execute_pipeline(self, frame_times: list[float]) -> float:
+    def _execute_pipeline(self, frame_times: list[float]) -> tuple[float, float]:
         info = self._video_info()
         with self._nvtx.range("trtvideo.initialization"):
             self._log("\nInitializing TensorRT...")
@@ -116,6 +151,7 @@ class NvcodecPipeline:
                 str(self.config.engine_path),
                 quiet=self.config.quiet,
                 gpu_id=self.config.gpu_id,
+                log_stream=sys.stderr,
             )
             runtime = self._runtime()
             if info.width != runtime.input_w or info.height != runtime.input_h:
@@ -148,12 +184,13 @@ class NvcodecPipeline:
 
         wall_start = time.perf_counter()
         with self._nvtx.range("trtvideo.frame_loop"):
-            self._run_frame_loop(frame_times)
+            self._run_frame_loop(frame_times, frame_loop_started=wall_start)
+        frame_loop_sec = time.perf_counter() - wall_start
         self._lifecycle.mark_phase("frame_loop_completed")
         with self._nvtx.range("trtvideo.finalize"):
             self._finalize()
         self._lifecycle.mark_phase("pipeline_finalized")
-        return time.perf_counter() - wall_start
+        return frame_loop_sec, time.perf_counter() - wall_start
 
     def _validate_paths(self) -> None:
         if not self.config.engine_path.exists():
@@ -299,8 +336,18 @@ class NvcodecPipeline:
             release_batch=runtime.synchronize,
         )
 
-    def _run_frame_loop(self, frame_times: list[float]) -> None:
+    def _run_frame_loop(
+        self,
+        frame_times: list[float],
+        *,
+        frame_loop_started: float,
+    ) -> None:
         frame_index = 0
+        last_reported_frame = 0
+        last_reported_at = frame_loop_started
+        progress_enabled = not self.config.quiet or (
+            self._progress_writer is not None and self._progress_writer.enabled
+        )
         for raw_frame in iter_limited_frames(
             self._decode_frames(),
             limit=self.config.max_frames,
@@ -313,21 +360,52 @@ class NvcodecPipeline:
             frame_time = completed - started
             frame_times.append(frame_time)
             frame_index += 1
-            if not self.config.quiet and (
-                frame_index % self.config.log_interval == 0 or frame_index == 1
+            if progress_enabled and (
+                frame_index % self.config.log_interval == 0
+                or frame_index == 1
+                or frame_index == self._total_frames
             ):
-                recent = frame_times[-self.config.log_interval :]
-                average = sum(recent) / len(recent)
-                fps = 1.0 / average if average > 0 else 0.0
-                progress = (
-                    f"{frame_index}/{self._total_frames}"
-                    if self._total_frames is not None
-                    else str(frame_index)
+                reported_at = time.perf_counter()
+                self._report_progress(
+                    frame_index=frame_index,
+                    frame_loop_elapsed_sec=reported_at - frame_loop_started,
+                    last_frame_processing_sec=frame_times[-1],
+                    window_frames=frame_index - last_reported_frame,
+                    window_elapsed_sec=reported_at - last_reported_at,
                 )
-                self._log(
-                    f"  Frame {progress}  |  {frame_time:.3f}s  |  "
-                    f"avg {average:.3f}s/frame  |  {fps:.1f} fps"
-                )
+                last_reported_frame = frame_index
+                last_reported_at = reported_at
+        if progress_enabled and frame_index > 0 and last_reported_frame != frame_index:
+            reported_at = time.perf_counter()
+            self._report_progress(
+                frame_index=frame_index,
+                frame_loop_elapsed_sec=reported_at - frame_loop_started,
+                last_frame_processing_sec=frame_times[-1],
+                window_frames=frame_index - last_reported_frame,
+                window_elapsed_sec=reported_at - last_reported_at,
+            )
+
+    def _report_progress(
+        self,
+        *,
+        frame_index: int,
+        frame_loop_elapsed_sec: float,
+        last_frame_processing_sec: float,
+        window_frames: int,
+        window_elapsed_sec: float,
+    ) -> None:
+        event = build_progress_event(
+            processed_frames=frame_index,
+            total_frames=self._total_frames,
+            frame_loop_elapsed_sec=frame_loop_elapsed_sec,
+            last_frame_processing_sec=last_frame_processing_sec,
+            window_frames=window_frames,
+            window_elapsed_sec=window_elapsed_sec,
+        )
+        if self._progress_writer is not None:
+            self._progress_writer.write(event)
+        if not self.config.quiet:
+            self._log(render_progress(event))
 
     def _process_frame(self, raw_frame: Any) -> None:
         if self._profiler is not None:
@@ -412,6 +490,7 @@ class NvcodecPipeline:
                 runtime.output_w,
                 runtime.output_h,
                 frame_times,
+                output=sys.stderr,
             )
         if self.config.profile_json_path is not None:
             write_profile_report(
@@ -434,30 +513,80 @@ class NvcodecPipeline:
         duration_sec = self.config.max_frames / info.fps
         return ["-t", f"{duration_sec:.6f}"]
 
-    def _print_stats(self, frame_times: list[float], wall_total: float) -> None:
-        if not frame_times:
+    def _print_stats(self, summary: ProcessTimingSummary) -> None:
+        if self.config.quiet or summary.processed_frames == 0:
             return
 
-        average = sum(frame_times) / len(frame_times)
-        minimum = min(frame_times)
-        maximum = max(frame_times)
-        fps = 1.0 / average if average > 0 else 0.0
-        without_warmup = frame_times[1:] or frame_times
-        average_without_warmup = sum(without_warmup) / len(without_warmup)
-        fps_without_warmup = 1.0 / average_without_warmup if average_without_warmup > 0 else 0.0
-        wall_minutes = int(wall_total // 60)
-        wall_seconds = wall_total % 60
-
-        print(f"\n{'=' * 50}")
-        print(f"Frames processed: {len(frame_times)}")
-        print(f"Average time:     {average:.3f}s/frame ({fps:.1f} fps)")
+        print(f"\n{'=' * 50}", file=sys.stderr)
+        print(f"Frames processed: {summary.processed_frames}", file=sys.stderr)
         print(
-            f"  Without warmup: {average_without_warmup:.3f}s/frame ({fps_without_warmup:.1f} fps)"
+            f"Frame loop:       {summary.frame_loop_sec:.1f}s ({summary.frame_loop_fps:.1f} FPS)",
+            file=sys.stderr,
         )
-        print(f"Min/Max:          {minimum:.3f}s / {maximum:.3f}s")
-        print(f"Total time:       {wall_minutes}m {wall_seconds:.1f}s")
-        print(f"Output file:      {self.config.output_path}")
-        print(f"{'=' * 50}")
+        print(
+            f"Active pipeline:  {summary.active_pipeline_sec:.1f}s "
+            f"({summary.active_pipeline_fps:.1f} FPS)",
+            file=sys.stderr,
+        )
+        print(
+            f"Pipeline wall:    {summary.pipeline_wall_sec:.1f}s "
+            f"({summary.pipeline_wall_fps:.1f} FPS)",
+            file=sys.stderr,
+        )
+        if self.config.verbose:
+            print(
+                "Frame body:       "
+                f"avg {summary.average_frame_processing_sec:.3f}s, "
+                f"post-warmup {summary.post_warmup_average_frame_processing_sec:.3f}s, "
+                f"min/max {summary.min_frame_processing_sec:.3f}s / "
+                f"{summary.max_frame_processing_sec:.3f}s "
+                f"({summary.warmup_frames_excluded} excluded)",
+                file=sys.stderr,
+            )
+        print(f"Output file:      {self.config.output_path}", file=sys.stderr)
+        print(f"{'=' * 50}", file=sys.stderr)
+
+    def _write_result(self, summary: ProcessTimingSummary) -> None:
+        destination = self.config.result_json_path
+        if destination is None:
+            return
+        runtime = self._runtime()
+        info = self._video_info()
+        report: dict[str, object] = {
+            "document_type": PROCESS_RESULT_DOCUMENT_TYPE,
+            "schema_version": PROCESS_RESULT_SCHEMA_VERSION,
+            "status": "completed",
+            "engine": {"path": str(self.config.engine_path)},
+            "gpu": {
+                "id": self.config.gpu_id,
+                "name": runtime.gpu_name,
+            },
+            "input": {
+                "path": str(self.config.input_path),
+                "width": info.width,
+                "height": info.height,
+                "fps": info.fps,
+                "frame_rate": info.fps_str,
+                "frame_count": info.nb_frames,
+            },
+            "output": {
+                "path": str(self.config.output_path),
+                "width": runtime.output_w,
+                "height": runtime.output_h,
+                "fps": info.fps,
+                "frame_rate": info.fps_str,
+                "frame_count": summary.processed_frames,
+                "codec": self.config.codec,
+            },
+            "request": {
+                "max_frames": self.config.max_frames or None,
+                "warmup_frames": self.config.warmup_frames,
+                "log_interval": self.config.log_interval,
+            },
+            "processed_frames": summary.processed_frames,
+            "timing": summary.as_json(),
+        }
+        write_json_document(destination, report)
 
     def _write_bitstream(self, bitstream: Any) -> None:
         if bitstream:
@@ -515,8 +644,8 @@ class NvcodecPipeline:
 
     def _log(self, *values: object) -> None:
         if not self.config.quiet:
-            print(*values)
+            print(*values, file=sys.stderr)
 
     def _log_verbose(self, *values: object) -> None:
         if self.config.verbose:
-            print(*values)
+            print(*values, file=sys.stderr)
