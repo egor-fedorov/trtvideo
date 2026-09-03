@@ -1,6 +1,7 @@
 # trtvideo
 
 [![CI](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/egor-fedorov/trtvideo/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/codeql.yml)
 [![Dockerfile Validation](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml)
 [![Release](https://img.shields.io/github/v/release/egor-fedorov/trtvideo?display_name=tag&sort=semver)](https://github.com/egor-fedorov/trtvideo/releases/latest)
 [![License](https://img.shields.io/github/license/egor-fedorov/trtvideo)](LICENSE)
@@ -102,10 +103,11 @@ Process a video with a prepared static TensorRT engine:
 docker run --rm --gpus all \
   --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
+  --workdir /work \
   ghcr.io/egor-fedorov/trtvideo:latest trtvideo \
-  --engine /work/model.engine \
-  --input /work/input.mp4 \
-  --output /work/output.mp4
+  --engine model.engine \
+  --input input.mp4 \
+  --output output.mp4
 ```
 
 Use a version tag instead of `latest` for reproducible deployments. TensorRT
@@ -293,21 +295,23 @@ Build the production image used for engine compilation and video processing:
 make build
 ```
 
-The default production image is `trtvideo:latest`. It contains `trtvideo` and
-`build-engine`, but not PyTorch or model conversion tools. Use
+The default production image is `trtvideo:latest`. It contains video processing,
+static-ONNX compatibility, input preparation/reporting, and `build-engine`, but
+not PyTorch or model conversion tools. Use
 `make build IMAGE=example/name:tag` to select another name.
 
-Model export, ONNX preparation, and the self-contained demo use a separate
-local image:
+Model export, dynamic ONNX preparation, checkpoint compatibility checks, and
+the self-contained demo use a separate image:
 
 ```bash
 make build-model-tools
 ```
 
 That target writes `trtvideo:model-tools` by default. Versioned GitHub releases
-publish only the production target to `ghcr.io/egor-fedorov/trtvideo`; the
-release records its immutable digest, SBOM, and build provenance. Model-tools
-and benchmark images are not published.
+publish the narrow production image as `ghcr.io/egor-fedorov/trtvideo` and the
+conversion toolchain as `ghcr.io/egor-fedorov/trtvideo-model-tools`. Each image
+has its own immutable digest, SBOM, build provenance, and signed attestation.
+Benchmark images are not published.
 
 The image sets `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is
 required for NVDEC/NVENC through PyNvVideoCodec. Containers run with
@@ -405,6 +409,88 @@ which the maintainer adds the matrix row with the issue as evidence. The
 reporter does not need to open a second pull request. Only published quality-
 gated evidence can promote the model to `validated`.
 
+### Check Another Model
+
+The model-tools image turns a Spandrel-compatible checkpoint into a complete,
+issue-ready compatibility bundle in one command. It downloads and verifies the
+pinned CC BY-SA live-action fixture, exports and checks ONNX, builds a
+GPU-specific engine, processes 120 frames, fully validates the result, and
+retains every intermediate under the selected output directory:
+
+```bash
+IMAGE=ghcr.io/egor-fedorov/trtvideo-model-tools:vX.Y.Z
+
+docker pull "$IMAGE"
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/work" \
+  --workdir /work \
+  "$IMAGE" trtvideo compatibility-check \
+  --checkpoint BSRGANx2.pth \
+  --model-name BSRGANx2 \
+  --model-source https://openmodeldb.info/models/2x-BSRGAN \
+  --model-license Apache-2.0 \
+  --output-dir compatibility-report
+```
+
+`/work` is deliberately the container working directory and all CLI paths are
+relative to it. They therefore resolve from the host directory where Docker was
+started as well: terminal artifact paths and `commands.txt` remain usable after
+the container exits.
+
+Replace `vX.Y.Z` with an immutable release tag; do not use `latest` for
+submitted evidence. A run normally takes 10-30 minutes depending on the model
+and GPU. Progress names every low-level command and emits an elapsed-time
+heartbeat every 30 seconds. Use `--dry-run` to inspect the plan without creating
+files or touching the GPU, and `--resume` after an interruption. Completed
+steps are reused only while their hashes and the source/image/GPU context still
+match. If final validation rejects the model, its diagnostic JSON and Markdown
+remain available; `--resume` retries that unsuccessful tail without rebuilding
+verified artifacts.
+
+Pass `--onnx model.onnx` instead of `--checkpoint` to start from ONNX.
+Static ONNX determines the fixture resolution and goes directly to engine
+compilation, so this route also works in the narrower production image. Dynamic
+ONNX is made static first in model-tools and needs `--scale N` unless the graph
+carries trustworthy scale metadata. `--input sample.mp4` replaces the
+pinned fixture with SDR BT.709 user material and preserves its input resolution.
+HDR and non-BT.709 custom inputs are rejected rather than silently relabeled.
+
+For a static ONNX, use the production image and otherwise keep the same command:
+
+```bash
+IMAGE=ghcr.io/egor-fedorov/trtvideo:vX.Y.Z
+
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  --workdir /work \
+  "$IMAGE" trtvideo compatibility-check \
+  --onnx model.onnx \
+  --model-name ExampleModel \
+  --model-source https://example.org/models/ExampleModel \
+  --model-license Apache-2.0 \
+  --output-dir compatibility-report
+```
+
+The final files are `model-compatibility-report.json` and
+`model-compatibility-issue.md`. Review the Markdown, then submit it without
+re-entering its fields:
+
+```bash
+gh issue create \
+  --repo egor-fedorov/trtvideo \
+  --title "[Model]: BSRGANx2" \
+  --label "model compatibility" \
+  --body-file compatibility-report/model-compatibility-issue.md
+```
+
+The browser [model compatibility form](https://github.com/egor-fedorov/trtvideo/issues/new?template=model_compatibility.yml)
+remains available for manual or failed reports. The low-level commands remain
+public for diagnosis; see the
+[model contract](docs/MODEL_CONTRACT.md#manual-low-level-workflow).
+
 ### Local Layout
 
 Model weights, ONNX files, and TensorRT engines are not included in the
@@ -439,8 +525,11 @@ make build-model-tools
 make build
 ```
 
-The first two conversion steps use `trtvideo:model-tools`; engine compilation
-and video processing use the narrower `trtvideo:latest` production image.
+The conversion steps use `trtvideo:model-tools`; engine compilation and video
+processing can use either that image or the narrower `trtvideo:latest`
+production image. `compatibility-check` is available in both: checkpoint and
+dynamic-ONNX workflows require model-tools, while static ONNX runs end-to-end
+in production.
 
 ### 1. Export `.pth` To ONNX
 
@@ -750,11 +839,15 @@ Production image commands:
 
 ```bash
 trtvideo
+trtvideo doctor
+trtvideo compatibility-check # static ONNX
 trtvideo compatibility-report
+prepare-compatibility-input
 build-engine
 ```
 
-The local model-tools image also provides:
+The published model-tools image additionally enables checkpoint and dynamic
+ONNX compatibility checks and provides:
 
 ```bash
 export-onnx
@@ -772,7 +865,9 @@ Use `--help` to view all arguments:
 ```bash
 docker run --rm trtvideo:latest trtvideo --help
 docker run --rm trtvideo:latest trtvideo doctor --help
+docker run --rm trtvideo:latest trtvideo compatibility-check --help
 docker run --rm trtvideo:latest trtvideo compatibility-report --help
+docker run --rm trtvideo:latest prepare-compatibility-input --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
 docker run --rm trtvideo:model-tools export-onnx --help
 docker run --rm trtvideo:model-tools prepare-onnx --help

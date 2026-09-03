@@ -54,6 +54,23 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Added
+
+- Added the resumable `trtvideo compatibility-check` model-tools workflow. One
+  command now prepares a pinned live-action input, exports or prepares ONNX,
+  builds a GPU-specific engine, runs and validates a 120-frame smoke test, and
+  writes issue-ready evidence. It supports checkpoints, static/dynamic ONNX,
+  custom input, `--dry-run`, `--resume`, step progress, and elapsed heartbeats.
+  Static ONNX checks also run in the narrower production image; checkpoint and
+  dynamic-ONNX paths fail early there with model-tools guidance. The documented
+  Docker working-directory contract keeps emitted artifact paths valid on the
+  host after the container exits.
+- Release automation now publishes a separately approved
+  `trtvideo-model-tools` GHCR image with immutable tags, SBOM, provenance,
+  signed attestation, digest asset, and unauthenticated-pull smoke coverage.
+- Added CodeQL analysis for pull requests, `main`, manual runs, and a weekly
+  scheduled scan.
+
 ## 0.6.0 - 2026-09-02
 
 ### Added

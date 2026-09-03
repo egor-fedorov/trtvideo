@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import sys
+import warnings
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -12,7 +15,13 @@ from trtvideo.cli.export_onnx import (
     export_filename,
     export_filename_for_target,
 )
-from trtvideo.cli.prepare_onnx import ONNXPrecision, is_dynamic, output_path_for_variant, parse_size
+from trtvideo.cli.prepare_onnx import (
+    ONNXPrecision,
+    convert_to_mixed_precision,
+    is_dynamic,
+    output_path_for_variant,
+    parse_size,
+)
 
 
 def test_export_filename_uses_explicit_model_name() -> None:
@@ -58,6 +67,44 @@ def test_channel_major_export_rejects_onnx_space_to_depth() -> None:
 
     with pytest.raises(RuntimeError, match="incompatible channel ordering"):
         _validate_channel_major_unshuffle_graph(model)
+
+
+def test_fp16_conversion_suppresses_only_expected_truncation_warnings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_model = object()
+    converted_model = object()
+    saved: list[tuple[object, str]] = []
+
+    onnx_module = ModuleType("onnx")
+    onnx_module.__dict__["load"] = lambda _path: source_model
+    onnx_module.__dict__["save"] = lambda model, path: saved.append((model, path))
+
+    def convert(model: object, *, keep_io_types: bool) -> object:
+        assert model is source_model
+        assert keep_io_types is True
+        warnings.warn(
+            "the float32 number 4e-08 will be truncated to 1e-07",
+            UserWarning,
+            stacklevel=1,
+        )
+        warnings.warn("actionable converter warning", UserWarning, stacklevel=1)
+        return converted_model
+
+    float16_module = ModuleType("onnxconverter_common.float16")
+    float16_module.__dict__["convert_float_to_float16"] = convert
+    converter_package = ModuleType("onnxconverter_common")
+    converter_package.__dict__["float16"] = float16_module
+    monkeypatch.setitem(sys.modules, "onnx", onnx_module)
+    monkeypatch.setitem(sys.modules, "onnxconverter_common", converter_package)
+
+    output = tmp_path / "model_fp16.onnx"
+    with pytest.warns(UserWarning, match="actionable converter warning") as emitted:
+        convert_to_mixed_precision("model.onnx", str(output))
+
+    assert len(emitted) == 1
+    assert saved == [(converted_model, str(output))]
 
 
 @pytest.mark.parametrize(

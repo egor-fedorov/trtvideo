@@ -92,6 +92,7 @@ dev = [
 trtvideo = "trtvideo.cli.main:main"
 export-onnx = "trtvideo.cli.export_onnx:main"
 prepare-onnx = "trtvideo.cli.prepare_onnx:main"
+prepare-compatibility-input = "trtvideo.cli.prepare_compatibility_input:main"
 build-engine = "trtvideo.cli.build_engine:main"
 
 [tool.setuptools.packages.find]

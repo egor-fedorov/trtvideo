@@ -20,6 +20,7 @@ build:
 		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
+		--build-arg IMAGE_REFERENCE="$(IMAGE)" \
 		--target production \
 		-t $(IMAGE) .
 
@@ -29,6 +30,7 @@ build-model-tools:
 		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
+		--build-arg IMAGE_REFERENCE="$(MODEL_TOOLS_IMAGE)" \
 		--target model-tools \
 		-t $(MODEL_TOOLS_IMAGE) .
 
@@ -86,11 +88,13 @@ test-media-integration:
 cli-smoke:
 	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo doctor --help
+	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo compatibility-check --help
 	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo compatibility-report --help
 	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-trtvideo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
 	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
 	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help
+	$(DOCKER_RUN) $(DEV_IMAGE) prepare-compatibility-input --help
 	$(DOCKER_RUN) $(DEV_IMAGE) build-engine --help
 
 check: lint typecheck compile test-unit test-media-integration cli-smoke figures-check

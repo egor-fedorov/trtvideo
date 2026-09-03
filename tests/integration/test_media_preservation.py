@@ -5,6 +5,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from trtvideo.compatibility.input import (
+    InputPreparation,
+    input_manifest_evidence,
+    prepare_input,
+)
 from trtvideo.demo import media as demo_media
 from trtvideo.demo.config import (
     DEMO_AUDIO_CHANNELS,
@@ -422,3 +427,54 @@ def test_self_contained_demo_input_passes_its_media_contract(
     assert observed["height"] == 720
     assert observed["frames"] == DEMO_FRAMES
     assert minimum_audio_si_sdr_db >= _MIN_BROADBAND_AUDIO_SI_SDR_DB
+
+
+def test_compatibility_input_is_decodable_and_bound_to_its_manifest(tmp_path: Path) -> None:
+    source = tmp_path / "source.mkv"
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=128x72:rate=24:duration=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-color_range",
+            "tv",
+            "-colorspace",
+            "bt709",
+            "-color_trc",
+            "bt709",
+            "-color_primaries",
+            "bt709",
+            "-c:a",
+            "aac",
+            str(source),
+        ]
+    )
+    request = InputPreparation(
+        source=source,
+        output=tmp_path / "input.mp4",
+        manifest=tmp_path / "input.json",
+        width=128,
+        height=72,
+        frames=24,
+    )
+
+    manifest = prepare_input(request)
+    evidence = input_manifest_evidence(request.manifest, request.output)
+
+    assert manifest["observed"]["frames"] == 24
+    assert manifest["observed"]["full_decode"] is True
+    assert evidence["prepared_input"] == manifest["output"]

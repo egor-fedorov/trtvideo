@@ -62,17 +62,19 @@ Their complete package metadata and license files remain in the Python
 installation. Transitive packages and exact versions are enumerated by the
 release SBOM attached to the GHCR image manifest.
 
-## Local Model-Tools And Benchmark Targets
+## Published Model-Tools Image And Local Benchmark Target
 
-The `model-tools` target additionally installs CPU-only PyTorch and torchvision
-(BSD-family), Spandrel (MIT), ONNX Runtime (MIT), ONNX Script (MIT), and ONNX
-Converter Common (MIT). The `benchmark` target additionally installs its
-diagnostic packages. The release workflow does not publish either target to
-GHCR.
+The separately published `model-tools` image additionally installs CPU-only
+PyTorch and torchvision (BSD-family), Spandrel (MIT), ONNX Runtime (MIT), ONNX
+Script (MIT), and ONNX Converter Common (MIT). Their package metadata and
+license files remain in the image and exact versions are recorded by its SBOM.
+The local `benchmark` target additionally installs diagnostic packages and is
+not published to GHCR.
 
 ## Assets Not Included
 
 Model weights, exported ONNX files, TensorRT engines, input videos, benchmark
 outputs, and raw benchmark artifacts are not included in the source repository
-or published production image. Their source, license, and attribution records
-are documented in `docs/LICENSING.md` and the benchmark workload manifests.
+or published production/model-tools images. Their source, license, and
+attribution records are documented in `docs/LICENSING.md` and the benchmark
+workload manifests.

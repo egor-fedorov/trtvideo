@@ -17,6 +17,10 @@ def main(argv: Sequence[str] | None = None) -> int | None:
         from trtvideo.cli.compatibility_report import main as compatibility_report_main
 
         return compatibility_report_main(arguments[1:])
+    if arguments and arguments[0] == "compatibility-check":
+        from trtvideo.cli.compatibility_check import main as compatibility_check_main
+
+        return compatibility_check_main(arguments[1:])
 
     from trtvideo.cli.process import main as process_main
 

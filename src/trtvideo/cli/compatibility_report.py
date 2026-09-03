@@ -39,6 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--engine", required=True, type=Path, help="Static TensorRT engine")
     parser.add_argument("--input", required=True, type=Path, help="Smoke-test input video")
     parser.add_argument(
+        "--input-manifest",
+        type=Path,
+        help="Optional prepare-compatibility-input manifest to bind into the report",
+    )
+    parser.add_argument(
         "--processed-output",
         required=True,
         type=Path,
@@ -95,6 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         image_reference=args.image_reference,
         gpu_id=args.gpu_id,
         output_dir=args.output_dir,
+        input_manifest=args.input_manifest,
     )
     try:
         report = generate_compatibility_report(request)

@@ -19,6 +19,7 @@ from trtvideo.compatibility.evidence import (
     file_identity,
     public_value,
 )
+from trtvideo.compatibility.input import input_manifest_evidence
 from trtvideo.compatibility.media import (
     CompatibilityMediaError,
     inspect_media,
@@ -49,6 +50,7 @@ class CompatibilityRequest:
     image_reference: str
     gpu_id: int
     output_dir: Path
+    input_manifest: Path | None = None
 
 
 def _package_version() -> str:
@@ -203,7 +205,12 @@ def render_issue_markdown(report: dict[str, Any]) -> str:
             "",
             "### Smoke test and output validation",
             "",
-            _json_block(report["media"]),
+            _json_block(
+                {
+                    "input_preparation": report["input_preparation"],
+                    "media": report["media"],
+                }
+            ),
             "",
             "### Submission checks",
             "",
@@ -239,6 +246,7 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
     conformance: dict[str, Any] | None = None
     commands: str | None = None
     media: dict[str, Any] = {"valid": False, "errors": ["Media was not inspected"]}
+    input_preparation: dict[str, Any] | None = None
 
     public_model = {"name": "[omitted]", "source": "[omitted]", "license": "[omitted]"}
     for field, value, label, validator in (
@@ -324,6 +332,15 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
         if not media["valid"]:
             errors.append("Smoke-test output validation did not pass")
 
+    if request.input_manifest is not None:
+        try:
+            input_preparation = input_manifest_evidence(
+                request.input_manifest,
+                request.input_video,
+            )
+        except CompatibilityEvidenceError as exc:
+            errors.append(str(exc))
+
     image, image_errors = _image_evidence(request.image_reference)
     errors.extend(image_errors)
     report = {
@@ -346,6 +363,7 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
             "doctor": doctor_data,
         },
         "media": media,
+        "input_preparation": input_preparation,
         "request": {
             "expected_frames": request.expected_frames,
         },

@@ -9,7 +9,8 @@ FROM ${BASE_IMAGE}
 ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_NO_MANAGED_PYTHON=1 \
-    VIRTUAL_ENV=/opt/trtvideo
+    VIRTUAL_ENV=/opt/trtvideo \
+    TRTVIDEO_IMAGE_VARIANT=development
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 WORKDIR /app
 

@@ -69,7 +69,14 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv sync --frozen --no-dev --active --inexact --no-install-project \
         --extra docker --extra export
 
+# Target identity changes per release without invalidating the dependency layer.
+ARG IMAGE_REFERENCE=trtvideo:model-tools
+ENV TRTVIDEO_IMAGE_REF="${IMAGE_REFERENCE}" \
+    TRTVIDEO_IMAGE_VARIANT=model-tools
+
 FROM model-tools AS benchmark
+
+ENV TRTVIDEO_IMAGE_VARIANT=benchmark
 
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     uv sync --frozen --no-dev --active --inexact --no-install-project \
@@ -79,6 +86,10 @@ COPY benchmarks/ benchmarks/
 COPY --chmod=755 benchmarks/bin/benchmark-trtvideo /usr/local/bin/benchmark-trtvideo
 
 FROM runtime AS production
+
+ARG IMAGE_REFERENCE=trtvideo:latest
+ENV TRTVIDEO_IMAGE_REF="${IMAGE_REFERENCE}" \
+    TRTVIDEO_IMAGE_VARIANT=production
 
 # PyTorch model export and ONNX rewriting are confined to model-tools.
 RUN rm -f "${VIRTUAL_ENV}/bin/export-onnx" \
