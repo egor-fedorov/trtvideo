@@ -13,6 +13,7 @@ Usage:
 import argparse
 import os
 import sys
+import warnings
 from typing import Any, Literal, TypedDict
 
 
@@ -28,6 +29,7 @@ TARGETS: list[TargetSpec] = [
 ]
 ONNXPrecision = Literal["fp32", "fp16"]
 KEEP_IO_TYPES_FOR_FP16 = True
+FLOAT16_TRUNCATION_WARNING = r"the float32 number .* will be truncated to .*"
 
 
 def parse_size(size: str) -> TargetSpec:
@@ -122,10 +124,17 @@ def convert_to_mixed_precision(source_path: str, output_path: str) -> None:
         raise SystemExit(1) from exc
 
     model = onnx.load(source_path)
-    converted_model = float16.convert_float_to_float16(
-        model,
-        keep_io_types=KEEP_IO_TYPES_FOR_FP16,
-    )
+    with warnings.catch_warnings():
+        # These messages report the expected clamping of constants below FP16 range.
+        warnings.filterwarnings(
+            "ignore",
+            message=FLOAT16_TRUNCATION_WARNING,
+            category=UserWarning,
+        )
+        converted_model = float16.convert_float_to_float16(
+            model,
+            keep_io_types=KEEP_IO_TYPES_FOR_FP16,
+        )
     onnx.save(converted_model, output_path)
 
 

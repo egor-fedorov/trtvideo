@@ -1,7 +1,7 @@
 # Licensing And Redistribution Audit
 
 This document records the public distribution boundary and release inventory
-reviewed on 2026-08-16. It is a technical record, not legal advice. The evidence
+reviewed on 2026-09-03. It is a technical record, not legal advice. The evidence
 must be reviewed again when the TensorRT base, Ubuntu release, direct
 dependencies, model assets, or benchmark media change.
 
@@ -11,16 +11,18 @@ dependencies, model assets, or benchmark media change.
 |---|---|---|
 | `trtvideo` source and documentation | Yes | Apache-2.0 |
 | Production container | Yes, for versioned releases | Mixed; see `THIRD_PARTY_NOTICES.md` and the release SBOM |
-| `model-tools` and benchmark containers | No | Local/internal targets only |
+| `model-tools` container | Yes, for versioned releases | Mixed; see `THIRD_PARTY_NOTICES.md` and its release SBOM |
+| Benchmark containers | No | Local/internal targets only |
 | Model weights, ONNX, TensorRT engines | No | Upstream model terms |
 | Input media and raw benchmark artifacts | No | Upstream media terms |
 | Compact benchmark JSON and generated SVGs | Yes | Repository Apache-2.0; underlying measurements retain recorded provenance |
 
 The production image is intentionally narrower than the local toolchain. It
 contains `trtvideo`, `build-engine`, TensorRT, CUDA Python bindings, CV-CUDA,
-PyNvVideoCodec, ONNX, and FFmpeg. PyTorch, torchvision, Spandrel, ONNX Script,
-ONNX Runtime, and ONNX conversion tools exist only in the non-published
-`model-tools` and benchmark targets.
+PyNvVideoCodec, ONNX, and FFmpeg. The separately published `model-tools` image
+also contains CPU-only PyTorch, torchvision, Spandrel, ONNX Script, ONNX
+Runtime, and ONNX conversion tools. Benchmark-only diagnostics remain confined
+to non-published targets.
 
 ## NVIDIA Components And Benchmark Publication
 
@@ -52,7 +54,7 @@ The tools download these assets only into ignored local directories:
 | RealESRGAN_x2plus v0.2.1 weights | Demo and benchmark | BSD-3-Clause project license | Download from the pinned upstream release; do not add to an image or git |
 | 2xLiveActionV1_SPAN weights | Benchmark only | CC-BY-NC-SA-4.0 | Non-commercial benchmark asset; download locally and never publish with the image |
 | Madrid-2021-05-06 source | Benchmark input | CC0-1.0 | Download locally; prepared clips and raw media remain excluded |
-| Jacqueville beach in may 2026 (0) by Poro26 | Demo input | CC-BY-SA-4.0 | Download locally; generated excerpts and enhanced outputs remain CC BY-SA 4.0 adaptations with attribution and modifications recorded in the report and MP4 metadata |
+| Jacqueville beach in may 2026 (0) by Poro26 | Demo and compatibility input | CC-BY-SA-4.0 | Download locally; generated excerpts and enhanced outputs remain CC BY-SA 4.0 adaptations with attribution and modifications recorded in manifests and MP4 metadata |
 
 The workload manifests and `src/trtvideo/demo/config.py` are the
 machine-readable sources of truth for URLs, hashes, sizes, license references,
@@ -66,16 +68,20 @@ record of modifications embedded by the workflow.
 
 ## Published Image Contract
 
-Every versioned image is built from a clean release tag and only from the
-`production` target. The image excludes repository-local models, media, demo
-files, benchmark artifacts, PyTorch model tooling, and benchmark tooling. Its
-TensorRT base is selected by immutable digest, and the base-provided NVIDIA plus
-Ubuntu package notices remain intact.
+Every versioned production and model-tools image is built from a clean release
+tag. Both exclude repository-local models, media, demo files, and benchmark
+artifacts; production additionally excludes PyTorch and model-conversion
+tooling. Their TensorRT base is selected by immutable digest, and the
+base-provided NVIDIA plus Ubuntu package notices remain intact.
 
-The registry manifest carries an SBOM and build provenance. A signed GitHub
-attestation binds the image digest to the release revision, and the immutable
-digest is recorded with the GitHub release. The release evidence must identify
-the exact FFmpeg/x264 package versions and corresponding Ubuntu source packages.
+Each registry manifest carries an SBOM and build provenance. Separate signed
+GitHub attestations bind both image digests to the release revision, and both
+immutable digests are recorded with the GitHub release. Publication requires
+`GHCR_REDISTRIBUTION_APPROVED=true` and
+`GHCR_MODEL_TOOLS_REDISTRIBUTION_APPROVED=true` in the protected
+`ghcr-release` environment. Both GHCR packages must be public so the release
+job's unauthenticated pull check passes. The release evidence must identify the
+exact FFmpeg/x264 package versions and corresponding Ubuntu source packages.
 `make check` and the GPU acceptance in `docs/TESTING.md` apply before a release.
 
 No automated check can establish that a use or redistribution is legally

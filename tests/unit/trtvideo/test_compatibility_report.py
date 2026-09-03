@@ -13,6 +13,7 @@ from trtvideo.compatibility.evidence import (
     conformance_evidence,
     engine_evidence,
 )
+from trtvideo.compatibility.input import FIXTURE_CONTRACT_VERSION
 from trtvideo.compatibility.media import MediaInspection, validate_media
 from trtvideo.compatibility.report import CompatibilityRequest, generate_compatibility_report
 from trtvideo.diagnostics.doctor import CheckResult, DoctorReport
@@ -235,6 +236,38 @@ def test_generate_report_writes_sanitized_json_and_markdown(
     output_video = tmp_path / "output.mp4"
     input_video.write_bytes(b"input")
     output_video.write_bytes(b"output")
+    input_manifest = tmp_path / "input.json"
+    input_manifest.write_text(
+        json.dumps(
+            {
+                "document_type": "trtvideo-compatibility-input",
+                "schema_version": 1,
+                "fixture_contract": FIXTURE_CONTRACT_VERSION,
+                "source_kind": "user-supplied",
+                "source": {
+                    "name": "source.mp4",
+                    "sha256": "f" * 64,
+                    "size_bytes": 200,
+                },
+                "output": {
+                    "name": "input.mp4",
+                    "sha256": _sha(b"input"),
+                    "size_bytes": len(b"input"),
+                },
+                "observed": {
+                    "width": 1280,
+                    "height": 720,
+                    "frames": 120,
+                    "fps": "24/1",
+                    "audio_streams": 1,
+                    "duration_sec": 5.0,
+                    "timestamps": "strictly_monotonic",
+                    "full_decode": True,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     input_inspection = _inspection(
         name="input.mp4",
         width=1280,
@@ -289,6 +322,7 @@ def test_generate_report_writes_sanitized_json_and_markdown(
             image_reference="ghcr.io/example/trtvideo:test",
             gpu_id=0,
             output_dir=output_dir,
+            input_manifest=input_manifest,
         )
     )
 
@@ -299,3 +333,4 @@ def test_generate_report_writes_sanitized_json_and_markdown(
     assert "/private/path" not in json_text
     assert "2xExample" in markdown
     assert "community-reported" in markdown
+    assert report["input_preparation"]["prepared_input"]["sha256"] == _sha(b"input")

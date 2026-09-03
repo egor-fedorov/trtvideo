@@ -55,12 +55,20 @@ installed as a production project script.
 ```bash
 docker run --rm trtvideo:dev trtvideo --help
 docker run --rm trtvideo:dev trtvideo doctor --help
+docker run --rm trtvideo:dev trtvideo compatibility-check --help
 docker run --rm trtvideo:dev trtvideo compatibility-report --help
 docker run --rm trtvideo:dev benchmark-trtvideo --help
 docker run --rm trtvideo:dev export-onnx --help
 docker run --rm trtvideo:dev prepare-onnx --help
+docker run --rm trtvideo:dev prepare-compatibility-input --help
 docker run --rm trtvideo:dev build-engine --help
 ```
+
+Unit coverage for `compatibility-check` verifies checkpoint, static ONNX,
+dynamic ONNX, custom-input, scale-error, dry-run, heartbeat, partial-cleanup,
+context-mismatch, and artifact-invalidation paths without importing GPU runtime
+libraries. The media integration layer exercises the shared FFmpeg fixture
+command, so changes cannot silently diverge from `make demo`.
 
 ### GPU Smoke
 
@@ -70,7 +78,7 @@ The self-contained manual GPU smoke test is:
 make demo
 ```
 
-It builds the non-published `model-tools` target, then uses pinned RealESRGAN
+It builds the local `model-tools` target, then uses pinned RealESRGAN
 weights and a verified five-second, 120-frame excerpt of the CC BY-SA 4.0
 `Jacqueville beach in may 2026 (0)` live-action source. The prepared input and
 validated result use browser- and desktop-friendly H.264/AAC MP4 containers.
@@ -98,6 +106,13 @@ against a deterministic broadband-audio fixture. A source-relative SI-SDR
 threshold guards the pinned audio transcode without adding comparative quality
 analysis to the demo runtime. Engine build and inference still require a GPU
 host.
+
+Before releasing the compatibility workflow, run one complete checkpoint case
+on a GPU host, interrupt it after a successful engine build, and confirm that
+`--resume` reruns `doctor`, skips verified stages, and completes the smoke/report
+steps. Also run an existing static ONNX case in the production image and a
+dynamic ONNX case with `--scale` in model-tools. These are acceptance checks,
+not regular CI jobs.
 
 ### Benchmark
 

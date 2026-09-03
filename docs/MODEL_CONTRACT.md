@@ -49,7 +49,115 @@ it to `[0, 1]`, and writes NCHW tensors. Output is converted back through the
 declared video color contract. A model should not implement its own limited-
 range expansion or YUV conversion.
 
-## Prepare A Source Checkpoint
+## One-Command Compatibility Check
+
+Use the published model-tools image for the normal community-report path. An
+input clip is optional: by default the command downloads, hash-checks, and
+prepares the same pinned Jacqueville live-action source used by the demo.
+
+```bash
+IMAGE=ghcr.io/egor-fedorov/trtvideo-model-tools:vX.Y.Z
+
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/work" \
+  --workdir /work \
+  "$IMAGE" trtvideo compatibility-check \
+  --checkpoint models/pretrained/model.pth \
+  --model-name 2xExampleModel \
+  --model-source https://example.org/models/2xExampleModel \
+  --model-license Apache-2.0 \
+  --output-dir compatibility-report
+```
+
+The bind mount is also the container working directory, and generated paths are
+deliberately relative to it. The terminal output and `commands.txt` therefore
+refer to the same paths from the host directory after the container exits,
+without embedding a contributor-specific absolute home directory.
+
+The immutable image identity is embedded at release build time; no
+`TRTVIDEO_IMAGE_REF` override is needed. The command announces a 10-30 minute
+model/GPU-dependent estimate, streams child output, prints a fixed `N/total`
+step bar, and emits an append-only heartbeat every 30 seconds. It writes exact
+commands automatically and retains the prepared input, ONNX, conformance
+evidence, engine and sidecar, timing cache, processed MP4, JSON report, and
+issue-ready Markdown.
+
+After reviewing the generated Markdown, submit it without re-entering the
+evidence into the browser form:
+
+```bash
+gh issue create \
+  --repo egor-fedorov/trtvideo \
+  --title "[Model]: 2xExampleModel" \
+  --label "model compatibility" \
+  --body-file compatibility-report/model-compatibility-issue.md
+```
+
+`--dry-run` prints the complete plan without creating the output directory,
+downloading media, running `doctor`, or using the GPU. `--resume` always reruns
+`doctor`, then accepts the journal only when the model/input identities,
+parameters, image revision, and GPU/driver/TensorRT fingerprint match. Generated
+files are hash-checked; changing one invalidates that step and all downstream
+steps. A failed final validation retains its diagnostic JSON and Markdown;
+`--resume` replaces them while retrying that unfinished tail. User-supplied
+checkpoints, ONNX files, and input videos are never deleted.
+
+For an existing ONNX graph, replace `--checkpoint` with `--onnx`. A fully static
+graph supplies its own input resolution and is passed directly to
+`build-engine`, and this route works in the narrower production image. A dynamic
+graph is prepared as mixed FP16 in model-tools and requires `--scale N` unless
+scale metadata proves the value. A custom `--input` must be SDR BT.709, is
+normalized to the media contract at its native resolution, and must match a
+static ONNX input shape. HDR and non-BT.709 inputs are rejected rather than
+silently relabeled.
+
+The production image rejects checkpoint and dynamic-ONNX compatibility checks
+with a precise model-tools instruction. Static ONNX needs no PyTorch, Spandrel,
+ONNX Runtime, or graph conversion and therefore remains available there.
+
+For the static-ONNX route, change the image and source argument while retaining
+the other metadata and mount arguments from the command above:
+
+```bash
+IMAGE=ghcr.io/egor-fedorov/trtvideo:vX.Y.Z
+
+docker run --rm --gpus all \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  --workdir /work \
+  "$IMAGE" trtvideo compatibility-check \
+  --onnx models/onnx/model.onnx \
+  --model-name 2xExampleModel \
+  --model-source https://example.org/models/2xExampleModel \
+  --model-license Apache-2.0 \
+  --output-dir compatibility-report
+```
+
+## Manual Low-Level Workflow
+
+### Prepare The Compatibility Input
+
+The default source does not need to be found or downloaded manually. This
+low-level command downloads the pinned Jacqueville source, verifies its size and
+SHA256, creates a 120-frame H.264/AAC SDR input, fully decodes it, checks its
+timestamps and media metadata, and writes a hash-bound attribution manifest:
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  --workdir /work \
+  trtvideo:latest prepare-compatibility-input \
+  --output videos/compatibility-input.mp4 \
+  --manifest videos/compatibility-input.json
+```
+
+Add `--input videos/custom.mp4 --size WIDTHxHEIGHT` to normalize a custom
+SDR BT.709 source instead. The command never overwrites or deletes that source.
+
+### Prepare A Source Checkpoint
 
 `export-onnx` accepts an image-to-image `.pth` checkpoint recognized by
 Spandrel. Build both local images first:
@@ -98,7 +206,7 @@ engine after moving to an incompatible image or GPU. Keep the generated
 `.engine.json` sidecar with compatibility evidence, but do not commit the engine
 or model weights.
 
-## Start From Existing ONNX
+### Start From Existing ONNX
 
 An existing ONNX file can skip `export-onnx`. It must already represent the RGB
 contract above. `prepare-onnx` cannot infer scale from symbolic output shapes,
@@ -127,7 +235,7 @@ may support a `community-reported` entry, but they do not by themselves qualify
 the model as `validated`. Promotion would require a publication protocol that
 also records the existing ONNX model's provenance.
 
-## Export-Conformance Gate
+### Export-Conformance Gate
 
 Before full-size export, `export-onnx` creates a deterministic normalized RGB
 probe with shape `[1, 3, 16, 16]`. It runs the probe through:
@@ -172,14 +280,15 @@ Common failures should be interpreted as follows:
 Do not relax thresholds only to make a model pass. A model-specific tolerance
 requires a reviewed contract change and independent output-quality evidence.
 
-## Smoke-Test The Engine
+### Smoke-Test The Engine
 
 First verify the static environment:
 
 ```bash
 docker run --rm --gpus all \
   -v "$PWD:/work" \
-  trtvideo:latest trtvideo doctor --disk-path /work
+  --workdir /work \
+  trtvideo:latest trtvideo doctor --disk-path .
 ```
 
 Then process a short sample whose resolution matches the engine:
@@ -188,10 +297,11 @@ Then process a short sample whose resolution matches the engine:
 docker run --rm --gpus all \
   --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
+  --workdir /work \
   trtvideo:latest trtvideo \
-  --engine /work/models/engines/model_720p.engine \
-  --input /work/videos/input-720p.mp4 \
-  --output /work/videos/output-1440p.mp4 \
+  --engine models/engines/model_720p.engine \
+  --input videos/input-720p.mp4 \
+  --output videos/output-1440p.mp4 \
   --max-frames 120
 ```
 
@@ -200,13 +310,14 @@ count, resolution, timestamps, pixel format, color range/space/transfer/
 primaries, bitrate, and duration as described in
 the [testing contract](TESTING.md).
 
-## Build A Submission Bundle
+### Build A Submission Bundle Manually
 
-Keep the exact export, preparation, engine-build, and smoke-test commands in a
-UTF-8 text file as they are run. After the output exists, one production-image
-command checks the existing evidence, runs `doctor`, fully decodes and probes
-the output, removes local paths from structured evidence, and writes both JSON
-and an issue-ready Markdown body:
+The one-command workflow above is preferred. For diagnosis or a nonstandard
+workflow, keep the exact export, preparation, engine-build, and smoke-test
+commands in a UTF-8 text file as they are run. After the output exists, one
+production-image command checks the existing evidence, runs `doctor`, fully
+decodes and probes the output, removes local paths from structured evidence,
+and writes both JSON and an issue-ready Markdown body:
 
 ```bash
 IMAGE=ghcr.io/egor-fedorov/trtvideo:vX.Y.Z
@@ -216,20 +327,22 @@ docker run --rm --gpus all \
   --user "$(id -u):$(id -g)" \
   -e TRTVIDEO_IMAGE_REF="$IMAGE" \
   -v "$PWD:/work" \
+  --workdir /work \
   "$IMAGE" \
   trtvideo compatibility-report \
   --model-name 2xExampleModel \
   --model-source https://example.org/models/2xExampleModel \
   --model-license Apache-2.0 \
   --source-format checkpoint \
-  --source-artifact /work/models/pretrained/model.pth \
-  --export-conformance /work/models/onnx/model.export-conformance.json \
-  --engine /work/models/engines/model_720p.engine \
-  --input /work/videos/input-720p.mp4 \
-  --processed-output /work/videos/output-1440p.mp4 \
+  --source-artifact models/pretrained/model.pth \
+  --export-conformance models/onnx/model.export-conformance.json \
+  --engine models/engines/model_720p.engine \
+  --input videos/compatibility-input.mp4 \
+  --input-manifest videos/compatibility-input.json \
+  --processed-output videos/output-1440p.mp4 \
   --expected-frames 120 \
-  --commands-file /work/compatibility-commands.txt \
-  --output-dir /work/compatibility-report
+  --commands-file compatibility-commands.txt \
+  --output-dir compatibility-report
 ```
 
 Replace `vX.Y.Z` with a published immutable release tag or use the published
@@ -238,6 +351,10 @@ image digest. Do not use `latest` for compatibility evidence.
 For an existing ONNX model, use `--source-format onnx` and omit
 `--export-conformance`. The report records that source-checkpoint equivalence is
 unavailable without treating it as a failed community report.
+
+`--input-manifest` is optional for manually prepared media. When supplied, the
+report verifies that it hashes the actual input and carries the pinned fixture's
+license attribution; `compatibility-check` always supplies it.
 
 The command exits with status 2 when evidence is incomplete or inconsistent but
 still writes both files for diagnosis. Review the Markdown before publishing it;

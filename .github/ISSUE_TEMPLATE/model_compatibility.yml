@@ -8,6 +8,7 @@ body:
     attributes:
       value: |
         Follow `docs/MODEL_CONTRACT.md` before submitting. A successful report may qualify as `community-reported`; `validated` requires the published benchmark quality protocol.
+        This browser form is the fallback for manual or failed reports. A completed `trtvideo compatibility-check` run produces an issue body that can be submitted directly with `gh issue create`.
         Do not upload proprietary weights, private media, credentials, hostnames, absolute host paths, or GPU UUIDs.
         Submit only this issue; after review, the maintainer owns any compatibility-matrix pull request.
 

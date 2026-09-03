@@ -1,4 +1,4 @@
-name: Publish Production Image
+name: Publish Release Images
 
 on:
   release:
@@ -30,6 +30,7 @@ jobs:
       artifact-metadata: write
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository }}
+      MODEL_TOOLS_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/trtvideo-model-tools
       NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
 
     steps:
@@ -43,6 +44,7 @@ jobs:
         id: release
         env:
           APPROVED: ${{ vars.GHCR_REDISTRIBUTION_APPROVED }}
+          MODEL_TOOLS_APPROVED: ${{ vars.GHCR_MODEL_TOOLS_REDISTRIBUTION_APPROVED }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
@@ -57,6 +59,10 @@ jobs:
 
           if [[ "$APPROVED" != "true" ]]; then
             echo "GHCR_REDISTRIBUTION_APPROVED must be true in ghcr-release." >&2
+            exit 2
+          fi
+          if [[ "$MODEL_TOOLS_APPROVED" != "true" ]]; then
+            echo "GHCR_MODEL_TOOLS_REDISTRIBUTION_APPROVED must be true in ghcr-release." >&2
             exit 2
           fi
 
@@ -126,8 +132,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate image tags
-        id: metadata
+      - name: Generate production image tags
+        id: production_metadata
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.IMAGE_NAME }}
@@ -138,7 +144,7 @@ jobs:
             type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
 
       - name: Build and push production image
-        id: image
+        id: production_image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
@@ -146,7 +152,7 @@ jobs:
           platforms: linux/amd64
           pull: true
           push: true
-          tags: ${{ steps.metadata.outputs.tags }}
+          tags: ${{ steps.production_metadata.outputs.tags }}
           sbom: true
           provenance: mode=max
           build-args: |
@@ -154,29 +160,43 @@ jobs:
             VERSION=${{ steps.release.outputs.version }}
             VCS_REF=${{ steps.release.outputs.revision }}
             VCS_DIRTY=0
+            IMAGE_REFERENCE=${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
 
-      - name: Create signed GitHub provenance
+      - name: Create signed production provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-name: ${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.image.outputs.digest }}
+          subject-digest: ${{ steps.production_image.outputs.digest }}
           push-to-registry: true
           create-storage-record: false
 
-      - name: Smoke-test published digest
+      - name: Smoke-test published production digest
         env:
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          IMAGE_DIGEST: ${{ steps.production_image.outputs.digest }}
         run: |
           set -euo pipefail
           reference="$IMAGE_NAME@$IMAGE_DIGEST"
           docker pull "$reference"
           docker run --rm "$reference" trtvideo --help >/dev/null
           docker run --rm "$reference" trtvideo doctor --help >/dev/null
+          docker run --rm "$reference" trtvideo compatibility-check --help >/dev/null
           docker run --rm "$reference" trtvideo compatibility-report --help >/dev/null
+          if output="$(docker run --rm "$reference" trtvideo compatibility-check \
+            --checkpoint /tmp/model.pth \
+            --model-name smoke \
+            --model-source https://example.invalid/model \
+            --model-license MIT \
+            --output-dir /tmp/report 2>&1)"; then
+            echo "Production image unexpectedly ran compatibility-check." >&2
+            exit 2
+          fi
+          grep -F "Checkpoint compatibility requires the model-tools image" \
+            <<<"$output" >/dev/null
           docker run --rm "$reference" build-engine --help >/dev/null
           docker run --rm "$reference" sh -euc '
             command -v trtvideo
             command -v build-engine
+            command -v prepare-compatibility-input
             ! command -v export-onnx
             ! command -v prepare-onnx
             ! command -v benchmark-trtvideo
@@ -186,11 +206,111 @@ jobs:
             test -f /usr/share/doc/trtvideo/LICENSING.md
             test -f /opt/nvidia/entrypoint.d/30-container-license.txt
           '
+          docker run --rm "$reference" sh -euc '
+            python3 -c "from onnx import TensorProto, helper; i = helper.make_tensor_value_info(\"input\", TensorProto.FLOAT, [1, 3, 16, 16]); o = helper.make_tensor_value_info(\"output\", TensorProto.FLOAT, [1, 3, 32, 32]); m = helper.make_model(helper.make_graph([], \"smoke\", [i], [o])); import onnx; onnx.save(m, \"/tmp/static.onnx\")"
+            trtvideo compatibility-check \
+              --onnx /tmp/static.onnx \
+              --model-name smoke \
+              --model-source https://example.invalid/model \
+              --model-license MIT \
+              --output-dir /tmp/report \
+              --dry-run >/dev/null
+            test ! -e /tmp/report
+          '
 
-      - name: Attach immutable digest to GitHub Release
+      - name: Generate model-tools image tags
+        id: model_tools_metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.MODEL_TOOLS_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.release.outputs.version }}
+            type=raw,value=${{ github.event.release.tag_name }}
+            type=raw,value=sha-${{ steps.release.outputs.revision }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - name: Build and push model-tools image
+        id: model_tools_image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          target: model-tools
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: ${{ steps.model_tools_metadata.outputs.tags }}
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.release.outputs.build_date }}
+            VERSION=${{ steps.release.outputs.version }}
+            VCS_REF=${{ steps.release.outputs.revision }}
+            VCS_DIRTY=0
+            IMAGE_REFERENCE=${{ env.MODEL_TOOLS_IMAGE_NAME }}:${{ github.event.release.tag_name }}
+
+      - name: Create signed model-tools provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.MODEL_TOOLS_IMAGE_NAME }}
+          subject-digest: ${{ steps.model_tools_image.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Smoke-test published model-tools digest
+        env:
+          MODEL_TOOLS_DIGEST: ${{ steps.model_tools_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          reference="$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
+          docker pull "$reference"
+          docker run --rm "$reference" trtvideo compatibility-check --help >/dev/null
+          docker run --rm "$reference" trtvideo compatibility-report --help >/dev/null
+          docker run --rm "$reference" export-onnx --help >/dev/null
+          docker run --rm "$reference" prepare-onnx --help >/dev/null
+          docker run --rm "$reference" prepare-compatibility-input --help >/dev/null
+          docker run --rm "$reference" build-engine --help >/dev/null
+          docker run --rm "$reference" sh -euc '
+            test "$TRTVIDEO_IMAGE_VARIANT" = model-tools
+            test -n "$TRTVIDEO_IMAGE_REF"
+            command -v trtvideo
+            command -v export-onnx
+            command -v prepare-onnx
+            command -v prepare-compatibility-input
+            command -v build-engine
+            python3 -c "import torch, spandrel, onnxruntime; print(torch.__version__)"
+            test -f /usr/share/doc/trtvideo/LICENSE
+            test -f /usr/share/doc/trtvideo/THIRD_PARTY_NOTICES.md
+            test -f /usr/share/doc/trtvideo/LICENSING.md
+          '
+          docker run --rm "$reference" sh -euc '
+            touch /tmp/model.pth
+            trtvideo compatibility-check \
+              --checkpoint /tmp/model.pth \
+              --model-name smoke \
+              --model-source https://example.invalid/model \
+              --model-license MIT \
+              --output-dir /tmp/report \
+              --dry-run >/dev/null
+            test ! -e /tmp/report
+          '
+
+      - name: Verify unauthenticated pulls
+        env:
+          IMAGE_DIGEST: ${{ steps.production_image.outputs.digest }}
+          MODEL_TOOLS_DIGEST: ${{ steps.model_tools_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io
+          docker image rm "$IMAGE_NAME@$IMAGE_DIGEST" || true
+          docker image rm "$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST" || true
+          docker pull "$IMAGE_NAME@$IMAGE_DIGEST"
+          docker pull "$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
+
+      - name: Attach immutable digests to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          IMAGE_DIGEST: ${{ steps.production_image.outputs.digest }}
+          MODEL_TOOLS_DIGEST: ${{ steps.model_tools_image.outputs.digest }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
@@ -204,11 +324,22 @@ jobs:
           docker run --rm "$IMAGE_NAME@$IMAGE_DIGEST" \
             dpkg-query -W -f='  ${binary:Package}=${Version}\n' \
             ffmpeg libx264-164 >> trtvideo-image-digest.txt
-          gh release upload "$RELEASE_TAG" trtvideo-image-digest.txt --clobber
+          cat > trtvideo-model-tools-image-digest.txt <<EOF
+          image=$MODEL_TOOLS_IMAGE_NAME
+          digest=$MODEL_TOOLS_DIGEST
+          release=$RELEASE_TAG
+          source_revision=${{ steps.release.outputs.revision }}
+          EOF
+          gh release upload "$RELEASE_TAG" \
+            trtvideo-image-digest.txt \
+            trtvideo-model-tools-image-digest.txt \
+            --clobber
           {
-            echo "### Published production image"
+            echo "### Published images"
             echo
-            echo "\`$IMAGE_NAME@$IMAGE_DIGEST\`"
+            echo "Production: \`$IMAGE_NAME@$IMAGE_DIGEST\`"
+            echo
+            echo "Model tools: \`$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log out of registries

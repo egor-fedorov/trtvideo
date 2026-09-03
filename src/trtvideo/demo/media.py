@@ -22,7 +22,6 @@ from trtvideo.demo.config import (
     DEMO_MIN_AUDIO_MEAN_DBFS,
     DEMO_MIN_CHROMA_RETENTION_RATIO,
     VIDEO_AUTHOR,
-    VIDEO_DURATION_SECONDS,
     VIDEO_LICENSE,
     VIDEO_LICENSE_URL,
     VIDEO_MODIFICATIONS,
@@ -33,11 +32,6 @@ from trtvideo.demo.config import (
     DemoVideoContract,
 )
 
-_VIDEO_FILTER = (
-    f"fps=fps={DEMO_FPS}:round=near,"
-    "scale=1280:720:flags=lanczos,setsar=1,"
-    "setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709"
-)
 _X264_PARAMS = (
     "keyint=24:min-keyint=24:scenecut=0:bframes=0:"
     "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=limited"
@@ -55,18 +49,36 @@ _BT709_OUTPUT_ARGS = (
 _VOLUME_PATTERN = re.compile(r"(mean|max)_volume:\s+(-?(?:inf|\d+(?:\.\d+)?)) dB")
 
 
-def build_demo_input_command(paths: DemoPaths) -> list[str]:
-    """Prepare the pinned excerpt for the static demo engine."""
+def build_live_action_input_command(
+    *,
+    source: Path,
+    output: Path,
+    width: int,
+    height: int,
+    frames: int,
+    start_seconds: int = VIDEO_START_SECONDS,
+    include_attribution: bool = True,
+    require_audio: bool = True,
+    modifications: str | None = None,
+) -> list[str]:
+    """Build the shared live-action fixture transcode command."""
+    duration_seconds = frames / Fraction(DEMO_FPS)
+    video_filter = (
+        f"fps=fps={DEMO_FPS}:round=near,"
+        f"scale={width}:{height}:flags=lanczos:out_color_matrix=bt709:out_range=tv,"
+        "setsar=1,"
+        "setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709"
+    )
     command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
-    command += ["-ss", str(VIDEO_START_SECONDS), "-i", str(paths.source_video)]
-    command += ["-map", "0:v:0", "-map", "0:a:0"]
+    command += ["-ss", str(start_seconds), "-i", str(source)]
+    command += ["-map", "0:v:0", "-map", "0:a:0" if require_audio else "0:a:0?"]
     command += [
         "-vf",
-        _VIDEO_FILTER,
+        video_filter,
         "-frames:v",
-        str(DEMO_FRAMES),
+        str(frames),
         "-t",
-        str(VIDEO_DURATION_SECONDS),
+        f"{float(duration_seconds):g}",
     ]
     command += ["-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p"]
     command += ["-x264-params", _X264_PARAMS, *_BT709_OUTPUT_ARGS]
@@ -82,18 +94,36 @@ def build_demo_input_command(paths: DemoPaths) -> list[str]:
         "-movflags",
         "+faststart",
     ]
-    command += [
-        "-metadata",
-        f"title={VIDEO_NAME}",
-        "-metadata",
-        f"artist={VIDEO_AUTHOR}",
-        "-metadata",
-        f"comment={VIDEO_MODIFICATIONS}",
-        "-metadata",
-        f"copyright={VIDEO_LICENSE} ({VIDEO_LICENSE_URL}); source: {VIDEO_SOURCE_PAGE_URL}",
-    ]
-    command.append(str(paths.input_video))
+    if include_attribution:
+        modification_note = modifications or (
+            f"Compatibility adaptation: excerpted at {start_seconds} seconds, resized to "
+            f"{width}x{height}, converted to 24 FPS, and transcoded to H.264/AAC."
+        )
+        command += [
+            "-metadata",
+            f"title={VIDEO_NAME}",
+            "-metadata",
+            f"artist={VIDEO_AUTHOR}",
+            "-metadata",
+            f"comment={modification_note}",
+            "-metadata",
+            f"copyright={VIDEO_LICENSE} ({VIDEO_LICENSE_URL}); source: {VIDEO_SOURCE_PAGE_URL}",
+        ]
+    command.append(str(output))
     return command
+
+
+def build_demo_input_command(paths: DemoPaths) -> list[str]:
+    """Prepare the pinned excerpt for the static demo engine."""
+    return build_live_action_input_command(
+        source=paths.source_video,
+        output=paths.input_video,
+        width=1280,
+        height=720,
+        frames=DEMO_FRAMES,
+        start_seconds=VIDEO_START_SECONDS,
+        modifications=VIDEO_MODIFICATIONS,
+    )
 
 
 def _run_json(command: list[str]) -> dict[str, Any]:
