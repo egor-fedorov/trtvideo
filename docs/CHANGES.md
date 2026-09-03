@@ -54,6 +54,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+## 0.7.0 - 2026-09-03
+
 ### Added
 
 - Added the resumable `trtvideo compatibility-check` model-tools workflow. One
