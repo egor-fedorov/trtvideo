@@ -1,6 +1,7 @@
 # trtvideo
 
 [![CI](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/egor-fedorov/trtvideo/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/codeql.yml)
 [![Dockerfile Validation](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/egor-fedorov/trtvideo/actions/workflows/docker-build.yml)
 [![Release](https://img.shields.io/github/v/release/egor-fedorov/trtvideo?display_name=tag&sort=semver)](https://github.com/egor-fedorov/trtvideo/releases/latest)
 [![License](https://img.shields.io/github/license/egor-fedorov/trtvideo)](LICENSE)

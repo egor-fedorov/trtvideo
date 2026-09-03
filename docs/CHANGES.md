@@ -68,6 +68,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Release automation now publishes a separately approved
   `trtvideo-model-tools` GHCR image with immutable tags, SBOM, provenance,
   signed attestation, digest asset, and unauthenticated-pull smoke coverage.
+- Added CodeQL analysis for pull requests, `main`, manual runs, and a weekly
+  scheduled scan.
 
 ## 0.6.0 - 2026-09-02
 
