@@ -390,8 +390,9 @@ license, and modification details are also embedded in their MP4 metadata.
 
 | Model | Task | Scale | Status | Evidence |
 |---|---|---:|---|---|
-| `RealESRGAN_x2plus` | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
-| `2xLiveActionV1_SPAN` | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
+| [`RealESRGAN_x2plus`](https://openmodeldb.info/models/2x-realesrgan-x2plus) | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
+| [`2xLiveActionV1_SPAN`](https://openmodeldb.info/models/2x-LiveActionV1-SPAN) | Super-resolution | 2x | `validated` | [RTX 3090](benchmarks/results/rtx-3090/README.md#quality-gates), [RTX 4090](benchmarks/results/rtx-4090/README.md#quality-gates) |
+| [`BSRGANx2`](https://openmodeldb.info/models/2x-BSRGAN) | Super-resolution | 2x | `community-reported` | [Report #22](https://github.com/egor-fedorov/trtvideo/issues/22) |
 
 Statuses describe evidence, not an architectural allowlist:
 
