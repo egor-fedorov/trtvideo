@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from benchmarks.scripts.contracts.benchmark import CompetitorError
 
-Implementation = Literal["vstrt", "vsgan"]
+Implementation = Literal["vstrt"]
 ExecutionProfileName = Literal["upstream-default", "tuned"]
 AutoOrInt = Literal["auto"] | int
 
@@ -44,13 +44,6 @@ _PRESETS: dict[
         requests=None,
         num_streams=1,
         vapoursynth_threads=None,
-        cuda_graph=False,
-    ),
-    ("vsgan", "upstream-default"): VapourSynthExecutionProfile(
-        name="upstream-default",
-        requests=None,
-        num_streams=4,
-        vapoursynth_threads=4,
         cuda_graph=False,
     ),
 }

@@ -83,8 +83,8 @@ def _wait_for_idle(previous: CampaignEvent | None, idle_seconds: float) -> float
 def _make_profile_arguments(config: CampaignConfig) -> list[str]:
     return [
         f"EXECUTION_PROFILE={config.execution_profile}",
-        f"VSTRT_ARGS={config.vstrt_arguments}",
-        f"VSGAN_ARGS={config.vsgan_arguments}",
+        f"VSTRT_ARGS={config.implementation_arguments['vstrt']}",
+        f"TAS_ARGS={config.implementation_arguments['tas']}",
     ]
 
 
@@ -222,8 +222,7 @@ def run_campaign(args: argparse.Namespace) -> int:
     config_path = campaign_dir / CONFIG_NAME
     requested_config = CampaignConfig.create(
         execution_profile=args.execution_profile,
-        vstrt_arguments=args.vstrt_arguments,
-        vsgan_arguments=args.vsgan_arguments,
+        implementation_arguments={"vstrt": args.vstrt_arguments, "tas": args.tas_arguments},
     )
     if config_path.exists():
         if not args.resume:
@@ -318,7 +317,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument("--vstrt-arguments", default="")
-    parser.add_argument("--vsgan-arguments", default="")
+    parser.add_argument("--tas-arguments", default="")
     parser.add_argument("--resume", action="store_true")
     return parser
 

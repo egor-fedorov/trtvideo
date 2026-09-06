@@ -155,11 +155,15 @@ YUV420 contracts at 1080p -> 4K. A measured SPAN 1080p Nsight trace found no
 H2D or D2H copy in the `trtvideo` frame loop. Only compressed input and output
 cross its host/device boundary.
 
+This external lane describes the vs-mlrt benchmark path, not TAS. The active
+TheAnimeScripter comparison uses its own CPU/NVDEC and FFmpeg/neLux I/O paths,
+as specified in the [benchmark methodology](../benchmarks/methodology.md).
+
 > The source filter is configurable. NVDEC decoding is available to VapourSynth
 > through DGDecNV, a closed-source AviSynth plugin made free on 2021-04-26 and
 > distributed only for Windows as `DGIndexNV.exe` and `DGDecodeNV.dll`. It has no
 > native VapourSynth integration and is loaded through an AviSynth compatibility
-> layer. DGDecNV is absent from the pinned VSGAN image and the documented
+> layer. DGDecNV is absent from the historically measured VSGAN image and the documented
 > vs-mlrt workflow, and it cannot run in this benchmark's Linux containers. It
 > would not remove the H2D and D2H transfers around inference: frames in a
 > VapourSynth graph live in host memory regardless of where decode occurs.

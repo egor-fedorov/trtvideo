@@ -115,15 +115,11 @@ class _Core:
         self.limiter_bounds: list[tuple[float, float]] = []
 
 
-@pytest.mark.parametrize(
-    "script",
-    [Path("benchmarks/vstrt/upscale.vpy"), Path("benchmarks/vsgan/upscale.vpy")],
-)
 def test_shared_input_scripts_copy_exact_rgb_planes_with_stride(
-    script: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    script = Path("benchmarks/vstrt/upscale.vpy")
     width = 2
     height = 3
     values = np.arange(3 * width * height, dtype="<f4").reshape(3, height, width)
@@ -157,11 +153,8 @@ def test_shared_input_scripts_copy_exact_rgb_planes_with_stride(
         assert np.array_equal(actual, values[plane])
 
 
-@pytest.mark.parametrize(
-    "script",
-    [Path("benchmarks/vstrt/upscale.vpy"), Path("benchmarks/vsgan/upscale.vpy")],
-)
-def test_production_scripts_clamp_decoded_rgbs_to_model_domain(script: Path) -> None:
+def test_production_scripts_clamp_decoded_rgbs_to_model_domain() -> None:
+    script = Path("benchmarks/vstrt/upscale.vpy")
     core = _Core()
     vapoursynth = types.ModuleType("vapoursynth")
     vapoursynth.core = core  # type: ignore[attr-defined]

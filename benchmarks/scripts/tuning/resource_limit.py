@@ -13,12 +13,14 @@ from benchmarks.scripts.contracts.manifest import (
     execution_profile,
     load_json,
 )
-from benchmarks.scripts.tuning.contract import MeasurementPolicy, TunedCandidate
+from benchmarks.scripts.tuning.contract import Candidate, MeasurementPolicy, TunedCandidate
 
 _CUDA_OOM_MARKERS = (
     "Error Code 2: OutOfMemory",
     "CUDA_ERROR_OUT_OF_MEMORY",
     "cudaErrorMemoryAllocation",
+    "torch.OutOfMemoryError: CUDA out of memory",
+    "torch.cuda.OutOfMemoryError: CUDA out of memory",
 )
 
 
@@ -74,11 +76,12 @@ def detect_cuda_oom(
     resolved_root = root.resolve()
     resolved_suite = suite_path.resolve()
     suite = load_json(resolved_suite)
-    if suite.get("status") != "invalid":
+    if suite.get("status") != "invalid" or suite.get("errors"):
         return None
     runs = suite.get("runs")
     if not isinstance(runs, list):
         return None
+    manifests = []
     for run in runs:
         if not isinstance(run, dict):
             continue
@@ -88,6 +91,15 @@ def detect_cuda_oom(
             label="resource-limit run manifest",
         )
         manifest = load_json(manifest_path)
+        errors = manifest.get("errors", [])
+        nvml = manifest.get("measured", {}).get("metrics", {}).get("nvml", {})
+        if nvml.get("valid") is False or any(
+            "throttle" in str(error).casefold() or "thermal" in str(error).casefold()
+            for error in errors
+        ):
+            return None
+        manifests.append((manifest_path, manifest))
+    for manifest_path, manifest in manifests:
         if manifest.get("status") != "invalid":
             continue
         artifacts = manifest.get("artifacts")
@@ -120,7 +132,7 @@ def detect_cuda_oom(
 def validate_cuda_oom_record(
     record: dict[str, Any],
     *,
-    candidate: TunedCandidate,
+    candidate: Candidate,
     policy: MeasurementPolicy,
     workload_id: str,
     variant: str,
@@ -167,7 +179,11 @@ def validate_cuda_oom_record(
     expected_record = (
         {
             "candidate_id": candidate.candidate_id,
-            "num_streams": candidate.num_streams,
+            **(
+                {"num_streams": candidate.num_streams}
+                if isinstance(candidate, TunedCandidate)
+                else {"execution_profile": candidate.execution_profile()}
+            ),
             **detected.as_dict(),
         }
         if detected is not None

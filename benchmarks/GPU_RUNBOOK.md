@@ -13,7 +13,7 @@ The host must provide:
 - Docker with GPU access;
 - GNU Make and Git;
 - Python `>=3.10,<3.13` for the host coordinator;
-- enough disk space for the production, benchmark, vstrt, and pinned VSGAN
+- enough disk space for the production, benchmark, vstrt, and pinned TAS
   images when competitor workflows are selected;
 - space for the 168 MiB canonical source, prepared clips, models, engines, and
   workflow artifacts.
@@ -52,7 +52,7 @@ and performs the complete ordered lifecycle:
 | Goal | Complete lifecycle |
 |---|---|
 | `project` | Build project images, prepare/verify assets, build TRT11 engines, smoke, then project-only regression campaigns |
-| `comparative` | Build all product images and TRT11/TRT10 engines, smoke every product, run quality gates, then rotated comparative campaigns |
+| `comparative` | Build trtvideo/vstrt/TAS images and project/TAS engines, smoke every product, run quality gates, then rotated comparative campaigns |
 | `tuned` | Build and smoke the full matrix, sweep declared candidates, validate selected winners, run final campaigns, then verify both-resolution evidence |
 | `diagnostics` | Build project images and TRT11 engines, smoke, run `trtexec` ceilings, and capture the canonical SPAN 1080p Nsight trace when selected |
 
@@ -64,17 +64,29 @@ benchmarks/bin/run-benchmark.sh comparative
 ```
 
 Tuned search and selection rules come from the workload-specific contracts
-under [`tuning/`](tuning/). The tuned workflow performs one-run reconnaissance,
-validates any early stop with a maximum-range sentinel, independently confirms
-the three strongest candidates over 1000 frames, retains disqualifications,
-runs full quality gates only for selected winners, and verifies that 720p and
-1080p evidence agree before publication. If stream 8 is still materially
-improving, expand the contract instead of publishing a boundary winner.
+under [`tuning/`](tuning/). vs-mlrt uses one-run stream reconnaissance with an
+early-stop sentinel; TAS uses the four CPU/NVDEC x FFmpeg/neLux I/O choices,
+with quality checked before performance search. The three strongest eligible
+points (or all remaining points if fewer) are confirmed independently over
+1000 frames. The workflow retains disqualifications, runs exact-profile winner
+quality, and verifies both resolutions before publication. If vs-mlrt stream 8
+is still materially improving, expand the contract instead of publishing a
+boundary winner. TAS has no stream axis or stream-based early stop.
 
 Do not resume tuned artifacts created with an older search contract. Start the
 complete tuned workflow in an empty tuned artifact namespace after changing the
 search range, stage budgets, completion rule, selection rule, or repository
-revision.
+revision. This includes the participant change from VSGAN to TAS: do not
+resume a VSGAN campaign or reuse its measured rounds as TAS evidence. Archive
+the previous raw namespace before starting; published historical JSON/SVG
+snapshots remain unchanged.
+
+For a new TAS integration, begin with a SPAN 720p smoke and its full quality
+gates before renting a long campaign. Use `build-tas`, `build-tas-engine`, and
+`run-tas` for low-level diagnosis; `TAS_ENGINE` supplies the separately built
+engine, while `TAS_ARGS="--decode-method nvdec --writer nelux"` selects the I/O
+path in tuned mode. Never bypass failed quality, allow backend fallback, or
+enable TAS's no-output benchmark mode to obtain an FPS point.
 
 ## Selecting A Subset
 

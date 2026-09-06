@@ -54,6 +54,22 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Changed
+
+- Replaced VSGAN-tensorrt-docker with pinned TheAnimeScripter in the active
+  comparative and tuned benchmark matrix. TAS has a separate engine/runtime
+  and a quality-gated CPU/NVDEC x FFmpeg/neLux search; vs-mlrt retains its
+  stream search. Use `build-tas`, `build-tas-engine`, `run-tas`, `TAS_ENGINE`,
+  `TAS_ARGS`, and `--tas-engine` instead of the VSGAN interfaces. Old workflow
+  states cannot resume the new participant contract. The TAS adapter fixes
+  static-engine shape binding, uses image-locked initialization, and normalizes
+  NVENC settings without changing native per-frame operations.
+- Updated tuned publication export and figures for participant-specific
+  profiles and TAS I/O categories. Existing published VSGAN results and SVGs
+  remain historical evidence; new comparative claims require a fresh shared
+  campaign rather than relabeling old numbers. Export rechecks artifact hashes,
+  quality roles, shared hardware, and recorded runtime metadata before publication.
+
 ## 0.7.0 - 2026-09-03
 
 ### Added

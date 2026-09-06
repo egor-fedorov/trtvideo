@@ -5,18 +5,23 @@ metadata, isolated Docker environments, and runners. Models, ONNX files,
 TensorRT engines, source videos, and raw results are not added to Git.
 Compact, privacy-reviewed publication snapshots are stored in `results/`.
 
-- `methodology.md` - comparison classes and validity criteria.
+The active comparison is **trtvideo / vs-mlrt / TheAnimeScripter (TAS)**.
+Published snapshots that name VSGAN retain their original participants and
+numbers. They are historical campaigns, not measurements of TAS. Figure
+generation reads each dataset's participants rather than relabeling a column.
+
+- `methodology.md` - execution profiles and validity criteria.
 - `workloads/` - RealESRGAN and SPAN workload manifests.
 - `workflows/` - canonical workload/resolution matrix for complete workflows.
 - `implementations.json` - pinned implementations and execution profiles.
-- `docker/` - TensorRT 11 vstrt and pinned VSGAN environments.
+- `docker/` - TensorRT 11 vstrt and isolated pinned TAS environments.
 - `bin/run-benchmark.sh` - goal-based host workflow entrypoint.
 - `scripts/contracts/` - benchmark plans, engine metadata, and run/quality
   evidence contracts shared across runners, gates, aggregation, and tuning.
 - `scripts/runtime/` - process timing, CPU/NVML sampling, environment capture,
   command execution, JSON output, media validation orchestration, and suite
   policy.
-- `scripts/runners/` - product, VapourSynth, VSGAN, and trtexec adapters built
+- `scripts/runners/` - product, VapourSynth, TAS, and trtexec adapters built
   on the shared runtime.
 - `scripts/diagnostics/` - one-off profiler orchestration outside FPS campaigns.
 - `scripts/campaign/` - rotated campaign scheduling and aggregation.
@@ -63,11 +68,19 @@ make -C benchmarks publish-diagnostics \
 
 The tuned exporter requires both valid Madrid cross-resolution matrices, one
 clean revision, independent candidate provenance, and passing numerical quality
-gates. It records tensor and MP4 identity per workload without requiring
-separately built TensorRT 11 and 10.16 engines to be byte-identical. The
-diagnostics exporter requires four valid Madrid `trtexec` suites, the matching
+gates for the active three participants. It records selected execution
+profiles, actual runtime versions, hashed run evidence, and tensor/MP4 identity
+per workload without requiring independently built engines to have either
+equal or different hashes. The diagnostics exporter requires four valid Madrid
+`trtexec` suites, the matching
 clean environment, a valid Nsight output contract, and retained trace/SQLite
 evidence; overlap and copy findings are recomputed from SQLite.
+
+New sweep figures separate the vs-mlrt stream curve from TAS's categorical
+CPU/NVDEC x FFmpeg/neLux grid. Missing or disqualified configurations are not
+drawn as zero-FPS measurements. Throughput/resource figures select the fastest
+external result from that dataset, with its name next to the bars. Historical
+VSGAN snapshots still render with their original stream-curve layout.
 
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
 The goal coordinator runs on the host and requires Python `>=3.10,<3.13`.
@@ -109,7 +122,7 @@ state.
 The goals are intentionally separate:
 
 - `project` measures only `trtvideo` for regression work;
-- `comparative` runs quality gates and rotated project/vstrt/VSGAN campaigns
+- `comparative` runs quality gates and rotated trtvideo/vstrt/TAS campaigns
   using pinned upstream defaults;
 - `tuned` runs adaptive searches, winner quality gates, final campaigns, and
   cross-resolution publication checks;
@@ -126,9 +139,8 @@ low-level troubleshooting interface, not the normal full-cycle workflow.
 
 - `run-vstrt` - pinned vstrt with a selectable scheduling profile and the same
   TensorRT 11 engine.
-- `run-vsgan` - pinned upstream VSGAN with a selectable scheduling profile and
-  a separate TRT10.16 engine because serialized engines are incompatible across
-  runtime versions.
+- `run-tas` - pinned TheAnimeScripter with CPU/NVDEC decoding and FFmpeg/neLux
+  output, using a separately built engine from the canonical ONNX.
 - `run-trtexec` - diagnostic inference ceiling, not a competitor.
 - `profile-nsight` - one non-publishable project timeline for pipeline analysis.
 - `tensor-quality` - validate TensorRT outputs from exact shared FP32 RGB inputs
@@ -136,7 +148,7 @@ low-level troubleshooting interface, not the normal full-cycle workflow.
 - `product-output-parity` - retain one canonical MP4 per product, run complete
   PSNR/SSIM decode comparisons, and generate visual crops.
 - `quality-gates` - run tensor quality and decoded product-output quality.
-- `run-comparative` - canonical rotation of project/vstrt/VSGAN by round and
+- `run-comparative` - canonical rotation of trtvideo/vstrt/TAS by round and
   generation of a shared acceptance table.
 
 `run-trtexec` stores each suite under
@@ -177,8 +189,16 @@ question.
 
 - `upstream-default` is the default and uses the settings recorded from each
   pinned upstream;
-- `tuned` requires explicit `--requests`, `--num-streams`, `--vs-threads`, and
-  `--cuda-graph` or `--no-cuda-graph` values.
+- `tuned` requires explicit participant-specific settings. vs-mlrt uses
+  `--requests`, `--num-streams`, `--vs-threads`, and `--cuda-graph` or
+  `--no-cuda-graph`; TAS uses `--decode-method cpu|nvdec` and
+  `--writer ffmpeg|nelux`, retaining its native CUDA Graph execution.
+
+TAS `upstream-default` uses CPU decode and the FFmpeg writer. The common model,
+precision, and NVENC contract are still normalized, so this is an I/O-default
+baseline, not an unmodified factory invocation. TAS profiles contain
+`execution_profile`, `decode_method`, `writer`, and `cuda_graph=true`; they do
+not have synthetic VapourSynth requests, stream counts, or thread counts.
 
 For example, these commands only generate plans and do not require a GPU:
 
@@ -187,35 +207,46 @@ make -C benchmarks plan-vstrt \
   EXECUTION_PROFILE=upstream-default \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine
 
-make -C benchmarks plan-vsgan \
+make -C benchmarks plan-tas \
   EXECUTION_PROFILE=upstream-default \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 The canonical tuned workflow is manifest-driven:
 
 ```bash
+make -C benchmarks preflight-tas-quality \
+  ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 make -C benchmarks run-tuned-sweep \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 make -C benchmarks run-tuned-quality \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 make -C benchmarks run-tuned-campaign \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 The canonical workflow matrix selects a predeclared adaptive tuning contract
 for each workload. RealESRGAN uses `benchmarks/tuning/candidates.json`; SPAN
-uses `benchmarks/tuning/span_candidates.json`. A one-run reconnaissance pass
-searches streams `1..8`, applies the declared early-stop and sentinel rules, and
+uses `benchmarks/tuning/span_candidates.json`. A one-run vs-mlrt reconnaissance
+pass searches streams `1..8`, applies the declared early-stop and sentinel rules, and
 shortlists three candidates. A materially increasing stream-8 boundary rejects
 the search and requires a wider contract. A candidate that exceeds available GPU
 memory is retained as a hashed resource-ceiling artifact and excluded from
 ranking; unrelated failures remain fatal. Shortlisted candidates are
 independently remeasured with the full 1000-frame 3+2 contract before selection.
-Only the selected pair runs exact-profile shared-input inference and
+TAS instead checks quality for the four CPU/NVDEC x FFmpeg/neLux combinations
+before performance search, runs one reconnaissance measurement per eligible
+combination, then confirms the top three (or all remaining if fewer). The
+finite grid has no stream early-stop rule. Among TAS points within 1% of the
+confirmed peak, the lower median peak VRAM wins, then lower CPU, then stable
+candidate ID. OOM excludes only that combination; thermal slowdown remains a
+failed measurement, not a tuning choice.
+
+The selected pair then runs exact-profile shared-input inference and
 product-output gates plus the non-gating preprocessing diagnostic. A
 candidate-specific inference or product-output failure disqualifies that point
 and promotes the next confirmed candidate.
@@ -224,11 +255,13 @@ RealESRGAN reconnaissance uses 300 frames and records, but does not enforce,
 average bitrate because NVENC CBR does not reliably converge over that short
 window. This evidence is search-only and non-publishable. Confirmation,
 quality, and the final campaign use 1000 frames with bitrate validation enabled.
-The machine-readable `search-state.json` proves the measured points, stop
-reason, sentinel or resource ceiling, shortlist, and CUDA Graph probe used by
-selection.
+The machine-readable `search-state.json` proves the measured points,
+implementation-specific completion reason, resource evidence, and shortlist;
+vs-mlrt also records its sentinel and CUDA Graph probe. No TAS graph-off
+configuration is invented by the benchmark adapter.
 
-Run the same three commands independently for 720p. A single-resolution tuned
+Run the same four commands independently for 720p, setting `VARIANT=720p`
+and the matching engine paths on each command. A single-resolution tuned
 campaign is evidence, not a publication unit. `verify-tuned-matrix` grants
 publication status only when both 720p and 1080p campaigns and full quality
 reports match the same workload, revision, and GPU contract.
@@ -241,7 +274,7 @@ or either runner argument string changes. For example:
 make -C benchmarks run-comparative \
   EXECUTION_PROFILE=upstream-default \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 `upstream-default` is not automatically the fastest vstrt configuration:
@@ -249,8 +282,14 @@ upstream keeps one TensorRT stream and recommends increasing it when the GPU is
 not saturated. The tuned workflow searches the declared `1..8` range
 adaptively, confirms the strongest candidates from scratch, and records either
 a proven early stop, the upper boundary, or a reproducible resource ceiling.
-Manual `VSTRT_ARGS`/`VSGAN_ARGS` runs remain diagnostic and do not replace the
+Manual `VSTRT_ARGS`/`TAS_ARGS` runs remain diagnostic and do not replace the
 manifest-driven selection report.
+
+The lower-level tuning CLI accepts `--tas-engine`; Make exposes the same path
+as `TAS_ENGINE`. The campaign CLI records `--tas-arguments`, exposed by Make
+as `TAS_ARGS`. Existing VSGAN workflow state is incompatible with
+the new participant contract. Preserve it in an archive and start new evidence
+rather than editing its configuration to make `--resume` accept it.
 
 ## Assets
 
@@ -290,32 +329,51 @@ redistribute them and records license/attribution data in the asset lock.
 ```bash
 make -C benchmarks build
 make -C benchmarks build-vstrt
-make -C benchmarks build-vsgan
+make -C benchmarks build-tas
 ```
 
-The VSGAN wrapper uses the pinned `latest_no_avx512` image. In the corresponding
-`minimal_no_avx512` release, the native `vspipe` binary was replaced by an
-incompatible Python entrypoint. The benchmark runner starts from a separate
-virtual environment by absolute path without activating it for the embedded
-Python inside VSScript. The Docker build validates both Python environments and
-the native binary.
+TAS runs in its own pinned Python/PyTorch/neLux/TensorRT environment; these
+dependencies are not added to the trtvideo production image. The benchmark
+adapter selects a prebuilt engine and normalizes both output backends to the
+same NVENC contract without changing TAS's queues, inference, CUDA Graph,
+color conversion, or synchronization. Backend fallback, model downloads, and
+engine rebuilding during measurement are errors. TAS's internal no-output
+`--benchmark` mode is not used.
 
-Upstream FFmpeg requires NVENC API 13.1 and driver 610+. The benchmark wrapper
-uses pinned Ubuntu FFmpeg `7:6.1.1-3ubuntu5` as an external encoder adapter and
-the source of `ffprobe`; the pinned VSGAN inference stack remains unchanged.
+This is an adapted upstream pipeline, not a completely unmodified CLI. For a
+custom static ONNX, TAS's square-shape multiple-detection probe can fall back
+to alignment 16 and pad a 1080p input to 1088 pixels, incompatible with the
+canonical engine. The adapter instead requires processor width/height to
+equal the declared engine shape and bypasses heuristic padding with multiple
+1. It changes neither pixels nor the model graph. It also replaces interactive
+dependency installation with the image-locked bootstrap. These normalizations,
+prebuilt-engine lookup, and encoder settings are covered by adapter provenance;
+the native per-frame and TensorRT operations are unchanged.
 
-Command-generation checks do not require a GPU. A VSGAN plan needs the path of
-the future TRT10 engine, but the file itself is optional in dry-run mode:
+Build the TAS engine outside timing with the upstream builder:
+
+```bash
+make -C benchmarks build-tas-engine \
+  VARIANT=720p \
+  ONNX=models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_720p_fp16.onnx \
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_720p.engine
+```
+
+The graph is already mixed-FP16 with FP32 boundaries. TAS uses `--half false`
+to retain those boundaries, not to re-export or promote the entire graph.
+
+Command-generation checks do not require a GPU. The future TAS engine path
+must be supplied, but the file itself is optional in dry-run mode:
 
 ```bash
 make -C benchmarks dry-run \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_720p.engine \
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_720p.engine \
   VARIANT=720p \
   ARGS="--frames 120 --runs 1 --extra-runs 0 --idle-seconds 0" \
   TRTEXEC_ARGS="--warmup-ms 250" \
   VSTRT_ARGS="--warmup-frames 24" \
-  VSGAN_ARGS="--warmup-frames 24"
+  TAS_ARGS="--warmup-frames 24"
 ```
 
 For SPAN, override the model paths together with `MANIFEST`:
@@ -324,11 +382,11 @@ For SPAN, override the model paths together with `MANIFEST`:
 MANIFEST=benchmarks/workloads/liveaction_span_madrid.json
 ONNX=models/benchmarks/liveaction-span/onnx/liveaction_span_1080p_fp16.onnx
 ENGINE=models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine
-VSGAN_ENGINE=models/benchmarks/liveaction-span/engines/vsgan/liveaction_span_1080p.engine
+TAS_ENGINE=models/benchmarks/liveaction-span/engines/tas/liveaction_span_1080p.engine
 
 make -C benchmarks dry-run \
   MANIFEST="$MANIFEST" ONNX="$ONNX" ENGINE="$ENGINE" \
-  VSGAN_ENGINE="$VSGAN_ENGINE"
+  TAS_ENGINE="$TAS_ENGINE"
 ```
 
 Frame/run parameters may be reduced only for smoke tests. Such a suite can be
@@ -355,12 +413,13 @@ Run the independent tensor-space quality job after the GPU smoke tests:
 make -C benchmarks tensor-quality \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 The command captures canonical frames `0`, `499`, and `999`. It first records
 each production preprocessing path as a diagnostic. It then injects the exact
-trtvideo FP32 CHW RGB input tensors into TRT11 vstrt and pinned VSGAN, requires
+trtvideo FP32 CHW RGB input tensors into TRT11 vstrt and the native TAS TensorRT
+class, requires
 the injected inputs to remain byte-identical, and compares only TensorRT
 outputs against fixed thresholds. Raw tensors, `inference-parity.json`, and
 `preprocessing-diagnostic.json` are written under
@@ -378,7 +437,7 @@ Run the complete quality contract together:
 make -C benchmarks quality-gates \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 The product-output job performs one separate canonical retained-output run per
@@ -398,7 +457,7 @@ Run the canonical campaign after smoke tests:
 make -C benchmarks run-comparative \
   VARIANT=1080p \
   ENGINE=models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine \
-  VSGAN_ENGINE=models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_1080p.engine
+  TAS_ENGINE=models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_1080p.engine
 ```
 
 Results are written to

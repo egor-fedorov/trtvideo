@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from benchmarks.scripts.tuning.resource_limit import detect_cuda_oom
 
 
@@ -78,4 +80,28 @@ def test_detect_cuda_oom_does_not_accept_unrelated_failure(tmp_path: Path) -> No
 def test_detect_cuda_oom_rejects_generic_out_of_memory(tmp_path: Path) -> None:
     suite_path, _ = _invalid_suite(tmp_path, "Host allocator failed: out of memory\n")
 
+    assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is None
+
+
+@pytest.mark.parametrize("exception", ["torch.OutOfMemoryError", "torch.cuda.OutOfMemoryError"])
+def test_detect_tas_cuda_out_of_memory(tmp_path, exception) -> None:
+    suite_path, _ = _invalid_suite(
+        tmp_path, f"{exception}: CUDA out of memory. Tried to allocate 2 GiB"
+    )
+    assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is not None
+
+
+def test_thermal_slowdown_is_not_a_resource_ceiling(tmp_path) -> None:
+    suite_path, _ = _invalid_suite(
+        tmp_path, "Invalid throttle reasons observed: sw_thermal_slowdown"
+    )
+    assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is None
+
+
+def test_cuda_oom_does_not_hide_concurrent_thermal_failure(tmp_path) -> None:
+    suite_path, _ = _invalid_suite(tmp_path, "torch.OutOfMemoryError: CUDA out of memory")
+    manifest_path = suite_path.parent / "run-01/manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["errors"] = ["Invalid throttle reasons observed: sw_thermal_slowdown"]
+    _write_json(manifest_path, manifest)
     assert detect_cuda_oom(root=tmp_path, suite_path=suite_path) is None

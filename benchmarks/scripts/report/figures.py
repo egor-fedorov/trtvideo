@@ -26,12 +26,13 @@ EXPECTED_FIGURES = (
     "throughput-resources-light.svg",
     "throughput-resources-dark.svg",
 )
-IMPLEMENTATION_ORDER = ("trtvideo", "vstrt", "vsgan")
 IMPLEMENTATION_LABELS = {
     "trtvideo": "trtvideo",
     "vstrt": "vs-mlrt",
     "vsgan": "VSGAN",
+    "tas": "TAS",
 }
+TAS_IO_ORDER = (("cpu", "ffmpeg"), ("cpu", "nelux"), ("nvdec", "ffmpeg"), ("nvdec", "nelux"))
 
 
 class FigureDataError(RuntimeError):
@@ -48,13 +49,14 @@ class Theme:
     grid: str
     project: str
     vstrt: str
-    vsgan: str
+    external_product: str
 
     def implementation_color(self, implementation: str) -> str:
         return {
             "trtvideo": self.project,
             "vstrt": self.vstrt,
-            "vsgan": self.vsgan,
+            "vsgan": self.external_product,
+            "tas": self.external_product,
         }[implementation]
 
 
@@ -68,7 +70,7 @@ THEMES = {
         grid="#CBD5E1",
         project="#0086A8",
         vstrt="#64748B",
-        vsgan="#A87952",
+        external_product="#A87952",
     ),
     "dark": Theme(
         name="dark",
@@ -79,7 +81,7 @@ THEMES = {
         grid="#334155",
         project="#36C5E8",
         vstrt="#94A3B8",
-        vsgan="#C9A27E",
+        external_product="#C9A27E",
     ),
 }
 
@@ -101,6 +103,16 @@ class ResourceLimit:
 
 
 @dataclass(frozen=True)
+class TasGridPoint:
+    candidate_id: str
+    decode_method: str
+    writer: str
+    status: str
+    fps: float | None
+    winner: bool
+
+
+@dataclass(frozen=True)
 class ImplementationResult:
     implementation: str
     fps: float
@@ -116,6 +128,7 @@ class WorkloadPanel:
     sweep: tuple[SweepPoint, ...]
     resource_limits: tuple[ResourceLimit, ...]
     results: tuple[ImplementationResult, ...]
+    tas_grid: tuple[TasGridPoint, ...] = ()
 
     @property
     def title(self) -> str:
@@ -133,7 +146,7 @@ class WorkloadPanel:
 
     def fastest_external(self) -> ImplementationResult:
         return max(
-            (self.result("vstrt"), self.result("vsgan")),
+            (result for result in self.results if result.implementation != "trtvideo"),
             key=lambda result: result.fps,
         )
 
@@ -244,6 +257,45 @@ def _resource_limits_from_json(selection: dict[str, Any]) -> tuple[ResourceLimit
     return tuple(result)
 
 
+def _tas_grid_from_json(selection: dict[str, Any]) -> tuple[TasGridPoint, ...]:
+    winner = selection.get("winners", {}).get("tas") or {}
+    points = []
+    seen = set()
+    candidates = list(selection.get("reconnaissance", []))
+    limits = selection.get("search", {}).get("resource_limits", {}).get("tas") or []
+    candidates.extend({**limit, "implementation": "tas", "status": "OOM"} for limit in limits)
+    candidates.extend(
+        {**entry, "implementation": "tas", "status": "quality failed"}
+        for entry in selection.get("tas_preflight", {}).get("candidates", [])
+        if entry.get("status") == "invalid"
+    )
+    for candidate in candidates:
+        if candidate.get("implementation") != "tas":
+            continue
+        profile = candidate.get("execution_profile", {})
+        key = (profile.get("decode_method"), profile.get("writer"))
+        if key not in TAS_IO_ORDER or key in seen or profile.get("cuda_graph") is not True:
+            raise FigureDataError(f"Invalid or duplicate TAS I/O profile: {profile}")
+        seen.add(key)
+        try:
+            status = str(candidate["status"])
+            points.append(
+                TasGridPoint(
+                    candidate_id=str(candidate["candidate_id"]),
+                    decode_method=str(key[0]),
+                    writer=str(key[1]),
+                    status=status,
+                    fps=float(candidate["median_fps"]) if status == "eligible" else None,
+                    winner=candidate["candidate_id"] == winner.get("candidate_id"),
+                )
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise FigureDataError(f"Invalid TAS candidate: {candidate}") from exc
+    return tuple(
+        sorted(points, key=lambda point: TAS_IO_ORDER.index((point.decode_method, point.writer)))
+    )
+
+
 def load_published_data(results_dir: Path) -> PublishedFigureData:
     """Load and cross-check the self-contained published result classes."""
     tuned_path = results_dir / "tuned.json"
@@ -275,7 +327,12 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
             raise FigureDataError(f"Tuned workload is not publishable: {workload_id}/{variant}")
         results = tuple(_result_from_json(result) for result in final_campaign.get("results", []))
         implementations = {result.implementation for result in results}
-        if implementations != set(IMPLEMENTATION_ORDER):
+        if (
+            "trtvideo" not in implementations
+            or len(implementations) < 2
+            or len(implementations) != len(results)
+            or not implementations <= IMPLEMENTATION_LABELS.keys()
+        ):
             raise FigureDataError(
                 f"Unexpected implementations for {workload_id}/{variant}: {sorted(implementations)}"
             )
@@ -287,6 +344,7 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
                 sweep=_sweep_from_json(workload.get("selection", {})),
                 resource_limits=_resource_limits_from_json(workload.get("selection", {})),
                 results=results,
+                tas_grid=_tas_grid_from_json(workload.get("selection", {})),
             )
         )
 
@@ -394,13 +452,18 @@ def render_tuned_sweep(
     output_path: Path,
     theme: Theme,
 ) -> None:
-    """Render the complete eligible stream-count sweep as four panels."""
+    """Use categorical I/O panels for TAS; preserve historical stream figures."""
+    if any(result.implementation == "tas" for panel in data.panels for result in panel.results):
+        _render_tas_tuned_sweep(data, output_path, theme)
+        return
     _configure_matplotlib(theme)
     figure, axes = plt.subplots(2, 2, figsize=(11.6, 7.2))
     for ax, panel in zip(axes.flat, data.panels, strict=True):
         _style_panel(ax, theme)
         observed_fps: list[float] = []
         for implementation in ("vstrt", "vsgan"):
+            if not any(result.implementation == implementation for result in panel.results):
+                continue
             points = [point for point in panel.sweep if point.implementation == implementation]
             streams = [point.streams for point in points]
             fps = [point.fps for point in points]
@@ -499,7 +562,7 @@ def render_tuned_sweep(
         Line2D(
             [0],
             [0],
-            color=theme.vsgan,
+            color=theme.external_product,
             linewidth=2.0,
             marker="o",
             markersize=4.5,
@@ -507,7 +570,16 @@ def render_tuned_sweep(
         ),
     ]
     figure.legend(
-        handles=legend_handles,
+        handles=[
+            handle
+            for handle in legend_handles
+            if handle.get_label()
+            in {
+                IMPLEMENTATION_LABELS[result.implementation]
+                for panel in data.panels
+                for result in panel.results
+            }
+        ],
         loc="upper center",
         ncol=3,
         frameon=False,
@@ -516,6 +588,128 @@ def render_tuned_sweep(
     )
     _hardware_footer(figure, data, theme)
     figure.subplots_adjust(left=0.08, right=0.97, top=0.89, bottom=0.12, hspace=0.42)
+    _save_figure(figure, output_path, theme)
+
+
+def _render_tas_tuned_sweep(
+    data: PublishedFigureData,
+    output_path: Path,
+    theme: Theme,
+) -> None:
+    _configure_matplotlib(theme)
+    figure, axes = plt.subplots(len(data.panels), 2, figsize=(11.6, 12.0), squeeze=False)
+    for (stream_ax, grid_ax), panel in zip(axes, data.panels, strict=True):
+        project_fps = panel.result("trtvideo").fps
+        points = [point for point in panel.sweep if point.implementation == "vstrt"]
+        upper = (
+            max(
+                [project_fps]
+                + [p.fps for p in points]
+                + [p.fps for p in panel.tas_grid if p.fps is not None]
+            )
+            * 1.15
+        )
+        for ax in (stream_ax, grid_ax):
+            _style_panel(ax, theme)
+            ax.set_ylim(0, upper)
+            ax.axhline(project_fps, color=theme.project, linewidth=1.7, linestyle=(0, (5, 3)))
+            ax.set_ylabel("End-to-end FPS", color=theme.text)
+            ax.tick_params(axis="both", colors=theme.text)
+        _panel_heading(stream_ax, panel, theme)
+        stream_ax.plot(
+            [p.streams for p in points],
+            [p.fps for p in points],
+            color=theme.vstrt,
+            marker="o",
+            linewidth=2,
+        )
+        for point in points:
+            if point.winner:
+                stream_ax.scatter(
+                    [point.streams],
+                    [point.fps],
+                    s=90,
+                    facecolors="none",
+                    edgecolors=theme.vstrt,
+                    zorder=4,
+                )
+        limits = [limit for limit in panel.resource_limits if limit.implementation == "vstrt"]
+        maximum_streams = max(
+            [p.streams for p in points] + [limit.streams for limit in limits] + [1]
+        )
+        stream_ax.set_xticks(range(1, maximum_streams + 1))
+        stream_ax.set_xlim(0.8, maximum_streams + 0.2)
+        stream_ax.set_xlabel("vs-mlrt TensorRT streams", color=theme.text)
+        for limit in limits:
+            stream_ax.text(limit.streams, upper * 0.04, "OOM", color=theme.text, ha="center")
+        by_io = {(point.decode_method, point.writer): point for point in panel.tas_grid}
+        for position, key in enumerate(TAS_IO_ORDER):
+            grid_point = by_io.get(key)
+            if grid_point is not None and grid_point.fps is not None:
+                grid_ax.bar(
+                    position,
+                    grid_point.fps,
+                    width=0.6,
+                    color=theme.implementation_color("tas"),
+                    edgecolor=theme.text if grid_point.winner else "none",
+                    linewidth=1.5,
+                )
+                grid_ax.text(
+                    position,
+                    grid_point.fps + upper * 0.025,
+                    f"{grid_point.fps:.3f}",
+                    color=theme.text,
+                    fontsize=8,
+                    ha="center",
+                )
+            else:
+                label = (
+                    "not measured" if grid_point is None else grid_point.status.replace("-", " ")
+                )
+                grid_ax.text(
+                    position,
+                    upper * 0.04,
+                    label,
+                    color=theme.text,
+                    fontsize=7,
+                    ha="center",
+                    rotation=25,
+                )
+        grid_ax.set_xticks(
+            range(len(TAS_IO_ORDER)),
+            [f"{decode.upper()}\n{writer}" for decode, writer in TAS_IO_ORDER],
+        )
+        grid_ax.set_xlabel("TAS decoder / writer (CUDA Graph on)", color=theme.text)
+    figure.legend(
+        handles=[
+            Line2D(
+                [0],
+                [0],
+                color=theme.project,
+                linestyle=(0, (5, 3)),
+                label="trtvideo final campaign",
+            ),
+            Line2D([0], [0], color=theme.vstrt, marker="o", label="vs-mlrt reconnaissance"),
+            plt.Rectangle(
+                (0, 0), 1, 1, color=theme.implementation_color("tas"), label="TAS reconnaissance"
+            ),
+        ],
+        loc="upper center",
+        ncol=3,
+        frameon=False,
+        labelcolor=theme.text,
+    )
+    figure.text(
+        0.5,
+        0.04,
+        "Search measurements, not final comparisons. "
+        "Outlined marks identify selected configurations.",
+        ha="center",
+        color=theme.text,
+        fontsize=8,
+    )
+    _hardware_footer(figure, data, theme)
+    figure.subplots_adjust(left=0.08, right=0.98, top=0.93, bottom=0.10, hspace=0.85, wspace=0.24)
     _save_figure(figure, output_path, theme)
 
 

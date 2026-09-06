@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from benchmarks.scripts.campaign.core import IMPLEMENTATIONS
-
 
 def render_markdown(summary: dict[str, Any]) -> str:
     """Render a validated campaign summary as Markdown."""
+    participants = summary.get("participants", list(summary["implementations"]))
     lines = [
         "# Rotated Benchmark Campaign",
         "",
@@ -21,7 +20,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         "Peak VRAM, MiB | Bitrate, Mbps | Size, MiB |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for name in IMPLEMENTATIONS:
+    for name in participants:
         result = summary["implementations"][name]
         stats = result["statistics"]
         lines.append(
@@ -45,7 +44,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
             "|---|---:|---:|---:|",
         ]
     )
-    for name in IMPLEMENTATIONS:
+    for name in participants:
         result = summary["implementations"][name]
         stats = result["statistics"]
         lines.append(
@@ -60,7 +59,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
             "|---|---|---:|---:|---|---|",
         ]
     )
-    for name in IMPLEMENTATIONS:
+    for name in participants:
         result = summary["implementations"][name]
         stats = result["statistics"]
         stability = result["stability"]

@@ -7,6 +7,8 @@ import pytest
 from benchmarks.scripts.contracts.manifest import (
     ManifestContractError,
     RunExpectation,
+    execution_profile,
+    validate_execution_profile,
     validate_run_manifest,
 )
 
@@ -129,4 +131,98 @@ def test_validate_run_manifest_rejects_execution_profile_drift() -> None:
                     "cuda_graph": False,
                 },
             ),
+        )
+
+
+def _tas_profile() -> dict[str, Any]:
+    return {
+        "execution_profile": "tuned",
+        "decode_method": "nvdec",
+        "writer": "nelux",
+        "cuda_graph": True,
+    }
+
+
+@pytest.mark.parametrize("decode_method", ["cpu", "nvdec"])
+@pytest.mark.parametrize("writer", ["ffmpeg", "nelux"])
+def test_tas_profile_extracts_only_io_fields(decode_method: str, writer: str) -> None:
+    profile = {**_tas_profile(), "decode_method": decode_method, "writer": writer}
+    parameters = {**profile, "frames": 1000, "encoder": {"codec": "h264"}}
+
+    assert execution_profile(parameters) == profile
+
+
+@pytest.mark.parametrize("graph", [False, None, 0, 1, "true"])
+def test_tas_profile_requires_enabled_cuda_graph(graph: Any) -> None:
+    with pytest.raises(ManifestContractError, match="requires cuda_graph=true"):
+        execution_profile({**_tas_profile(), "cuda_graph": graph})
+
+
+@pytest.mark.parametrize("missing", ["execution_profile", "decode_method", "writer", "cuda_graph"])
+def test_tas_profile_requires_all_fields(missing: str) -> None:
+    profile = _tas_profile()
+    profile.pop(missing)
+
+    with pytest.raises(ManifestContractError, match="no execution profile fields"):
+        execution_profile(profile)
+
+
+@pytest.mark.parametrize("key", ["vspipe_requests", "num_streams", "vapoursynth_threads"])
+def test_tas_profile_rejects_vapoursynth_fields(key: str) -> None:
+    with pytest.raises(ManifestContractError, match="mixes TAS and VapourSynth"):
+        execution_profile({**_tas_profile(), key: 1})
+
+
+@pytest.mark.parametrize("key,value", [("decode_method", "auto"), ("writer", "pipe")])
+def test_tas_profile_rejects_unknown_io_method(key: str, value: str) -> None:
+    with pytest.raises(ManifestContractError, match=key):
+        execution_profile({**_tas_profile(), key: value})
+
+
+@pytest.mark.parametrize("implementation", ["tas", "TheAnimeScripter"])
+def test_tas_identity_rejects_vapoursynth_profile(implementation: str) -> None:
+    with pytest.raises(ManifestContractError, match="requires a TAS execution profile"):
+        validate_execution_profile(
+            _manifest(), implementation=implementation, expected_profile="tuned"
+        )
+
+
+def test_vstrt_identity_rejects_tas_profile() -> None:
+    with pytest.raises(ManifestContractError, match="requires a VapourSynth execution profile"):
+        validate_execution_profile(
+            {"parameters": _tas_profile()}, implementation="vstrt", expected_profile="tuned"
+        )
+
+
+def test_tas_run_identity_keeps_common_model_and_separate_engine() -> None:
+    manifest = _manifest()
+    manifest["product"] = "TheAnimeScripter"
+    manifest["parameters"] = {
+        "frames": 400,
+        "warmup_frames": 30,
+        "encoder": {"codec": "h264"},
+        **_tas_profile(),
+    }
+    manifest["assets"]["engine"]["sha256"] = "tas-engine"
+    identity = validate_run_manifest(
+        manifest,
+        expectation=RunExpectation(
+            product="TheAnimeScripter",
+            implementation="tas",
+            execution_profile=_tas_profile(),
+            require_media_validation=True,
+        ),
+    )
+
+    assert identity.onnx_sha256 == "onnx"
+    assert identity.engine_sha256 == "tas-engine"
+
+
+def test_tas_run_profile_rejects_writer_fallback() -> None:
+    with pytest.raises(ManifestContractError, match="changed execution profile"):
+        validate_execution_profile(
+            {"parameters": {**_tas_profile(), "writer": "ffmpeg"}},
+            implementation="tas",
+            expected_profile="tuned",
+            expected_values=_tas_profile(),
         )

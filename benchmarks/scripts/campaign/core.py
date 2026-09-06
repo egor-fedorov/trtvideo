@@ -13,14 +13,15 @@ _UTC = timezone.utc  # noqa: UP017 - campaign orchestration supports host Python
 IMPLEMENTATIONS = {
     "trtvideo": "trtvideo",
     "vstrt": "vs-mlrt",
-    "vsgan": "VSGAN-tensorrt-docker",
+    "tas": "TheAnimeScripter",
 }
+PARTICIPANTS = tuple(IMPLEMENTATIONS)
 ROUND_ORDERS = {
-    1: ("trtvideo", "vstrt", "vsgan"),
-    2: ("vstrt", "vsgan", "trtvideo"),
-    3: ("vsgan", "trtvideo", "vstrt"),
-    4: ("vsgan", "vstrt", "trtvideo"),
-    5: ("trtvideo", "vsgan", "vstrt"),
+    1: ("trtvideo", "vstrt", "tas"),
+    2: ("vstrt", "tas", "trtvideo"),
+    3: ("tas", "trtvideo", "vstrt"),
+    4: ("tas", "vstrt", "trtvideo"),
+    5: ("trtvideo", "tas", "vstrt"),
 }
 EVENT_LOG_NAME = "campaign.events.jsonl"
 CONFIG_NAME = "campaign.config.json"
@@ -38,34 +39,50 @@ class CampaignConfig:
 
     schema_version: int
     execution_profile: str
-    vstrt_arguments: str
-    vsgan_arguments: str
+    participants: tuple[str, ...]
+    implementation_arguments: dict[str, str]
 
     @classmethod
     def create(
         cls,
         *,
         execution_profile: str,
-        vstrt_arguments: str,
-        vsgan_arguments: str,
+        implementation_arguments: dict[str, str],
     ) -> CampaignConfig:
+        if not all(isinstance(value, str) for value in implementation_arguments.values()):
+            raise CampaignEventError("Campaign runner arguments must be strings")
         config = cls(
-            schema_version=1,
+            schema_version=2,
             execution_profile=execution_profile,
-            vstrt_arguments=vstrt_arguments.strip(),
-            vsgan_arguments=vsgan_arguments.strip(),
+            participants=PARTICIPANTS,
+            implementation_arguments={
+                key: value.strip() for key, value in implementation_arguments.items()
+            },
         )
         config.validate()
         return config
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> CampaignConfig:
+        if value.get("schema_version") != 2:
+            raise CampaignEventError(
+                f"Unsupported campaign config schema: {value.get('schema_version')}; "
+                "legacy campaigns cannot be resumed"
+            )
         try:
+            participants = value["participants"]
+            arguments = value["implementation_arguments"]
+            if not isinstance(participants, list) or not all(
+                isinstance(name, str) for name in participants
+            ):
+                raise ValueError("participants must be a list of implementation names")
+            if not isinstance(arguments, dict):
+                raise ValueError("implementation_arguments must be an object")
             config = cls(
-                schema_version=int(value["schema_version"]),
+                schema_version=value["schema_version"],
                 execution_profile=str(value["execution_profile"]),
-                vstrt_arguments=str(value["vstrt_arguments"]),
-                vsgan_arguments=str(value["vsgan_arguments"]),
+                participants=tuple(participants),
+                implementation_arguments=dict(arguments),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise CampaignEventError(f"Invalid campaign config: {exc}") from exc
@@ -73,15 +90,21 @@ class CampaignConfig:
         return config
 
     def validate(self) -> None:
-        if self.schema_version != 1:
+        if self.schema_version != 2:
             raise CampaignEventError(f"Unsupported campaign config schema: {self.schema_version}")
         if self.execution_profile not in EXECUTION_PROFILES:
             raise CampaignEventError(
                 f"Unknown campaign execution profile: {self.execution_profile}"
             )
+        if self.participants != PARTICIPANTS:
+            raise CampaignEventError("Campaign participants must be trtvideo, vstrt, tas")
+        if set(self.implementation_arguments) != {"vstrt", "tas"} or not all(
+            isinstance(value, str) for value in self.implementation_arguments.values()
+        ):
+            raise CampaignEventError("Campaign arguments must contain strings for vstrt and tas")
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {**asdict(self), "participants": list(self.participants)}
 
 
 @dataclass(frozen=True)

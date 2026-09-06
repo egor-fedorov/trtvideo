@@ -28,7 +28,7 @@ class Variant:
     name: str
     onnx: str
     engine: str
-    vsgan_engine: str
+    tas_engine: str
 
 
 @dataclass(frozen=True)
@@ -103,7 +103,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 def load_workflow_matrix(path: Path) -> WorkflowMatrix:
     """Load a strict matrix without accepting implicit artifact paths."""
     document = _load_json(path)
-    if document.get("schema_version") != 1:
+    if document.get("schema_version") != 2:
         raise WorkflowMatrixError("Unsupported workflow matrix schema version")
     workload_values = document.get("workloads")
     if not isinstance(workload_values, list) or not workload_values:
@@ -138,9 +138,9 @@ def load_workflow_matrix(path: Path) -> WorkflowMatrix:
                         variant_value.get("engine"),
                         label=f"{key}.{name}.engine",
                     ),
-                    vsgan_engine=_relative_path(
-                        variant_value.get("vsgan_engine"),
-                        label=f"{key}.{name}.vsgan_engine",
+                    tas_engine=_relative_path(
+                        variant_value.get("tas_engine"),
+                        label=f"{key}.{name}.tas_engine",
                     ),
                 )
             )

@@ -13,6 +13,7 @@ from typing import Any
 from benchmarks.scripts.runtime.environment import relative_artifact_path, sha256_file
 
 REPORT_SCHEMA_VERSION = 1
+_CANDIDATE_DIRECTORIES = {"vs-mlrt": "vstrt", "TheAnimeScripter": "tas"}
 _PSNR_PATTERN = re.compile(r"\baverage:(inf|[0-9]+(?:\.[0-9]+)?)")
 _SSIM_PATTERN = re.compile(r"\bAll:([0-9]+(?:\.[0-9]+)?)")
 
@@ -128,11 +129,11 @@ def validate_evidence_set(
         raise ProductOutputError("Product-output reference must be trtvideo")
     if reference.frames != expected_frames:
         raise ProductOutputError("Reference output does not contain canonical frames")
-    expected_products = {"vs-mlrt", "VSGAN-tensorrt-docker"}
+    expected_products = set(_CANDIDATE_DIRECTORIES)
     actual_products = {candidate.product for candidate in candidates}
     if actual_products != expected_products or len(candidates) != len(expected_products):
         raise ProductOutputError(
-            "Product-output candidates must be exactly vs-mlrt and VSGAN-tensorrt-docker"
+            "Product-output candidates must be exactly vs-mlrt and TheAnimeScripter"
         )
     for candidate in candidates:
         checks = {
@@ -416,7 +417,8 @@ def compare_product_outputs(
     comparisons = []
     report_errors: list[str] = []
     for candidate in candidates:
-        candidate_dir = output_dir / ("vstrt" if candidate.product == "vs-mlrt" else "vsgan")
+        candidate_key = _CANDIDATE_DIRECTORIES[candidate.product]
+        candidate_dir = output_dir / candidate_key
         candidate_dir.mkdir(parents=True, exist_ok=True)
         psnr = run_metric(
             reference.output_path,
@@ -440,10 +442,9 @@ def compare_product_outputs(
             errors.append(f"PSNR must be >= {thresholds.psnr_min_db:g} dB, got {psnr_value:g} dB")
         if float(ssim["all"]) < thresholds.ssim_min:
             errors.append(f"SSIM must be >= {thresholds.ssim_min:g}, got {ssim['all']:g}")
-        crop_key = "vstrt" if candidate.product == "vs-mlrt" else "vsgan"
         crop_artifacts[candidate.product] = generate_visual_crops(
             candidate,
-            output_dir=output_dir / "crops" / crop_key,
+            output_dir=output_dir / "crops" / candidate_key,
             frame_indices=frame_indices,
             crops=quality["crops"],
             output_width=int(variant["benchmark_output"]["width"]),

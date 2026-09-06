@@ -76,6 +76,7 @@ def verify_matrix(
         wrapper_path = campaign_reports[variant].resolve()
         wrapper = _load_json(wrapper_path)
         checks = {
+            "schema version": (wrapper.get("schema_version"), 3),
             "document type": (
                 wrapper.get("document_type"),
                 "tuned-winner-campaign",
@@ -88,6 +89,9 @@ def verify_matrix(
                 raise TunedMatrixError(
                     f"{variant} final campaign {label} changed ({actual!r} != {expected!r})"
                 )
+        winners = wrapper.get("winners")
+        if not isinstance(winners, dict) or set(winners) != {"vstrt", "tas"}:
+            raise TunedMatrixError(f"{variant} tuned matrix must contain vstrt and tas winners")
         campaign_path, campaign = _verified_artifact(
             root,
             wrapper.get("campaign"),
@@ -168,7 +172,7 @@ def verify_matrix(
 
     assert shared_contract is not None
     return {
-        "schema_version": 1,
+        "schema_version": 3,
         "document_type": "tuned-publication-matrix",
         "status": "valid",
         "publishable": True,

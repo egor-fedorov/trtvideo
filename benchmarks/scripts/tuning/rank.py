@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -19,16 +20,24 @@ from benchmarks.scripts.contracts.manifest import (
     load_json,
     validate_run_manifest,
 )
+from benchmarks.scripts.quality.preflight_tas import PreflightError, load_preflight_report
+from benchmarks.scripts.runtime.suite import compute_suite_statistics, should_extend_suite
 from benchmarks.scripts.tuning.adaptive import (
     CandidatePoint,
     has_confirmed_decline,
+    resource_medians,
+    resource_order,
     select_peak_equivalent,
     sentinel_recovers,
     shortlist,
+    stream_count,
     upper_boundary_unresolved,
 )
 from benchmarks.scripts.tuning.contract import (
+    Candidate,
+    ImplementationProfile,
     MeasurementPolicy,
+    TasCandidate,
     TunedCandidate,
     TuningContract,
     TuningContractError,
@@ -42,7 +51,7 @@ from benchmarks.scripts.workloads.manifest import load_manifest
 
 PRODUCTS = {
     "vstrt": "vs-mlrt",
-    "vsgan": "VSGAN-tensorrt-docker",
+    "tas": "TheAnimeScripter",
 }
 
 
@@ -76,13 +85,15 @@ def _non_negative_float(value: Any, *, label: str) -> float:
 class CandidateAssessment:
     """Eligibility and ranking data for one declared candidate."""
 
-    candidate: TunedCandidate
+    candidate: Candidate
     evidence_complete: bool = True
     errors: list[str] = field(default_factory=list)
     median_fps: float | None = None
     relative_spread: float | None = None
     identity: RunIdentity | None = None
     suite_path: str | None = None
+    median_peak_vram_mib: float | None = None
+    median_cpu_cores: float | None = None
 
     @property
     def eligible(self) -> bool:
@@ -104,6 +115,14 @@ class CandidateAssessment:
             "evidence_complete": self.evidence_complete,
             "median_fps": self.median_fps,
             "relative_spread": self.relative_spread,
+            **(
+                {
+                    "median_peak_vram_mib": self.median_peak_vram_mib,
+                    "median_cpu_cores": self.median_cpu_cores,
+                }
+                if isinstance(self.candidate, TasCandidate)
+                else {}
+            ),
             "identity": self.identity.as_dict() if self.identity is not None else None,
             "evidence": {
                 "suite": self.suite_path,
@@ -112,9 +131,109 @@ class CandidateAssessment:
         }
 
 
-def candidate_directory(sweep_dir: Path, candidate: TunedCandidate) -> Path:
+def candidate_directory(sweep_dir: Path, candidate: Candidate) -> Path:
     """Return the collision-free root for one candidate."""
     return sweep_dir / "candidates" / candidate.implementation / candidate.candidate_id
+
+
+def _verified_quality_report(root: Path, record: Any) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        raise TuningEvidenceError("TAS preflight is missing hashed quality evidence")
+    path = artifact_path(root, record.get("path"), label="TAS preflight quality")
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != record.get("sha256"):
+        raise TuningEvidenceError("TAS preflight quality evidence SHA256 changed")
+    return load_json(path)
+
+
+def load_tas_preflight(
+    path: Path,
+    *,
+    root: Path,
+    contract: TuningContract,
+    workload: dict[str, Any],
+    variant: str,
+    engine_sha256: str | None = None,
+    tas_engine_sha256: str | None = None,
+    workload_sha256: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Consume the quality module's verified preflight, never infer failures from exit codes."""
+    if not path.is_file():
+        raise TuningEvidenceError(f"TAS preflight is missing; run preflight-tas-quality: {path}")
+    try:
+        report = load_preflight_report(path, root=root)
+    except PreflightError as exc:
+        raise TuningEvidenceError(f"TAS preflight evidence is invalid: {exc}") from exc
+    identity = report["identity"]
+    if identity["workload_id"] != workload["id"] or identity["variant"] != variant:
+        raise TuningEvidenceError("TAS preflight changed workload or variant")
+    for key, expected in (
+        ("engine", engine_sha256),
+        ("tas_engine", tas_engine_sha256),
+        ("workload_manifest", workload_sha256),
+    ):
+        if expected is not None and identity["files"][key]["sha256"] != expected:
+            raise TuningEvidenceError(f"TAS preflight {key} SHA256 changed")
+    profiles = report["profiles"]
+    if set(profiles) != {
+        candidate.candidate_id for candidate in contract.for_implementation("tas")
+    }:
+        raise TuningEvidenceError("TAS preflight must cover all four I/O configurations")
+    result = {}
+    for candidate_id, entry in profiles.items():
+        candidate = contract.candidate(candidate_id)
+        if entry["execution_profile"] != candidate.execution_profile():
+            raise TuningEvidenceError("TAS preflight changed candidate execution profile")
+        if entry["status"] not in {"valid", "disqualified"}:
+            raise TuningEvidenceError(
+                "TAS preflight did not prove eligibility or a quality failure"
+            )
+        evidence = entry["evidence"]
+        result[candidate_id] = {
+            "status": "valid" if entry["status"] == "valid" else "invalid",
+            "execution_profile": candidate.execution_profile(),
+            "quality": {
+                "inference_parity": evidence["inference"],
+                "preprocessing_diagnostic": evidence["preprocessing"],
+                **(
+                    {"product_output": evidence["product_output"]}
+                    if "product_output" in evidence
+                    else {}
+                ),
+            },
+        }
+    if not any(entry["status"] == "valid" for entry in result.values()):
+        raise TuningEvidenceError("No TAS configuration passed preflight quality")
+    return result
+
+
+def _preflight_product_identity(
+    comparison: dict[str, Any],
+    candidate: Candidate,
+    root: Path,
+    workload: dict[str, Any],
+    variant: str,
+) -> RunIdentity:
+    manifest = _verified_quality_report(
+        root,
+        {
+            "path": comparison.get("run_manifest"),
+            "sha256": comparison.get("run_manifest_sha256"),
+        },
+    )
+    return validate_run_manifest(
+        manifest,
+        expectation=RunExpectation(
+            product=PRODUCTS["tas"],
+            workload_id=workload["id"],
+            variant=variant,
+            benchmark_contract_version=int(workload["benchmark"]["contract_version"]),
+            implementation="tas",
+            execution_profile=candidate.execution_profile(),
+            require_media_validation=True,
+            require_hardware_environment=True,
+        ),
+        checksum_length=64,
+    )
 
 
 def load_disqualifications(
@@ -152,6 +271,31 @@ def load_disqualifications(
             "evidence": evidence,
         }
     return result
+
+
+def _performance_run_fps(manifest: dict[str, Any], *, policy: MeasurementPolicy) -> float:
+    parameters = manifest["parameters"]
+    expected_parameters = {
+        "frames": policy.measured_frames,
+        "warmup_frames": policy.warmup_frames,
+        "bitrate_validation": policy.bitrate_validation,
+    }
+    changed = [
+        key for key, expected in expected_parameters.items() if parameters.get(key) != expected
+    ]
+    if changed:
+        raise TuningEvidenceError("Performance run changed stage parameters: " + ", ".join(changed))
+    measured = manifest.get("measured")
+    metrics = measured.get("metrics") if isinstance(measured, dict) else None
+    if not isinstance(metrics, dict):
+        raise TuningEvidenceError("Performance run has no measured metrics")
+    if metrics.get("processed_frames") != policy.measured_frames:
+        raise TuningEvidenceError("Performance run processed frame count changed")
+    fps = _positive_float(metrics.get("end_to_end_fps"), label="Performance run FPS")
+    wall_time = _positive_float(metrics.get("wall_time_sec"), label="Performance run wall time")
+    if not math.isclose(fps, policy.measured_frames / wall_time, rel_tol=1e-12):
+        raise TuningEvidenceError("Performance run FPS does not match its full-process wall time")
+    return fps
 
 
 def _validate_suite(
@@ -200,32 +344,14 @@ def _validate_suite(
         statistics = suite.get("statistics")
         if not isinstance(statistics, dict):
             raise TuningEvidenceError("Performance suite has no statistics")
-        assessment.median_fps = _positive_float(
-            statistics.get("median_fps"),
-            label="Performance median FPS",
-        )
-        assessment.relative_spread = _non_negative_float(
-            statistics.get("relative_spread"),
-            label="Performance relative spread",
-        )
-        if assessment.relative_spread > max_relative_spread:
-            assessment.reject(
-                "Performance spread exceeds the tuning selection contract "
-                f"({assessment.relative_spread:.2%} > {max_relative_spread:.2%})"
-            )
         runs = suite.get("runs")
         if not isinstance(runs, list) or not runs:
             raise TuningEvidenceError("Performance suite has no run manifests")
-        expected_runs = policy.initial_runs
-        if (
-            assessment.relative_spread is not None
-            and assessment.relative_spread > policy.spread_threshold
-        ):
-            expected_runs += policy.extra_runs_on_spread
-        if len(runs) != expected_runs:
-            assessment.reject("Performance suite run count does not match its spread policy")
         identities = []
-        for run in runs:
+        manifests = []
+        values = []
+        manifest_paths: set[Path] = set()
+        for run_index, run in enumerate(runs, start=1):
             if not isinstance(run, dict):
                 raise TuningEvidenceError("Performance suite run entry is invalid")
             manifest_path = artifact_path(
@@ -233,16 +359,29 @@ def _validate_suite(
                 run.get("manifest"),
                 label="Performance run",
             )
+            if manifest_path in manifest_paths:
+                raise TuningEvidenceError("Performance suite repeats a run manifest")
+            manifest_paths.add(manifest_path)
+            if run.get("index") != run_index or isinstance(run.get("index"), bool):
+                raise TuningEvidenceError("Performance suite run indices must be consecutive")
+            expected_path = suite_path.parent.resolve() / f"run-{run_index:02d}" / "manifest.json"
+            if manifest_path != expected_path:
+                raise TuningEvidenceError("Performance run manifest does not belong to this suite")
+            if run.get("status") != "valid":
+                raise TuningEvidenceError("Performance suite run entry status is not valid")
             if not manifest_path.is_file():
                 raise TuningEvidenceError(f"Performance run manifest is missing: {manifest_path}")
+            manifest = load_json(manifest_path)
+            manifests.append(manifest)
             identities.append(
                 validate_run_manifest(
-                    load_json(manifest_path),
+                    manifest,
                     expectation=RunExpectation(
                         product=PRODUCTS[assessment.candidate.implementation],
                         workload_id=workload_id,
                         variant=variant,
                         benchmark_contract_version=contract_version,
+                        run_index=run_index,
                         implementation=assessment.candidate.implementation,
                         execution_profile=assessment.candidate.execution_profile(),
                         require_media_validation=True,
@@ -251,6 +390,35 @@ def _validate_suite(
                     checksum_length=64,
                 )
             )
+            fps = _performance_run_fps(manifest, policy=policy)
+            if run.get("end_to_end_fps") != fps:
+                raise TuningEvidenceError("Performance suite run FPS differs from its raw manifest")
+            values.append(fps)
+        computed_statistics = compute_suite_statistics(values)
+        changed_statistics = [
+            key for key, expected in computed_statistics.items() if statistics.get(key) != expected
+        ]
+        if changed_statistics:
+            assessment.reject(
+                "Performance suite statistics differ from raw runs: "
+                + ", ".join(changed_statistics)
+            )
+        assessment.median_fps = computed_statistics["median_fps"]
+        assessment.relative_spread = computed_statistics["relative_spread"]
+        assert assessment.relative_spread is not None
+        if assessment.relative_spread > max_relative_spread:
+            assessment.reject(
+                "Performance spread exceeds the tuning selection contract "
+                f"({assessment.relative_spread:.2%} > {max_relative_spread:.2%})"
+            )
+        # Match SuiteRunner's decision before the extra runs can change the median.
+        expected_runs = policy.initial_runs
+        if should_extend_suite(values[: policy.initial_runs], policy.spread_threshold):
+            expected_runs += policy.extra_runs_on_spread
+        if len(runs) != expected_runs:
+            assessment.reject(
+                "Performance suite run count does not match its initial spread policy"
+            )
         first_identity = identities[0]
         if any(
             identity.implementation_key() != first_identity.implementation_key()
@@ -258,7 +426,11 @@ def _validate_suite(
         ):
             assessment.reject("Performance runs changed immutable evidence")
         assessment.identity = first_identity
-    except (ManifestContractError, TuningEvidenceError) as exc:
+        if isinstance(assessment.candidate, TasCandidate):
+            assessment.median_peak_vram_mib, assessment.median_cpu_cores = resource_medians(
+                manifests
+            )
+    except (ManifestContractError, TuningEvidenceError, ValueError) as exc:
         assessment.reject(str(exc), evidence_complete=False)
 
 
@@ -425,6 +597,8 @@ def _assessment_point(assessment: CandidateAssessment) -> CandidatePoint:
         median_fps=assessment.median_fps,
         relative_spread=assessment.relative_spread,
         suite_path=assessment.suite_path,
+        median_peak_vram_mib=assessment.median_peak_vram_mib,
+        median_cpu_cores=assessment.median_cpu_cores,
     )
 
 
@@ -476,8 +650,92 @@ def _validate_state_stage(
             assessment.reject("Adaptive search changed recorded median FPS")
         if assessment.relative_spread != entry.get("relative_spread"):
             assessment.reject("Adaptive search changed recorded relative spread")
+        if isinstance(candidate, TasCandidate):
+            if (
+                entry.get("decode_method") != candidate.decode_method
+                or entry.get("writer") != candidate.writer
+                or entry.get("cuda_graph") is not True
+            ):
+                assessment.reject("Finite search changed recorded execution profile")
+            if assessment.median_peak_vram_mib != entry.get(
+                "median_peak_vram_mib"
+            ) or assessment.median_cpu_cores != entry.get("median_cpu_cores"):
+                assessment.reject("Finite search changed recorded resource medians")
         assessments.append(assessment)
     return assessments
+
+
+def _validate_finite_completion(
+    *,
+    state: dict[str, Any],
+    preflight: dict[str, dict[str, Any]],
+    reconnaissance: list[CandidateAssessment],
+    confirmation: list[CandidateAssessment],
+    contract: TuningContract,
+    workload_id: str,
+    variant: str,
+    contract_version: int,
+    sweep_dir: Path,
+    root: Path,
+) -> None:
+    """Require every TAS configuration to have measured or hashed OOM evidence."""
+    if state.get("completion_reason") != "grid-exhausted":
+        raise TuningEvidenceError("Finite TAS search must exhaust the I/O grid")
+    if any(
+        key in state for key in ("early_stop_after_streams", "cuda_graph_probe", "resource_limit")
+    ):
+        raise TuningEvidenceError("Finite TAS search cannot contain stream-search decisions")
+    points = [_assessment_point(item) for item in reconnaissance]
+    measured_ids = [point.candidate.candidate_id for point in points]
+    limits = _state_entries(state.get("resource_limits"), label="TAS resource limits")
+    limit_ids = []
+    for record in limits:
+        candidate_id = record.get("candidate_id")
+        if not isinstance(candidate_id, str):
+            raise TuningEvidenceError("TAS resource limit has no candidate id")
+        candidate = contract.candidate(candidate_id)
+        if not isinstance(candidate, TasCandidate):
+            raise TuningEvidenceError("TAS resource limit changed implementation")
+        limit_ids.append(candidate_id)
+        suite = candidate_directory(sweep_dir, candidate) / "reconnaissance/performance/suite.json"
+        try:
+            validate_cuda_oom_record(
+                record,
+                candidate=candidate,
+                policy=contract.search.reconnaissance,
+                workload_id=workload_id,
+                variant=variant,
+                contract_version=contract_version,
+                root=root,
+                suite_path=suite,
+            )
+        except ResourceLimitError as exc:
+            raise TuningEvidenceError(f"TAS resource-limit evidence is invalid: {exc}") from exc
+    actual = measured_ids + limit_ids
+    expected_ids = [
+        candidate.candidate_id
+        for candidate in contract.for_implementation("tas")
+        if preflight[candidate.candidate_id]["status"] == "valid"
+    ]
+    expected_exclusions = [key for key, entry in preflight.items() if entry["status"] == "invalid"]
+    if state.get("quality_exclusions") != expected_exclusions:
+        raise TuningEvidenceError("Finite TAS search changed quality exclusions")
+    if len(actual) != len(set(actual)) or set(actual) != set(expected_ids):
+        raise TuningEvidenceError("Finite TAS search has incomplete or duplicate grid evidence")
+    if measured_ids != [
+        candidate_id for candidate_id in expected_ids if candidate_id in measured_ids
+    ]:
+        raise TuningEvidenceError("Finite TAS reconnaissance changed grid order")
+    expected_shortlist = [
+        candidate.candidate_id
+        for candidate in shortlist(points, size=contract.search.shortlist_size)
+    ]
+    if state.get("shortlist") != expected_shortlist:
+        raise TuningEvidenceError("Finite TAS search changed its shortlist")
+    if {item.candidate.candidate_id for item in confirmation} != set(expected_shortlist):
+        raise TuningEvidenceError(
+            "Finite TAS search must confirm exactly its best three candidates"
+        )
 
 
 def _validate_completion(
@@ -492,9 +750,24 @@ def _validate_completion(
     contract_version: int,
     sweep_dir: Path,
     root: Path,
+    preflight: dict[str, dict[str, Any]],
 ) -> None:
+    if implementation == "tas":
+        _validate_finite_completion(
+            state=state,
+            preflight=preflight,
+            reconnaissance=reconnaissance,
+            confirmation=confirmation,
+            contract=contract,
+            workload_id=workload_id,
+            variant=variant,
+            contract_version=contract_version,
+            sweep_dir=sweep_dir,
+            root=root,
+        )
+        return
     reconnaissance_points = [_assessment_point(item) for item in reconnaissance]
-    streams = [point.candidate.num_streams for point in reconnaissance_points]
+    streams = [stream_count(point.candidate) for point in reconnaissance_points]
     if streams != sorted(set(streams)):
         raise TuningEvidenceError(
             f"Adaptive search {implementation} reconnaissance is not stream-ordered"
@@ -546,7 +819,7 @@ def _validate_completion(
         regular = [
             point
             for point in reconnaissance_points
-            if point.candidate.num_streams != contract.search.sentinel_streams
+            if stream_count(point.candidate) != contract.search.sentinel_streams
         ]
         sentinel = reconnaissance_points[-1]
         if not has_confirmed_decline(
@@ -580,7 +853,7 @@ def _validate_completion(
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} changed its resource-limit candidate"
             )
-        if resource_limit.get("num_streams") != candidate.num_streams:
+        if resource_limit.get("num_streams") != stream_count(candidate):
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} changed its resource-limit stream count"
             )
@@ -605,12 +878,12 @@ def _validate_completion(
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} resource-limit evidence is invalid: {exc}"
             ) from exc
-        if not streams or candidate.num_streams <= streams[-1]:
+        if not streams or stream_count(candidate) <= streams[-1]:
             raise TuningEvidenceError(
                 f"Adaptive search {implementation} resource ceiling is not above valid points"
             )
         if early_stop_after is None:
-            expected = list(range(contract.search.minimum_streams, candidate.num_streams))
+            expected = list(range(contract.search.minimum_streams, stream_count(candidate)))
             if streams != expected:
                 raise TuningEvidenceError(
                     f"Adaptive search {implementation} skipped points before its resource ceiling"
@@ -618,7 +891,7 @@ def _validate_completion(
         else:
             if (
                 not isinstance(early_stop_after, int)
-                or candidate.num_streams != contract.search.sentinel_streams
+                or stream_count(candidate) != contract.search.sentinel_streams
             ):
                 raise TuningEvidenceError(
                     f"Adaptive search {implementation} has an invalid OOM sentinel stop"
@@ -667,10 +940,12 @@ def _validate_completion(
     expected_graph = (
         contract.make_candidate(
             provisional.candidate.implementation,
-            provisional.candidate.num_streams,
+            stream_count(provisional.candidate),
             cuda_graph=True,
         ).candidate_id
-        if profile.probe_cuda_graph
+        if isinstance(profile, ImplementationProfile)
+        and profile.probe_cuda_graph
+        and isinstance(provisional.candidate, TunedCandidate)
         else None
     )
     if graph_probe != expected_graph:
@@ -698,7 +973,7 @@ def _load_adaptive_assessments(
     state = load_json(state_path)
     contract_version = int(workload["benchmark"]["contract_version"])
     expected = {
-        "schema_version": 2,
+        "schema_version": 3,
         "document_type": "adaptive-tuning-search",
         "status": "complete",
         "workload_id": workload["id"],
@@ -714,7 +989,23 @@ def _load_adaptive_assessments(
         )
     implementations = state.get("implementations")
     if not isinstance(implementations, dict) or set(implementations) != set(PRODUCTS):
-        raise TuningEvidenceError("Adaptive search state must contain vstrt and vsgan")
+        raise TuningEvidenceError("Adaptive search state must contain vstrt and tas")
+    preflight_record = state.get("tas_preflight")
+    preflight_path = sweep_dir / "tas-preflight" / "preflight.json"
+    if (
+        not isinstance(preflight_record, dict)
+        or artifact_path(root, preflight_record.get("path"), label="TAS preflight")
+        != preflight_path
+    ):
+        raise TuningEvidenceError("Adaptive search changed its TAS preflight path")
+    _verified_quality_report(root, preflight_record)
+    preflight = load_tas_preflight(
+        preflight_path,
+        root=root,
+        contract=contract,
+        workload=workload,
+        variant=variant,
+    )
 
     reconnaissance_all = []
     confirmation_all = []
@@ -763,9 +1054,27 @@ def _load_adaptive_assessments(
             contract_version=contract_version,
             sweep_dir=sweep_dir,
             root=root,
+            preflight=preflight,
         )
         reconnaissance_all.extend(reconnaissance)
         confirmation_all.extend(confirmation)
+    for assessment in [*reconnaissance_all, *confirmation_all]:
+        if isinstance(assessment.candidate, TasCandidate) and assessment.identity is not None:
+            record = preflight[assessment.candidate.candidate_id]
+            product = _verified_quality_report(root, record["quality"]["product_output"])
+            comparison = next(
+                row for row in product["comparisons"] if row["implementation"] == PRODUCTS["tas"]
+            )
+            identity = _preflight_product_identity(
+                comparison, assessment.candidate, root, workload, variant
+            )
+            if (
+                identity.tuning_implementation_key()
+                != assessment.identity.tuning_implementation_key()
+            ):
+                raise TuningEvidenceError(
+                    "TAS preflight changed image, engine, or session evidence"
+                )
     return reconnaissance_all, confirmation_all, state
 
 
@@ -796,11 +1105,7 @@ def _winner(
     ]
     return min(
         equivalent,
-        key=lambda assessment: (
-            assessment.candidate.num_streams,
-            assessment.candidate.cuda_graph,
-            assessment.candidate.candidate_id,
-        ),
+        key=lambda assessment: resource_order(_assessment_point(assessment)),
     )
 
 
@@ -827,6 +1132,11 @@ def rank_tuned_candidates(
     _enforce_shared_contract(reconnaissance)
     _enforce_shared_contract(assessments)
     _enforce_tuning_session_contract([*reconnaissance, *assessments])
+    search_errors = [
+        f"{assessment.candidate.candidate_id}: {error}"
+        for assessment in [*reconnaissance, *assessments]
+        for error in assessment.errors
+    ]
     disqualifications = disqualifications or {}
     for assessment in assessments:
         rejection = disqualifications.get(assessment.candidate.candidate_id)
@@ -859,6 +1169,7 @@ def rank_tuned_candidates(
             "Complete confirmation evidence is missing for shortlisted candidates: "
             + ", ".join(incomplete)
         )
+    errors.extend(search_errors)
     for implementation, winner in winners.items():
         if winner is None:
             errors.append(f"No eligible {implementation} candidate remains")
@@ -873,7 +1184,7 @@ def rank_tuned_candidates(
         else {}
     )
     report = {
-        "schema_version": 2,
+        "schema_version": 3,
         "document_type": "tuned-candidate-selection",
         "status": "valid" if not errors else "invalid",
         "publishable": False,
@@ -882,6 +1193,7 @@ def rank_tuned_candidates(
         "variant": variant,
         "benchmark_contract_version": contract_version,
         "selection_policy": contract.selection.as_dict(),
+        "tas_preflight": search_state["tas_preflight"],
         "search": {
             "path": (sweep_dir / "search-state.json").relative_to(root).as_posix(),
             "completion": {
@@ -889,7 +1201,9 @@ def rank_tuned_candidates(
                 for implementation in PRODUCTS
             },
             "resource_limits": {
-                implementation: search_state["implementations"][implementation]["resource_limit"]
+                implementation: search_state["implementations"][implementation].get(
+                    "resource_limits" if implementation == "tas" else "resource_limit"
+                )
                 for implementation in PRODUCTS
             },
         },
@@ -909,6 +1223,14 @@ def rank_tuned_candidates(
                     "candidate_id": winner.candidate.candidate_id,
                     "median_fps": winner.median_fps,
                     "relative_spread": winner.relative_spread,
+                    **(
+                        {
+                            "median_peak_vram_mib": winner.median_peak_vram_mib,
+                            "median_cpu_cores": winner.median_cpu_cores,
+                        }
+                        if isinstance(winner.candidate, TasCandidate)
+                        else {}
+                    ),
                     "execution_profile": winner.candidate.execution_profile(),
                     "runner_arguments": winner.candidate.runner_arguments(),
                 }

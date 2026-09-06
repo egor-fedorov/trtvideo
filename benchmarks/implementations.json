@@ -32,31 +32,31 @@
       },
       "notes": "TensorRT 11 VapourSynth target built against the same base and serialized engine as the project."
     },
-    "vsgan": {
+    "tas": {
       "role": "product",
-      "version": "2026-06-22",
-      "image": "trtvideo:benchmark-vsgan",
-      "upstream_image": "docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef",
-      "upstream_tag": "latest_no_avx512",
-      "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker",
-      "source_revision": "f4c06ed08e0d09952cf8671ec453f53c029c2158",
-      "tensorrt_version": "10.16",
-      "encoder_ffmpeg_package": "7:6.1.1-3ubuntu5",
+      "version": "ac259ddf13c1",
+      "image": "trtvideo:benchmark-tas",
+      "source": "https://github.com/NevermindNilas/TheAnimeScripter",
+      "source_revision": "ac259ddf13c191230a4c65a4b251c9fb28884104",
+      "python_version": "3.14.2",
+      "tensorrt_version": "11.2.1.2",
+      "torch_version": "2.13.0+cu130",
+      "nelux_version": "0.18.0",
       "exact_model_match": true,
       "exact_engine_match": false,
       "execution_profiles": {
         "upstream-default": {
-          "vspipe_requests": "auto",
-          "num_streams": 4,
-          "vapoursynth_threads": 4,
-          "cuda_graph": false,
-          "source": "https://github.com/styler00dollar/VSGAN-tensorrt-docker/blob/f4c06ed08e0d09952cf8671ec453f53c029c2158/inference_config.py"
+          "decode_method": "cpu",
+          "writer": "ffmpeg",
+          "io_precision": "fp32",
+          "cuda_graph": true,
+          "source": "https://github.com/NevermindNilas/TheAnimeScripter/tree/ac259ddf13c191230a4c65a4b251c9fb28884104"
         },
         "tuned": {
-          "configuration": "Explicit requests, num_streams, vapoursynth_threads, and cuda_graph values are required."
+          "configuration": "Explicit decode_method (cpu or nvdec) and writer (ffmpeg or nelux) values are required. FP32 bindings and native CUDA Graph remain fixed."
         }
       },
-      "notes": "Pinned upstream VSGAN inference environment. The external encoder is normalized to Ubuntu FFmpeg 6.1.1 because the upstream FFmpeg requires NVENC API 13.1 and driver 610+. Its engine is built from the same ONNX on the benchmark GPU because the TensorRT 10 runtime cannot load the project TensorRT 11 engine."
+      "notes": "Pinned native TAS TensorRT and video I/O environment, independent of the project runtime. Its upstream builder consumes the canonical mixed-FP16 ONNX with half=false to retain FP32 bindings. Both native writers are normalized to the shared NVENC output contract. Upstream-default describes CPU/FFmpeg I/O, not an otherwise unmodified factory command."
     }
   }
 }

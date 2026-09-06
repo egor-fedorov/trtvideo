@@ -75,12 +75,13 @@ def _resolution_evidence(
     _write_json(
         wrapper_path,
         {
+            "schema_version": 3,
             "document_type": "tuned-winner-campaign",
             "status": "valid",
             "publishable": False,
             "workload_id": "workload-v1",
             "variant": variant,
-            "winners": {},
+            "winners": {"vstrt": {}, "tas": {}},
             "quality": quality,
             "campaign": {
                 "path": campaign_path.relative_to(root).as_posix(),

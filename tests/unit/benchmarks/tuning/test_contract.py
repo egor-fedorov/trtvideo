@@ -44,7 +44,11 @@ def test_repository_tuning_contract_declares_adaptive_search(
     assert contract.search.confirmation.bitrate_validation is True
     assert contract.selection.metric == "median_end_to_end_fps"
     assert contract.selection.equivalence_margin == 0.01
-    assert contract.selection.tie_breaker == "lowest_num_streams_then_graph_off"
+    assert contract.schema_version == 3
+    assert contract.selection.tie_breaker == {
+        "vstrt": "lowest_num_streams_then_graph_off",
+        "tas": "lowest_median_peak_vram_then_cpu_then_id",
+    }
     assert contract.project_profile.as_dict() == {
         "backend": "nvcodec",
         "cuda_graph": False,
@@ -59,9 +63,45 @@ def test_candidate_arguments_are_explicit_and_deterministic() -> None:
         == "--requests auto --num-streams 3 --vs-threads auto --no-cuda-graph"
     )
     assert (
-        contract.candidate("vsgan-s5-tauto-g1").runner_arguments()
-        == "--requests auto --num-streams 5 --vs-threads auto --cuda-graph"
+        contract.candidate("tas-nvdec-nelux").runner_arguments()
+        == "--decode-method nvdec --writer nelux"
     )
+
+
+def test_tas_grid_has_native_profiles() -> None:
+    contract = load_tuning_contract(Path("benchmarks/tuning/candidates.json"))
+    candidates = contract.for_implementation("tas")
+
+    assert [candidate.candidate_id for candidate in candidates] == [
+        "tas-cpu-ffmpeg",
+        "tas-cpu-nelux",
+        "tas-nvdec-ffmpeg",
+        "tas-nvdec-nelux",
+    ]
+    assert contract.candidate("tas-nvdec-nelux").execution_profile() == {
+        "execution_profile": "tuned",
+        "decode_method": "nvdec",
+        "writer": "nelux",
+        "cuda_graph": True,
+    }
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_legacy_contracts_cannot_be_executed(version: int) -> None:
+    value = json.loads(Path("benchmarks/tuning/candidates.json").read_text())
+    value["schema_version"] = version
+    with pytest.raises(TuningContractError, match="read-only"):
+        TuningContract.from_dict(value)
+
+
+@pytest.mark.parametrize(
+    "change", [{"cuda_graph": False}, {"requests": "auto"}, {"writers": ["nelux"]}]
+)
+def test_tas_contract_rejects_changed_native_grid(change) -> None:
+    value = json.loads(Path("benchmarks/tuning/candidates.json").read_text())
+    value["implementations"]["tas"].update(change)
+    with pytest.raises(TuningContractError, match="native decoder/writer grid"):
+        TuningContract.from_dict(value)
 
 
 def test_realesrgan_reconnaissance_arguments_disable_only_bitrate_acceptance() -> None:

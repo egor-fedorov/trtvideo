@@ -64,7 +64,7 @@ def _selection_variables(selection: Selection, gpu_id: int) -> tuple[str, ...]:
         f"MANIFEST={selection.workload.manifest}",
         f"VARIANT={selection.variant.name}",
         f"ENGINE={selection.variant.engine}",
-        f"VSGAN_ENGINE={selection.variant.vsgan_engine}",
+        f"TAS_ENGINE={selection.variant.tas_engine}",
         f"ONNX={selection.variant.onnx}",
         f"GPU_ID={gpu_id}",
     )
@@ -92,9 +92,9 @@ def _build_steps(
                     command=_make(benchmark_dir, "build-vstrt"),
                 ),
                 Step(
-                    key="build:vsgan",
-                    label="Build pinned VSGAN benchmark image",
-                    command=_make(benchmark_dir, "build-vsgan"),
+                    key="build:tas",
+                    label="Build pinned TAS benchmark image",
+                    command=_make(benchmark_dir, "build-tas"),
                 ),
             )
         )
@@ -156,11 +156,11 @@ def _engine_steps(
         if options.goal in {"comparative", "tuned"}:
             steps.append(
                 Step(
-                    key=f"engine:{selection.key}:vsgan",
-                    label=f"Build {selection.key} VSGAN TRT10 engine",
+                    key=f"engine:{selection.key}:tas",
+                    label=f"Build {selection.key} TheAnimeScripter engine",
                     command=_make(
                         benchmark_dir,
-                        "build-vsgan-engine",
+                        "build-tas-engine",
                         *variables,
                     ),
                 )
@@ -212,13 +212,13 @@ def _smoke_steps(
                         ),
                     ),
                     Step(
-                        key=f"smoke:{selection.key}:vsgan",
-                        label=f"Smoke-test VSGAN on {selection.key}",
+                        key=f"smoke:{selection.key}:tas",
+                        label=f"Smoke-test TAS on {selection.key}",
                         command=_make(
                             benchmark_dir,
-                            "run-vsgan",
+                            "run-tas",
                             *common,
-                            f"VSGAN_OUTPUT_DIR={output_root}/vsgan",
+                            f"TAS_OUTPUT_DIR={output_root}/tas",
                         ),
                     ),
                 )
@@ -300,6 +300,7 @@ def _tuned_steps(
     benchmark_dir = root / "benchmarks"
     steps = []
     for target, stage in (
+        ("preflight-tas-quality", "preflight"),
         ("run-tuned-sweep", "sweep"),
         ("run-tuned-quality", "quality"),
         ("run-tuned-campaign", "campaign"),
@@ -307,6 +308,8 @@ def _tuned_steps(
         for selection in selections:
             variables = list(_selection_variables(selection, options.gpu_id))
             variables.append(f"TUNING_CONTRACT={selection.workload.tuning_contract}")
+            if stage == "preflight":
+                variables.append("EXECUTION_PROFILE=tuned")
             if stage == "sweep":
                 variables.append(f"TUNING_RESUME={int(options.resume)}")
             elif stage == "campaign":
@@ -314,7 +317,11 @@ def _tuned_steps(
             steps.append(
                 Step(
                     key=f"tuned:{stage}:{selection.key}",
-                    label=f"Run tuned {stage} on {selection.key}",
+                    label=(
+                        f"Preflight TAS quality on {selection.key}"
+                        if stage == "preflight"
+                        else f"Run tuned {stage} on {selection.key}"
+                    ),
                     command=_make(benchmark_dir, target, *variables),
                 )
             )
@@ -465,8 +472,8 @@ class WorkflowState:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise WorkflowError(f"Cannot read workflow state {path}: {exc}") from exc
-        if not isinstance(value, dict) or value.get("schema_version") != 1:
-            raise WorkflowError(f"Invalid workflow state: {path}")
+        if not isinstance(value, dict) or value.get("schema_version") != 2:
+            raise WorkflowError(f"Invalid or legacy workflow state; cannot resume: {path}")
         if value.get("context") != context:
             raise WorkflowError("Workflow state does not match current selection")
         completed = value.get("completed_steps")
@@ -494,7 +501,7 @@ class WorkflowState:
             }
         )
         document = {
-            "schema_version": 1,
+            "schema_version": 2,
             "context": self.context,
             "completed_steps": self.completed_steps,
         }

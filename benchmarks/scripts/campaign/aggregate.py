@@ -269,11 +269,11 @@ def _tensor_report_expectation(contract: dict[str, Any]) -> TensorReportExpectat
                 execution_profile=contract["execution_profiles"]["vstrt"],
             ),
             TensorComparisonExpectation(
-                implementation="VSGAN-tensorrt-docker",
-                engine_sha256=contract["engine_hashes"]["vsgan"],
-                image_id=contract["image_ids"]["vsgan"],
+                implementation="TheAnimeScripter",
+                engine_sha256=contract["engine_hashes"]["tas"],
+                image_id=contract["image_ids"]["tas"],
                 repository_revision=contract["repository_revision"],
-                execution_profile=contract["execution_profiles"]["vsgan"],
+                execution_profile=contract["execution_profiles"]["tas"],
             ),
         ),
         execution_profile=contract["execution_profile"],
@@ -357,7 +357,7 @@ def _validate_quality_run_manifest(
     manifest = load_json(path)
     expected_profile = (
         contract["execution_profiles"][implementation]
-        if implementation in {"vstrt", "vsgan"}
+        if implementation in {"vstrt", "tas"}
         else None
     )
     identity = validate_run_manifest(
@@ -459,8 +459,12 @@ def _validate_product_output_report(
     }
     expected_contracts = {
         "vs-mlrt": ("vstrt", contract["engine_hashes"]["vstrt"]),
-        "VSGAN-tensorrt-docker": ("vsgan", contract["engine_hashes"]["vsgan"]),
+        "TheAnimeScripter": ("tas", contract["engine_hashes"]["tas"]),
     }
+    if set(by_implementation) != set(expected_contracts) or len(comparisons) != len(
+        expected_contracts
+    ):
+        raise CampaignError("Product-output report comparison set changed")
     for implementation, (
         campaign_implementation,
         engine_sha256,
@@ -513,7 +517,7 @@ def _validate_product_output_report(
     expected_products = {
         "trtvideo",
         "vs-mlrt",
-        "VSGAN-tensorrt-docker",
+        "TheAnimeScripter",
     }
     if set(visual_crops) != expected_products:
         raise CampaignError("Product-output visual crop implementations differ")
@@ -643,7 +647,7 @@ def _validate_common_contract(
             previous_engine = engine_hashes.setdefault(implementation, engine_hash)
             if engine_hash != previous_engine:
                 raise CampaignError(f"{implementation} engine changed between rounds")
-            if implementation in {"vstrt", "vsgan"}:
+            if implementation in {"vstrt", "tas"}:
                 profile = validate_execution_profile(
                     manifest,
                     implementation=implementation,
@@ -909,6 +913,7 @@ def aggregate_campaign(
         "document_type": "benchmark-campaign",
         "status": status,
         "scope": "rotated-campaign",
+        "participants": list(campaign_config.participants),
         "execution_profile": execution_profile,
         "publishable": publication_ready,
         "publication": {
@@ -943,10 +948,7 @@ def aggregate_campaign(
         "execution": {
             "config": relative_artifact_path(campaign_dir / CONFIG_NAME, root),
             "config_sha256": sha256_file(campaign_dir / CONFIG_NAME),
-            "runner_arguments": {
-                "vstrt": campaign_config.vstrt_arguments,
-                "vsgan": campaign_config.vsgan_arguments,
-            },
+            "runner_arguments": dict(campaign_config.implementation_arguments),
             "event_log": relative_artifact_path(events_path, root),
             "event_log_sha256": sha256_file(events_path),
         },

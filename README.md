@@ -39,6 +39,12 @@ by Poro26, CC BY-SA 4.0. The comparison is silent.*
 
 ## Measured Throughput And Resource Use
 
+The tables and figures below preserve the published **trtvideo / vs-mlrt /
+VSGAN-tensorrt-docker** campaigns. The active benchmark matrix now replaces
+VSGAN with **TheAnimeScripter (TAS)**, a separate video-processing product.
+No TAS performance claim is implied by these historical results; all three
+active participants must be measured together before publishing a new table.
+
 Across independent validated RTX 3090 and RTX 4090 sessions, RealESRGAN stays
 within 3.3% of the fastest tuned external result. SPAN ranges from parity on RTX
 3090 to `trtvideo` advantages of 17.9% and 25.5% on RTX 4090. The fastest
@@ -251,7 +257,9 @@ ecosystem. DGDecNV can provide NVDEC source decoding on Windows through an
 AviSynth compatibility layer, but it is not part of the pinned Linux workflows
 and does not remove the host-memory boundaries around `libvstrt`.
 
-**Benchmark status:** included through the pinned vs-mlrt and VSGAN paths. The
+**Benchmark status:** vs-mlrt remains in the active matrix. The published
+campaigns also included VSGAN-tensorrt-docker; new campaigns replace that
+wrapper with TAS rather than measuring two variants of the vs-mlrt stack. The
 exact measured configuration and transfer rationale are documented in the
 [architecture guide](docs/ARCHITECTURE.md#vapoursynth-benchmark-path-as-measured)
 and [benchmark methodology](benchmarks/methodology.md#purpose).
@@ -827,7 +835,7 @@ The benchmark workflows are deliberately separate:
 
 - `run-project` measures only `trtvideo` for before/after regression
   checks;
-- `run-comparative` runs the rotated project/vstrt/VSGAN campaign used for
+- `run-comparative` runs the rotated trtvideo/vstrt/TAS campaign used for
   public performance claims;
 - `run-trtexec` and `profile-nsight` are non-competitive diagnostics.
 
