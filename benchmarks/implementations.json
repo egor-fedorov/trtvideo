@@ -3,9 +3,9 @@
   "implementations": {
     "trtexec": {
       "role": "diagnostic",
-      "version": "TensorRT 11.0.0",
+      "version": "TensorRT 11.2.1.2",
       "image": "trtvideo:benchmark",
-      "source": "nvcr.io/nvidia/tensorrt:26.06-py3",
+      "source": "nvcr.io/nvidia/tensorrt:26.08-py3",
       "notes": "Inference ceiling for the project engine; not a product competitor."
     },
     "vstrt": {
@@ -17,7 +17,7 @@
       "vapoursynth_version": "77",
       "vapoursynth_headers_revision": "325756ed04588b31840fdb74479537cddcba4bf7",
       "bestsource_version": "19.0",
-      "tensorrt_version": "11.0.0",
+      "tensorrt_version": "11.2.1.2",
       "execution_profiles": {
         "upstream-default": {
           "vspipe_requests": "auto",

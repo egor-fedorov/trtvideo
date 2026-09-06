@@ -101,10 +101,7 @@ def collect_image_identity(*, default_reference: str = "unknown") -> dict[str, s
     return {
         "reference": os.environ.get("TRTVIDEO_IMAGE_REF", default_reference),
         "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
-        "base_reference": os.environ.get(
-            "TRTVIDEO_BASE_IMAGE",
-            "nvcr.io/nvidia/tensorrt:26.06-py3",
-        ),
+        "base_reference": os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown"),
         "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
         "source_dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
     }

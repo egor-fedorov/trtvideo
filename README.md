@@ -308,6 +308,12 @@ static-ONNX compatibility, input preparation/reporting, and `build-engine`, but
 not PyTorch or model conversion tools. Use
 `make build IMAGE=example/name:tag` to select another name.
 
+Source builds use the digest-pinned NVIDIA TensorRT `26.08-py3` base
+(TensorRT `11.2.1.2`, CUDA toolkit `13.4.1`, Python 3.12). Rebuild engines when moving
+from the earlier TensorRT 11.0 image, and run `trtvideo doctor` plus a short
+processing smoke test on the target GPU before starting a batch. Released
+image tags retain the runtime versions recorded for their release.
+
 Model export, dynamic ONNX preparation, checkpoint compatibility checks, and
 the self-contained demo use a separate image:
 
@@ -342,6 +348,10 @@ allocation. It also checks Docker execution, the NVIDIA driver, the selected
 GPU, NVDEC/NVENC driver entry points, PyNvVideoCodec, available VRAM, and free
 space plus write access on the selected filesystem. Use `--gpu-id` and
 `--disk-path` when the defaults do not describe the intended run.
+
+The CUDA line reports the runtime exposed by `cuda-bindings` and the driver
+API version, not the container's toolkit version. These versions can differ;
+the TensorRT line reports the installed TensorRT Python bindings.
 
 `doctor` answers whether the static runtime prerequisites are usable. It does
 not validate a model-specific TensorRT engine, input codec, required VRAM, or

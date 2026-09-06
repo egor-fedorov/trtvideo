@@ -81,6 +81,16 @@ resume a VSGAN campaign or reuse its measured rounds as TAS evidence. Archive
 the previous raw namespace before starting; published historical JSON/SVG
 snapshots remain unchanged.
 
+The current project/vs-mlrt base is TensorRT `26.08-py3` (`11.2.1.2`). Rebuild
+the project engines on each benchmark GPU; vs-mlrt shares those engines, while
+TAS still uses its native builder. The default project timing cache is now
+`models/cache/benchmark-trt11.2.1.2.cache`; do not point `TRT_TIMING_CACHE` at
+an older runtime's cache. Preserve old files instead of rewriting their metadata.
+After the runtime upgrade, rerun quality gates and `diagnostics` as well as
+`tuned`. Earlier TensorRT 11.0 traces and inference ceilings do not describe
+the updated runtime. Verify the target driver's compatibility with `doctor`
+and short GPU runs before committing to long measurements.
+
 For a new TAS integration, begin with a SPAN 720p smoke and its full quality
 gates before renting a long campaign. Use `build-tas`, `build-tas-engine`, and
 `run-tas` for low-level diagnosis; `TAS_ENGINE` supplies the separately built

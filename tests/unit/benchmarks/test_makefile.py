@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -13,6 +14,15 @@ def recipe(target: str) -> str:
     match = re.search(rf"^{re.escape(target)}:.*\n((?:\t.*\n|\n)+)", source, re.MULTILINE)
     assert match is not None, f"Missing Make recipe: {target}"
     return match.group(1)
+
+
+def test_project_engine_build_has_overridable_versioned_timing_cache() -> None:
+    source = (ROOT / "benchmarks" / "Makefile").read_text(encoding="utf-8")
+    metadata = json.loads((ROOT / "benchmarks" / "implementations.json").read_text())
+    version = metadata["implementations"]["vstrt"]["tensorrt_version"]
+
+    assert f"TRT_TIMING_CACHE ?= models/cache/benchmark-trt{version}.cache" in source
+    assert "--timing-cache /app/$(TRT_TIMING_CACHE)" in recipe("build-project-engine")
 
 
 def test_tas_image_build_uses_separate_dockerfile() -> None:

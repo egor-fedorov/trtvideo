@@ -41,6 +41,13 @@ inference in host memory.
 
 The project always uses its production GPU-resident video path.
 
+The current project, vs-mlrt, and TAS environments use TensorRT `11.2.1.2`.
+The project and vs-mlrt share the digest-pinned `26.08-py3` base and serialized
+engine. TAS retains its separately pinned dependencies and native builder;
+matching TensorRT versions does not imply identical CUDA, Python, or build
+settings. Environment provenance, rather than this current configuration,
+defines the runtime of each historical result.
+
 ## Workflow Separation
 
 Benchmark execution is divided by purpose:

@@ -2,7 +2,24 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from benchmarks.scripts.runtime.environment import _cuda_runtime_version
+import pytest
+
+from benchmarks.scripts.runtime.environment import _cuda_runtime_version, collect_image_identity
+
+
+def test_image_identity_records_base_image_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reference = "registry.example/runtime:version@sha256:" + "a" * 64
+    monkeypatch.setenv("TRTVIDEO_BASE_IMAGE", reference)
+
+    assert collect_image_identity()["base_reference"] == reference
+
+
+def test_image_identity_reports_unknown_base_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TRTVIDEO_BASE_IMAGE", raising=False)
+
+    assert collect_image_identity()["base_reference"] == "unknown"
 
 
 def _runtime(*, status: int = 0, version: int = 13020):
