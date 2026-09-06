@@ -15,14 +15,19 @@ from benchmarks.scripts.contracts.engine import (
     load_engine_contract,
     validate_static_engine_contract,
 )
-from benchmarks.scripts.contracts.manifest import artifact_path, execution_profile, load_json
+from benchmarks.scripts.contracts.manifest import (
+    artifact_path,
+    execution_profile,
+    hardware_environment,
+    load_json,
+)
 from benchmarks.scripts.quality.model_space import (
     CaptureManifest,
     TensorThresholds,
     evaluate_metrics,
 )
 from benchmarks.scripts.quality.product_output import OutputEvidence
-from benchmarks.scripts.runtime.environment import sha256_file
+from benchmarks.scripts.runtime.environment import probe_hardware_environment, sha256_file
 from benchmarks.scripts.workloads.manifest import (
     find_clip_variant,
     find_model_variant,
@@ -103,10 +108,17 @@ def _image_id(reference: str) -> str:
     return image_id
 
 
+def _current_environment(images: dict[str, Any], gpu_id: int) -> dict[str, Any]:
+    try:
+        return probe_hardware_environment(image_id=images["trtvideo"]["id"], gpu_id=gpu_id)
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise PreflightError(f"Cannot verify preflight hardware environment: {exc}") from exc
+
+
 def build_preflight_identity(
     *, root: Path, manifest: Path, variant: str, engine: Path, tas_engine: Path, gpu_id: int
 ) -> dict[str, Any]:
-    """Resolve the exact source/assets/images against which preflight may be reused."""
+    """Bind reusable preflight to source/assets/images and the live hardware contract."""
     root = root.resolve()
     _require(gpu_id >= 0, "GPU id must be non-negative")
     manifest = _path(root, manifest)
@@ -145,17 +157,17 @@ def build_preflight_identity(
         "vstrt": metadata["vstrt"]["image"],
         "tas": metadata["tas"]["image"],
     }
+    images = {key: {"reference": ref, "id": _image_id(ref)} for key, ref in references.items()}
     return {
         "workload_id": workload["id"],
         "variant": variant,
         "gpu_id": gpu_id,
+        "environment": _current_environment(images, gpu_id),
         "repository_revision": _revision(root),
         "tas_revision": metadata["tas"]["source_revision"],
         "adapter_sha256": adapter.hexdigest(),
         "files": {key: _record(path, root) for key, path in files.items()},
-        "images": {
-            key: {"reference": ref, "id": _image_id(ref)} for key, ref in references.items()
-        },
+        "images": images,
     }
 
 
@@ -394,6 +406,10 @@ def _product_gate(
         evidence = OutputEvidence.load(path, root=root)
         _require(evidence.encoder == encoder, "Product-output encoder contract changed")
         manifest = load_json(path)
+        _require(
+            hardware_environment(manifest["environment"]) == identity["environment"],
+            f"Product-output hardware environment changed: {path}",
+        )
         image = manifest["environment"]["image"]
         _require(
             image.get("id") == identity["images"][implementation]["id"]
@@ -559,7 +575,11 @@ def _load_profile(
 
 
 def _load_preflight_report(
-    path: Path, *, root: Path, expected_identity: dict[str, Any] | None = None
+    path: Path,
+    *,
+    root: Path,
+    expected_identity: dict[str, Any] | None = None,
+    gpu_id: int | None = None,
 ) -> dict[str, Any]:
     """Validate hashed preflight evidence before using its eligible/disqualified profiles."""
     root = root.resolve()
@@ -571,6 +591,8 @@ def _load_preflight_report(
         "Unsupported TAS preflight report",
     )
     identity = report["identity"]
+    _require(isinstance(identity.get("environment"), dict), "Preflight has no hardware environment")
+    hardware = hardware_environment(identity["environment"])
     if expected_identity is not None:
         _require(identity == expected_identity, "Stale TAS preflight identity")
     for record in identity["files"].values():
@@ -581,6 +603,12 @@ def _load_preflight_report(
     if expected_identity is None:
         for image in identity["images"].values():
             _require(_image_id(image["reference"]) == image["id"], "Preflight Docker image changed")
+    if gpu_id is not None:
+        _require(identity["gpu_id"] == gpu_id, "Preflight GPU id changed")
+        _require(
+            hardware == _current_environment(identity["images"], gpu_id),
+            "Preflight hardware environment changed; start a fresh preflight and sweep",
+        )
     profiles = report["profiles"]
     _require(set(profiles) == set(PROFILES), "TAS preflight profile set is incomplete")
     for candidate_id, profile in profiles.items():
@@ -600,11 +628,17 @@ def _load_preflight_report(
 
 
 def load_preflight_report(
-    path: Path, *, root: Path, expected_identity: dict[str, Any] | None = None
+    path: Path,
+    *,
+    root: Path,
+    expected_identity: dict[str, Any] | None = None,
+    gpu_id: int | None = None,
 ) -> dict[str, Any]:
-    """Read the four profiles with mandatory source/assets/gate hash verification."""
+    """Verify recorded evidence; supplying gpu_id also checks live hardware before execution."""
     try:
-        return _load_preflight_report(path, root=root, expected_identity=expected_identity)
+        return _load_preflight_report(
+            path, root=root, expected_identity=expected_identity, gpu_id=gpu_id
+        )
     except PreflightError:
         raise
     except (

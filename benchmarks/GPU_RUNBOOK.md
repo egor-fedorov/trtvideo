@@ -81,6 +81,13 @@ resume a VSGAN campaign or reuse its measured rounds as TAS evidence. Archive
 the previous raw namespace before starting; published historical JSON/SVG
 snapshots remain unchanged.
 
+Preflight reuse and sweep startup probe the live CPU/GPU contract before any
+search measurement. Driver, GPU configuration, power limit, persistence mode,
+or CPU changes require fresh preflight and search evidence; old preflight
+reports without that snapshot are not reusable. Identical hardware fields do
+not prove the same physical server, so do not resume a session after moving
+hosts. The probe does not run inference or alter the measured process timer.
+
 The current project/vs-mlrt base is TensorRT `26.08-py3` (`11.2.1.2`). Rebuild
 the project engines on each benchmark GPU; vs-mlrt shares those engines, while
 TAS still uses its native builder. The default project timing cache is now

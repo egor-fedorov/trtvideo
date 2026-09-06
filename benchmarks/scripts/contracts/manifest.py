@@ -123,6 +123,22 @@ def validate_execution_profile(
     return profile
 
 
+def hardware_environment(
+    environment: dict[str, Any], *, required: bool = True
+) -> dict[str, Any] | None:
+    """Extract the shared CPU/GPU session contract, excluding image/software metadata."""
+    gpu = environment.get("gpu")
+    cpu = environment.get("cpu")
+    if required:
+        if not isinstance(gpu, dict) or not gpu:
+            raise ManifestContractError("Run manifest has no GPU contract")
+        if not isinstance(cpu, dict) or not cpu:
+            raise ManifestContractError("Run manifest has no CPU contract")
+    if not isinstance(gpu, dict) or not isinstance(cpu, dict):
+        return None
+    return {"gpu": dict(gpu), "cpu": dict(cpu)}
+
+
 @dataclass(frozen=True)
 class RunIdentity:
     """Immutable identity shared by campaign and tuning validation."""
@@ -229,20 +245,11 @@ def extract_run_identity(
     if not isinstance(environment, dict):
         raise ManifestContractError("Run manifest has no environment contract")
     image = environment.get("image")
-    gpu = environment.get("gpu")
-    cpu = environment.get("cpu")
     if not isinstance(parameters, dict):
         raise ManifestContractError("Run manifest has no parameters")
     if not isinstance(image, dict):
         raise ManifestContractError("Run manifest has no image identity")
-    if require_hardware_environment:
-        if not isinstance(gpu, dict) or not gpu:
-            raise ManifestContractError("Run manifest has no GPU contract")
-        if not isinstance(cpu, dict) or not cpu:
-            raise ManifestContractError("Run manifest has no CPU contract")
-    elif not isinstance(gpu, dict) or not isinstance(cpu, dict):
-        gpu = None
-        cpu = None
+    hardware = hardware_environment(environment, required=require_hardware_environment)
     encoder = parameters.get("encoder")
     if not isinstance(encoder, dict):
         raise ManifestContractError("Run manifest has no encoder contract")
@@ -306,11 +313,7 @@ def extract_run_identity(
         workload_sha256=workload_sha256,
         image_id=image_id,
         repository_revision=revision,
-        environment=(
-            {"gpu": dict(gpu), "cpu": dict(cpu)}
-            if isinstance(gpu, dict) and isinstance(cpu, dict)
-            else None
-        ),
+        environment=hardware,
         frames=frames,
         warmup_frames=warmup_frames,
         encoder=encoder,

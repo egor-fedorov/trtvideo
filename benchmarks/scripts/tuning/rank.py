@@ -155,12 +155,13 @@ def load_tas_preflight(
     engine_sha256: str | None = None,
     tas_engine_sha256: str | None = None,
     workload_sha256: str | None = None,
+    gpu_id: int | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Consume the quality module's verified preflight, never infer failures from exit codes."""
     if not path.is_file():
         raise TuningEvidenceError(f"TAS preflight is missing; run preflight-tas-quality: {path}")
     try:
-        report = load_preflight_report(path, root=root)
+        report = load_preflight_report(path, root=root, gpu_id=gpu_id)
     except PreflightError as exc:
         raise TuningEvidenceError(f"TAS preflight evidence is invalid: {exc}") from exc
     identity = report["identity"]

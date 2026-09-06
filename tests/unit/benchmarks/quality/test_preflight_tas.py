@@ -21,6 +21,7 @@ from benchmarks.scripts.quality.model_space import (
     write_capture_manifest,
 )
 from benchmarks.scripts.runtime.environment import sha256_file
+from benchmarks.scripts.tuning import workflow
 from benchmarks.scripts.tuning.contract import load_tuning_contract
 from benchmarks.scripts.tuning.rank import TuningEvidenceError, load_tas_preflight
 from trtvideo.video.nvcodec.encoder import NvencCbrContract
@@ -79,6 +80,21 @@ def context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[argparse.N
         )
     monkeypatch.setattr(preflight, "_revision", lambda root: "revision")
     monkeypatch.setattr(preflight, "_image_id", lambda ref: "id-" + ref)
+    environment = {
+        "gpu": {
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 3090",
+            "compute_capability": "8.6",
+            "total_memory_mib": 24576,
+            "driver_version": "595.84",
+            "power_limit_w": 350.0,
+            "persistence_mode": 1,
+        },
+        "cpu": {"model": "Test CPU", "logical_cores": 12},
+    }
+    monkeypatch.setattr(
+        preflight, "probe_hardware_environment", lambda **_: copy.deepcopy(environment)
+    )
     args = argparse.Namespace(
         root=str(tmp_path),
         manifest=str(manifest),
@@ -283,11 +299,12 @@ def _gate_files(
                     "engine": {"sha256": engine_hash},
                 },
                 "environment": {
+                    **copy.deepcopy(identity["environment"]),
                     "image": {
                         "id": identity["images"][implementation]["id"],
                         "source_dirty": "0",
                         "repository_revision": identity["repository_revision"],
-                    }
+                    },
                 },
                 "reproducibility": {"publishable": True},
                 "measured": {"validation": {"valid": True}, "output": _record(output, root)},
@@ -405,6 +422,10 @@ def test_all_four_profiles_have_immutable_hashed_evidence(
     assert report["eligible_candidates"] == list(preflight.PROFILES)
     assert report["identity"] == identity
     assert preflight.load_preflight_report(_report_path(args), root=Path(args.root)) == report
+    assert (
+        preflight.load_preflight_report(_report_path(args), root=Path(args.root), gpu_id=0)
+        == report
+    )
     calls.clear()
     original = _report_path(args).read_bytes()
     assert preflight.run_preflight(args) == report
@@ -498,6 +519,133 @@ def test_retagged_image_prevents_reuse(context: tuple, monkeypatch: pytest.Monke
     monkeypatch.setattr(preflight, "_image_id", lambda reference: "rebuilt-image")
     with pytest.raises(preflight.PreflightError, match="Docker image changed"):
         preflight.load_preflight_report(_report_path(args), root=Path(args.root))
+
+
+@pytest.mark.parametrize(
+    "section,key,value",
+    [
+        ("gpu", "driver_version", "610.57.04"),
+        ("gpu", "name", "NVIDIA GeForce RTX 4090"),
+        ("gpu", "power_limit_w", 300.0),
+        ("gpu", "persistence_mode", 0),
+        ("gpu", "total_memory_mib", 16384),
+        ("cpu", "model", "Other CPU"),
+        ("cpu", "logical_cores", 16),
+    ],
+)
+@pytest.mark.parametrize("resume", [False, True])
+def test_changed_hardware_stops_preflight_reuse_and_sweep_before_measurement(
+    context: tuple,
+    monkeypatch: pytest.MonkeyPatch,
+    section: str,
+    key: str,
+    value: Any,
+    resume: bool,
+) -> None:
+    args, identity = context
+    calls = _runner(monkeypatch, context)
+    preflight.run_preflight(args)
+    report_path = _report_path(args)
+    original = report_path.read_bytes()
+    calls.clear()
+    environment = copy.deepcopy(identity["environment"])
+    environment[section][key] = value
+    monkeypatch.setattr(preflight, "probe_hardware_environment", lambda **_: environment)
+
+    with pytest.raises(preflight.PreflightError, match="Stale TAS preflight identity"):
+        preflight.run_preflight(args)
+    root = Path(args.root)
+    contract = _file(
+        root / "contract.json", (ROOT / "benchmarks/tuning/span_candidates.json").read_bytes()
+    )
+    sweep_args = workflow.build_parser().parse_args(
+        [
+            "sweep",
+            "--root",
+            str(root),
+            "--contract",
+            str(contract),
+            "--manifest",
+            args.manifest,
+            "--variant",
+            args.variant,
+            "--engine",
+            args.engine,
+            "--tas-engine",
+            args.tas_engine,
+            "--gpu-id",
+            "0",
+            "--sweep-dir",
+            str(report_path.parent.parent),
+            *(["--resume"] if resume else []),
+        ]
+    )
+    with pytest.raises(TuningEvidenceError, match="hardware environment changed"):
+        workflow.run_sweep(sweep_args)
+    assert calls == []
+    assert report_path.read_bytes() == original
+    assert not (report_path.parent.parent / "search-state.json").exists()
+    assert not (report_path.parent.parent / "candidates").exists()
+
+
+def test_live_environment_probe_failure_cannot_reuse_preflight(
+    context: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, _ = context
+    calls = _runner(monkeypatch, context)
+    preflight.run_preflight(args)
+    calls.clear()
+
+    def unavailable(**_: Any) -> dict:
+        raise subprocess.CalledProcessError(1, ["docker", "run"])
+
+    monkeypatch.setattr(preflight, "probe_hardware_environment", unavailable)
+    with pytest.raises(preflight.PreflightError, match="Cannot verify preflight hardware"):
+        preflight.run_preflight(args)
+    assert calls == []
+    # Evidence validation does not require a GPU when no new work is requested.
+    assert (
+        preflight.load_preflight_report(_report_path(args), root=Path(args.root))["status"]
+        == "valid"
+    )
+
+
+def test_preflight_without_hardware_cannot_be_reused(
+    context: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, _ = context
+    calls = _runner(monkeypatch, context)
+    report = preflight.run_preflight(args)
+    del report["identity"]["environment"]
+    _json(_report_path(args), report)
+    calls.clear()
+    with pytest.raises(preflight.PreflightError, match="no hardware environment"):
+        preflight.run_preflight(args)
+    assert calls == []
+
+
+def test_product_hardware_must_match_preflight_snapshot(
+    context: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args, _ = context
+    original = _gate_files
+
+    def changed(directory: Path, *arguments: Any) -> int:
+        code = original(directory, *arguments)
+        path = directory / "product-output/tas/run-01/manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["environment"]["gpu"]["power_limit_w"] = 300.0
+        _json(path, manifest)
+        return code
+
+    monkeypatch.setitem(globals(), "_gate_files", changed)
+    calls = _runner(monkeypatch, context)
+    with pytest.raises(
+        preflight.PreflightError, match="Product-output hardware environment changed"
+    ):
+        preflight.run_preflight(args)
+    assert calls == ["tas-cpu-ffmpeg"]
+    assert not _report_path(args).exists()
 
 
 def test_missing_gate_is_infrastructure_failure(

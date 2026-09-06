@@ -711,6 +711,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
         engine_sha256=_sha256(engine),
         tas_engine_sha256=_sha256(tas_engine),
         workload_sha256=_sha256(paths.manifest),
+        gpu_id=args.gpu_id,
     )
     preflight_record = {"path": paths.relative(preflight_path), "sha256": _sha256(preflight_path)}
     search_state_path = paths.sweep_dir / "search-state.json"

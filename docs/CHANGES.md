@@ -68,7 +68,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   `TAS_ARGS`, and `--tas-engine` instead of the VSGAN interfaces. Old workflow
   states cannot resume the new participant contract. The TAS adapter fixes
   static-engine shape binding, uses image-locked initialization, and normalizes
-  NVENC settings without changing native per-frame operations.
+  NVENC settings without changing native per-frame operations. Cached quality
+  preflight is bound to the shared CPU/GPU session contract and checked against
+  live hardware before starting or resuming a sweep.
 - Updated tuned publication export and figures for participant-specific
   profiles and TAS I/O categories. Existing published VSGAN results and SVGs
   remain historical evidence; new comparative claims require a fresh shared

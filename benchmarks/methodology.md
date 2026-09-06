@@ -619,6 +619,17 @@ The runner records an allowlisted environment:
 Hostname, username, IP address, GPU UUID/serial, container IDs, absolute host
 paths, and a complete environment dump are not recorded.
 
+TAS quality preflight records the same static CPU/GPU contract used by run
+identity validation: GPU index, model, compute capability, VRAM, driver,
+power limit, persistence mode, CPU model, and logical core count. A short
+Docker/NVML probe checks it before cached preflight reuse and before starting
+or resuming a sweep, including when the workflow skips a completed preflight
+step. A mismatch or unavailable probe stops execution before the first search
+measurement. Recorded evidence can still be validated without a live GPU.
+This allowlisted contract cannot distinguish two physically different GPUs
+with identical recorded fields; moving to another host still requires a fresh
+session rather than reusing preflight or search results.
+
 ## Validity And Success
 
 A run is invalid when assets/contracts do not match, output validation fails,

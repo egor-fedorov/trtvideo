@@ -8,6 +8,7 @@ from benchmarks.scripts.contracts.manifest import (
     ManifestContractError,
     RunExpectation,
     execution_profile,
+    hardware_environment,
     validate_execution_profile,
     validate_run_manifest,
 )
@@ -81,6 +82,7 @@ def test_validate_run_manifest_returns_complete_performance_identity() -> None:
     assert identity.workload_sha256 == "workload"
     assert identity.warmup_frames == 30
     assert identity.environment["gpu"]["power_limit_w"] == 350.0
+    assert identity.environment == hardware_environment(manifest["environment"])
 
 
 @pytest.mark.parametrize("key", ["gpu", "cpu"])
