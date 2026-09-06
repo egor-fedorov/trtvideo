@@ -52,6 +52,10 @@ The non-GPU checks image validates Docker entrypoints. `benchmark-trtvideo` is
 copied into this image only for test parity with the benchmark target; it is not
 installed as a production project script.
 
+`make cli-smoke` (also part of `make check`) prints one `PASS` line per
+successful command. On failure it prints the command, exit code, and captured
+stdout/stderr, then stops. Run an individual command below to view its full help.
+
 ```bash
 docker run --rm trtvideo:dev trtvideo --help
 docker run --rm trtvideo:dev trtvideo doctor --help

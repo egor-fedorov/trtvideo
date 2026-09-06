@@ -85,17 +85,28 @@ test-unit:
 test-media-integration:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q -m docker tests/integration
 
+define cli_help_check
+	@if output="$$( $(DOCKER_RUN) $(DEV_IMAGE) $(1) --help 2>&1 )"; then \
+		printf 'PASS %s\n' '$(1) --help'; \
+	else \
+		status=$$?; \
+		printf 'FAIL %s (exit %s)\n' '$(1) --help' "$$status" >&2; \
+		printf '%s\n' "$$output" >&2; \
+		exit "$$status"; \
+	fi
+endef
+
 cli-smoke:
-	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo --help
-	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo doctor --help
-	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo compatibility-check --help
-	$(DOCKER_RUN) $(DEV_IMAGE) trtvideo compatibility-report --help
-	$(DOCKER_RUN) $(DEV_IMAGE) benchmark-trtvideo --help
-	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m trtvideo.cli.demo --help
-	$(DOCKER_RUN) $(DEV_IMAGE) export-onnx --help
-	$(DOCKER_RUN) $(DEV_IMAGE) prepare-onnx --help
-	$(DOCKER_RUN) $(DEV_IMAGE) prepare-compatibility-input --help
-	$(DOCKER_RUN) $(DEV_IMAGE) build-engine --help
+	$(call cli_help_check,trtvideo)
+	$(call cli_help_check,trtvideo doctor)
+	$(call cli_help_check,trtvideo compatibility-check)
+	$(call cli_help_check,trtvideo compatibility-report)
+	$(call cli_help_check,benchmark-trtvideo)
+	$(call cli_help_check,python3 -m trtvideo.cli.demo)
+	$(call cli_help_check,export-onnx)
+	$(call cli_help_check,prepare-onnx)
+	$(call cli_help_check,prepare-compatibility-input)
+	$(call cli_help_check,build-engine)
 
 check: lint typecheck compile test-unit test-media-integration cli-smoke figures-check
 

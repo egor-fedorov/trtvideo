@@ -56,6 +56,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- CLI smoke checks print compact success lines instead of full help text;
+  failed commands retain their captured output and stop the check.
 - Updated the shared production, model-tools, benchmark, and vs-mlrt base to
   digest-pinned TensorRT `26.08-py3` (TensorRT `11.2.1.2`, CUDA toolkit `13.4.1`).
   Rebuild engines and use the new versioned benchmark timing cache; quality
