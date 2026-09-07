@@ -18,6 +18,10 @@ The host must provide:
 - space for the 168 MiB canonical source, prepared clips, models, engines, and
   workflow artifacts.
 
+Host coordinators use standard-library Python plus pure-Python helpers from
+the checkout. The launcher and host Make targets add `src/` to `PYTHONPATH`
+automatically; do not install `trtvideo` or GPU dependencies on the host.
+
 Use `HOST_PYTHON` when `python3` is not the intended interpreter:
 
 ```bash

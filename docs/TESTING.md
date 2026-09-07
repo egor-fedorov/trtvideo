@@ -32,6 +32,10 @@ tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaign
 Both groups remain unit tests. Real GPU and performance runs live in
 `benchmarks/`, not in `tests/`.
 
+Host benchmark command smoke tests use Python `-S` with the checkout's `src/`
+on `PYTHONPATH`, disabling installed site-packages so the checks image cannot
+mask undeclared host dependencies.
+
 ### Media Integration
 
 The checks image also runs a GPU-free FFmpeg integration test:

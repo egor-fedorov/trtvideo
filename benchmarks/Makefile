@@ -1,6 +1,7 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 HOST_PYTHON ?= python3
+HOST_PYTHON_RUN = PYTHONPATH="$(ROOT)/src$${PYTHONPATH:+:$$PYTHONPATH}" "$(HOST_PYTHON)"
 PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' "$(ROOT)/pyproject.toml")
 BENCHMARK_IMAGE ?= trtvideo:benchmark
 VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
@@ -515,7 +516,7 @@ quality-gates: tensor-quality product-output-parity
 preflight-tas-quality:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
 	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.quality.preflight_tas \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.quality.preflight_tas \
 		--root "$(ROOT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -525,7 +526,7 @@ preflight-tas-quality:
 		--output-dir "$(TUNING_DIR)/tas-preflight"
 
 run-tuned-sweep:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow sweep \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow sweep \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -536,7 +537,7 @@ run-tuned-sweep:
 		$(if $(filter 1,$(TUNING_RESUME)),--resume,)
 
 rank-tuned:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.rank \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.rank \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -546,7 +547,7 @@ rank-tuned:
 		--disqualifications "$(TUNING_DIR)/disqualifications.json"
 
 run-tuned-quality:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow quality \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow quality \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -556,7 +557,7 @@ run-tuned-quality:
 		--sweep-dir "$(TUNING_DIR)"
 
 run-tuned-campaign:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow campaign \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow campaign \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -567,7 +568,7 @@ run-tuned-campaign:
 		$(if $(filter 1,$(RESUME)),--resume,)
 
 verify-tuned-matrix:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.matrix \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.matrix \
 		--root "$(ROOT)" \
 		--campaign-720p "$(TUNING_720_DIR)/final-campaign.json" \
 		--campaign-1080p "$(TUNING_1080_DIR)/final-campaign.json" \
@@ -712,7 +713,7 @@ aggregate-campaign:
 			$(ARGS)
 
 run-campaign: campaign-preflight
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.campaign.run \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.campaign.run \
 		--campaign-dir "$(ROOT)/$(CAMPAIGN_DIR)" \
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \

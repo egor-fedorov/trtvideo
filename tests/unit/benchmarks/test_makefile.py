@@ -71,11 +71,32 @@ def test_tuned_stages_receive_tas_engine(target: str) -> None:
 
 def test_tas_preflight_uses_host_python_and_both_engines() -> None:
     command = recipe("preflight-tas-quality")
-    assert '"$(HOST_PYTHON)" -m benchmarks.scripts.quality.preflight_tas' in command
+    assert "$(HOST_PYTHON_RUN) -m benchmarks.scripts.quality.preflight_tas" in command
     assert '--engine "$(ENGINE)"' in command
     assert '--tas-engine "$(TAS_ENGINE)"' in command
     assert '--root "$(ROOT)"' in command
     assert '--output-dir "$(TUNING_DIR)/tas-preflight"' in command
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "preflight-tas-quality",
+        "run-tuned-sweep",
+        "rank-tuned",
+        "run-tuned-quality",
+        "run-tuned-campaign",
+        "verify-tuned-matrix",
+        "run-campaign",
+    ],
+)
+def test_host_commands_use_checkout_import_path(target: str) -> None:
+    source = (ROOT / "benchmarks/Makefile").read_text()
+    assert (
+        'HOST_PYTHON_RUN = PYTHONPATH="$(ROOT)/src$${PYTHONPATH:+:$$PYTHONPATH}" "$(HOST_PYTHON)"'
+        in source
+    )
+    assert 'cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m ' in recipe(target)
 
 
 @pytest.mark.parametrize(

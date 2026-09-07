@@ -56,6 +56,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Changed
 
+- Host benchmark entrypoints resolve pure-Python helpers from the checkout's
+  `src/` directory without requiring a host installation of `trtvideo`.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
 - Updated the shared production, model-tools, benchmark, and vs-mlrt base to
