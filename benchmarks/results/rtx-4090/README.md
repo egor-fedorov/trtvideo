@@ -77,7 +77,8 @@ controlled CPU-only A/B or an external-path profiler trace.
   <img alt="RTX 4090 vs-mlrt stream search and TAS decoder/writer grid for RealESRGAN and SPAN" src="figures/tuned-sweep-light.svg">
 </picture>
 
-Lines and bars show one-run, 300-frame reconnaissance. Rings and outlined bars
+Lines and bars show one-run reconnaissance: 300 frames for RealESRGAN and
+1000 frames for SPAN. Rings and outlined bars
 identify profiles selected after independent 1000-frame confirmation; the
 dashed trtvideo line is the final-campaign median, not a search measurement.
 The vs-mlrt curve uses graph-off profiles; selected graph-on profiles are
@@ -95,6 +96,46 @@ prefers the lowest confirmed stream count within 1% of peak, then graph off.
 TAS preflight validates all four CPU/NVDEC x FFmpeg/neLux combinations before
 search; the grid is exhausted on every workload. All TAS winners use CUDA
 Graph. See the [methodology](../../methodology.md) for shortlisting and tie-breaks.
+
+### Tuning Resource Use
+
+The following figures use the same runs as each candidate's FPS, not resources
+from the final winner campaign. CPU is attributed to the measured child-process
+tree; VRAM is the per-run peak increase above the pre-run baseline
+(`peak_delta_mib`). Each plotted value is the median across that stage's runs.
+
+vs-mlrt retains its stream-count axis, with circles for graph off and hollow
+diamonds for graph on. TAS retains the decoder/writer grid, always with graph
+on. Outlines identify the selected profiles where measured in that stage.
+Both implementations share a resource scale within each workload and stage.
+OOM, excluded, and unmeasured configurations have no resource value plotted.
+
+<details>
+<summary><strong>Reconnaissance: CPU and VRAM for all measured configurations</strong></summary>
+
+One run per configuration: 300 frames for RealESRGAN and 1000 for SPAN.
+These are search observations, not repeated final-product measurements.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/tuning-resources-reconnaissance-dark.svg">
+  <img alt="RTX 4090 reconnaissance CPU cores and baseline-relative peak VRAM for vs-mlrt stream configurations and TAS decoder/writer combinations" src="figures/tuning-resources-reconnaissance-light.svg">
+</picture>
+
+</details>
+
+<details>
+<summary><strong>Confirmation: CPU and VRAM for the independently measured shortlist</strong></summary>
+
+1000 frames per run, with three or five runs as required by the spread policy.
+The figure includes the vs-mlrt CUDA Graph probes. TAS combinations not in the
+shortlist are marked `not measured`, not filled from reconnaissance data.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/tuning-resources-confirmation-dark.svg">
+  <img alt="RTX 4090 confirmation CPU cores and baseline-relative peak VRAM, with CUDA Graph profiles and selected winners distinguished" src="figures/tuning-resources-confirmation-light.svg">
+</picture>
+
+</details>
 
 ### Intra-Session Reproducibility
 
@@ -114,7 +155,8 @@ agreement between medians does not erase the individual outlier noted above.
 
 CPU cores are attributed to the measured child-process tree through
 `getrusage(RUSAGE_CHILDREN)`, not total host activity. Resource columns are
-medians of per-run metrics; peak VRAM is the median of per-run device peaks.
+medians of per-run metrics; peak VRAM is the median of per-run peak increases
+above the pre-run device-memory baseline.
 
 | Workload | Input | Implementation | FPS | CPU cores | GPU util | Power | J/frame | Peak VRAM | Bitrate |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -219,5 +261,5 @@ and quality crops, but not the full MP4 or FP32 tensor captures; pixel metrics
 were not independently rerun during publication. Their recorded gate results
 and hashes remain inspectable. Large runtime artifacts are not added to Git.
 
-Regenerate both light/dark figure pairs with `make -C benchmarks figures`;
+Regenerate all light/dark figure pairs with `make -C benchmarks figures`;
 `make -C benchmarks figures-check` checks byte-for-byte reproducibility.

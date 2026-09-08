@@ -728,6 +728,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 1.244790716705309,
+            "median_peak_vram_mib": 2234.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json",
+                "sha256": "c0831d88f390245f2c88e7dd7a96c2332a4c199425efdd9def5ee8ac2349196e"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "bf9fe68db8b95c7a26a5bf184ec5758afabbbba0b5bca98f9baeaaafc07bf81b"
+                }
+              ]
             }
           },
           {
@@ -747,6 +767,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 2.1871551452034868,
+            "median_peak_vram_mib": 3764.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json",
+                "sha256": "13595e8a13f2b3e16ae3fb6b76eea8674f9fbce9885999622cff20542596713a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "23c5cdd6e154d9bc7e24e5a48c6bd117d7e1eb8ffd34b9e89874895966d771a9"
+                }
+              ]
             }
           },
           {
@@ -766,6 +806,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 3.0715284889308463,
+            "median_peak_vram_mib": 5296.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json",
+                "sha256": "4924bd1985dfa0b5fc3bce13ad90335a981116247ae4fdc64ff417114bc13325"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "1ceeb8e5b5d571e2e9671c0cee55a1c46f50a5c4d58833fe5b87b2ac59ce5320"
+                }
+              ]
             }
           },
           {
@@ -785,6 +845,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 3.9269989941754417,
+            "median_peak_vram_mib": 6794.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json",
+                "sha256": "2ee9082834c66d90cc7d9444c2113a530860d3bcb6be939f1a7c9e84c6c8db45"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "790194d77b5fc57a8c4d173ea49a9933342b4648c2bdf939670cd0be30a45542"
+                }
+              ]
             }
           },
           {
@@ -804,6 +884,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 6.894376239870844,
+            "median_peak_vram_mib": 12888.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json",
+                "sha256": "2744ac570ac19a53fad994703cca32aa4670200d9da43df7e2c21c4f36b18f1e"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "6e99d69d3ee8e429482b3d95ba0c1abf16b9f98b248b46456592585bd4ba1100"
+                }
+              ]
             }
           },
           {
@@ -824,7 +924,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.3037191163421789,
-            "median_peak_vram_mib": 3295.875
+            "median_peak_vram_mib": 3295.875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "38b98f0dc566648a0194156db62a604f2a39b5ae11e5621362b7e46a530366e6"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "dfc15affd84bb3f5253fc19a0d27093e8beb8dca64d81648282d95e12c7235c3"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -844,7 +962,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.089750125198756,
-            "median_peak_vram_mib": 3120.5625
+            "median_peak_vram_mib": 3120.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json",
+                "sha256": "16dff3cb2ecff1f84a8558707884d4baffcf93d9d513cf530336dd74e78b34cc"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "925c43b6e712c6e3b2a40f2c0c8a5468d4c5b8b676865a46d7e36394acea3c3c"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -864,7 +1000,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 2.1724369643244286,
-            "median_peak_vram_mib": 2974.1875
+            "median_peak_vram_mib": 2974.1875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "b1a6e591975c53935c575484351c1382d6b9b46a7bd36fa3f04d29060aeca66f"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "d9a233a33eddc459b4de65da0f8508efad08eba1a68405aa8fac5019f0b1685c"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -884,7 +1038,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.9715905015853483,
-            "median_peak_vram_mib": 2764.875
+            "median_peak_vram_mib": 2764.875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json",
+                "sha256": "c6fd6426404ac0a87f956cab6b85f58ca39fe0e628d9e95cd16709cac199f14c"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "8ee4361e97cad1cd9ec7da5c61aee384b52e96f669095c010d3fd62265384a87"
+                }
+              ]
+            }
           }
         ],
         "candidates": [
@@ -905,6 +1077,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 2.167283383598184,
+            "median_peak_vram_mib": 3764.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json",
+                "sha256": "24d46927978840de67857c9c336e6fef2baa605c271716c4a5453a645e012cbc"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "27d6bac0a4e4ddb6514e1d074f14ceb51b52a88d947b168cb75fd00e5b565122"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "e7e489362b11e9b8ab4733ac1a35586c628263a983ca54598eeb79bf67362fe8"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "610fa39f121acc2c816628660f39fa17e113dbbabdb8cb869ef915f53c542c65"
+                }
+              ]
             }
           },
           {
@@ -924,6 +1124,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 3.1327480880178267,
+            "median_peak_vram_mib": 5296.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json",
+                "sha256": "f38fcfb5e7cdda2060e5f0040f252faf978a0898f50706354b61caaa1132b540"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "e20df996673fad5b7ccf6aeebd5ef52eef2ea688020016d8cf9bc70097dd5617"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "14bb5653a088bcf23c3ba4403d43685958d448e3ec7ae8526701150d31b3a8c0"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "2c877e77cd34bb4c2c675356c30d003b094c438a48aa12090db25d96135fec14"
+                }
+              ]
             }
           },
           {
@@ -943,6 +1171,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 4.083584256726952,
+            "median_peak_vram_mib": 6794.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json",
+                "sha256": "b44becb0dba7b8411dfdfa18462e35d3b5c85a399da7f4278fc5f78f9418edd7"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "c58ad14d1eafa10de6ad1c8dbd3cd0da1ec2e4f4372a0223829ea8992cbe3121"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "2efa200182cb91e17bf790a68077b9ae0531031ac120fa9a9285bfd46b445e13"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "140a53d971f03c36871ccc0061e924e5753097135cf64ddbcc00485c481b4d04"
+                }
+              ]
             }
           },
           {
@@ -962,6 +1218,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 2.1640329890643173,
+            "median_peak_vram_mib": 3780.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json",
+                "sha256": "0784785e613e9b75b92df91bc37796b8bab50820f4ca4709cd09404425ba1af6"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-01/manifest.json",
+                  "sha256": "d183ff5aeaf19a35ae30b80b65760f87a543183382674f23a4ec2d132e6eea54"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-02/manifest.json",
+                  "sha256": "c9a16a79c1979905b18d8edde7bc77b897f27571e1c0e58e7a3ce2d12819abcc"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-03/manifest.json",
+                  "sha256": "d329e09e1c4cf6d530cc23d1f3f2e34ad10e4e07f8f162dfb7aff08450b0d4b4"
+                }
+              ]
             }
           },
           {
@@ -982,7 +1266,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.2896236954359268,
-            "median_peak_vram_mib": 3295.875
+            "median_peak_vram_mib": 3295.875,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/suite.json",
+                "sha256": "b7bf5b4562a7b96d05c66d22049bc187692623da75701a139a0f9257f0df9254"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-01/manifest.json",
+                  "sha256": "10a2e31cdfaff92378f3b28b9775d6a4b0b95c1e4614b6da04a127589d27acf6"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-02/manifest.json",
+                  "sha256": "3a4ac59a5eee234e51a5ecdebfadbf3d6e34cdaab5aefd6f824f274ce53f2fa1"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-03/manifest.json",
+                  "sha256": "f541462ac847357471b5c148fa30311b2a0628a0a0b222cdb2fb776bdc9577e3"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -1002,7 +1312,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.9981400590864866,
-            "median_peak_vram_mib": 2820.875
+            "median_peak_vram_mib": 2820.875,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json",
+                "sha256": "71ca11099565da42a382e2583919dbb8c46d561af3f2195a6eefbaa716220f8b"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "f1086156949a0be6f062737e4c24be6ee6aabc8a4ba51e9b7d6dd1295c8458bb"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "6d64062f8f0261b618b8d9ea81cfeb7a09865ab05ad50f61ffe0672cb8fefe35"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "8fd327a5029c312ddef3856c1aa5d3a5124d2b8482537fe5bc8d81cd1ff4499c"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -1022,7 +1358,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.0666094503442758,
-            "median_peak_vram_mib": 3164.5625
+            "median_peak_vram_mib": 3164.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json",
+                "sha256": "b75a6fab7659804ff7deeb80e2364c76d2f2bfd3668be4cf08fd08ddb6df5cf3"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "bd168902c3f93ebf5052d7537c8ffbdbe93a8806597de81406dcda94f752f1a0"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "945e2805674aad356212c31d5cdf459bc32d4763bea860d372fdfe6d06ae1a92"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "4f3108a40837b73b8d7602d4efaab9de4f81a20300e3d795219ec1910897c047"
+                }
+              ]
+            }
           }
         ],
         "disqualifications": {}
@@ -1709,6 +2071,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 1.215548825935055,
+            "median_peak_vram_mib": 4207.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json",
+                "sha256": "79be42e08eff4f9bf5fdff04dfe36512edeb960fefd507340f6daf30db2ca7d5"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "4c3f473d7cb2036732a8891dd2126c4fd74d084fa2414283a0b8d1d9e778ec7b"
+                }
+              ]
             }
           },
           {
@@ -1728,6 +2110,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 2.211869827341774,
+            "median_peak_vram_mib": 7625.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json",
+                "sha256": "a0d60b0317507a86c43889e6b2b1ffc5869008b51606791b31108397673aabd0"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "d638d3bfd9d246826cb954841d08ec235d854951afcf531dcf381d1799211ea9"
+                }
+              ]
             }
           },
           {
@@ -1747,6 +2149,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 3.1668747398837684,
+            "median_peak_vram_mib": 11041.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json",
+                "sha256": "4a7a623ebfecba6961e6665671c0b364f00e16962fda7d070e335841599348a0"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "6f36a5c9a3720db1902a96711670561095cb99c4734c5993078dbee199b23472"
+                }
+              ]
             }
           },
           {
@@ -1766,6 +2188,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 4.100978791297055,
+            "median_peak_vram_mib": 14459.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json",
+                "sha256": "1a8e565c10286add43e13a0277297fb4256458c6943076d3ae010d82283b2cfa"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "e3ed75b0e9e02b7bf928d612f5077e198fdb831ff060a3c5c56a40d3164c6b8e"
+                }
+              ]
             }
           },
           {
@@ -1785,6 +2227,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 5.029172056042285,
+            "median_peak_vram_mib": 17877.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json",
+                "sha256": "b83d3bcdc9deabb469d94f4a157d3172b2f1bb037ba9b8320eb6b79b52d0458a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "fba13d7f0b5592705c3e7c82ad35d351469ee3d6d540883de17928eb0e2f5495"
+                }
+              ]
             }
           },
           {
@@ -1804,6 +2266,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 5.945194676308787,
+            "median_peak_vram_mib": 21267.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json",
+                "sha256": "2c6076488f5c01c252cfb4f0bc76328ad0964c52b42ea34f97d898ee9d1244de"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "d6c15ebb3f00b90d78e1d9a10dc545b7d3bd111f469649f4bbc274263f9a5d87"
+                }
+              ]
             }
           },
           {
@@ -1824,7 +2306,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.330340224409119,
-            "median_peak_vram_mib": 5986.625
+            "median_peak_vram_mib": 5986.625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "b98c87a72faa043c4a111fd7ec8bda646553ae703c8dca82d63f5ae4a8ffeae1"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "ca52c3cd10c0333e4580551c659f4e0e7c7ef321edb2dde89e83c90c94cf845f"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -1844,7 +2344,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.086276691472315,
-            "median_peak_vram_mib": 5901.3125
+            "median_peak_vram_mib": 5901.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json",
+                "sha256": "720cb66723cc23f9065043b0789dfcbc7c3afd7baa7df32611fd0f6077a9d767"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "55bc9731a9326e603a227938b743fa98818a8a65f83a61fa422d5d6e07766c81"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -1864,7 +2382,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 2.2088050465927984,
-            "median_peak_vram_mib": 5320.9375
+            "median_peak_vram_mib": 5320.9375,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "c2b76efbe4cc3f448d261847ec08c4dcc0aa91416889765ac5677446121cfc84"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "aeb6afc624255860e5eff8005e799e151bd1fc71f63a97cffaf9be2cddaa95a4"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -1884,7 +2420,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.9838681093498882,
-            "median_peak_vram_mib": 5211.625
+            "median_peak_vram_mib": 5211.625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 300,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json",
+                "sha256": "cbc74ca62411fc2fac57a82502662fe4c2ab8a615619ee0b0f84fc7b394a3248"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "c309853de81b6b8e72d2e4d4d4c4c2fc8f503545b743b6ce90ea73b2c0d15bc7"
+                }
+              ]
+            }
           }
         ],
         "candidates": [
@@ -1905,6 +2459,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 2.16628391264543,
+            "median_peak_vram_mib": 7625.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/suite.json",
+                "sha256": "b8ff24f72c0cd9674eb1e742552c8056324fb17b24db276e691683e87042104a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "3078d6db7b74491e310be90229d8979e13db3ec589362ccf90c29ec21209bf52"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "5897737444b8e542c89e1c24cfed4b1fef8603dd26bb63e6ed5fb9c61bff243e"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "d83ac762bc1855b55c5873ba411abc8f33a6b5f749232a507baee60615cd0115"
+                }
+              ]
             }
           },
           {
@@ -1924,6 +2506,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 3.1567485879230417,
+            "median_peak_vram_mib": 11041.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/suite.json",
+                "sha256": "d8af551ef33ad666015f5f1b34f47c8dd24cde5eb75c304e6625ad2f7d6dc20f"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "f8d7cd06874a968bb7844030b0539e860c8f7421a0682638cdc966482d9cb1f3"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "887c111ec407d90c550a037d4aa9bf1331f68545278ffadf003896d2e6b1c987"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s3-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "c1a23fa0852d47c1e763e2f703f0e485e01bfa23ceaf490dd0614864a6944c92"
+                }
+              ]
             }
           },
           {
@@ -1943,6 +2553,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 4.140472366662084,
+            "median_peak_vram_mib": 14459.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json",
+                "sha256": "9055946963327f45982378c31330def622a021fe44381260b3bffa393a90e3cf"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "366418f9e00ffb0e716018ec53781018d3958a43b924213143c92b94e70d60a7"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "7e9f37c96dbc7c8aee24e17fd31ba12b1d2bcd665b84b3a10122865c239bfb0e"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "e840f3c25d24f56ab50794dd21964667d21572b61d1881a6078c03fc4c5e71d0"
+                }
+              ]
             }
           },
           {
@@ -1962,6 +2600,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 2.1678145145066874,
+            "median_peak_vram_mib": 7641.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/suite.json",
+                "sha256": "c389d9d6f46e00d621fa150d9f6502943e608e9fc0fa61c1e960f97c39906568"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-01/manifest.json",
+                  "sha256": "bd5205ef5d0a8dcf5ca6d0f6cc38ef37f2ad6c5303e8d8cc265c9b433139eb14"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-02/manifest.json",
+                  "sha256": "aafa361cd4666439741014b9f0a797368b2d27c6883de15372af0e15513ba716"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/vstrt/vstrt-s2-g1/confirmation/performance/run-03/manifest.json",
+                  "sha256": "48e4c02a7d4e00c3eb7505f07cfa867182045aca49b4a148c49cc8b3edf82d99"
+                }
+              ]
             }
           },
           {
@@ -1982,7 +2648,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.3248415491644454,
-            "median_peak_vram_mib": 5986.625
+            "median_peak_vram_mib": 5986.625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/suite.json",
+                "sha256": "1d3e380efed97b411dab2bbcf7bdbc67e7e62491eec1cd8fbd6fc9ea2088a835"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-01/manifest.json",
+                  "sha256": "d300871daf44127b1cf51854596a240f2aa0e0f3a9b24096d993bac88c92f725"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-02/manifest.json",
+                  "sha256": "36c0267f1722826778fe055d5513e1ac1e8ac021ab7e20054d01038399e60f9e"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/confirmation/performance/run-03/manifest.json",
+                  "sha256": "bce81d9b0b9451ed09510a70495b97242230da7c809e9ec8ecb9ae0880633679"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -2002,7 +2694,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.9994295666107122,
-            "median_peak_vram_mib": 5211.625
+            "median_peak_vram_mib": 5211.625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json",
+                "sha256": "4868c29d6a5d6369e55d78a007bb596ebd76bce44b43fe77b2298a954cef1a75"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "bc67bb615019f0a064d36dba08ff8130e206af744a1443c1d5d68a55738a4227"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "f6330ff1f3b9236e402f9bd47949d4c1f12f828a973a7b7f76ffd7dc4d734656"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "2cb9fae53e3c07a65379c214467a4550d266cbc805454f510326233f83c4b7cc"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -2022,7 +2740,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 2.2379565063166296,
-            "median_peak_vram_mib": 5344.9375
+            "median_peak_vram_mib": 5344.9375,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json",
+                "sha256": "22ddfacc8977ce7fb0ffff0f74409bbdf4067b36ef2450f53855e76486d003e8"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-01/manifest.json",
+                  "sha256": "58437a78be240935ee9ee2a04e331524818e9447fcd055d06fa05df8c297d83c"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-02/manifest.json",
+                  "sha256": "a955cf53393fde70bcd80d14e1338e474e949cd4170102afb3637d27a7e40705"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/realesrgan_x2plus_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-03/manifest.json",
+                  "sha256": "f8041d1b4ca8bfa832ddefb8ff2dbef5846ea14aa182c5c980277c30c3a2f15c"
+                }
+              ]
+            }
           }
         ],
         "disqualifications": {}
@@ -2702,6 +3446,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 1.8700201073575367,
+            "median_peak_vram_mib": 1496.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json",
+                "sha256": "c3f6eeb41cdf33693b4e752021c65a6f83c84a154116eddf9ff5a9bcfe6d7af2"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "3f3336e873e2f8293d3845f969c79986d6195cbe70291176aea03d72df9503cf"
+                }
+              ]
             }
           },
           {
@@ -2721,6 +3485,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 3.312780767668799,
+            "median_peak_vram_mib": 2320.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json",
+                "sha256": "150b61200be325ab87458361b93db28705cd6e02e552966ced9c56214033a62e"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "1a2be7b1117b04db96f11de4b1912c50e568aba4300627524e00f809ae49af21"
+                }
+              ]
             }
           },
           {
@@ -2740,6 +3524,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 4.718842834218365,
+            "median_peak_vram_mib": 3144.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json",
+                "sha256": "e5625ad5d04d369bc5fda551e7109e270491e0bd052bebdcc2383dac6a016851"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "5a06716622e1e5e796ffa8d51892302adc1683acfd4ac568e5a5f8b68145a218"
+                }
+              ]
             }
           },
           {
@@ -2759,6 +3563,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 5.90887070818345,
+            "median_peak_vram_mib": 3936.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json",
+                "sha256": "9f45b7921842ba60fa2f55b94467f41b41dc1bcd9f2a78193683d5a8ea4f4c23"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "3c233e3a905ac3d08b1d09996bb58446c545b575f2f1f53a6213349da840b74c"
+                }
+              ]
             }
           },
           {
@@ -2778,6 +3602,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 7.027701763126788,
+            "median_peak_vram_mib": 4762.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json",
+                "sha256": "ebe9636a0cf3b08bdee2c36c4547d9ce718fb670ed766e66719bc5126ee3cb35"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "4239c4514f330f512be23a904c1f91304381d43a1633d229b6b12f20358698f0"
+                }
+              ]
             }
           },
           {
@@ -2797,6 +3641,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 8.046474252580829,
+            "median_peak_vram_mib": 5586.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json",
+                "sha256": "0db72b590258f91f75aa818dfe5b819c54458185d18a28e32a49fb835d8c4f34"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "9dd035583deb30f810ac6791333d43a3a5bf905e8996463dcf5e4de54800b32e"
+                }
+              ]
             }
           },
           {
@@ -2816,6 +3680,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 8.876906137222129,
+            "median_peak_vram_mib": 6410.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json",
+                "sha256": "4d96d0a3b0f4f5c737951e71c9ee01b58d843be5c35273414466f35f916f1627"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "6377b02df5f25167e08fade19ff2f9186f4517934896a093d23a7fa4f24d5a3c"
+                }
+              ]
             }
           },
           {
@@ -2835,6 +3719,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 9.738232359227393,
+            "median_peak_vram_mib": 7202.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json",
+                "sha256": "aa2622b8d7d7cbf9ea00dec821e728a449e83cc83b3c27152d16057288534a3c"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "601a96d09276c6b5e3af78868a2a6f0318e4572cf85ac4658c92c7e56584c887"
+                }
+              ]
             }
           },
           {
@@ -2855,7 +3759,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 4.525605527889785,
-            "median_peak_vram_mib": 3895.875
+            "median_peak_vram_mib": 3895.875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "1708ea362516eb85ba238fa302d1ade16071c38df9b288aeb7af7961f93f7d9f"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "e2382a4849174f32051c5089c2fb359fcdaad414a19dca3e999eec9bf63d0ff0"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -2875,7 +3797,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.685349387634502,
-            "median_peak_vram_mib": 2388.5625
+            "median_peak_vram_mib": 2388.5625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json",
+                "sha256": "f0e197a0d0409b178ba28ef77fc63f8fb0e44508a3eac000aa63db18ed5a5bbb"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "f233a5c6f7f0a30e3b5b0a4f1d8fd397e07f5452925a12dbdd9c784a1280c250"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -2895,7 +3835,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 3.943733859460457,
-            "median_peak_vram_mib": 3922.1875
+            "median_peak_vram_mib": 3922.1875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "3a6b0c04276eb6a40976bde4d52878b3025c5ea639d8563bd8186ccbce45c495"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "060ccf41d1299444bac20da4e0ec4c00165b87a89ea843756fc9a2dec3aa2684"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -2915,7 +3873,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 2.1406734301580994,
-            "median_peak_vram_mib": 2032.875
+            "median_peak_vram_mib": 2032.875,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json",
+                "sha256": "f2857f16716e8651969bb4e0a48a917af4a50b04dc7ae976ca2320b8e913b120"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "780b76a36dde4049a3ec4a199b0d62c459b3af6194463f3677bfb802e8382706"
+                }
+              ]
+            }
           }
         ],
         "candidates": [
@@ -2936,6 +3912,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 7.017711096196312,
+            "median_peak_vram_mib": 4762.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/suite.json",
+                "sha256": "fab289d5808a6bae91d31648a557ccb86863f88832efb06adb331d9feb439404"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "b5fdd87b665a2ce8b6d2f2c0fc89aff8add264a73d1e03771f9b488bf9d9437b"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "b7b84218842c09893af86ed935ecb9fd6f92740b89573fb64c4670aab2de1a78"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s5-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "11053a00f8cdaf65a838a32100350aa7cf89eb5aa88f48364034c917797df8e5"
+                }
+              ]
             }
           },
           {
@@ -2955,6 +3959,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 5.93126247107883,
+            "median_peak_vram_mib": 3936.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/suite.json",
+                "sha256": "a5adfb629970f953df9ba6ed9933c3447cddc560e6729d2dd0087540fc1fcdb4"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "2f5c4cd976974ad18008a61e239d8104a7392e490256e8ac79af30d37ff4953f"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "b21a0f1f0c9921b0a5e8d87dcab2ff1b2b3d8ce4dca7ff84844955c27bcd7eff"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "07cf63fc2f37e549f638cb46c98add1e78801af8b53a3ecb3d429e11fb5911e5"
+                }
+              ]
             }
           },
           {
@@ -2974,6 +4006,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 8.075823724870302,
+            "median_peak_vram_mib": 5586.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json",
+                "sha256": "206a9460ba157b0125b50046d535b5043f5ec0f32d0e3076a3efd212dcc1fd6f"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "f778f50007e9707c60c9f34a7d31c1b03c378158c4b3ea2010f4b4f22de8d306"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "1a8120b36336f7f11f2c0cf60e3e782a5b1688633d1cb9c6b7335bcc240de02f"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "d438524b597499e70b2cf900542cfb3835d9473ca3d2eccfbe8fa8eabff735d9"
+                }
+              ]
             }
           },
           {
@@ -2993,6 +4053,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 5.752336332462715,
+            "median_peak_vram_mib": 3938.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/suite.json",
+                "sha256": "e5f48fba901a115a9038cc02d46d530d5d923c9a2745e253b83dcb49b5c84c98"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/run-01/manifest.json",
+                  "sha256": "ce36725ddf25482f3627e5e66f372565c985575fc90d294c4e45ddabb9c94c18"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/run-02/manifest.json",
+                  "sha256": "9f6e182af16bb139cb696c966f4f0143c9ab3675c1b9c8b5437fe8736a31ebbf"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/vstrt/vstrt-s4-g1/confirmation/performance/run-03/manifest.json",
+                  "sha256": "bdc8a49ae4356e389e4bcb0c6a7ce6ae5fe90d9e10e3f4870f8b423055354dff"
+                }
+              ]
             }
           },
           {
@@ -3013,7 +4101,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.6839902022873314,
-            "median_peak_vram_mib": 2388.5625
+            "median_peak_vram_mib": 2388.5625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json",
+                "sha256": "99a376e4d4a363ece187ffae74c8cadd91a504b49e556241827c75fe57c2a686"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "b1f6c273e13f51767bd6f05ccf8a312c2da3341a3e43ef0611d923b1ebe2d240"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "9f02cf9830ee21e9b55ab9a75457a4cdf84116ff2cee02738fd14bb514b65991"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "02619c53a72e4ab0d0c0a58b1a532a489552a1fd483821217672aee94edfc267"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -3033,7 +4147,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 2.1397598159583655,
-            "median_peak_vram_mib": 2000.875
+            "median_peak_vram_mib": 2000.875,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json",
+                "sha256": "0f8c3707cc476b02ae8d2258b81f15f6c6afdd224bd287b7124569aa7a9532f7"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "d0798d3c8e56fa6744538d85cf198f08565f8278fe76a2ede92646414a9ddde7"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "6c85b05d827068a1ef27e412facc2b8a6661f84149aba66cc6119cb05b314888"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "c5a9d85a26b388f0d265463d71224429549424f9fe74ca7d954410cbdaa07c4c"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -3053,7 +4193,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 3.904306339078971,
-            "median_peak_vram_mib": 3898.1875
+            "median_peak_vram_mib": 3898.1875,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json",
+                "sha256": "f244b02fa4996a136d3acecad7bd29a8ddf81a805e5384294724fb8f1bbcbacf"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-01/manifest.json",
+                  "sha256": "181688641e85f97cf5c2965fd06da5bc6c1214287b449c672a5486b22b1bc6cd"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-02/manifest.json",
+                  "sha256": "3901852bf6c348a63339c6c113404086b3db73a36a1a2aedbdac08cb458062ad"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-720p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-03/manifest.json",
+                  "sha256": "8d94381b3bc3f864c50d07956a79922e6c958a37156e12b5e7f478340e69aecb"
+                }
+              ]
+            }
           }
         ],
         "disqualifications": {}
@@ -3734,6 +4900,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 1.6706656699414455,
+            "median_peak_vram_mib": 2607.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/suite.json",
+                "sha256": "655c26a2f6ad38510ae3fa4d179f997b93168f3658929176ef237cffbde1039a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s1-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "4275dedba4498a748e4d37a5f7064263030ff351b1af493d369441ecfff040f2"
+                }
+              ]
             }
           },
           {
@@ -3753,6 +4939,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 3.1506690583578467,
+            "median_peak_vram_mib": 4423.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/suite.json",
+                "sha256": "d65aaeea8322f1633547050c881b13aef6d8f1c0f91eab5476cc367d53e1e468"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s2-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "8662fe475b15a6c5dcbed5fd6a48cc1c00ed1b4ed6c3a7c8a5270c3ed6910a57"
+                }
+              ]
             }
           },
           {
@@ -3772,6 +4978,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 4.548391625372551,
+            "median_peak_vram_mib": 6271.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/suite.json",
+                "sha256": "ed215fcb85e9d0619871951f5a2d77d56c8949c30448e2193a65485644e5e67a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s3-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "ffa3d762d67a0677678a90f5d437816eb0ca416d2e085e6f76b409de4da30673"
+                }
+              ]
             }
           },
           {
@@ -3791,6 +5017,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 5.839696592331374,
+            "median_peak_vram_mib": 8087.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/suite.json",
+                "sha256": "acac260b20093b827b9ef84132e8d2440388d495a927884ef60a37b45156a71d"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s4-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "05d6e9081d0e931386c8b2e3a0a1447a65f77a65f36505ee80c7866d5da691ef"
+                }
+              ]
             }
           },
           {
@@ -3810,6 +5056,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 6.999864703480814,
+            "median_peak_vram_mib": 9905.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/suite.json",
+                "sha256": "7cce81cf8a374671e1f6b34d45880f4c549b137626abf1b00932f118de5162c4"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s5-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "9a9d755e090c95150d9ecf25f4f8e478370b112acb016de08b7171b6999538c0"
+                }
+              ]
             }
           },
           {
@@ -3829,6 +5095,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 8.235711311540147,
+            "median_peak_vram_mib": 11755.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/suite.json",
+                "sha256": "4e34e919d639bdbfd629d557543896536b0f39a73f5d5e658ea2898861b39d94"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "06d9aab2598b481c781f2772cd824dc6bd844d35d156bde477759c8f0a207689"
+                }
+              ]
             }
           },
           {
@@ -3848,6 +5134,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 9.149282548473487,
+            "median_peak_vram_mib": 13571.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/suite.json",
+                "sha256": "5e187c55cbc01f9d4bd8ebcc84ed557a2aaa9490b1e38c23ae76ce69dd07cd74"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "77dea336444db96bf5f1a974d1e70a189591c0d67d812aceef72eaea77fdf828"
+                }
+              ]
             }
           },
           {
@@ -3867,6 +5173,26 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json"
+            },
+            "median_cpu_cores": 10.096889664180933,
+            "median_peak_vram_mib": 15419.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/suite.json",
+                "sha256": "53b641dbe516446454604740df74a2b1090f3b9e0579c817590fd75109610f01"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "5e03411cc4309232a62a2dd0b657b29b67ff28bac8b85362537c8613b24f5341"
+                }
+              ]
             }
           },
           {
@@ -3887,7 +5213,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 4.063425033315663,
-            "median_peak_vram_mib": 5860.625
+            "median_peak_vram_mib": 5860.625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "a31b875783e5767b2d443bf0a8322e022953142235b17dc5ec0b4c1cdfec16d5"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "1f5ab37fc3f6e06ff9c60aff16497826bdb01c8984bc8946db7fcdd19cd5b19d"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -3907,7 +5251,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 1.75551108009317,
-            "median_peak_vram_mib": 4311.3125
+            "median_peak_vram_mib": 4311.3125,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/suite.json",
+                "sha256": "f862e7f9b7f33ff9b60a779b79effce417c81b45b5cf40050782188920fb39d6"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "246bed0f7793827a1dd2691a21faddfe57d7731c984e0396cbe3f39e3738d4e8"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -3927,7 +5289,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 4.210915265346683,
-            "median_peak_vram_mib": 5050.9375
+            "median_peak_vram_mib": 5050.9375,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/suite.json",
+                "sha256": "cc859f9b63fe7e39f2a179f920d49dc297d268e3d2e3f6ed796fd9fe62c53f73"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "76afe8b513ae08bd8f9c7f073e5766f9fa4a1b1767fa168e3c2956cd50176f58"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-nelux",
@@ -3947,7 +5327,25 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json"
             },
             "median_cpu_cores": 2.20600668217333,
-            "median_peak_vram_mib": 3621.625
+            "median_peak_vram_mib": 3621.625,
+            "resource_measurement": {
+              "stage": "reconnaissance",
+              "frames_per_run": 1000,
+              "run_count": 1,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/suite.json",
+                "sha256": "e054ae87135cd3aa51135c2ad6f1a9e6026dcbcd50123cb1c0daa724c05b99a0"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/reconnaissance/performance/run-01/manifest.json",
+                  "sha256": "70ecb99323cb4b4647c81476ca1e5d3062d7cbf48586842718a06088a0c4c6f2"
+                }
+              ]
+            }
           }
         ],
         "candidates": [
@@ -3968,6 +5366,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 10.082467851882107,
+            "median_peak_vram_mib": 15419.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/suite.json",
+                "sha256": "ce2dd3bef72ccce43eb2f718adbbfba8a112e765837fff057d2e5c5d075b5f1b"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "6eca9459e9667295a7c1ac9a33e8ec079e084e034781b2bce5311f7b3041ba03"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "ae9dc774012f5672a52419894f768251a50c9facb59248db3313e51b43e313d9"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s8-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "c2f77730a775b729b23672441240ee87b22df32191232a706ba0e7567e6774b7"
+                }
+              ]
             }
           },
           {
@@ -3987,6 +5413,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 9.203946299335378,
+            "median_peak_vram_mib": 13571.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/suite.json",
+                "sha256": "195b0d6b3e419ed8675d58add8705238730ff8fb9f68aca51d0b4a65718f8a09"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "da2f02ebffda9495f2162779fc813b4c5a2848ec209ecf77cf144cb429b40840"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "2997e3121611ca483f94f85cc293c910fe8e545a526167c21aec90206e0d8281"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s7-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "ff70a8b7eeef28aff194674f967b3148eda0a6febb90c6da038356feac6266b2"
+                }
+              ]
             }
           },
           {
@@ -4006,6 +5460,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 8.211165924336935,
+            "median_peak_vram_mib": 11755.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/suite.json",
+                "sha256": "0af187bfc63532b967e56810e03ecda3f16067bf1f65010ef84994f2d9aabc59"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-01/manifest.json",
+                  "sha256": "5ff760dc153f1b9b78be11d76765ebf5a7442e05bd0264e6791b04524ac941bc"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-02/manifest.json",
+                  "sha256": "315a20aa5987ed7a5bf82f0120f262c535ae637bb645f13216fb774dcde9a13a"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g0/confirmation/performance/run-03/manifest.json",
+                  "sha256": "dd1082ae49ca718469087413168eb57ae92e005a36ee9960f95befeb4ef14782"
+                }
+              ]
             }
           },
           {
@@ -4025,6 +5507,34 @@
             "errors": [],
             "evidence": {
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/suite.json"
+            },
+            "median_cpu_cores": 7.809041596698415,
+            "median_peak_vram_mib": 11755.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/suite.json",
+                "sha256": "ea22e7fde18e00c4b68b2b47abd408dce74c27744716f78ffa7aacdcc5641e6a"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/run-01/manifest.json",
+                  "sha256": "94ab958b6e2a1e155b6ceda7e3f3ee37569ba2a19b5a22254b0fd6d0b3f83158"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/run-02/manifest.json",
+                  "sha256": "6be3781eb99776fa7bb6410eee2168a6a784e3540c758c75a68323ae4e4d8fda"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/vstrt/vstrt-s6-g1/confirmation/performance/run-03/manifest.json",
+                  "sha256": "375852a3f065d0a28ca2a07786f2ca356f5e418b5976f0c8b1abe4c45dfbd5b9"
+                }
+              ]
             }
           },
           {
@@ -4045,7 +5555,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 2.2026119628921212,
-            "median_peak_vram_mib": 3597.625
+            "median_peak_vram_mib": 3597.625,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/suite.json",
+                "sha256": "35b529ad90a5618f096ac403435806e8c32c3a48b6a761dba56946be3e52aa0d"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "e245015f769e1c0de6c6d826c4f2def61b0576b368a708aee9f6af867ace43ba"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "22acc68c5619ecea3a7c00d377e297cad4bed2cc43b1fc7bfe7a515f9b6553fb"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "3f20b5985fd638646818c47cbfc3d2f8feea5af2cec5c99c5f2209bb8fbca065"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-cpu-nelux",
@@ -4065,7 +5601,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 1.7504365611710695,
-            "median_peak_vram_mib": 4215.3125
+            "median_peak_vram_mib": 4215.3125,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/confirmation/performance/suite.json",
+                "sha256": "b10f8692ed1e8a1bcc187fb34c53669065d2bd5fef21707a095d68cc28380b22"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-01/manifest.json",
+                  "sha256": "27c444ea66dc9e7034d6825d22fe8d17229b09ba13f53e02155f0ffc7087692f"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-02/manifest.json",
+                  "sha256": "67f4f3af7879f30ec3d34493d0fccdb83974e3c353f92766388ceb519e3b1a80"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-cpu-nelux/confirmation/performance/run-03/manifest.json",
+                  "sha256": "bbdb58adaa919decaf93e3f17f892a3d76a7353ff6b551f072b869e98dbb8fad"
+                }
+              ]
+            }
           },
           {
             "candidate_id": "tas-nvdec-ffmpeg",
@@ -4085,7 +5647,33 @@
               "suite": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json"
             },
             "median_cpu_cores": 4.212665676389788,
-            "median_peak_vram_mib": 5098.9375
+            "median_peak_vram_mib": 5098.9375,
+            "resource_measurement": {
+              "stage": "confirmation",
+              "frames_per_run": 1000,
+              "run_count": 3,
+              "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+              "cpu_scope": "measured-child-process-tree",
+              "vram_metric": "peak_delta_mib",
+              "suite": {
+                "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/suite.json",
+                "sha256": "3696b440d61b79ffe86419d7723307fa31bb47e91a61afc1a67e4893fd0584e5"
+              },
+              "runs": [
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-01/manifest.json",
+                  "sha256": "cd14d8ed528b944984e2acd92c19c0858709c3b6e3c7cf5b57511b6a0922e8c8"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-02/manifest.json",
+                  "sha256": "425833aa718952747470bd7743196951ebde1bd255bdc8a4282d3f8eab445db4"
+                },
+                {
+                  "path": "artefacts/benchmarks/comparative/tuning/liveaction_span_madrid-1080p/candidates/tas/tas-nvdec-ffmpeg/confirmation/performance/run-03/manifest.json",
+                  "sha256": "85ac7ef80acb122033b6864213743a3f88f7c97ce17453bfd710007bf161d23c"
+                }
+              ]
+            }
           }
         ],
         "disqualifications": {}

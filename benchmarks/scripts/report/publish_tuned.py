@@ -5,8 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from benchmarks.scripts.runtime.suite import compute_suite_statistics
+from benchmarks.scripts.tuning.adaptive import resource_medians
 
 CANONICAL_ROOT = PurePosixPath("artefacts/benchmarks/comparative/tuning")
 DEFAULT_OUTPUT = Path("benchmarks/results/rtx-3090/tuned.json")
@@ -110,7 +114,110 @@ def _identity_interpretation(identities: list[dict[str, Any]]) -> str:
     )
 
 
-def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
+def _candidate_measurement(
+    source: EvidenceSource,
+    value: dict[str, Any],
+    *,
+    directory: Path,
+    stage: str,
+    campaign: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind resource medians to the exact runs that produced the candidate FPS."""
+    suite_path = source.resolve(value.get("evidence", {}).get("suite", ""))
+    expected = directory / "candidates" / value["implementation"] / value["candidate_id"]
+    if suite_path != expected / stage / "performance/suite.json":
+        raise PublicationError(f"Candidate suite does not belong to {stage}: {suite_path}")
+    suite = _load(suite_path)
+    if suite.get("status") != "valid" or suite.get("errors") or not suite.get("runs"):
+        raise PublicationError(f"Candidate suite is not valid: {suite_path}")
+    parameters = suite["parameters"]
+    profile = value["execution_profile"]
+    manifests, records, fps = [], [], []
+    for index, entry in enumerate(suite["runs"], start=1):
+        path = source.resolve(entry["manifest"])
+        if (
+            path != suite_path.parent / f"run-{index:02d}/manifest.json"
+            or entry.get("index") != index
+            or entry.get("status") != "valid"
+        ):
+            raise PublicationError(f"Candidate suite run changed: {path}")
+        run = _load(path)
+        if run.get("status") != "valid" or run.get("errors"):
+            raise PublicationError(f"Candidate run is not valid: {path}")
+        for key in ("workload_id", "variant", "benchmark_contract_version"):
+            if suite.get(key) != campaign[key] or run.get(key) != campaign[key]:
+                raise PublicationError(f"Candidate run {key} changed: {path}")
+        if any(
+            parameters.get(key) != expected_value or run["parameters"].get(key) != expected_value
+            for key, expected_value in {**profile, "frames": parameters["frames"]}.items()
+        ):
+            raise PublicationError(f"Candidate run parameters changed: {path}")
+        environment = run["environment"]
+        image = environment["image"]
+        _check_session_environment(
+            {**environment, "repository_revision": image.get("repository_revision")},
+            campaign["environment"],
+            label=str(path),
+        )
+        if str(image.get("source_dirty")) != "0":
+            raise PublicationError(f"Candidate run was built from dirty source: {path}")
+        metrics = run["measured"]["metrics"]
+        nvml, cpu = metrics.get("nvml", {}), metrics.get("cpu", {})
+        if (
+            nvml.get("valid") is not True
+            or nvml.get("errors")
+            or cpu.get("accounting") != "getrusage(RUSAGE_CHILDREN)"
+            or cpu.get("scope") != "measured-child-process-tree"
+        ):
+            raise PublicationError(f"Candidate resource accounting is invalid: {path}")
+        rate = metrics.get("end_to_end_fps")
+        if (
+            not isinstance(rate, (int, float))
+            or isinstance(rate, bool)
+            or not math.isfinite(rate)
+            or rate <= 0
+            or entry.get("end_to_end_fps") != rate
+        ):
+            raise PublicationError(f"Candidate run FPS changed: {path}")
+        fps.append(rate)
+        manifests.append(run)
+        records.append({"path": source.canonical(path), "sha256": _digest(path)})
+    statistics = compute_suite_statistics(fps)
+    if any(suite["statistics"].get(key) != val for key, val in statistics.items()) or any(
+        value.get(key) != statistics[key] for key in ("median_fps", "relative_spread")
+    ):
+        raise PublicationError(f"Candidate FPS statistics changed: {suite_path}")
+    try:
+        vram, cores = resource_medians(manifests)
+    except ValueError as exc:
+        raise PublicationError(f"Candidate resources are invalid: {suite_path}: {exc}") from exc
+    for key, val in (("median_peak_vram_mib", vram), ("median_cpu_cores", cores)):
+        if key in value and value[key] != val:
+            raise PublicationError(f"Candidate {key} changed: {suite_path}")
+    return {
+        "median_cpu_cores": cores,
+        "median_peak_vram_mib": vram,
+        "resource_measurement": {
+            "stage": stage,
+            "frames_per_run": parameters["frames"],
+            "run_count": len(manifests),
+            "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+            "cpu_scope": "measured-child-process-tree",
+            "vram_metric": "peak_delta_mib",
+            "suite": {"path": source.canonical(suite_path), "sha256": _digest(suite_path)},
+            "runs": records,
+        },
+    }
+
+
+def _compact_candidate(
+    source: EvidenceSource,
+    value: dict[str, Any],
+    *,
+    directory: Path,
+    stage: str,
+    campaign: dict[str, Any],
+) -> dict[str, Any]:
     result = {
         "candidate_id": value["candidate_id"],
         "implementation": value["implementation"],
@@ -124,6 +231,12 @@ def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
     for key in ("evidence", "median_cpu_cores", "median_peak_vram_mib"):
         if key in value:
             result[key] = value[key]
+    if value["status"] == "eligible":
+        result.update(
+            _candidate_measurement(
+                source, value, directory=directory, stage=stage, campaign=campaign
+            )
+        )
     return result
 
 
@@ -604,8 +717,18 @@ def _compact_workload(
             },
             "winners": selection["winners"],
             "tas_preflight": _compact_tas_preflight(source, selection["tas_preflight"]),
-            "reconnaissance": [_compact_candidate(item) for item in selection["reconnaissance"]],
-            "candidates": [_compact_candidate(item) for item in selection["candidates"]],
+            **{
+                key: [
+                    _compact_candidate(
+                        source, item, directory=directory, stage=stage, campaign=campaign
+                    )
+                    for item in selection[key]
+                ]
+                for key, stage in (
+                    ("reconnaissance", "reconnaissance"),
+                    ("candidates", "confirmation"),
+                )
+            },
             "disqualifications": selection["disqualifications"],
         },
         "intra_session_reproducibility": _intra_session_reproducibility(selection, campaign),

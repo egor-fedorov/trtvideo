@@ -7,6 +7,7 @@ import pytest
 from benchmarks.scripts.report.figures import (
     TAS_IO_ORDER,
     FigureDataError,
+    _candidate_resources_from_json,
     _tas_grid_from_json,
     check_figures,
     generate_figures,
@@ -90,6 +91,16 @@ def tas_candidate(decode: str, writer: str, fps: float) -> dict[str, Any]:
         },
         "status": "eligible",
         "median_fps": fps,
+        "median_cpu_cores": 2.0,
+        "median_peak_vram_mib": 3072,
+        "resource_measurement": {
+            "stage": "reconnaissance",
+            "frames_per_run": 300,
+            "run_count": 1,
+            "cpu_scope": "measured-child-process-tree",
+            "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+            "vram_metric": "peak_delta_mib",
+        },
     }
 
 
@@ -116,6 +127,19 @@ def tas_results(tmp_path: Path) -> Path:
             "tas": {"candidate_id": "tas-nvdec-nelux"},
         }
         selection["search"]["resource_limits"] = {"vstrt": None, "tas": []}
+        selection["candidates"] = [
+            {
+                **item,
+                "median_cpu_cores": 3.0,
+                "resource_measurement": {
+                    **item["resource_measurement"],
+                    "stage": "confirmation",
+                    "frames_per_run": 1000,
+                    "run_count": 3,
+                },
+            }
+            for item in selection["reconnaissance"]
+        ]
     (tmp_path / "tuned.json").write_text(json.dumps(document))
     return tmp_path
 
@@ -170,7 +194,7 @@ def test_tas_preflight_exclusions_render_without_a_measurement(status: str) -> N
 
 def test_tas_figures_render_both_themes_and_actual_external_names(tas_results: Path) -> None:
     paths = generate_figures(tas_results, tas_results / "figures")
-    assert len(paths) == 4
+    assert len(paths) == 8
     for path in paths:
         svg = path.read_text()
         assert "VSGAN" not in svg
@@ -191,6 +215,7 @@ def test_legacy_vsgan_figures_keep_their_participants(tas_results: Path) -> None
         workload["final_campaign"]["results"][-1]["implementation"] = "vsgan"
         selection = workload["selection"]
         selection.pop("tas_preflight", None)
+        selection["candidates"] = []
         streams = [
             item for item in selection["reconnaissance"] if item["implementation"] == "vstrt"
         ]
@@ -198,11 +223,58 @@ def test_legacy_vsgan_figures_keep_their_participants(tas_results: Path) -> None
             {**item, "implementation": "vsgan", "candidate_id": item["candidate_id"] + "-legacy"}
             for item in streams
         ]
+        for candidate in selection["reconnaissance"]:
+            candidate.pop("resource_measurement", None)
     path.write_text(json.dumps(document))
     for figure in generate_figures(tas_results, tas_results / "figures"):
         svg = figure.read_text()
         assert "VSGAN" in svg and "TAS" not in svg
         assert "decoder / writer" not in svg
+
+
+def test_resource_points_keep_stages_and_graph_profiles_separate(tas_results: Path) -> None:
+    points = load_published_data(tas_results).panels[0].candidate_resources
+    tas = [point for point in points if point.candidate_id == "tas-nvdec-nelux"]
+    assert [(p.stage, p.frames, p.runs, p.cpu_cores) for p in tas] == [
+        ("reconnaissance", 300, 1, 2.0),
+        ("confirmation", 1000, 3, 3.0),
+    ]
+    assert all(point.winner for point in tas)
+    assert all(point.profile["cuda_graph"] is True for point in tas)
+    for path in generate_figures(tas_results, tas_results / "figures"):
+        if path.name.startswith("tuning-resources"):
+            svg = path.read_text()
+            assert "above baseline (GiB)" in svg
+            assert "vs-mlrt graph on" in svg and "TAS graph on" in svg
+            stage = "Confirmation" if "confirmation" in path.name else "Reconnaissance"
+            assert f"Tuning resources | {stage}" in svg
+
+
+@pytest.mark.parametrize(
+    "change", ["stage", "vram_metric", "missing_cpu", "nan", "negative", "duplicate"]
+)
+def test_resource_points_reject_mixed_or_missing_metrics(change: str) -> None:
+    point = tas_candidate("cpu", "ffmpeg", 10)
+    if change == "stage":
+        point["resource_measurement"]["stage"] = "confirmation"
+    elif change == "vram_metric":
+        point["resource_measurement"]["vram_metric"] = "peak_used_mib"
+    elif change == "missing_cpu":
+        del point["median_cpu_cores"]
+    elif change == "nan":
+        point["median_peak_vram_mib"] = float("nan")
+    elif change == "negative":
+        point["median_cpu_cores"] = -1
+    with pytest.raises(FigureDataError):
+        _candidate_resources_from_json(
+            {"reconnaissance": [point] * (2 if change == "duplicate" else 1)}
+        )
+
+
+def test_disqualified_candidate_has_no_resource_point() -> None:
+    point = {**tas_candidate("cpu", "ffmpeg", 100), "status": "disqualified"}
+    result = _candidate_resources_from_json({"reconnaissance": [point]})[0]
+    assert result.cpu_cores is None and result.peak_vram_mib is None
 
 
 def test_figure_data_rejects_duplicate_campaign_participants(tas_results: Path) -> None:

@@ -83,6 +83,14 @@ drawn as zero-FPS measurements. Throughput/resource figures select the fastest
 external result from that dataset, with its name next to the bars. Historical
 VSGAN snapshots still render with their original stream-curve layout.
 
+The GPU reports also include separate reconnaissance and confirmation resource
+figures for all measured vs-mlrt and TAS configurations. Export recomputes CPU
+and baseline-relative peak VRAM medians from the same raw runs as candidate
+FPS, with hashed suite/run references and explicit frame/run counts. Resource
+values are not borrowed from another search stage or the winner campaign.
+vs-mlrt graph-on probes remain distinct from graph-off stream curves; missing
+or invalid configurations are not represented as zero resource use.
+
 Asset preparation, runners, quality gates, and aggregation execute in Docker.
 The goal coordinator runs on the host and requires Python `>=3.10,<3.13`.
 Override its executable when needed:

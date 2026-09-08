@@ -582,7 +582,8 @@ Comparative tables contain:
 - median end-to-end FPS and wall time;
 - median average CPU cores and share of available CPU capacity;
 - average power and joules/frame;
-- peak VRAM;
+- median per-run peak VRAM increase above the pre-run baseline
+  (`nvml.memory.peak_delta_mib`), not total occupied device memory;
 - output size and actual bitrate.
 
 `trtexec` QPS is published separately as an inference-only ceiling and is not

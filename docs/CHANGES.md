@@ -78,10 +78,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Published fresh September RTX 3090 and RTX 4090 tuned campaigns and
   diagnostics for trtvideo, vs-mlrt, and TAS on TensorRT 11.2.1.2. Updated
   tables, conclusions, and light/dark figures, including TAS I/O categories,
+  per-configuration CPU/VRAM charts kept separate by search stage,
   retry history, and the retained RTX 4090 stability outlier. Earlier VSGAN
   results remain in Git history. Export rechecks artifact hashes, quality
   roles, TAS preflight profiles, shared hardware, and recorded runtime metadata
-  before publication.
+  before publication. Candidate resource medians are recomputed from the same
+  raw runs as FPS, with explicit baseline-relative VRAM accounting and hashed
+  suite/run provenance.
 
 ## 0.7.0 - 2026-09-03
 

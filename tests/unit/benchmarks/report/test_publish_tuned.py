@@ -16,6 +16,7 @@ from benchmarks.scripts.report.publish_tuned import (
     _workloads_for_source,
     build_document,
 )
+from benchmarks.scripts.runtime.suite import compute_suite_statistics
 from benchmarks.scripts.tuning.matrix import verify_matrix
 
 
@@ -162,6 +163,71 @@ def refresh_campaign_hash(source: EvidenceSource, path: Path) -> None:
                 write_json(matrix_path, matrix)
 
 
+def candidate_suite(
+    source: EvidenceSource,
+    directory: Path,
+    candidate: dict[str, Any],
+    stage: str,
+    variant: str,
+    environment: dict[str, Any],
+) -> dict[str, Any]:
+    parent = directory / "candidates" / candidate["implementation"] / candidate["candidate_id"]
+    parent = parent / stage / "performance"
+    parameters = {
+        **candidate["execution_profile"],
+        "frames": 300 if stage == "reconnaissance" else 1000,
+    }
+    contract = {
+        "workload_id": directory.name.removesuffix(f"-{variant}") + "-v1",
+        "variant": variant,
+        "benchmark_contract_version": 5,
+    }
+    entries = []
+    for index in range(1, 2 if stage == "reconnaissance" else 4):
+        run = {
+            **contract,
+            "status": "valid",
+            "errors": [],
+            "parameters": parameters,
+            "environment": environment,
+            "measured": {
+                "metrics": {
+                    "end_to_end_fps": candidate["median_fps"],
+                    "cpu": {
+                        "average_cores": 1.5,
+                        "accounting": "getrusage(RUSAGE_CHILDREN)",
+                        "scope": "measured-child-process-tree",
+                    },
+                    "nvml": {
+                        "valid": True,
+                        "errors": [],
+                        "memory": {"peak_delta_mib": 3000, "peak_used_mib": 3500},
+                    },
+                }
+            },
+        }
+        path = write_json(parent / f"run-{index:02d}/manifest.json", run)
+        entries.append(
+            {
+                "index": index,
+                "status": "valid",
+                "manifest": source.canonical(path),
+                "end_to_end_fps": candidate["median_fps"],
+            }
+        )
+    path = write_json(
+        parent / "suite.json",
+        {
+            **contract,
+            "status": "valid",
+            "parameters": parameters,
+            "runs": entries,
+            "statistics": compute_suite_statistics([candidate["median_fps"]] * len(entries)),
+        },
+    )
+    return {**candidate, "relative_spread": 0, "evidence": {"suite": source.canonical(path)}}
+
+
 @pytest.fixture
 def tas_evidence(tmp_path: Path) -> EvidenceSource:
     """Small synthetic full publication: no GPU imports or real TAS claims."""
@@ -287,6 +353,21 @@ def tas_evidence(tmp_path: Path) -> EvidenceSource:
             "candidates": [vstrt, tas],
             "disqualifications": {},
         }
+        for key, stage in (("reconnaissance", "reconnaissance"), ("candidates", "confirmation")):
+            selection[key] = [
+                candidate_suite(
+                    source,
+                    directory,
+                    item,
+                    stage,
+                    variant,
+                    {
+                        **hardware,
+                        "image": {"repository_revision": revision, "source_dirty": "0"},
+                    },
+                )
+                for item in (vstrt, tas)
+            ]
         profiles = {}
         for decode in ("cpu", "nvdec"):
             for writer in ("ffmpeg", "nelux"):
@@ -547,6 +628,95 @@ def test_publication_rejects_changed_tas_preflight(tas_evidence: EvidenceSource)
     preflight["profiles"]["tas-cpu-ffmpeg"]["status"] = "disqualified"
     write_json(path, preflight)
     with pytest.raises(PublicationError, match="TAS preflight SHA256 changed"):
+        publish(tas_evidence)
+
+
+def test_candidate_resource_medians_come_from_the_matching_stage(
+    tas_evidence: EvidenceSource,
+) -> None:
+    directory = tas_evidence.root / "realesrgan_x2plus_madrid-720p"
+    paths = sorted(
+        directory.glob("candidates/vstrt/*/confirmation/performance/run-*/manifest.json")
+    )
+    for path, cores, vram in zip(paths, (1, 4, 7), (1000, 2000, 6000), strict=True):
+        run = json.loads(path.read_text())
+        run["measured"]["metrics"]["cpu"]["average_cores"] = cores
+        run["measured"]["metrics"]["nvml"]["memory"].update(
+            peak_delta_mib=vram,
+            peak_used_mib=vram + 500,
+        )
+        write_json(path, run)
+    selection = publish(tas_evidence)["workloads"][0]["selection"]
+    reconnaissance, confirmation = selection["reconnaissance"][0], selection["candidates"][0]
+    assert reconnaissance["median_cpu_cores"] == 1.5
+    assert reconnaissance["median_peak_vram_mib"] == 3000
+    assert confirmation["median_cpu_cores"] == 4
+    assert confirmation["median_peak_vram_mib"] == 2000  # Delta, not total memory or max of runs.
+    for item, stage, frames, runs in (
+        (reconnaissance, "reconnaissance", 300, 1),
+        (confirmation, "confirmation", 1000, 3),
+    ):
+        measurement = item["resource_measurement"]
+        assert measurement["stage"] == stage
+        assert measurement["frames_per_run"] == frames
+        assert measurement["run_count"] == runs == len(measurement["runs"])
+        assert measurement["vram_metric"] == "peak_delta_mib"
+        for record in [measurement["suite"], *measurement["runs"]]:
+            assert artifact(tas_evidence, tas_evidence.resolve(record["path"])) == record
+
+
+@pytest.mark.parametrize(
+    "change", ["invalid", "nvml", "cpu_scope", "missing", "nan", "fps", "graph", "gpu", "frames"]
+)
+def test_candidate_resource_export_rejects_invalid_runs(
+    tas_evidence: EvidenceSource,
+    change: str,
+) -> None:
+    path = next(
+        tas_evidence.root.glob("*/candidates/vstrt/*/confirmation/performance/run-01/manifest.json")
+    )
+    run = json.loads(path.read_text())
+    metrics = run["measured"]["metrics"]
+    if change == "invalid":
+        run["status"] = "invalid"
+    elif change == "nvml":
+        metrics["nvml"]["valid"] = False
+    elif change == "cpu_scope":
+        metrics["cpu"]["scope"] = "whole-host"
+    elif change == "missing":
+        del metrics["nvml"]["memory"]["peak_delta_mib"]
+    elif change == "nan":
+        metrics["cpu"]["average_cores"] = float("nan")
+    elif change == "fps":
+        metrics["end_to_end_fps"] += 1
+    elif change == "graph":
+        run["parameters"]["cuda_graph"] = True
+    elif change == "frames":
+        run["parameters"]["frames"] = 300
+    else:
+        run["environment"]["gpu"]["name"] = "Other GPU"
+    write_json(path, run)
+    with pytest.raises(PublicationError, match="Candidate|session gpu"):
+        publish(tas_evidence)
+
+
+def test_candidate_resource_export_rejects_cross_stage_suite(tas_evidence: EvidenceSource) -> None:
+    path = next(tas_evidence.root.glob("*/selection.json"))
+    selection = json.loads(path.read_text())
+    selection["candidates"][0]["evidence"] = selection["reconnaissance"][0]["evidence"]
+    write_json(path, selection)
+    with pytest.raises(PublicationError, match="does not belong to confirmation"):
+        publish(tas_evidence)
+
+
+def test_candidate_resource_export_rejects_changed_tas_resource_summary(
+    tas_evidence: EvidenceSource,
+) -> None:
+    path = next(tas_evidence.root.glob("*/selection.json"))
+    selection = json.loads(path.read_text())
+    selection["candidates"][1]["median_cpu_cores"] += 1
+    write_json(path, selection)
+    with pytest.raises(PublicationError, match="median_cpu_cores changed"):
         publish(tas_evidence)
 
 
