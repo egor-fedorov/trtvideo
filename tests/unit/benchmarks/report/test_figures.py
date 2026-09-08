@@ -32,7 +32,7 @@ def test_loads_complete_published_matrix(tuned_path: Path) -> None:
         ("SPAN", "1080p"),
     ]
     assert all(
-        {result.implementation for result in panel.results} == {"trtvideo", "vstrt", "vsgan"}
+        {result.implementation for result in panel.results} == {"trtvideo", "vstrt", "tas"}
         for panel in data.panels
     )
 
@@ -49,7 +49,7 @@ def test_sweep_keeps_only_measured_eligible_points(tuned_path: Path) -> None:
         4,
         8,
     ]
-    assert [point.streams for point in span_720p.sweep if point.implementation == "vsgan"] == [
+    assert [point.streams for point in span_720p.sweep if point.implementation == "vstrt"] == [
         1,
         2,
         3,
@@ -63,12 +63,18 @@ def test_sweep_keeps_only_measured_eligible_points(tuned_path: Path) -> None:
         (limit.implementation, limit.streams, limit.kind) for limit in real_1080p.resource_limits
     ] == [
         ("vstrt", 8, "cuda-out-of-memory"),
-        ("vsgan", 8, "cuda-out-of-memory"),
     ]
+    assert all(
+        [(point.decode_method, point.writer) for point in panel.tas_grid] == list(TAS_IO_ORDER)
+        for panel in data.panels
+    )
+    if tuned_path.parent.name == "rtx-4090":
+        assert real_720p.stream_winner_label == "Selected: 2 streams, graph on"
+        assert data.panels[3].stream_winner_label == "Selected: 7 streams, graph on"
 
 
 @pytest.mark.parametrize("tuned_path", TUNED_RESULTS, ids=lambda path: path.parent.name)
-def test_historical_figures_remain_byte_identical(tuned_path: Path) -> None:
+def test_published_figures_remain_byte_identical(tuned_path: Path) -> None:
     assert check_figures(tuned_path.parent, tuned_path.parent / "figures") == []
 
 
@@ -149,11 +155,12 @@ def test_tas_grid_rejects_duplicate_profiles() -> None:
         _tas_grid_from_json({"reconnaissance": [candidate, candidate]})
 
 
-def test_tas_preflight_exclusions_render_without_a_measurement() -> None:
+@pytest.mark.parametrize("status", ["invalid", "disqualified"])
+def test_tas_preflight_exclusions_render_without_a_measurement(status: str) -> None:
     candidate = tas_candidate("cpu", "nelux", 0)
     points = _tas_grid_from_json(
         {
-            "tas_preflight": {"candidates": [{**candidate, "status": "invalid"}]},
+            "tas_preflight": {"candidates": [{**candidate, "status": status}]},
         }
     )
     assert len(points) == 1
@@ -172,7 +179,30 @@ def test_tas_figures_render_both_themes_and_actual_external_names(tas_results: P
             assert "TAS decoder / writer" in svg
             assert "vs-mlrt TensorRT streams" in svg
             assert "ffmpeg" in svg and "nelux" in svg
+            assert "Selected:" in svg and "CUDA Graph off" in svg
     assert check_figures(tas_results, tas_results / "figures") == []
+
+
+def test_legacy_vsgan_figures_keep_their_participants(tas_results: Path) -> None:
+    path = tas_results / "tuned.json"
+    document = json.loads(path.read_text())
+    for workload in document["workloads"]:
+        # This fixture is synthetic, not a relabeled published measurement.
+        workload["final_campaign"]["results"][-1]["implementation"] = "vsgan"
+        selection = workload["selection"]
+        selection.pop("tas_preflight", None)
+        streams = [
+            item for item in selection["reconnaissance"] if item["implementation"] == "vstrt"
+        ]
+        selection["reconnaissance"] = streams + [
+            {**item, "implementation": "vsgan", "candidate_id": item["candidate_id"] + "-legacy"}
+            for item in streams
+        ]
+    path.write_text(json.dumps(document))
+    for figure in generate_figures(tas_results, tas_results / "figures"):
+        svg = figure.read_text()
+        assert "VSGAN" in svg and "TAS" not in svg
+        assert "decoder / writer" not in svg
 
 
 def test_figure_data_rejects_duplicate_campaign_participants(tas_results: Path) -> None:

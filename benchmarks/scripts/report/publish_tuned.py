@@ -128,30 +128,84 @@ def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def _compact_tas_preflight(source: EvidenceSource, record: dict[str, Any]) -> dict[str, Any]:
-    path = source.resolve(record["path"])
-    report = _load(path)
-    checksum = _digest(path)
-    if record.get("sha256") != checksum or report.get("status") != "complete":
-        raise PublicationError(f"TAS preflight evidence changed or is incomplete: {path}")
+    path, report = _verified_artifact(source, record, label="TAS preflight")
+    profiles = report.get("profiles")
+    expected_profiles = {
+        f"tas-{decode}-{writer}": {
+            "execution_profile": "tuned",
+            "decode_method": decode,
+            "writer": writer,
+            "cuda_graph": True,
+        }
+        for decode in ("cpu", "nvdec")
+        for writer in ("ffmpeg", "nelux")
+    }
+    if (
+        report.get("schema_version") != 1
+        or report.get("document_type") != "tas-quality-preflight"
+        or report.get("status") != "valid"
+        or not isinstance(profiles, dict)
+        or set(profiles) != set(expected_profiles)
+    ):
+        raise PublicationError(f"TAS preflight is incomplete or has an unsupported schema: {path}")
+    candidates = []
+    eligible = []
+    for candidate_id, expected_profile in expected_profiles.items():
+        profile = profiles[candidate_id]
+        if (
+            not isinstance(profile, dict)
+            or profile.get("candidate_id") != candidate_id
+            or profile.get("execution_profile") != expected_profile
+            or profile.get("status") not in {"valid", "disqualified"}
+        ):
+            raise PublicationError(f"TAS preflight profile changed: {candidate_id}")
+        result_path, result = _verified_artifact(
+            source, profile.get("result"), label=f"TAS preflight {candidate_id} result"
+        )
+        if result_path != path.parent / candidate_id / "result.json" or result != {
+            key: value for key, value in profile.items() if key != "result"
+        }:
+            raise PublicationError(f"TAS preflight profile summary changed: {candidate_id}")
+        valid = profile["status"] == "valid"
+        if valid:
+            eligible.append(candidate_id)
+        if profile.get("returncode") != (0 if valid else 2) or bool(profile.get("errors")) == valid:
+            raise PublicationError(f"TAS preflight profile outcome changed: {candidate_id}")
+        quality = {}
+        for name, public_name, status in (
+            ("preprocessing", "preprocessing_diagnostic", "complete"),
+            ("inference", "inference_parity", "valid"),
+            ("product_output", "product_output", "valid"),
+        ):
+            evidence = profile.get("evidence", {}).get(name)
+            if evidence is None and not valid and name == "product_output":
+                continue
+            _, quality_report = _verified_artifact(
+                source, evidence, label=f"TAS preflight {candidate_id} {name}"
+            )
+            if (valid or name == "preprocessing") and quality_report.get("status") != status:
+                raise PublicationError(
+                    f"TAS preflight quality status changed: {candidate_id}/{name}"
+                )
+            quality[public_name] = evidence
+        candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "execution_profile": profile["execution_profile"],
+                "status": profile["status"],
+                "quality": quality,
+                "errors": profile["errors"],
+                "result": profile["result"],
+            }
+        )
+    if not eligible or report.get("eligible_candidates") != eligible:
+        raise PublicationError(f"TAS preflight eligibility changed: {path}")
     return {
         "path": source.canonical(path),
-        "sha256": checksum,
+        "sha256": record["sha256"],
         "status": report["status"],
-        "candidates": [
-            {
-                key: value
-                for key, value in item.items()
-                if key
-                in {
-                    "candidate_id",
-                    "execution_profile",
-                    "status",
-                    "quality",
-                    "errors",
-                }
-            }
-            for item in report["candidates"]
-        ],
+        "eligible_candidates": eligible,
+        "candidates": candidates,
     }
 
 

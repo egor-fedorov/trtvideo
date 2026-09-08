@@ -6,9 +6,10 @@ TensorRT engines, source videos, and raw results are not added to Git.
 Compact, privacy-reviewed publication snapshots are stored in `results/`.
 
 The active comparison is **trtvideo / vs-mlrt / TheAnimeScripter (TAS)**.
-Published snapshots that name VSGAN retain their original participants and
-numbers. They are historical campaigns, not measurements of TAS. Figure
-generation reads each dataset's participants rather than relabeling a column.
+The September RTX 3090 and RTX 4090 snapshots measure these three participants
+on TensorRT 11.2.1.2. Earlier VSGAN campaigns remain in Git history, not in the
+current tables. Figure generation reads each dataset's participants rather
+than relabeling a column.
 
 - `methodology.md` - execution profiles and validity criteria.
 - `workloads/` - RealESRGAN and SPAN workload manifests.

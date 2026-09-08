@@ -75,11 +75,13 @@ Before `1.0.0`, use pragmatic semantic versioning:
   NVENC settings without changing native per-frame operations. Cached quality
   preflight is bound to the shared CPU/GPU session contract and checked against
   live hardware before starting or resuming a sweep.
-- Updated tuned publication export and figures for participant-specific
-  profiles and TAS I/O categories. Existing published VSGAN results and SVGs
-  remain historical evidence; new comparative claims require a fresh shared
-  campaign rather than relabeling old numbers. Export rechecks artifact hashes,
-  quality roles, shared hardware, and recorded runtime metadata before publication.
+- Published fresh September RTX 3090 and RTX 4090 tuned campaigns and
+  diagnostics for trtvideo, vs-mlrt, and TAS on TensorRT 11.2.1.2. Updated
+  tables, conclusions, and light/dark figures, including TAS I/O categories,
+  retry history, and the retained RTX 4090 stability outlier. Earlier VSGAN
+  results remain in Git history. Export rechecks artifact hashes, quality
+  roles, TAS preflight profiles, shared hardware, and recorded runtime metadata
+  before publication.
 
 ## 0.7.0 - 2026-09-03
 

@@ -287,18 +287,35 @@ def tas_evidence(tmp_path: Path) -> EvidenceSource:
             "candidates": [vstrt, tas],
             "disqualifications": {},
         }
+        profiles = {}
+        for decode in ("cpu", "nvdec"):
+            for writer in ("ffmpeg", "nelux"):
+                candidate_id = f"tas-{decode}-{writer}"
+                result = {
+                    "schema_version": 1,
+                    "candidate_id": candidate_id,
+                    "execution_profile": {**profile, "decode_method": decode, "writer": writer},
+                    "status": "valid",
+                    "returncode": 0,
+                    "errors": [],
+                    "evidence": {
+                        "preprocessing": artifact(source, tensor_paths["preprocessing-diagnostic"]),
+                        "inference": artifact(source, tensor_paths["inference-parity"]),
+                        "product_output": artifact(source, product_path),
+                    },
+                }
+                result_path = write_json(
+                    directory / f"tas-preflight/{candidate_id}/result.json", result
+                )
+                profiles[candidate_id] = {**result, "result": artifact(source, result_path)}
         preflight_path = write_json(
             directory / "tas-preflight/preflight.json",
             {
-                "status": "complete",
-                "candidates": [
-                    {
-                        "candidate_id": tas["candidate_id"],
-                        "execution_profile": profile,
-                        "status": "valid",
-                        "quality": {},
-                    }
-                ],
+                "schema_version": 1,
+                "document_type": "tas-quality-preflight",
+                "status": "valid",
+                "eligible_candidates": list(profiles),
+                "profiles": profiles,
             },
         )
         selection["tas_preflight"] = {
@@ -454,6 +471,9 @@ def test_active_publication_retains_native_tas_metadata_and_selection(
     assert workload["selection"]["candidates"][1]["median_cpu_cores"] == 1.5
     assert workload["selection"]["search"]["completion"]["tas"] == "grid-exhausted"
     assert workload["selection"]["tas_preflight"]["candidates"][0]["status"] == "valid"
+    assert workload["selection"]["tas_preflight"]["status"] == "valid"
+    assert len(workload["selection"]["tas_preflight"]["eligible_candidates"]) == 4
+    assert workload["selection"]["tas_preflight"]["candidates"][0]["quality"]["inference_parity"]
     assert (
         document["external_output_identity"]["independent_provenance"]["engine_sha256_differ"]
         is False
@@ -524,9 +544,36 @@ def test_publication_rejects_tas_backend_fallback(tas_evidence: EvidenceSource) 
 def test_publication_rejects_changed_tas_preflight(tas_evidence: EvidenceSource) -> None:
     path = next(tas_evidence.root.glob("*/tas-preflight/preflight.json"))
     preflight = json.loads(path.read_text())
-    preflight["candidates"][0]["status"] = "invalid"
+    preflight["profiles"]["tas-cpu-ffmpeg"]["status"] = "disqualified"
     write_json(path, preflight)
-    with pytest.raises(PublicationError, match="preflight evidence changed"):
+    with pytest.raises(PublicationError, match="TAS preflight SHA256 changed"):
+        publish(tas_evidence)
+
+
+@pytest.mark.parametrize("change", ("schema", "profile_set", "eligible", "result", "summary"))
+def test_publication_rejects_inconsistent_preflight_profiles(
+    tas_evidence: EvidenceSource, change: str
+) -> None:
+    path = next(tas_evidence.root.glob("*/tas-preflight/preflight.json"))
+    report = json.loads(path.read_text())
+    if change == "schema":
+        report["status"] = "complete"
+    elif change == "profile_set":
+        del report["profiles"]["tas-cpu-ffmpeg"]
+    elif change == "eligible":
+        report["eligible_candidates"] = []
+    elif change == "summary":
+        report["profiles"]["tas-cpu-ffmpeg"]["returncode"] = 2
+    else:
+        result_path = tas_evidence.resolve(report["profiles"]["tas-cpu-ffmpeg"]["result"]["path"])
+        write_json(result_path, {"status": "invalid"})
+    write_json(path, report)
+    selection_path = path.parent.parent / "selection.json"
+    selection = json.loads(selection_path.read_text())
+    selection["tas_preflight"] = artifact(tas_evidence, path)
+    write_json(selection_path, selection)
+
+    with pytest.raises(PublicationError, match="TAS preflight"):
         publish(tas_evidence)
 
 

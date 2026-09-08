@@ -39,30 +39,27 @@ by Poro26, CC BY-SA 4.0. The comparison is silent.*
 
 ## Measured Throughput And Resource Use
 
-The tables and figures below preserve the published **trtvideo / vs-mlrt /
-VSGAN-tensorrt-docker** campaigns. The active benchmark matrix now replaces
-VSGAN with **TheAnimeScripter (TAS)**, a separate video-processing product.
-No TAS performance claim is implied by these historical results; all three
-active participants must be measured together before publishing a new table.
+The September campaigns compare **trtvideo / vs-mlrt / TheAnimeScripter (TAS)**
+on TensorRT **11.2.1.2**, with independently selected and quality-validated
+external profiles. TAS is a separate product, not another vs-mlrt wrapper.
 
-Across independent validated RTX 3090 and RTX 4090 sessions, RealESRGAN stays
-within 3.3% of the fastest tuned external result. SPAN ranges from parity on RTX
-3090 to `trtvideo` advantages of 17.9% and 25.5% on RTX 4090. The fastest
-external implementation uses 2.1-21.2x as much attributed CPU and 1.6-4.9x as
-much peak VRAM.
+Across independent RTX 3090 and RTX 4090 sessions, RealESRGAN stays within 1.8%
+of the fastest tuned external result. SPAN ranges from parity on RTX 3090 to
+`trtvideo` leads of 9.1% and 4.6% on RTX 4090. The fastest external result in
+each row uses 2.0-10.6x as much attributed CPU and 1.2-2.8x as much peak VRAM.
 
 ### RTX 4090
 
 | Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
 |---|---:|---:|---:|
-| RealESRGAN_x2plus 720p -> 1440p | 10.462 / 10.285 VSGAN (+1.7%) | 1.02 / 2.28 | 2.43 / 3.96 GiB |
-| RealESRGAN_x2plus 1080p -> 4K | 4.436 / 4.501 vs-mlrt (-1.4%) | 1.01 / 2.27 | 4.32 / 7.72 GiB |
-| SPAN 720p -> 1440p | 99.655 / 84.536 VSGAN (+17.9%) | 0.74 / 11.83 | 1.52 / 6.53 GiB |
-| SPAN 1080p -> 4K | 48.467 / 38.621 vs-mlrt (+25.5%) | 0.57 / 12.17 | 2.74 / 13.53 GiB |
+| RealESRGAN_x2plus 720p -> 1440p | 10.443 / 10.399 TAS (+0.4%) | 1.02 / 2.00 | 2.44 / 2.99 GiB |
+| RealESRGAN_x2plus 1080p -> 4K | 4.469 / 4.515 vs-mlrt (-1.0%) | 1.01 / 2.27 | 4.42 / 7.72 GiB |
+| SPAN 720p -> 1440p | 100.149 / 91.755 TAS (+9.1%) | 0.74 / 2.14 | 1.71 / 2.26 GiB |
+| SPAN 1080p -> 4K | 48.569 / 46.419 TAS (+4.6%) | 0.57 / 2.22 | 2.74 / 3.83 GiB |
 
 These end-to-end measurements use an RTX 4090 at its stock 450 W board limit
-with a Ryzen 7 5700X3D. RealESRGAN is inside the predeclared +/-5% parity band;
-both SPAN rows are confirmed speed advantages.
+with a Ryzen 7 5700X3D. Under the predeclared +/-5% parity band, SPAN 720p is a
+confirmed speed advantage; the other three rows are parity results.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="benchmarks/results/rtx-4090/figures/throughput-resources-dark.svg">
@@ -73,23 +70,26 @@ Each row normalizes the fastest external result to 100% while retaining the
 measured FPS in each bar; CPU and VRAM use linear absolute scales.
 
 Source: the privacy-reviewed [RTX 4090 tuned result](benchmarks/results/rtx-4090/tuned.json),
-measured on 2026-08-18 from revision `fdd59dd`. See the
+measured on 2026-09-07 from clean revision `b5bf437`. See the
 [full RTX 4090 report](benchmarks/results/rtx-4090/README.md) and
 [benchmark methodology](benchmarks/methodology.md) for complete provenance,
-quality gates, and the tuning contract.
+quality gates, and the tuning contract. Failed attempts were archived and
+retried, not included as FPS results. RealESRGAN 1080p required five rotated
+rounds and retains a vs-mlrt outlier under the declared 4-of-5 stability policy.
 
 <details>
 <summary><strong>RTX 3090 independent replication</strong></summary>
 
 | Workload | End-to-end FPS (trtvideo / fastest external) | CPU cores (trtvideo / external) | Peak VRAM (trtvideo / external) |
 |---|---:|---:|---:|
-| RealESRGAN_x2plus 720p -> 1440p | 6.140 / 6.345 VSGAN (-3.2%) | 1.01 / 2.17 | 2.18 / 3.67 GiB |
-| RealESRGAN_x2plus 1080p -> 4K | 2.803 / 2.830 vs-mlrt (-0.9%) | 1.01 / 2.17 | 4.17 / 7.45 GiB |
-| SPAN 720p -> 1440p | 55.760 / 55.226 vs-mlrt (+1.0%) | 0.56 / 5.88 | 1.37 / 3.84 GiB |
-| SPAN 1080p -> 4K | 26.097 / 25.268 vs-mlrt (+3.3%) | 0.47 / 8.14 | 2.59 / 11.48 GiB |
+| RealESRGAN_x2plus 720p -> 1440p | 6.216 / 6.328 vs-mlrt (-1.8%) | 1.01 / 2.17 | 2.19 / 3.68 GiB |
+| RealESRGAN_x2plus 1080p -> 4K | 2.795 / 2.831 vs-mlrt (-1.3%) | 1.01 / 2.17 | 4.17 / 7.45 GiB |
+| SPAN 720p -> 1440p | 55.782 / 55.174 vs-mlrt (+1.1%) | 0.56 / 5.92 | 1.37 / 3.84 GiB |
+| SPAN 1080p -> 4K | 26.181 / 25.301 TAS (+3.5%) | 0.48 / 2.20 | 2.59 / 3.42 GiB |
 
 The RTX 3090 session used a 350 W board limit and Ryzen 5 5600. All four rows
-are inside the same +/-5% parity band. See the
+are inside the same +/-5% parity band. Thermal-invalid attempts were archived
+and retried; all 36 retained campaign runs passed. See the
 [full RTX 3090 report](benchmarks/results/rtx-3090/README.md).
 
 </details>
@@ -257,9 +257,9 @@ ecosystem. DGDecNV can provide NVDEC source decoding on Windows through an
 AviSynth compatibility layer, but it is not part of the pinned Linux workflows
 and does not remove the host-memory boundaries around `libvstrt`.
 
-**Benchmark status:** vs-mlrt remains in the active matrix. The published
-campaigns also included VSGAN-tensorrt-docker; new campaigns replace that
-wrapper with TAS rather than measuring two variants of the vs-mlrt stack. The
+**Benchmark status:** the September publications compare vs-mlrt and TAS with
+`trtvideo`. TAS replaces VSGAN-tensorrt-docker from the historical campaigns,
+rather than measuring two variants of the vs-mlrt stack. The
 exact measured configuration and transfer rationale are documented in the
 [architecture guide](docs/ARCHITECTURE.md#vapoursynth-benchmark-path-as-measured)
 and [benchmark methodology](benchmarks/methodology.md#purpose).

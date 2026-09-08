@@ -129,6 +129,7 @@ class WorkloadPanel:
     resource_limits: tuple[ResourceLimit, ...]
     results: tuple[ImplementationResult, ...]
     tas_grid: tuple[TasGridPoint, ...] = ()
+    stream_winner_label: str = ""
 
     @property
     def title(self) -> str:
@@ -257,6 +258,15 @@ def _resource_limits_from_json(selection: dict[str, Any]) -> tuple[ResourceLimit
     return tuple(result)
 
 
+def _stream_winner_label(selection: dict[str, Any]) -> str:
+    winner = selection.get("winners", {}).get("vstrt") or {}
+    profile = winner.get("execution_profile", {})
+    if "num_streams" not in profile or "cuda_graph" not in profile:
+        return ""
+    graph = "on" if profile["cuda_graph"] else "off"
+    return f"Selected: {profile['num_streams']} streams, graph {graph}"
+
+
 def _tas_grid_from_json(selection: dict[str, Any]) -> tuple[TasGridPoint, ...]:
     winner = selection.get("winners", {}).get("tas") or {}
     points = []
@@ -267,7 +277,7 @@ def _tas_grid_from_json(selection: dict[str, Any]) -> tuple[TasGridPoint, ...]:
     candidates.extend(
         {**entry, "implementation": "tas", "status": "quality failed"}
         for entry in selection.get("tas_preflight", {}).get("candidates", [])
-        if entry.get("status") == "invalid"
+        if entry.get("status") in {"invalid", "disqualified"}
     )
     for candidate in candidates:
         if candidate.get("implementation") != "tas":
@@ -345,6 +355,7 @@ def load_published_data(results_dir: Path) -> PublishedFigureData:
                 resource_limits=_resource_limits_from_json(workload.get("selection", {})),
                 results=results,
                 tas_grid=_tas_grid_from_json(workload.get("selection", {})),
+                stream_winner_label=_stream_winner_label(workload.get("selection", {})),
             )
         )
 
@@ -616,6 +627,15 @@ def _render_tas_tuned_sweep(
             ax.set_ylabel("End-to-end FPS", color=theme.text)
             ax.tick_params(axis="both", colors=theme.text)
         _panel_heading(stream_ax, panel, theme)
+        stream_ax.text(
+            0.02,
+            0.05,
+            panel.stream_winner_label,
+            transform=stream_ax.transAxes,
+            color=theme.text,
+            fontsize=8,
+            va="bottom",
+        )
         stream_ax.plot(
             [p.streams for p in points],
             [p.fps for p in points],
@@ -639,7 +659,7 @@ def _render_tas_tuned_sweep(
         )
         stream_ax.set_xticks(range(1, maximum_streams + 1))
         stream_ax.set_xlim(0.8, maximum_streams + 0.2)
-        stream_ax.set_xlabel("vs-mlrt TensorRT streams", color=theme.text)
+        stream_ax.set_xlabel("vs-mlrt TensorRT streams (CUDA Graph off)", color=theme.text)
         for limit in limits:
             stream_ax.text(limit.streams, upper * 0.04, "OOM", color=theme.text, ha="center")
         by_io = {(point.decode_method, point.writer): point for point in panel.tas_grid}
@@ -656,11 +676,13 @@ def _render_tas_tuned_sweep(
                 )
                 grid_ax.text(
                     position,
-                    grid_point.fps + upper * 0.025,
+                    grid_point.fps - upper * 0.055,
                     f"{grid_point.fps:.3f}",
                     color=theme.text,
                     fontsize=8,
                     ha="center",
+                    va="top",
+                    bbox={"facecolor": theme.panel, "edgecolor": "none", "pad": 1.5},
                 )
             else:
                 label = (

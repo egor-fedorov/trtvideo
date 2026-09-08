@@ -14,24 +14,24 @@
     "self_contained_result_files": true,
     "cross_contract_aggregation": false,
     "human_summary": "README.md",
-    "notes": "Tuned and diagnostic classes were measured in one controlled session on one server. All retained campaign runs are valid; the only invalid search artifacts are the two predeclared RealESRGAN 1080p stream-8 CUDA out-of-memory resource ceilings. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
+    "notes": "September trtvideo/vs-mlrt/TAS session on one server and clean revision, with TensorRT 11.2.1.2. Two CUDA launch failures and one TAS hang were archived and retried; all 42 retained final campaign runs are valid. RealESRGAN 1080p uses five rounds and retains a vs-mlrt outlier under the 4-of-5 stability policy. A hashed vs-mlrt stream-8 OOM ceiling is not an FPS point. Diagnostics rebuilt equivalent-contract engines and are supporting evidence, not an exact decomposition of tuned throughput."
   },
   "result_sets": [
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "3913e29d2247e0ff26b19a8eadfcc98c4eb9d6d8237e941542927369caaf7a6d",
-      "measurement_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
-      "date_utc": "2026-08-18",
+      "sha256": "0fe510be38932b12a23efe9c65eb4725342ab6780078e78bff14911fc42cc94c",
+      "measurement_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
+      "date_utc": "2026-09-07",
       "status": "valid",
       "publishable": true
     },
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "9827ec083055153874bbb76fd555bb38296eaa413ca1e425a37dc92091cef703",
-      "measurement_revision": "fdd59ddc7994e3e139d4b65f801b555eab62cfdb",
-      "date_utc": "2026-08-18",
+      "sha256": "7076145d5d1be92532bed1efc70f2e755af2bc7d58587b6fe6760d2ae03d54f3",
+      "measurement_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
+      "date_utc": "2026-09-07",
       "status": "valid",
       "publishable": true
     }

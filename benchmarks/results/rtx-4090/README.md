@@ -1,228 +1,223 @@
 # RTX 4090 Comparative Benchmark
 
-This directory contains the privacy-reviewed RTX 4090 tuned and diagnostic
-evidence measured on 2026-08-18 from clean revision
-`fdd59ddc7994e3e139d4b65f801b555eab62cfdb`, on one RTX 4090 and Ryzen 7
-5700X3D server with driver 595.84 and the stock 450 W board limit.
+September 7, 2026 UTC evidence for **trtvideo / vs-mlrt / TheAnimeScripter (TAS)**,
+collected on one RTX 4090 and Ryzen 7 5700X3D (8 cores / 16 threads) server at
+the stock **450 W** board limit. All participants use TensorRT **11.2.1.2** and
+driver **595.84**, from clean repository revision
+`b5bf437e17813ea2f6fc1b268a479b612f83dc08`.
 
-Every workload uses the same pinned CC0 Madrid live-action clip, model, output
-contract, and benchmark environment across implementations. Final campaigns
-measure 1000 frames in three rotated rounds with ten seconds idle between
-processes; RealESRGAN uses 30 warmup frames and SPAN uses 100. Both
-cross-resolution matrices and every retained quality report are `valid` and
-`publishable`. All 36 retained campaign runs are valid, no thermal throttle
-reason was recorded, campaign temperatures peaked at 58-65 C, and diagnostics
-peaked at 68 C. `sw_power_cap` is an allowed property of the declared 450 W
-policy.
-
-The only invalid search artifacts are the two expected RealESRGAN 1080p
-eight-stream CUDA out-of-memory ceilings. They are reproducibly classified and
-hashed by the adaptive search contract rather than treated as FPS points.
+The shared workload is the pinned CC0 Madrid live-action clip. Final campaigns
+measure 1000 frames in rotated rounds, with ten seconds idle between processes,
+30 warmup frames for RealESRGAN, and 100 for SPAN. FPS is frames divided by
+measured process lifetime, including startup and finalization. Search and
+quality checks are separate from these final measurements.
 
 ## Best-Tuned Results
 
-The adaptive search and full confirmation select external profiles first.
-Selected profiles then pass fresh quality gates and independent rotated
-campaigns, so reconnaissance FPS is never used as a final comparison value.
-
-| Workload | Input | trtvideo | vs-mlrt | VSGAN | trtvideo vs fastest external |
+| Workload | Input | trtvideo | vs-mlrt | TAS | trtvideo vs fastest external |
 |---|---|---:|---:|---:|---:|
-| RealESRGAN_x2plus | 720p | **10.462 FPS** | 10.235 FPS | 10.285 FPS | +1.72% |
-| RealESRGAN_x2plus | 1080p | 4.436 FPS | **4.501 FPS** | 4.468 FPS | -1.43% |
-| SPAN | 720p | **99.655 FPS** | 84.099 FPS | 84.536 FPS | +17.89% |
-| SPAN | 1080p | **48.467 FPS** | 38.621 FPS | 38.535 FPS | +25.49% |
+| RealESRGAN_x2plus | 720p | **10.443 FPS** | 10.279 FPS | 10.399 FPS | +0.42% |
+| RealESRGAN_x2plus | 1080p | 4.469 FPS | **4.515 FPS** | 4.442 FPS | -1.02% |
+| SPAN | 720p | **100.149 FPS** | 84.051 FPS | 91.755 FPS | +9.15% |
+| SPAN | 1080p | **48.569 FPS** | 38.863 FPS | 46.419 FPS | +4.63% |
 
-Both RealESRGAN rows fall inside the predeclared +/-5% throughput-parity band.
-Both SPAN rows exceed the same threshold and are confirmed `trtvideo` speed
-advantages. These values form an independent RTX 4090 session and are not
-aggregated row-by-row with the RTX 3090 result, which uses a different CPU and
-power policy.
+Under the predeclared +/-5% parity band, **SPAN 720p is a confirmed speed
+advantage**. Both RealESRGAN rows and SPAN 1080p are parity results.
+trtvideo uses less attributed CPU and peak VRAM than either external product
+in every row. Independent hardware sessions are not aggregated across hosts.
+
+### Session Validity And Retries
+
+Both cross-resolution matrices and all retained quality reports are `valid`
+and `publishable`. All **42 final campaign runs** passed, with no forbidden
+throttle reasons and a maximum campaign temperature of **69 C**.
+`sw_power_cap` is permitted under the declared 450 W policy.
+
+RealESRGAN 1080p required **five rounds per implementation**, not three.
+vs-mlrt round 3 measured **4.284 FPS**: full spread **5.49%**, with a
+four-of-five consensus spread of **1.49%**. This satisfies the predeclared
+stability policy with an explicit outlier warning. The published median retains
+all five runs; the outlier was not silently removed. Other workloads use three
+rounds.
+
+The source bundle also retains **three archived failed attempts**: two
+vs-mlrt CUDA launch failures on RealESRGAN 1080p, and a TAS NVDEC/neLux
+confirmation hang on that workload. These attempts were rejected and retried,
+not included in final medians. Successful retries do not prove that the
+underlying faults were resolved. The retained invalid search point is
+vs-mlrt at eight streams on RealESRGAN 1080p, recorded as a hashed CUDA OOM
+resource ceiling rather than an FPS measurement.
 
 ### Cross-GPU Scaling Observation
 
-Before collecting the RTX 4090 result, the working hypothesis was that the
-external SPAN path would close its RTX 3090 gap when given more host CPU
-capacity. The observed direction was the opposite: the Ryzen 7 5700X3D host has
-eight physical cores rather than the Ryzen 5 5600 host's six, but the SPAN gap
-grew from near parity to a confirmed `trtvideo` advantage.
+The earlier hypothesis concerned the CPU/host-memory VapourSynth path: more
+host cores might reduce its SPAN gap. The new measurements still show a larger
+gap against vs-mlrt on the faster GPU, but TAS materially changes the comparison:
 
-| SPAN input | RTX 3090 difference | RTX 4090 difference | `trtvideo` scaling | Fastest external scaling | TensorRT ceiling scaling |
-|---|---:|---:|---:|---:|---:|
-| 720p | +0.97% | +17.89% | 1.79x | 1.53x | 1.92x |
-| 1080p | +3.28% | +25.49% | 1.86x | 1.53x | 1.94x |
+| SPAN input | RTX 3090 vs vs-mlrt | RTX 4090 vs vs-mlrt | RTX 3090 vs TAS | RTX 4090 vs TAS |
+|---|---:|---:|---:|---:|
+| 720p | +1.10% | +19.15% | +6.11% | +9.15% |
+| 1080p | +3.82% | +24.98% | +3.48% | +4.63% |
 
-The fastest external result used 5.88 and 8.15 attributed CPU cores on the RTX
-3090 host, then 11.83 and 12.17 cores on the RTX 4090 host. Its GPU utilization
-fell from 89.89-92.91% to 75.62-80.95% while the TensorRT-only ceiling nearly
-doubled. Additional CPU capacity was therefore used, but did not preserve the
-external path's relative throughput.
+TAS's winning native NVDEC/neLux path uses about **2.14 / 2.22 CPU cores**
+at 720p/1080p, compared with vs-mlrt's **11.63 / 11.78**. It reaches
+**91.76 / 46.42 FPS**, substantially narrowing the gap despite using less CPU.
 
-This rejects available CPU core count as the primary explanation for the RTX
-3090 near-parity result. The scaling is consistent with resolution-dependent,
-per-frame host processing and transport overhead becoming a larger fraction of
-wall time as inference gets shorter. It does not isolate PCIe transfer latency:
-these are independent complete-host sessions, not a controlled CPU-only A/B,
-and the external path was not captured in Nsight Systems. It supports the
-testable prediction that `trtvideo` gains more on SPAN-like light models when
-GPU compute improves faster than the host/transport path; it is not a universal
-prediction for compute-bound models such as RealESRGAN.
+The data remain consistent with host processing and frame transport limiting
+the measured VapourSynth path as GPU inference gets faster. They do not
+establish a universal fixed-overhead penalty for every external implementation,
+nor predict that trtvideo's advantage must grow on all newer hardware.
+CPU, GPU, and power policy differ between the two hosts; this is not a
+controlled CPU-only A/B or an external-path profiler trace.
 
 ### Tuned Stream Sweep
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/tuned-sweep-dark.svg">
-  <img alt="Tuned TensorRT stream-count sweep on RTX 4090 for RealESRGAN and SPAN at 720p and 1080p" src="figures/tuned-sweep-light.svg">
+  <img alt="RTX 4090 vs-mlrt stream search and TAS decoder/writer grid for RealESRGAN and SPAN" src="figures/tuned-sweep-light.svg">
 </picture>
 
-The lines show one-run, 300-frame reconnaissance measurements. Rings mark the
-profiles selected after full 1000-frame confirmation; the dashed `trtvideo`
-reference is the independent final-campaign median. Search starts at one stream
-and either confirms two declines greater than 1%, reaches the declared
-eight-stream boundary, or records a reproducible resource ceiling.
+Lines and bars show one-run, 300-frame reconnaissance. Rings and outlined bars
+identify profiles selected after independent 1000-frame confirmation; the
+dashed trtvideo line is the final-campaign median, not a search measurement.
+The vs-mlrt curve uses graph-off profiles; selected graph-on profiles are
+named explicitly rather than plotted as if measured during reconnaissance.
 
-| Workload | Input | vs-mlrt winner | VSGAN winner | Search completion |
+| Workload | Input | vs-mlrt winner | vs-mlrt search completion | TAS winner |
 |---|---|---|---|---|
-| RealESRGAN_x2plus | 720p | streams 2, graph on | streams 2, graph on | decline confirmed |
-| RealESRGAN_x2plus | 1080p | streams 2, graph off | streams 2, graph off | resource ceiling |
-| SPAN | 720p | streams 7, graph off | streams 7, graph off | range exhausted |
-| SPAN | 1080p | streams 7, graph off | streams 7, graph off | range exhausted |
+| RealESRGAN_x2plus | 720p | streams 2, graph on | decline confirmed | NVDEC / neLux |
+| RealESRGAN_x2plus | 1080p | streams 2, graph off | resource ceiling | NVDEC / neLux |
+| SPAN | 720p | streams 7, graph off | range exhausted | NVDEC / neLux |
+| SPAN | 1080p | streams 7, graph on | range exhausted | NVDEC / neLux |
 
-Every selected profile uses automatic vspipe requests and runtime-default
-VapourSynth threads. Stage 2 confirms the three strongest reconnaissance
-points; within that fully measured shortlist, the tie-break chooses the lowest
-stream count within 1% of confirmed peak throughput and then prefers CUDA Graph
-off. CUDA Graph remains selected for both RealESRGAN 720p winners because its
-confirmed gain exceeds that equivalence band.
+vs-mlrt uses automatic vspipe requests and VapourSynth threads. Its tie-break
+prefers the lowest confirmed stream count within 1% of peak, then graph off.
+TAS preflight validates all four CPU/NVDEC x FFmpeg/neLux combinations before
+search; the grid is exhausted on every workload. All TAS winners use CUDA
+Graph. See the [methodology](../../methodology.md) for shortlisting and tie-breaks.
 
 ### Intra-Session Reproducibility
 
-Selected external profiles were measured independently during confirmation and
-again in the final rotated campaign. The largest absolute median difference is
-0.469%:
+The selected external profiles were measured during confirmation and again in
+the final rotated campaigns. The largest absolute median difference is **0.204%**.
+This is a same-session harness control, not an additional product comparison;
+agreement between medians does not erase the individual outlier noted above.
 
-| Workload | Input | vs-mlrt final vs confirmation | VSGAN final vs confirmation |
+| Workload | Input | vs-mlrt final vs confirmation | TAS final vs confirmation |
 |---|---|---:|---:|
-| RealESRGAN_x2plus | 720p | -0.090% | -0.178% |
-| RealESRGAN_x2plus | 1080p | +0.025% | +0.010% |
-| SPAN | 720p | +0.245% | +0.469% |
-| SPAN | 1080p | +0.233% | -0.152% |
-
-This is a same-session harness control, not another product comparison.
-`trtvideo` is not a tuning candidate and therefore has no confirmation run.
+| RealESRGAN_x2plus | 720p | +0.031% | -0.204% |
+| RealESRGAN_x2plus | 1080p | -0.128% | -0.150% |
+| SPAN | 720p | +0.200% | -0.065% |
+| SPAN | 1080p | -0.021% | -0.083% |
 
 ### Resource Medians
 
-CPU is attributed to the measured child-process tree through
-`getrusage(RUSAGE_CHILDREN)`, not to total host activity.
+CPU cores are attributed to the measured child-process tree through
+`getrusage(RUSAGE_CHILDREN)`, not total host activity. Resource columns are
+medians of per-run metrics; peak VRAM is the median of per-run device peaks.
 
 | Workload | Input | Implementation | FPS | CPU cores | GPU util | Power | J/frame | Peak VRAM | Bitrate |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| RealESRGAN | 720p | trtvideo | **10.462** | **1.021** | 97.79% | 417.86 W | **39.97** | **2491.1 MiB** | 34.543 Mbps |
-| RealESRGAN | 720p | vs-mlrt | 10.235 | 2.279 | 96.40% | 413.56 W | 40.41 | 4062.8 MiB | 34.972 Mbps |
-| RealESRGAN | 720p | VSGAN | 10.285 | 2.278 | 96.65% | 413.87 W | 40.22 | 4058.8 MiB | 34.972 Mbps |
-| RealESRGAN | 1080p | trtvideo | 4.436 | **1.011** | 99.17% | 421.81 W | 95.08 | **4420.5 MiB** | 58.974 Mbps |
-| RealESRGAN | 1080p | vs-mlrt | **4.501** | 2.272 | 98.53% | 421.22 W | **93.58** | 7907.5 MiB | 59.865 Mbps |
-| RealESRGAN | 1080p | VSGAN | 4.468 | 2.274 | 98.76% | 420.35 W | 94.07 | 7903.5 MiB | 59.878 Mbps |
-| SPAN | 720p | trtvideo | **99.655** | **0.742** | 87.23% | 379.87 W | **3.81** | **1551.8 MiB** | 34.483 Mbps |
-| SPAN | 720p | vs-mlrt | 84.099 | 11.735 | 74.74% | 335.06 W | 3.98 | 6692.8 MiB | 34.899 Mbps |
-| SPAN | 720p | VSGAN | 84.536 | 11.833 | 75.62% | 335.68 W | 3.97 | 6688.8 MiB | 34.899 Mbps |
-| SPAN | 1080p | trtvideo | **48.467** | **0.574** | 93.90% | 413.37 W | **8.53** | **2804.5 MiB** | 58.866 Mbps |
-| SPAN | 1080p | vs-mlrt | 38.621 | 12.168 | 80.95% | 347.81 W | 9.01 | 13853.5 MiB | 59.712 Mbps |
-| SPAN | 1080p | VSGAN | 38.535 | 12.114 | 80.38% | 348.28 W | 9.05 | 13849.5 MiB | 59.712 Mbps |
-
-For the fastest external result in each row, external CPU use is 2.23-21.19x
-`trtvideo` and peak VRAM is 1.63-4.94x `trtvideo`.
+| RealESRGAN | 720p | trtvideo | 10.443 | 1.021 | 97.80% | 419.47 W | 40.17 | 2495.9 MiB | 34.510 Mbps |
+| RealESRGAN | 720p | vs-mlrt | 10.279 | 2.274 | 96.32% | 416.91 W | 40.58 | 4062.8 MiB | 34.969 Mbps |
+| RealESRGAN | 720p | TAS | 10.399 | 2.003 | 97.67% | 429.55 W | 41.33 | 3057.1 MiB | 34.965 Mbps |
+| RealESRGAN | 1080p | trtvideo | 4.469 | 1.011 | 99.22% | 435.48 W | 97.48 | 4529.9 MiB | 58.976 Mbps |
+| RealESRGAN | 1080p | vs-mlrt | 4.515 | 2.270 | 98.90% | 432.08 W | 95.70 | 7905.5 MiB | 59.866 Mbps |
+| RealESRGAN | 1080p | TAS | 4.442 | 2.005 | 99.09% | 436.61 W | 98.27 | 5611.8 MiB | 59.869 Mbps |
+| SPAN | 720p | trtvideo | 100.149 | 0.744 | 85.45% | 376.50 W | 3.76 | 1752.6 MiB | 34.487 Mbps |
+| SPAN | 720p | vs-mlrt | 84.051 | 11.634 | 76.25% | 335.13 W | 3.98 | 6692.8 MiB | 34.903 Mbps |
+| SPAN | 720p | TAS | 91.755 | 2.143 | 81.25% | 360.86 W | 3.93 | 2313.1 MiB | 34.897 Mbps |
+| SPAN | 1080p | trtvideo | 48.569 | 0.572 | 93.33% | 412.40 W | 8.48 | 2804.5 MiB | 58.843 Mbps |
+| SPAN | 1080p | vs-mlrt | 38.863 | 11.777 | 80.74% | 354.67 W | 9.13 | 13853.5 MiB | 59.712 Mbps |
+| SPAN | 1080p | TAS | 46.419 | 2.218 | 90.92% | 402.43 W | 8.68 | 3925.8 MiB | 59.758 Mbps |
 
 ### Throughput And Resource Use
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/throughput-resources-dark.svg">
-  <img alt="End-to-end throughput, attributed CPU, and peak VRAM for trtvideo versus the fastest external implementation on RTX 4090" src="figures/throughput-resources-light.svg">
+  <img alt="RTX 4090 throughput, CPU, and VRAM for trtvideo versus each workload's fastest external product" src="figures/throughput-resources-light.svg">
 </picture>
 
-Each row compares `trtvideo` with the fastest external implementation. The
-throughput panel normalizes that external result to 100% while retaining the
-measured FPS in each bar; CPU and VRAM use linear absolute scales. Normalization
-does not imply throughput parity where the difference exceeds 5%.
+Each row compares against its fastest external product, not necessarily the
+least resource-intensive one. FPS is normalized to that external result;
+CPU and VRAM retain linear absolute scales.
 
 ## Quality Gates
 
-Shared-input inference checks frames 0, 499, and 999. All output tensors are
-exact except the separately built TensorRT 10.16 VSGAN engine on RealESRGAN
-1080p; its worst output has p99 absolute error 0.000977, RMSE 0.000276, and
-71.17 dB PSNR, well inside the declared numerical thresholds. Production
-preprocessing differences are recorded separately as a diagnostic rather than
-conflated with inference correctness.
+All model-export, shared-input inference, and final-product gates passed.
+Preprocessing is recorded separately as a diagnostic, not confused with
+same-input inference parity. TAS uses its native pipeline at pinned source
+revision `ac259ddf13c191230a4c65a4b251c9fb28884104`; engine and runtime identity
+are retained in [`tuned.json`](tuned.json).
 
-Product-output metrics compare all 1000 decoded frames against `trtvideo`:
+On the shared-input samples, vs-mlrt matched trtvideo exactly. TAS also matched
+except SPAN 1080p, whose maximum p99 absolute error was **0.000732422** and
+maximum RMSE **0.000192349**, within the declared inference thresholds.
 
-| Workload | Input | Candidate | PSNR | SSIM | Status |
-|---|---|---|---:|---:|---|
-| RealESRGAN_x2plus | 720p | vs-mlrt / VSGAN | 44.718 dB | 0.991526 | valid |
-| RealESRGAN_x2plus | 1080p | vs-mlrt | 45.172 dB | 0.992478 | valid |
-| RealESRGAN_x2plus | 1080p | VSGAN | 45.172 dB | 0.992476 | valid |
-| SPAN | 720p | vs-mlrt / VSGAN | 45.228 dB | 0.991895 | valid |
-| SPAN | 1080p | vs-mlrt / VSGAN | 45.791 dB | 0.993051 | valid |
+Final encoded output is compared against trtvideo, not against ground truth.
+The acceptance thresholds are PSNR >=35 dB and SSIM >=0.95:
 
-vs-mlrt and VSGAN were captured independently with different run manifests,
-capture manifests, container image IDs, and engine SHA-256 values. Their tensor
-sets and MP4 outputs are byte-identical in three workloads. RealESRGAN 1080p is
-not byte-identical across the TensorRT 11 and 10.16 engines, but both numerical
-quality gates pass. Per-workload fingerprints and provenance checks are retained
-in [`tuned.json`](tuned.json).
+| Workload | Input | Candidate | PSNR | SSIM |
+|---|---|---|---:|---:|
+| RealESRGAN_x2plus | 720p | vs-mlrt | 44.714 dB | 0.991523 |
+| RealESRGAN_x2plus | 720p | TAS | 44.463 dB | 0.991630 |
+| RealESRGAN_x2plus | 1080p | vs-mlrt | 45.167 dB | 0.992473 |
+| RealESRGAN_x2plus | 1080p | TAS | 44.761 dB | 0.992408 |
+| SPAN | 720p | vs-mlrt | 45.231 dB | 0.991903 |
+| SPAN | 720p | TAS | 39.934 dB | 0.991398 |
+| SPAN | 1080p | vs-mlrt | 45.790 dB | 0.993051 |
+| SPAN | 1080p | TAS | 43.909 dB | 0.993115 |
+
+The lower TAS SPAN product PSNR still passes the declared gate. Passing is a
+numerical acceptance result, not a claim that encoded outputs are identical.
 
 ## Diagnostics
 
 ### TensorRT Ceiling
 
-`trtexec` is an inference-only diagnostic, not a product competitor.
+`trtexec` is an inference-only diagnostic, not a product competitor. CUDA
+Graph and data transfers are disabled for this diagnostic class.
 
 | Workload | Input | trtexec median |
 |---|---|---:|
-| RealESRGAN_x2plus | 720p | 10.720 QPS |
-| RealESRGAN_x2plus | 1080p | 4.477 QPS |
-| SPAN | 720p | 116.443 QPS |
-| SPAN | 1080p | 53.481 QPS |
+| RealESRGAN_x2plus | 720p | 10.780 QPS |
+| RealESRGAN_x2plus | 1080p | 4.515 QPS |
+| SPAN | 720p | 117.764 QPS |
+| SPAN | 1080p | 53.690 QPS |
 
-CUDA Graph and data transfers are disabled for the TensorRT ceiling. The tuned
-and diagnostic result sets share one clean revision, server, driver, ONNX/build
-contract, and 450 W policy. The diagnostics workflow deliberately rebuilt each
-TensorRT engine, so serialized engine hashes differ from the tuned campaign.
-For that reason the report does not derive a precise pipeline-efficiency ratio
-between the two result classes.
+Diagnostics rebuilt equivalent-contract engines on the same server, revision,
+driver, and power policy. Their serialized hashes differ from the tuned
+engines, so these numbers are not an exact decomposition of pipeline FPS.
 
 ### Nsight Systems
 
-A validated 120-frame SPAN 1080p trace confirms the GPU-resident frame loop:
-
-- merged CUDA kernel intervals cover 89.09% of the frame-loop interval;
-- NVDEC and NVENC workloads overlap CUDA kernels by 90.01% and 92.23%;
-- zero H2D and zero D2H copies occur during the frame loop;
-- 480 D2D copies average 14.83 MiB and 0.020 ms per frame;
-- the only H2D copy is a 0.797 MiB initialization transfer before the frame loop.
-
-These findings are recomputed from the retained SQLite export by the diagnostic
-publication tool. Profiler overhead makes trace FPS non-publishable; the trace
-supports the architecture claim rather than adding a throughput result.
+The validated 120-frame SPAN 1080p trace has **89.01%** CUDA kernel-time coverage
+of the frame loop, **90.85% / 92.27%** NVDEC/NVENC overlap with CUDA kernels,
+and **zero H2D / D2H copies** inside the frame loop. Its 480 D2D copies average
+14.83 MiB and 0.020 ms per frame; one 0.797 MiB H2D initialization copy precedes
+the loop. These findings are recomputed from retained SQLite data. Trace FPS
+is not a publishable performance measurement because of profiler overhead.
 
 ## Encoding Note
 
-All products use the same H.264 P4/HQ single-pass CBR contract, GOP 24, zero
-output B-frames, and disabled lookahead/AQ. The FFmpeg NVENC path inserts filler
-NAL units for stricter CBR while PyNvVideoCodec does not, producing the small
-bitrate difference. Full decode, timestamps, color metadata, and quality gates
-remain valid.
+All products use the declared H.264 P4/HQ single-pass CBR contract, GOP 24,
+zero output B-frames, and disabled lookahead/AQ. Native codec and mux paths
+differ; measured bitrate is reported rather than assumed identical. Full
+decode, timestamps, frame count, color metadata, and bitrate validation passed.
 
 ## Published Data
 
-[`index.json`](index.json) records result composition, revision, and SHA-256.
-[`tuned.json`](tuned.json) and [`diagnostics.json`](diagnostics.json) are the two
-self-contained result classes in this Madrid snapshot. The executable
-upstream-default profile remains part of the benchmark methodology, but no
-legacy media result is mixed into this publication.
+[`index.json`](index.json) records composition, revision, and hashes;
+[`tuned.json`](tuned.json) and [`diagnostics.json`](diagnostics.json) contain
+the self-contained result classes. Both workflow states completed (45/45 tuned
+steps and 18/18 diagnostic steps). Source bundle:
+`artefacts/benchmarks/08092026-4090-tuned_diagnostics`.
 
-All SVG figures are generated from committed `tuned.json` with
-`make -C benchmarks figures`; `make -C benchmarks figures-check` verifies every
-published hardware directory byte-for-byte. MP4 outputs, FP32 tensor captures,
-NVML time series, engines, models, event logs, and profiler traces remain
-outside Git; the compact JSON retains hashes back to that raw evidence.
+Publication checked report hashes, reaggregated campaigns and matrices, and
+recomputed NVML/SQLite summaries. The copied bundle contains reports, logs,
+and quality crops, but not the full MP4 or FP32 tensor captures; pixel metrics
+were not independently rerun during publication. Their recorded gate results
+and hashes remain inspectable. Large runtime artifacts are not added to Git.
+
+Regenerate both light/dark figure pairs with `make -C benchmarks figures`;
+`make -C benchmarks figures-check` checks byte-for-byte reproducibility.
