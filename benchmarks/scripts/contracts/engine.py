@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -75,38 +76,58 @@ def validate_static_engine_contract(
         raise EngineContractError("Engine was not built from the canonical ONNX")
 
 
-def validate_vsgan_engine_contract(
+def validate_tas_engine_contract(
     sidecar: dict[str, Any],
     manifest: dict[str, Any],
     variant_name: str,
     onnx_path: Path,
-    expected_base_image: str,
-    expected_ffmpeg_package: str,
+    implementation_metadata: dict[str, Any],
 ) -> None:
-    """Verify the pinned VSGAN build and runtime provenance."""
+    """Verify native TAS build provenance against the pinned implementation."""
     validate_static_engine_contract(sidecar, manifest, variant_name, onnx_path)
+    if sidecar.get("builder") != "tas-native":
+        raise EngineContractError("TAS engine must be built by the native TAS builder")
     if "stronglyTyped" not in sidecar.get("builder_flags", []):
-        raise EngineContractError("VSGAN engine must be strongly typed")
-    version = str(sidecar.get("tensorrt_version", "")).replace(".", "")
-    if not version.startswith("1016"):
-        raise EngineContractError("Pinned VSGAN engine must be built by TensorRT 10.16")
+        raise EngineContractError("TAS engine must be strongly typed")
+    for tensor_name in ("input", "output"):
+        if sidecar.get(tensor_name, {}).get("dtype") != "float32":
+            raise EngineContractError(f"TAS engine {tensor_name} must have float32 bindings")
+
+    expected_revision = implementation_metadata.get("source_revision")
+    if not expected_revision or sidecar.get("tas_revision") != expected_revision:
+        raise EngineContractError("TAS engine was built from a different upstream revision")
+    if os.environ.get("TRTVIDEO_TAS_REVISION") != expected_revision:
+        raise EngineContractError(
+            "TAS runtime does not match the pinned upstream revision; rebuild the image"
+        )
+
+    runtime = sidecar.get("runtime")
+    if not isinstance(runtime, dict):
+        raise EngineContractError("TAS engine is missing runtime provenance")
+    for package in ("tensorrt", "torch", "nelux"):
+        expected_version = implementation_metadata.get(f"{package}_version")
+        if not expected_version or runtime.get(package) != expected_version:
+            raise EngineContractError(f"TAS engine {package} version does not match the pin")
+    if sidecar.get("tensorrt_version") != runtime["tensorrt"]:
+        raise EngineContractError("TAS engine TensorRT version contradicts its runtime provenance")
+    ffmpeg = runtime.get("ffmpeg")
+    if not isinstance(ffmpeg, str) or not ffmpeg.strip() or ffmpeg == "unknown":
+        raise EngineContractError("TAS engine is missing FFmpeg provenance")
+    if re.fullmatch(r"[0-9a-f]{64}", str(sidecar.get("adapter_sha256", ""))) is None:
+        raise EngineContractError("TAS engine is missing adapter SHA256 provenance")
+    from benchmarks.scripts.runners.tas_runtime import adapter_sha256
+
+    if sidecar["adapter_sha256"] != adapter_sha256():
+        raise EngineContractError("TAS engine adapter SHA256 changed; rebuild the engine")
 
     builder_base_image = sidecar.get("builder_base_image")
-    runtime_base_image = os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown")
-    if runtime_base_image != expected_base_image:
+    runtime_base_image = os.environ.get("TRTVIDEO_BASE_IMAGE")
+    if (
+        not builder_base_image
+        or builder_base_image == "unknown"
+        or builder_base_image != runtime_base_image
+    ):
         raise EngineContractError(
-            "VSGAN runtime does not match the pinned implementation "
-            f"({runtime_base_image!r} != {expected_base_image!r}); rebuild the image"
-        )
-    runtime_ffmpeg_package = os.environ.get("TRTVIDEO_VSGAN_FFMPEG_PACKAGE", "unknown")
-    if runtime_ffmpeg_package != expected_ffmpeg_package:
-        raise EngineContractError(
-            "VSGAN FFmpeg does not match the pinned implementation "
-            f"({runtime_ffmpeg_package!r} != {expected_ffmpeg_package!r}); "
-            "rebuild the image"
-        )
-    if builder_base_image != runtime_base_image:
-        raise EngineContractError(
-            "VSGAN engine was built with a different base image "
+            "TAS engine was built with a different or unknown base image "
             f"({builder_base_image!r} != {runtime_base_image!r}); rebuild the engine"
         )

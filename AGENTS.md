@@ -7,7 +7,7 @@ processing. The currently implemented workflow is GPU-resident video upscaling
 through NVDEC, CV-CUDA, TensorRT, and NVENC.
 
 The production runtime uses Python 3.12 from the
-`nvcr.io/nvidia/tensorrt:26.06-py3` base TensorRT Docker image. Development is
+`nvcr.io/nvidia/tensorrt:26.08-py3` base TensorRT Docker image. Development is
 performed locally, while checks that require TensorRT, PyNvVideoCodec, CV-CUDA,
 or a GPU normally run in Docker on a remote GPU host.
 

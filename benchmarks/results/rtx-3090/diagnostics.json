@@ -4,8 +4,8 @@
   "status": "valid",
   "publishable": true,
   "scope": {
-    "date_utc": "2026-08-16",
-    "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
+    "date_utc": "2026-09-08",
+    "measurement_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
     "source_dirty": false,
     "claim_scope": "TensorRT inference ceilings and one profiler trace; diagnostics are not product competitors or additional throughput campaigns."
   },
@@ -24,23 +24,23 @@
       "total_memory_mib": 24576.0
     },
     "image": {
-      "base_reference": "nvcr.io/nvidia/tensorrt:26.06-py3@sha256:7cd94ee931d2b5b85ad1c5af723d485b2625f6ce167e1e4abe577850b96ceac3",
-      "id": "sha256:76511437f46b27d2806e38f8ec6779fbbebd55206a7eac66d48b642bc2fcdd06",
+      "base_reference": "nvcr.io/nvidia/tensorrt:26.08-py3@sha256:3b127f45630cd56bf43d2ef70d7f50a7ee37e42bda4ba11adaaa069af2098125",
+      "id": "sha256:ad13c26037b38197a468a7311a5321b23f66d88b866a92fd2a82937a69f274b3",
       "reference": "trtvideo:benchmark",
-      "repository_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
+      "repository_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
       "source_dirty": "0"
     },
     "software": {
-      "cuda": null,
+      "cuda": "13.2",
       "cvcuda": "0.16.0",
       "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
-      "nsight_systems": "NVIDIA Nsight Systems version 2026.3.1.117-263137992252v0",
+      "nsight_systems": "NVIDIA Nsight Systems version 2026.5.1.18-265138582488v0",
       "nvidia_ml_py": "13.610.43",
       "pynvvideocodec": "2.1.0",
       "python": "3.12.3",
-      "tensorrt": "11.0.0.114",
+      "tensorrt": "11.2.1.2",
       "torch": "2.11.0+cpu",
-      "trtvideo": "0.4.0"
+      "trtvideo": "0.7.0"
     }
   },
   "methodology": {
@@ -58,23 +58,23 @@
       "publishable": true,
       "suite": {
         "path": "artefacts/benchmarks/diagnostics/trtexec/realesrgan_x2plus_madrid-720p/suite.json",
-        "sha256": "26bd8f31b84e22e0652a5b283e97e25360d29a24c003fb5cfedcfd48c568e21d"
+        "sha256": "f74453c01b1b47f940af13282a089d1c03d2ab469a0e1a446ccc7f5bbc8f9571"
       },
       "run_manifest_sha256": [
-        "4554f35cbd435728715063d543c2c14e282df4ad87b60a5eea116439957b6139",
-        "7ea4a2815e370ee7a98faa14f68d8248bf79216e643dfadd4815ab182c4aff55",
-        "7836c570e82b4ec749ed03a30485385dc6a00c866a32fd33e06fa686fa3fac6a"
+        "d76be9412072f0963bef4f8821c89b64e7c86a202027cc411ed61649d66bcf69",
+        "9f938a61a79740425dde2d55a84dcf58a3fdcc531b61982b695e878d14d54b34",
+        "bb547cea3789a2a1cf2aac9c85cf1a53aaa86269195ffb25b6258e19c9b2f793"
       ],
       "assets": {
         "engine": {
           "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine",
-          "sha256": "a3d08d92d3a7f4c74d6009b9ceb3bfdee9d2549b6bf2b2317726033f2965461e",
-          "size_bytes": 41398436
+          "sha256": "605c4f910ec9a67d4e3dbdb09660396dff4a643a43933cd89020960cd381f6c4",
+          "size_bytes": 41596556
         },
         "engine_manifest": {
           "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_720p.engine.json",
-          "sha256": "17c5ea67b6df09187236c1c6a356786cac2926397bc8cfefb72170e1889acf20",
-          "size_bytes": 1062
+          "sha256": "b418160bfeb501b18ab037f17d65066847d81bd648c605237ca129a1a5e2b0b6",
+          "size_bytes": 1066
         }
       },
       "parameters": {
@@ -90,18 +90,18 @@
         "warmup_ms": 1000
       },
       "statistics": {
-        "max_fps": 6.22965,
-        "median_fps": 6.22734,
-        "min_fps": 6.2262,
-        "relative_spread": 0.0005540086136295679,
+        "max_fps": 6.31478,
+        "median_fps": 6.3036,
+        "min_fps": 6.29155,
+        "relative_spread": 0.0036851957611523352,
         "values_fps": [
-          6.22965,
-          6.22734,
-          6.2262
+          6.31478,
+          6.3036,
+          6.29155
         ]
       },
       "session_observations": {
-        "peak_temperature_c": 63,
+        "peak_temperature_c": 64,
         "power_cap_observed": true,
         "throttle_reasons": [
           "gpu_idle",
@@ -118,23 +118,23 @@
       "publishable": true,
       "suite": {
         "path": "artefacts/benchmarks/diagnostics/trtexec/realesrgan_x2plus_madrid-1080p/suite.json",
-        "sha256": "58e8425554807da853c06bb5b6d698ab5f3e4dcbecbf12f0d16b47752b85d66c"
+        "sha256": "9854fa354ca6d85a9bb1ed01884b022b787d50f98680aefc941a5441d5863625"
       },
       "run_manifest_sha256": [
-        "da68a309ceafd47cf51c59d0c426eb85aea76d657c8f387d6db00c91165ec752",
-        "8ed8afc97f107533132678900d0514bdd6635d3af6a7a6f621a2869aed0122bb",
-        "4c918eadc795233fb29ddb451e6918ca89d5641c6b3c9a7863e98911917fb8be"
+        "c8037b8952d411ecd251277a6385914fc73d33f4bb8920f066c17c31c486a74d",
+        "ce2beff09c3b46db8514b0ab8594df2f6f4611b309d34941129ac733db14fd87",
+        "865ca5815922c966e822d1ee7e0edfc693669caeb2a11344fabe76dc123ef650"
       ],
       "assets": {
         "engine": {
           "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine",
-          "sha256": "f386fd69f52bae7a6fa761be552ba6b6e192e25aef065e8e20797f7d552a79ac",
-          "size_bytes": 38477972
+          "sha256": "d900a71ba1c9e2bc748ccb9aef72b64ccc725fcb1be17ae316816987576b9f44",
+          "size_bytes": 38726036
         },
         "engine_manifest": {
           "path": "models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_1080p.engine.json",
-          "sha256": "bea1cf536afa2f2ac9d73075088d5dfa478b66ed4250f1bae1e4b4de44024d12",
-          "size_bytes": 1065
+          "sha256": "41bdf85e959ffef2297a08acb327b3348bb6369081a2794dd3431caa58be2d91",
+          "size_bytes": 1069
         }
       },
       "parameters": {
@@ -150,18 +150,18 @@
         "warmup_ms": 1000
       },
       "statistics": {
-        "max_fps": 2.82359,
-        "median_fps": 2.82018,
-        "min_fps": 2.81662,
-        "relative_spread": 0.0024714734520491317,
+        "max_fps": 2.81089,
+        "median_fps": 2.80468,
+        "min_fps": 2.80462,
+        "relative_spread": 0.0022355491535577037,
         "values_fps": [
-          2.81662,
-          2.82359,
-          2.82018
+          2.80462,
+          2.80468,
+          2.81089
         ]
       },
       "session_observations": {
-        "peak_temperature_c": 66,
+        "peak_temperature_c": 65,
         "power_cap_observed": true,
         "throttle_reasons": [
           "gpu_idle",
@@ -178,23 +178,23 @@
       "publishable": true,
       "suite": {
         "path": "artefacts/benchmarks/diagnostics/trtexec/liveaction_span_madrid-720p/suite.json",
-        "sha256": "af5f98d283b98718e9293dfb035e8c221d4144971b285b3a6b3a32b570fdb69c"
+        "sha256": "87c5d5fd93e1a01bd493a41040dc5363b9499b0ec2a20a10cbc3cb7ab054f995"
       },
       "run_manifest_sha256": [
-        "0266b1d1ed86f2f2668bff643a7123c5410cca4f9381ee3756a40babd3d65d8b",
-        "e38bafc7308bf17deed59872f8c8b24fed3c627b575137d018b65405989728a2",
-        "fe709b30f866415a566be71161c94b71c3a19fc74b95c7dda20d96190c0b27a0"
+        "afbac487a61cf300e0e7e4b7f06be249c86d8885fe3d76d29b22f234949b1244",
+        "e9ad5d29b40d2c3df88e56ba474aaa4b342f2698f249c60da3038ae3da1bc64b",
+        "a4ac8c66f2f79a9e151d85f6f2e0aacbeec0183105f3393264f27f47f361d8f0"
       ],
       "assets": {
         "engine": {
           "path": "models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine",
-          "sha256": "e15d3f3bdc5e78a4aa985317b46533147f8ae83594df46651892ec68fac859da",
-          "size_bytes": 1519476
+          "sha256": "752af448a9889c9f8a6707619a8750ac7f20f530a08f7b552d34e2bbe4a1e029",
+          "size_bytes": 1531268
         },
         "engine_manifest": {
           "path": "models/benchmarks/liveaction-span/engines/liveaction_span_720p.engine.json",
-          "sha256": "31a5bf38d0c29e7b606772b7ae1862294d8408808a724bf46928eb1892935a05",
-          "size_bytes": 1054
+          "sha256": "7cc7609564eb41e3c78c80e13d54951c9fe0e30200381c7382a037d1e6550cdb",
+          "size_bytes": 1058
         }
       },
       "parameters": {
@@ -210,18 +210,18 @@
         "warmup_ms": 1000
       },
       "statistics": {
-        "max_fps": 60.8816,
-        "median_fps": 60.7875,
-        "min_fps": 60.5214,
-        "relative_spread": 0.00592556035369112,
+        "max_fps": 61.5901,
+        "median_fps": 61.155,
+        "min_fps": 60.9856,
+        "relative_spread": 0.009884719156242361,
         "values_fps": [
-          60.5214,
-          60.7875,
-          60.8816
+          61.5901,
+          61.155,
+          60.9856
         ]
       },
       "session_observations": {
-        "peak_temperature_c": 64,
+        "peak_temperature_c": 53,
         "power_cap_observed": true,
         "throttle_reasons": [
           "gpu_idle",
@@ -238,23 +238,23 @@
       "publishable": true,
       "suite": {
         "path": "artefacts/benchmarks/diagnostics/trtexec/liveaction_span_madrid-1080p/suite.json",
-        "sha256": "ff1b20ee95b6d5b3db23ccd81d3c5f3940c8cb0cd6edd17f57dfcb28a46ada45"
+        "sha256": "d4227f1fe51e0793ec3839a9f9dc3106eafd8c2848d9fa484f6779b8a969e00d"
       },
       "run_manifest_sha256": [
-        "2d930273fcae0a09ba785717471de0b0cf7793d5937b7b0f6165af97013f3b65",
-        "14b984b36dcf1c4bd7404ea4882c540f0f4f46c332dcb43c530bfb31a6548ce2",
-        "0415068dd183eeaced4fdfbb6a73d76a9835e953be73d7d4e020078cc6e5240e"
+        "f565a67fa8931e37cd7986b834865853f62b989d0024979fc3460e911619bed1",
+        "e521850a273e57c22124cb9c381430141e87777a7b537ce165f28191987774b2",
+        "397dbb66d494cce5c5a3c8f9ab582cb716a4d3f19dbe4445ef96dd062fb84251"
       ],
       "assets": {
         "engine": {
           "path": "models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine",
-          "sha256": "7b25f2095b1b6d1c0c753a464bd149116de98fc12bc6f392f1ef6d1399abe017",
-          "size_bytes": 1655748
+          "sha256": "10d55dc14a426e8943f7cddc86721bac0cdb5578072dbe05faf51ca52a6e0061",
+          "size_bytes": 1532164
         },
         "engine_manifest": {
           "path": "models/benchmarks/liveaction-span/engines/liveaction_span_1080p.engine.json",
-          "sha256": "1d333791b6376757e88a0213ac2f146f0f4f36a65cd577567daedce8b026fce2",
-          "size_bytes": 1057
+          "sha256": "a1d7857f8f637ad74ecb3291ff98b49cd6fd6f87c0b3a85d7d7c80387352da81",
+          "size_bytes": 1061
         }
       },
       "parameters": {
@@ -270,18 +270,18 @@
         "warmup_ms": 1000
       },
       "statistics": {
-        "max_fps": 27.5234,
-        "median_fps": 27.5115,
-        "min_fps": 27.5087,
-        "relative_spread": 0.0005343220107954024,
+        "max_fps": 27.673,
+        "median_fps": 27.6648,
+        "min_fps": 27.6369,
+        "relative_spread": 0.0013049073190479446,
         "values_fps": [
-          27.5087,
-          27.5115,
-          27.5234
+          27.673,
+          27.6648,
+          27.6369
         ]
       },
       "session_observations": {
-        "peak_temperature_c": 62,
+        "peak_temperature_c": 60,
         "power_cap_observed": true,
         "throttle_reasons": [
           "gpu_idle",
@@ -300,25 +300,25 @@
     "evidence": {
       "manifest": {
         "path": "artefacts/benchmarks/diagnostics/nsight/liveaction_span_madrid-1080p/manifest.json",
-        "sha256": "f91afe0a1fad3ee5425a8b0141d99025ad0c692301f37b690f4528474d244400"
+        "sha256": "3eab00122a829a151c008d804758a7a9f54cafc48a973f65c93a9c2570a8092a"
       },
       "trace": {
         "path": "artefacts/benchmarks/diagnostics/nsight/liveaction_span_madrid-1080p/trtvideo.nsys-rep",
-        "sha256": "9f82c4619d6fd83c048aa4a75b2f78347a04c843129ac1deeb25081292798fd3",
-        "size_bytes": 1038710
+        "sha256": "142ef26df1c33e177873d75af95a4667aada73aeb41eec8d1cb73c25415bd015",
+        "size_bytes": 1075096
       },
       "sqlite": {
         "path": "artefacts/benchmarks/diagnostics/nsight/liveaction_span_madrid-1080p/trtvideo.sqlite",
-        "sha256": "290d2a389d28a47993e0b3a7b826512a2d8ae89ddebb4fd4a44f95ce3d5c9d5d",
-        "size_bytes": 3928064
+        "sha256": "e87056a1c21c8f26837a86df4a3c2cb3de0abb7b3fb70baa582c9e83eb794010",
+        "size_bytes": 5218304
       }
     },
     "output_validation": true,
     "findings": {
-      "frame_loop_sec": 4.522849665,
-      "cuda_kernel_time_coverage_of_frame_loop_percent": 98.17980644731423,
-      "nvdec_overlap_with_cuda_kernels_percent": 94.24709019790447,
-      "nvenc_overlap_with_cuda_kernels_percent": 96.64065908590588,
+      "frame_loop_sec": 4.524454979,
+      "cuda_kernel_time_coverage_of_frame_loop_percent": 97.83895122277004,
+      "nvdec_overlap_with_cuda_kernels_percent": 94.35561910655133,
+      "nvenc_overlap_with_cuda_kernels_percent": 96.61610701464778,
       "startup_h2d_copy_count": 1,
       "startup_h2d_mib": 0.79693603515625,
       "frame_loop_h2d_copy_count": 0,
@@ -327,7 +327,7 @@
       "frame_loop_d2h_mib": 0.0,
       "frame_loop_d2d_copy_count": 480,
       "per_frame_d2d_mib": 14.83154296875,
-      "per_frame_d2d_time_ms": 0.042600650000000004,
+      "per_frame_d2d_time_ms": 0.042691525,
       "material_per_frame_h2d_or_d2h": false
     },
     "limitations": [

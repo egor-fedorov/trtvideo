@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib
 import importlib.metadata
@@ -9,8 +10,12 @@ import json
 import os
 import platform
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
+
+from benchmarks.scripts.contracts.manifest import hardware_environment
+from benchmarks.scripts.runtime.nvml import NvmlSampler
 
 
 def sha256_file(path: Path) -> str:
@@ -101,23 +106,27 @@ def collect_image_identity(*, default_reference: str = "unknown") -> dict[str, s
     return {
         "reference": os.environ.get("TRTVIDEO_IMAGE_REF", default_reference),
         "id": os.environ.get("TRTVIDEO_IMAGE_ID", "unknown"),
-        "base_reference": os.environ.get(
-            "TRTVIDEO_BASE_IMAGE",
-            "nvcr.io/nvidia/tensorrt:26.06-py3",
-        ),
+        "base_reference": os.environ.get("TRTVIDEO_BASE_IMAGE", "unknown"),
         "repository_revision": os.environ.get("TRTVIDEO_BUILD_REVISION", "unknown"),
         "source_dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
     }
 
 
-def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
-    """Collect only fields allowed by the public benchmark methodology."""
+def collect_hardware_environment(gpu: dict[str, Any]) -> dict[str, Any]:
+    """Collect the same static CPU/GPU snapshot for preflight and measured runs."""
     return {
         "gpu": gpu,
         "cpu": {
             "model": _cpu_model(),
             "logical_cores": os.cpu_count(),
         },
+    }
+
+
+def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
+    """Collect only fields allowed by the public benchmark methodology."""
+    return {
+        **collect_hardware_environment(gpu),
         "software": {
             "python": platform.python_version(),
             "trtvideo": _package_version("trtvideo"),
@@ -144,3 +153,57 @@ def environment_errors(environment: dict[str, Any]) -> list[str]:
     if str(image.get("source_dirty", "unknown")).lower() not in {"0", "false"}:
         errors.append("Image was built from unknown or dirty source state")
     return errors
+
+
+def probe_hardware_environment(*, image_id: str, gpu_id: int) -> dict[str, Any]:
+    """Query the benchmark container's hardware contract without starting a workload."""
+    if gpu_id < 0:
+        raise ValueError("GPU id must be non-negative")
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--gpus",
+            "all",
+            "--network",
+            "none",
+            image_id,
+            "python3",
+            "-m",
+            "benchmarks.scripts.runtime.environment",
+            "--gpu-id",
+            str(gpu_id),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    environment = json.loads(result.stdout)
+    if not isinstance(environment, dict):
+        raise ValueError("Hardware probe must return a JSON object")
+    hardware = hardware_environment(environment)
+    assert hardware is not None
+    return hardware
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Print the static benchmark CPU/GPU contract")
+    parser.add_argument("--gpu-id", type=int, required=True)
+    args = parser.parse_args()
+    if args.gpu_id < 0:
+        parser.error("GPU id must be non-negative")
+    sampler = NvmlSampler(args.gpu_id)
+    try:
+        hardware = collect_hardware_environment(sampler.initialize())
+        print(json.dumps(hardware, sort_keys=True, allow_nan=False))
+    except (RuntimeError, ValueError) as exc:
+        print(f"ERROR: Cannot query benchmark hardware: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    finally:
+        sampler.shutdown()
+
+
+if __name__ == "__main__":
+    main()

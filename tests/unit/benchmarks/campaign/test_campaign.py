@@ -25,6 +25,7 @@ from benchmarks.scripts.campaign.core import (
     CampaignEventError,
     append_event,
     campaign_steps,
+    load_campaign_config,
     load_events,
     write_campaign_config,
 )
@@ -43,8 +44,7 @@ def test_removed_execution_profile_is_rejected() -> None:
     with pytest.raises(CampaignEventError, match="Unknown campaign"):
         CampaignConfig.create(
             execution_profile="parity",
-            vstrt_arguments="",
-            vsgan_arguments="",
+            implementation_arguments={"vstrt": "", "tas": ""},
         )
 
 
@@ -93,8 +93,7 @@ def _campaign(
         campaign_dir / CONFIG_NAME,
         CampaignConfig.create(
             execution_profile="upstream-default",
-            vstrt_arguments="",
-            vsgan_arguments="",
+            implementation_arguments={"vstrt": "", "tas": ""},
         ),
     )
     encoder = NvencCbrContract(
@@ -103,7 +102,7 @@ def _campaign(
     ).as_dict()
     for implementation, product in IMPLEMENTATIONS.items():
         for round_index, value in enumerate(fps[implementation], start=1):
-            engine_sha = "shared-engine" if implementation != "vsgan" else "vsgan-engine"
+            engine_sha = "shared-engine" if implementation != "tas" else "tas-engine"
             wall_time_sec = measured_frames / value
             manifest: dict[str, Any] = {
                 "status": "valid",
@@ -184,14 +183,13 @@ def _campaign(
                         "cuda_graph": False,
                     }
                 )
-            elif implementation == "vsgan":
+            elif implementation == "tas":
                 manifest["parameters"].update(
                     {
                         "execution_profile": "upstream-default",
-                        "vspipe_requests": "auto",
-                        "num_streams": 4,
-                        "vapoursynth_threads": 4,
-                        "cuda_graph": False,
+                        "decode_method": "cpu",
+                        "writer": "ffmpeg",
+                        "cuda_graph": True,
                     }
                 )
             _write_json(
@@ -286,20 +284,19 @@ def _tensor_report(root: Path, *, preprocessing: bool) -> Path:
                     },
                 },
                 {
-                    "implementation": "VSGAN-tensorrt-docker",
+                    "implementation": "TheAnimeScripter",
                     "status": status,
                     "capture_manifest_sha256": "c" * 64,
                     **({"canonical_input_manifest_sha256": "a" * 64} if not preprocessing else {}),
-                    "engine_sha256": "vsgan-engine",
+                    "engine_sha256": "tas-engine",
                     "execution_profile": {
                         "execution_profile": "upstream-default",
-                        "vspipe_requests": "auto",
-                        "num_streams": 4,
-                        "vapoursynth_threads": 4,
-                        "cuda_graph": False,
+                        "decode_method": "cpu",
+                        "writer": "ffmpeg",
+                        "cuda_graph": True,
                     },
                     "image": {
-                        "id": "vsgan-image",
+                        "id": "tas-image",
                         "repository_revision": "revision-1",
                         "source_dirty": "0",
                     },
@@ -355,14 +352,13 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
                     "cuda_graph": False,
                 }
             )
-        elif implementation == "vsgan":
+        elif implementation == "tas":
             parameters.update(
                 {
                     "execution_profile": "upstream-default",
-                    "vspipe_requests": "auto",
-                    "num_streams": 4,
-                    "vapoursynth_threads": 4,
-                    "cuda_graph": False,
+                    "decode_method": "cpu",
+                    "writer": "ffmpeg",
+                    "cuda_graph": True,
                 }
             )
         manifest = {
@@ -402,7 +398,7 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
     comparisons = []
     for product, implementation, engine in (
         ("vs-mlrt", "vstrt", "shared-engine"),
-        ("VSGAN-tensorrt-docker", "vsgan", "vsgan-engine"),
+        ("TheAnimeScripter", "tas", "tas-engine"),
     ):
         manifest_path, run_manifest_sha = run_manifest(
             f"{implementation}/run-01/manifest.json",
@@ -441,7 +437,7 @@ def _product_output_report(root: Path, *, contract_version: int = 1) -> Path:
     for implementation, directory in (
         ("trtvideo", "trtvideo"),
         ("vs-mlrt", "vstrt"),
-        ("VSGAN-tensorrt-docker", "vsgan"),
+        ("TheAnimeScripter", "tas"),
     ):
         crops = []
         for frame_index in (0, 499, 999):
@@ -500,7 +496,7 @@ def test_aggregate_campaign_builds_acceptance_table(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
 
@@ -516,6 +512,16 @@ def test_aggregate_campaign_builds_acceptance_table(
     ]
     assert summary["needs_extra_runs"] is False
     assert summary["execution_profile"] == "upstream-default"
+    assert summary["participants"] == ["trtvideo", "vstrt", "tas"]
+    assert summary["execution"]["runner_arguments"] == {"vstrt": "", "tas": ""}
+    assert summary["parameters"]["execution_profiles"]["tas"] == {
+        "execution_profile": "upstream-default",
+        "decode_method": "cpu",
+        "writer": "ffmpeg",
+        "cuda_graph": True,
+    }
+    assert summary["implementations"]["tas"]["product"] == "TheAnimeScripter"
+    assert summary["implementations"]["tas"]["engine_sha256"] == "tas-engine"
     assert summary["parameters"]["rounds"] == 3
     assert summary["parameters"]["execution_profiles"]["vstrt"] == {
         "execution_profile": "upstream-default",
@@ -542,7 +548,7 @@ def test_aggregate_campaign_accepts_matching_inference_report(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
 
@@ -570,7 +576,7 @@ def test_aggregate_campaign_is_publishable_with_all_quality_reports(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
 
@@ -602,7 +608,7 @@ def test_product_output_quality_keeps_full_clip_for_shorter_campaign(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
         contract_version=2,
         measured_frames=400,
@@ -637,7 +643,7 @@ def test_aggregate_campaign_rejects_inference_engine_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     report_path = _inference_report(tmp_path)
@@ -645,7 +651,7 @@ def test_aggregate_campaign_rejects_inference_engine_drift(
     report["comparisons"][1]["engine_sha256"] = "other-engine"
     _write_json(report_path, report)
 
-    with pytest.raises(CampaignError, match="VSGAN-tensorrt-docker engine"):
+    with pytest.raises(CampaignError, match="TheAnimeScripter engine"):
         aggregate_campaign(
             campaign_dir,
             root=tmp_path,
@@ -654,9 +660,17 @@ def test_aggregate_campaign_rejects_inference_engine_drift(
         )
 
 
+@pytest.mark.parametrize(
+    "index,key,value,product",
+    [(0, "num_streams", 2, "vs-mlrt"), (1, "writer", "nelux", "TheAnimeScripter")],
+)
 def test_aggregate_campaign_rejects_inference_profile_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    index: int,
+    key: str,
+    value: Any,
+    product: str,
 ) -> None:
     monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
@@ -664,15 +678,15 @@ def test_aggregate_campaign_rejects_inference_profile_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     report_path = _inference_report(tmp_path)
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report["comparisons"][0]["execution_profile"]["num_streams"] = 2
+    report["comparisons"][index]["execution_profile"][key] = value
     _write_json(report_path, report)
 
-    with pytest.raises(CampaignError, match="vs-mlrt execution profile"):
+    with pytest.raises(CampaignError, match=f"{product} execution profile"):
         aggregate_campaign(
             campaign_dir,
             root=tmp_path,
@@ -691,7 +705,7 @@ def test_aggregate_campaign_rejects_inference_image_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     report_path = _inference_report(tmp_path)
@@ -718,7 +732,7 @@ def test_aggregate_campaign_rejects_product_output_image_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     report_path = _product_output_report(tmp_path)
@@ -739,9 +753,13 @@ def test_aggregate_campaign_rejects_product_output_image_drift(
         )
 
 
+@pytest.mark.parametrize("index,key,value", [(0, "num_streams", 2), (1, "writer", "nelux")])
 def test_aggregate_campaign_rejects_product_output_profile_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    index: int,
+    key: str,
+    value: Any,
 ) -> None:
     monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
     campaign_dir = _campaign(
@@ -749,16 +767,16 @@ def test_aggregate_campaign_rejects_product_output_profile_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     report_path = _product_output_report(tmp_path)
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    manifest_path = tmp_path / report["comparisons"][0]["run_manifest"]
+    manifest_path = tmp_path / report["comparisons"][index]["run_manifest"]
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["parameters"]["num_streams"] = 2
+    manifest["parameters"][key] = value
     _write_json(manifest_path, manifest)
-    report["comparisons"][0]["run_manifest_sha256"] = sha256_file(manifest_path)
+    report["comparisons"][index]["run_manifest_sha256"] = sha256_file(manifest_path)
     _write_json(report_path, report)
 
     with pytest.raises(CampaignError, match="changed execution profile"):
@@ -780,7 +798,7 @@ def test_aggregate_campaign_requests_two_extra_rounds(
         {
             "trtvideo": [10.0, 12.0, 8.0],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
 
@@ -801,10 +819,10 @@ def test_aggregate_campaign_rejects_mixed_revisions(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
-    path = campaign_dir / "vsgan/round-02/run-01/manifest.json"
+    path = campaign_dir / "tas/round-02/run-01/manifest.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
     manifest["environment"]["image"]["repository_revision"] = "other-revision"
     _write_json(path, manifest)
@@ -823,7 +841,7 @@ def test_aggregate_campaign_rejects_mixed_benchmark_contract_versions(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     path = campaign_dir / "vstrt/round-02/run-01/manifest.json"
@@ -845,7 +863,7 @@ def test_aggregate_campaign_rejects_mixed_execution_profiles(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     path = campaign_dir / "vstrt/round-02/run-01/manifest.json"
@@ -867,7 +885,7 @@ def test_aggregate_campaign_rejects_requested_profile_mismatch(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
 
@@ -890,10 +908,10 @@ def test_aggregate_campaign_rejects_different_cpu_accounting(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
-    path = campaign_dir / "vsgan/round-02/run-01/manifest.json"
+    path = campaign_dir / "tas/round-02/run-01/manifest.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
     manifest["measured"]["metrics"]["cpu"]["available_logical_cpus"] = 8
     _write_json(path, manifest)
@@ -912,7 +930,7 @@ def test_aggregate_campaign_requires_execution_log(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     (campaign_dir / EVENT_LOG_NAME).unlink()
@@ -931,7 +949,7 @@ def test_aggregate_campaign_rejects_unobserved_idle_interval(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     events_path = campaign_dir / EVENT_LOG_NAME
@@ -956,12 +974,12 @@ def test_aggregate_campaign_rejects_declared_order_drift(
         {
             "trtvideo": [10.0, 10.1, 9.9],
             "vstrt": [9.0, 9.1, 8.9],
-            "vsgan": [8.8, 8.9, 8.7],
+            "tas": [8.8, 8.9, 8.7],
         },
     )
     events_path = campaign_dir / EVENT_LOG_NAME
     events = [json.loads(line) for line in events_path.read_text().splitlines()]
-    events[1]["implementation"] = "vsgan"
+    events[1]["implementation"] = "tas"
     events_path.write_text(
         "".join(f"{json.dumps(event)}\n" for event in events),
         encoding="utf-8",
@@ -981,7 +999,7 @@ def test_aggregate_campaign_accepts_complete_five_round_log(
         {
             "trtvideo": [10.0, 10.1, 9.9, 10.0, 10.1],
             "vstrt": [9.0, 9.1, 8.9, 9.0, 9.1],
-            "vsgan": [8.8, 8.9, 8.7, 8.8, 8.9],
+            "tas": [8.8, 8.9, 8.7, 8.8, 8.9],
         },
     )
 
@@ -989,7 +1007,7 @@ def test_aggregate_campaign_accepts_complete_five_round_log(
 
     assert summary["status"] == "valid"
     assert summary["parameters"]["rounds"] == 5
-    assert summary["rounds"][3]["order"] == ["vsgan", "vstrt", "trtvideo"]
+    assert summary["rounds"][3]["order"] == ["tas", "vstrt", "trtvideo"]
 
 
 def test_aggregate_campaign_accepts_four_of_five_consensus(
@@ -1009,7 +1027,7 @@ def test_aggregate_campaign_accepts_four_of_five_consensus(
         {
             "trtvideo": [25.1, 25.0, 24.9, 25.1, 25.0],
             "vstrt": vstrt_fps,
-            "vsgan": [9.3, 9.2, 9.1, 9.3, 9.2],
+            "tas": [9.3, 9.2, 9.1, 9.3, 9.2],
         },
     )
 
@@ -1054,7 +1072,7 @@ def test_aggregate_campaign_rejects_five_runs_without_consensus(
         {
             "trtvideo": [10.0, 10.1, 9.9, 10.0, 10.1],
             "vstrt": [8.0, 9.0, 10.0, 11.0, 12.0],
-            "vsgan": [8.8, 8.9, 8.7, 8.8, 8.9],
+            "tas": [8.8, 8.9, 8.7, 8.8, 8.9],
         },
     )
 
@@ -1082,6 +1100,7 @@ def test_campaign_coordinator_records_actual_rotation(
     def fake_make(command: list[str], *, check: bool) -> subprocess.CompletedProcess:
         assert check is False
         assert "EXECUTION_PROFILE=upstream-default" in command
+        assert "TAS_ARGS=--decode-method cpu --writer ffmpeg" in command
         target = command[3]
         if target == "aggregate-campaign":
             _write_json(campaign_dir / "campaign.json", {"status": "valid"})
@@ -1104,7 +1123,7 @@ def test_campaign_coordinator_records_actual_rotation(
         make_command="make",
         execution_profile="upstream-default",
         vstrt_arguments="",
-        vsgan_arguments="",
+        tas_arguments="--decode-method cpu --writer ffmpeg",
         resume=False,
     )
 
@@ -1117,6 +1136,12 @@ def test_campaign_coordinator_records_actual_rotation(
     assert all(event.status == "completed" for event in events)
     config = json.loads((campaign_dir / CONFIG_NAME).read_text(encoding="utf-8"))
     assert config["execution_profile"] == "upstream-default"
+    assert config["schema_version"] == 2
+    assert config["participants"] == ["trtvideo", "vstrt", "tas"]
+    assert config["implementation_arguments"] == {
+        "vstrt": "",
+        "tas": "--decode-method cpu --writer ffmpeg",
+    }
     output = capsys.readouterr().out
     assert "[campaign 1/9] trtvideo, round 1/3" in output
     assert "[campaign 9/9] vstrt, round 3/3" in output
@@ -1158,7 +1183,7 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
         make_command="make",
         execution_profile="upstream-default",
         vstrt_arguments="",
-        vsgan_arguments="",
+        tas_arguments="",
         resume=False,
     )
 
@@ -1170,9 +1195,11 @@ def test_campaign_coordinator_runs_extra_rounds_from_aggregate_status(
     assert events[-1].round_index == 5
 
 
+@pytest.mark.parametrize("implementation", ["vstrt", "tas"])
 def test_campaign_coordinator_rejects_changed_profile_arguments_on_resume(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    implementation: str,
 ) -> None:
     campaign_dir = tmp_path / "artefacts/benchmarks/campaign"
     benchmarks_dir = tmp_path / "benchmarks"
@@ -1181,8 +1208,10 @@ def test_campaign_coordinator_rejects_changed_profile_arguments_on_resume(
         campaign_dir / CONFIG_NAME,
         CampaignConfig.create(
             execution_profile="tuned",
-            vstrt_arguments="--requests auto --num-streams 2",
-            vsgan_arguments="--requests auto --num-streams 4",
+            implementation_arguments={
+                "vstrt": "--requests auto --num-streams 2",
+                "tas": "--decode-method nvdec --writer nelux",
+            },
         ),
     )
     monkeypatch.setattr(
@@ -1196,10 +1225,187 @@ def test_campaign_coordinator_rejects_changed_profile_arguments_on_resume(
         idle_seconds=0.0,
         make_command="make",
         execution_profile="tuned",
-        vstrt_arguments="--requests auto --num-streams 3",
-        vsgan_arguments="--requests auto --num-streams 4",
+        vstrt_arguments="--requests auto --num-streams 2",
+        tas_arguments="--decode-method nvdec --writer nelux",
         resume=True,
     )
+    if implementation == "vstrt":
+        args.vstrt_arguments = "--requests auto --num-streams 3"
+    else:
+        args.tas_arguments = "--decode-method nvdec --writer ffmpeg"
 
     with pytest.raises(CampaignRunError, match="runner arguments changed"):
         run_campaign(args)
+
+
+def test_campaign_config_roundtrip_records_participants_and_arguments(tmp_path: Path) -> None:
+    config = CampaignConfig.create(
+        execution_profile="tuned",
+        implementation_arguments={
+            "vstrt": " --num-streams 3 ",
+            "tas": " --decode-method nvdec --writer nelux ",
+        },
+    )
+    path = tmp_path / CONFIG_NAME
+    write_campaign_config(path, config)
+
+    assert load_campaign_config(path) == config
+    assert config.as_dict() == {
+        "schema_version": 2,
+        "execution_profile": "tuned",
+        "participants": ["trtvideo", "vstrt", "tas"],
+        "implementation_arguments": {
+            "vstrt": "--num-streams 3",
+            "tas": "--decode-method nvdec --writer nelux",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "participants",
+    [
+        ["trtvideo", "vstrt", "vsgan"],
+        ["trtvideo", "tas", "vstrt"],
+        ["trtvideo", "vstrt", "vstrt"],
+        ["trtvideo", "vstrt"],
+        "trtvideo,vstrt,tas",
+    ],
+)
+def test_campaign_config_rejects_changed_participants(participants: Any) -> None:
+    document = CampaignConfig.create(
+        execution_profile="tuned", implementation_arguments={"vstrt": "", "tas": ""}
+    ).as_dict()
+    document["participants"] = participants
+
+    with pytest.raises(CampaignEventError, match="participants"):
+        CampaignConfig.from_dict(document)
+
+
+@pytest.mark.parametrize(
+    "arguments", [{"vstrt": ""}, {"vstrt": "", "vsgan": ""}, {"vstrt": "", "tas": None}]
+)
+def test_campaign_config_requires_arguments_for_each_external(arguments: Any) -> None:
+    with pytest.raises(CampaignEventError, match="arguments"):
+        CampaignConfig.create(execution_profile="tuned", implementation_arguments=arguments)
+
+
+def test_campaign_coordinator_rejects_legacy_resume_before_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    campaign_dir = tmp_path / "campaign"
+    _write_json(
+        campaign_dir / CONFIG_NAME,
+        {
+            "schema_version": 1,
+            "execution_profile": "tuned",
+            "vstrt_arguments": "",
+            "vsgan_arguments": "",
+        },
+    )
+
+    def unexpected_make(*args: Any, **kwargs: Any) -> None:
+        pytest.fail("Legacy resume must be rejected before executing any commands")
+
+    monkeypatch.setattr("benchmarks.scripts.campaign.run.subprocess.run", unexpected_make)
+    args = argparse.Namespace(
+        campaign_dir=str(campaign_dir),
+        make_campaign_dir="campaign",
+        benchmarks_dir=str(tmp_path),
+        idle_seconds=0,
+        make_command="make",
+        execution_profile="tuned",
+        vstrt_arguments="",
+        tas_arguments="",
+        resume=True,
+    )
+
+    with pytest.raises(CampaignEventError, match="legacy campaigns cannot be resumed"):
+        run_campaign(args)
+
+
+@pytest.mark.parametrize("field,value", [("writer", "nelux"), ("decode_method", "nvdec")])
+def test_aggregate_campaign_rejects_tas_profile_drift_between_rounds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str, value: str
+) -> None:
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {"trtvideo": [10.0] * 3, "vstrt": [9.0] * 3, "tas": [8.8] * 3},
+    )
+    path = campaign_dir / "tas/round-02/run-01/manifest.json"
+    manifest = json.loads(path.read_text())
+    manifest["parameters"][field] = value
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="tas execution profile changed"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_rejects_tas_graph_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {"trtvideo": [10.0] * 3, "vstrt": [9.0] * 3, "tas": [8.8] * 3},
+    )
+    path = campaign_dir / "tas/round-01/run-01/manifest.json"
+    manifest = json.loads(path.read_text())
+    manifest["parameters"]["cuda_graph"] = False
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="TAS requires cuda_graph=true"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+@pytest.mark.parametrize("implementation", ["tas", "vstrt"])
+def test_aggregate_campaign_requires_shared_onnx(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, implementation: str
+) -> None:
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {"trtvideo": [10.0] * 3, "vstrt": [9.0] * 3, "tas": [8.8] * 3},
+    )
+    path = campaign_dir / f"{implementation}/round-01/run-01/manifest.json"
+    manifest = json.loads(path.read_text())
+    manifest["assets"]["onnx"]["sha256"] = "another-onnx"
+    _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="ONNX SHA256"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+def test_aggregate_campaign_requires_shared_trtvideo_vstrt_engine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {"trtvideo": [10.0] * 3, "vstrt": [9.0] * 3, "tas": [8.8] * 3},
+    )
+    for path in campaign_dir.glob("vstrt/round-*/run-01/manifest.json"):
+        manifest = json.loads(path.read_text())
+        manifest["assets"]["engine"]["sha256"] = "rebuilt-engine"
+        _write_json(path, manifest)
+
+    with pytest.raises(CampaignError, match="must use the same serialized engine"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10)
+
+
+@pytest.mark.parametrize("replacement", ["VSGAN-tensorrt-docker", "vs-mlrt"])
+def test_product_output_rejects_legacy_or_duplicate_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, replacement: str
+) -> None:
+    monkeypatch.delenv("TRTVIDEO_BUILD_REVISION", raising=False)
+    campaign_dir = _campaign(
+        tmp_path,
+        {"trtvideo": [10.0] * 3, "vstrt": [9.0] * 3, "tas": [8.8] * 3},
+    )
+    path = _product_output_report(tmp_path)
+    report = json.loads(path.read_text())
+    report["comparisons"][1]["implementation"] = replacement
+    _write_json(path, report)
+
+    with pytest.raises(CampaignError, match="comparison set changed"):
+        aggregate_campaign(campaign_dir, root=tmp_path, idle_seconds=10, product_output_report=path)

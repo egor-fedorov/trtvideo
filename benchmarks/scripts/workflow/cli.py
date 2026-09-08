@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from benchmarks.scripts.campaign.core import PARTICIPANTS
 from benchmarks.scripts.workflow.matrix import (
     WorkflowMatrixError,
     load_workflow_matrix,
@@ -157,6 +158,9 @@ def main() -> None:
             "matrix_sha256": _sha256(matrix_path),
             "repository_revision": revision,
             "selections": selection_keys,
+            "participants": (
+                list(PARTICIPANTS) if options.goal in {"comparative", "tuned"} else ["trtvideo"]
+            ),
         }
         state_path = _state_path(
             root,

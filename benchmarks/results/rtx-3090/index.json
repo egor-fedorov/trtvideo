@@ -14,24 +14,24 @@
     "self_contained_result_files": true,
     "cross_contract_aggregation": false,
     "human_summary": "README.md",
-    "notes": "Tuned and diagnostic classes were measured in one controlled session on one server. Invalid attempts were rejected before aggregation; only retained valid evidence is published. Diagnostics rebuilt equivalent-contract TensorRT engines and are supporting ceilings and profiler evidence, not product competitors or an exact decomposition of tuned throughput."
+    "notes": "September trtvideo/vs-mlrt/TAS session on one server and clean revision, with TensorRT 11.2.1.2. Twelve thermal-invalid attempts were archived and retried; all 36 retained final campaign runs are valid. A hashed vs-mlrt stream-8 OOM ceiling is not an FPS point. Diagnostics rebuilt equivalent-contract engines and are supporting evidence, not an exact decomposition of tuned throughput."
   },
   "result_sets": [
     {
       "id": "tuned",
       "file": "tuned.json",
-      "sha256": "18b82552e17d23cdc861d23e93c4c31c3704c513626e9872d9cfc824f731a674",
-      "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
-      "date_utc": "2026-08-16",
+      "sha256": "7444d0e2e114b830696ea048b3ed45f6ee9f1931e3a423956d683fe37105bb73",
+      "measurement_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
+      "date_utc": "2026-09-07",
       "status": "valid",
       "publishable": true
     },
     {
       "id": "diagnostics",
       "file": "diagnostics.json",
-      "sha256": "c7891af519152376828be6ce72ebbc0514a2d24a19bd5b586b67dde847fa2a3c",
-      "measurement_revision": "22e31eb660b90fe4bc70d2227987ecb6bf82f38c",
-      "date_utc": "2026-08-16",
+      "sha256": "352a139cc0232e6f5b015df1d8926eb3d16ee6342c1cfb1be8c70ff8bc12438b",
+      "measurement_revision": "b5bf437e17813ea2f6fc1b268a479b612f83dc08",
+      "date_utc": "2026-09-08",
       "status": "valid",
       "publishable": true
     }

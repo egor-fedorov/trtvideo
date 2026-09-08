@@ -221,7 +221,7 @@ def test_inference_parity_rejects_large_output_difference(tmp_path: Path) -> Non
     )
     candidate = _write_capture(
         tmp_path / "candidate",
-        implementation="VSGAN-tensorrt-docker",
+        implementation="TheAnimeScripter",
         capture_scope="shared-input-inference",
         engine_sha256="4" * 64,
         input_value=0.25,
@@ -304,7 +304,7 @@ def _vspipe_args(*, implementation: str, execution_profile: str) -> argparse.Nam
 
 def test_vspipe_production_capture_uses_requested_video_frame(tmp_path: Path) -> None:
     command = build_capture_command(
-        _vspipe_args(implementation="vsgan", execution_profile="upstream-default"),
+        _vspipe_args(implementation="vstrt", execution_profile="upstream-default"),
         input_path=Path("/app/videos/input.mp4"),
         output_path=tmp_path / "output.f32",
         frame_index=499,
@@ -314,7 +314,7 @@ def test_vspipe_production_capture_uses_requested_video_frame(tmp_path: Path) ->
     assert command[command.index("--start") + 1] == "499"
     assert "source=/app/videos/input.mp4" in command
     assert "model_space_stage=input" in command
-    assert "vs_threads=4" in command
+    assert "num_streams=1" in command
 
 
 def test_vspipe_shared_input_capture_bypasses_video_preprocessing(tmp_path: Path) -> None:

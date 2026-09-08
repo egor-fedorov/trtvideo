@@ -14,6 +14,12 @@ PROFILE_PARAMETER_KEYS = (
     "vapoursynth_threads",
     "cuda_graph",
 )
+TAS_PROFILE_PARAMETER_KEYS = (
+    "execution_profile",
+    "decode_method",
+    "writer",
+    "cuda_graph",
+)
 
 
 class ManifestContractError(RuntimeError):
@@ -67,13 +73,27 @@ def benchmark_contract_version(manifest: dict[str, Any]) -> int:
 
 
 def execution_profile(parameters: dict[str, Any]) -> dict[str, Any]:
-    """Extract all scheduling fields from runner parameters."""
-    missing = [key for key in PROFILE_PARAMETER_KEYS if key not in parameters]
+    """Extract the scheduling or I/O profile without mixing implementation families."""
+    tas = "decode_method" in parameters or "writer" in parameters
+    if tas and any(
+        key in parameters for key in ("vspipe_requests", "num_streams", "vapoursynth_threads")
+    ):
+        raise ManifestContractError("Manifest mixes TAS and VapourSynth execution profile fields")
+    keys = TAS_PROFILE_PARAMETER_KEYS if tas else PROFILE_PARAMETER_KEYS
+    missing = [key for key in keys if key not in parameters]
     if missing:
         raise ManifestContractError(
             "Manifest has no execution profile fields: " + ", ".join(missing)
         )
-    return {key: parameters[key] for key in PROFILE_PARAMETER_KEYS}
+    profile = {key: parameters[key] for key in keys}
+    if tas:
+        if profile["decode_method"] not in ("cpu", "nvdec"):
+            raise ManifestContractError("TAS decode_method must be cpu or nvdec")
+        if profile["writer"] not in ("ffmpeg", "nelux"):
+            raise ManifestContractError("TAS writer must be ffmpeg or nelux")
+        if profile["cuda_graph"] is not True:
+            raise ManifestContractError("TAS requires cuda_graph=true")
+    return profile
 
 
 def validate_execution_profile(
@@ -88,6 +108,10 @@ def validate_execution_profile(
     if not isinstance(parameters, dict):
         raise ManifestContractError("Manifest has no parameters")
     profile = execution_profile(parameters)
+    if implementation in {"tas", "TheAnimeScripter"} and "decode_method" not in profile:
+        raise ManifestContractError("TAS requires a TAS execution profile")
+    if implementation in {"vstrt", "vs-mlrt"} and "decode_method" in profile:
+        raise ManifestContractError("vs-mlrt requires a VapourSynth execution profile")
     if profile["execution_profile"] != expected_profile:
         raise ManifestContractError(
             f"{implementation} execution profile is "
@@ -97,6 +121,22 @@ def validate_execution_profile(
     if expected_values is not None and profile != expected_values:
         raise ManifestContractError(f"{implementation} changed execution profile")
     return profile
+
+
+def hardware_environment(
+    environment: dict[str, Any], *, required: bool = True
+) -> dict[str, Any] | None:
+    """Extract the shared CPU/GPU session contract, excluding image/software metadata."""
+    gpu = environment.get("gpu")
+    cpu = environment.get("cpu")
+    if required:
+        if not isinstance(gpu, dict) or not gpu:
+            raise ManifestContractError("Run manifest has no GPU contract")
+        if not isinstance(cpu, dict) or not cpu:
+            raise ManifestContractError("Run manifest has no CPU contract")
+    if not isinstance(gpu, dict) or not isinstance(cpu, dict):
+        return None
+    return {"gpu": dict(gpu), "cpu": dict(cpu)}
 
 
 @dataclass(frozen=True)
@@ -205,20 +245,11 @@ def extract_run_identity(
     if not isinstance(environment, dict):
         raise ManifestContractError("Run manifest has no environment contract")
     image = environment.get("image")
-    gpu = environment.get("gpu")
-    cpu = environment.get("cpu")
     if not isinstance(parameters, dict):
         raise ManifestContractError("Run manifest has no parameters")
     if not isinstance(image, dict):
         raise ManifestContractError("Run manifest has no image identity")
-    if require_hardware_environment:
-        if not isinstance(gpu, dict) or not gpu:
-            raise ManifestContractError("Run manifest has no GPU contract")
-        if not isinstance(cpu, dict) or not cpu:
-            raise ManifestContractError("Run manifest has no CPU contract")
-    elif not isinstance(gpu, dict) or not isinstance(cpu, dict):
-        gpu = None
-        cpu = None
+    hardware = hardware_environment(environment, required=require_hardware_environment)
     encoder = parameters.get("encoder")
     if not isinstance(encoder, dict):
         raise ManifestContractError("Run manifest has no encoder contract")
@@ -282,11 +313,7 @@ def extract_run_identity(
         workload_sha256=workload_sha256,
         image_id=image_id,
         repository_revision=revision,
-        environment=(
-            {"gpu": dict(gpu), "cpu": dict(cpu)}
-            if isinstance(gpu, dict) and isinstance(cpu, dict)
-            else None
-        ),
+        environment=hardware,
         frames=frames,
         warmup_frames=warmup_frames,
         encoder=encoder,

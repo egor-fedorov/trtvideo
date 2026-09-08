@@ -13,10 +13,14 @@ The host must provide:
 - Docker with GPU access;
 - GNU Make and Git;
 - Python `>=3.10,<3.13` for the host coordinator;
-- enough disk space for the production, benchmark, vstrt, and pinned VSGAN
+- enough disk space for the production, benchmark, vstrt, and pinned TAS
   images when competitor workflows are selected;
 - space for the 168 MiB canonical source, prepared clips, models, engines, and
   workflow artifacts.
+
+Host coordinators use standard-library Python plus pure-Python helpers from
+the checkout. The launcher and host Make targets add `src/` to `PYTHONPATH`
+automatically; do not install `trtvideo` or GPU dependencies on the host.
 
 Use `HOST_PYTHON` when `python3` is not the intended interpreter:
 
@@ -52,7 +56,7 @@ and performs the complete ordered lifecycle:
 | Goal | Complete lifecycle |
 |---|---|
 | `project` | Build project images, prepare/verify assets, build TRT11 engines, smoke, then project-only regression campaigns |
-| `comparative` | Build all product images and TRT11/TRT10 engines, smoke every product, run quality gates, then rotated comparative campaigns |
+| `comparative` | Build trtvideo/vstrt/TAS images and project/TAS engines, smoke every product, run quality gates, then rotated comparative campaigns |
 | `tuned` | Build and smoke the full matrix, sweep declared candidates, validate selected winners, run final campaigns, then verify both-resolution evidence |
 | `diagnostics` | Build project images and TRT11 engines, smoke, run `trtexec` ceilings, and capture the canonical SPAN 1080p Nsight trace when selected |
 
@@ -64,17 +68,46 @@ benchmarks/bin/run-benchmark.sh comparative
 ```
 
 Tuned search and selection rules come from the workload-specific contracts
-under [`tuning/`](tuning/). The tuned workflow performs one-run reconnaissance,
-validates any early stop with a maximum-range sentinel, independently confirms
-the three strongest candidates over 1000 frames, retains disqualifications,
-runs full quality gates only for selected winners, and verifies that 720p and
-1080p evidence agree before publication. If stream 8 is still materially
-improving, expand the contract instead of publishing a boundary winner.
+under [`tuning/`](tuning/). vs-mlrt uses one-run stream reconnaissance with an
+early-stop sentinel; TAS uses the four CPU/NVDEC x FFmpeg/neLux I/O choices,
+with quality checked before performance search. The three strongest eligible
+points (or all remaining points if fewer) are confirmed independently over
+1000 frames. The workflow retains disqualifications, runs exact-profile winner
+quality, and verifies both resolutions before publication. If vs-mlrt stream 8
+is still materially improving, expand the contract instead of publishing a
+boundary winner. TAS has no stream axis or stream-based early stop.
 
 Do not resume tuned artifacts created with an older search contract. Start the
 complete tuned workflow in an empty tuned artifact namespace after changing the
 search range, stage budgets, completion rule, selection rule, or repository
-revision.
+revision. This includes the participant change from VSGAN to TAS: do not
+resume a VSGAN campaign or reuse its measured rounds as TAS evidence. Archive
+the previous raw namespace before starting; published historical JSON/SVG
+snapshots remain unchanged.
+
+Preflight reuse and sweep startup probe the live CPU/GPU contract before any
+search measurement. Driver, GPU configuration, power limit, persistence mode,
+or CPU changes require fresh preflight and search evidence; old preflight
+reports without that snapshot are not reusable. Identical hardware fields do
+not prove the same physical server, so do not resume a session after moving
+hosts. The probe does not run inference or alter the measured process timer.
+
+The current project/vs-mlrt base is TensorRT `26.08-py3` (`11.2.1.2`). Rebuild
+the project engines on each benchmark GPU; vs-mlrt shares those engines, while
+TAS still uses its native builder. The default project timing cache is now
+`models/cache/benchmark-trt11.2.1.2.cache`; do not point `TRT_TIMING_CACHE` at
+an older runtime's cache. Preserve old files instead of rewriting their metadata.
+After the runtime upgrade, rerun quality gates and `diagnostics` as well as
+`tuned`. Earlier TensorRT 11.0 traces and inference ceilings do not describe
+the updated runtime. Verify the target driver's compatibility with `doctor`
+and short GPU runs before committing to long measurements.
+
+For a new TAS integration, begin with a SPAN 720p smoke and its full quality
+gates before renting a long campaign. Use `build-tas`, `build-tas-engine`, and
+`run-tas` for low-level diagnosis; `TAS_ENGINE` supplies the separately built
+engine, while `TAS_ARGS="--decode-method nvdec --writer nelux"` selects the I/O
+path in tuned mode. Never bypass failed quality, allow backend fallback, or
+enable TAS's no-output benchmark mode to obtain an FPS point.
 
 ## Selecting A Subset
 

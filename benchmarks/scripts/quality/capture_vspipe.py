@@ -19,7 +19,6 @@ from benchmarks.scripts.contracts.engine import (
     EngineContractError,
     load_engine_contract,
     validate_static_engine_contract,
-    validate_vsgan_engine_contract,
 )
 from benchmarks.scripts.quality.model_space import (
     CaptureManifest,
@@ -189,22 +188,7 @@ def capture(args: argparse.Namespace) -> Path:
     )
 
     sidecar, _ = load_engine_contract(engine_path)
-    if args.implementation == "vsgan":
-        validate_vsgan_engine_contract(
-            sidecar,
-            manifest,
-            args.variant,
-            onnx_path,
-            str(implementation["upstream_image"]),
-            str(implementation["encoder_ffmpeg_package"]),
-        )
-    else:
-        validate_static_engine_contract(
-            sidecar,
-            manifest,
-            args.variant,
-            onnx_path,
-        )
+    validate_static_engine_contract(sidecar, manifest, args.variant, onnx_path)
 
     input_shape = (
         3,
@@ -306,7 +290,7 @@ def capture(args: argparse.Namespace) -> Path:
     manifest_path = output_dir / "manifest.json"
     write_capture_manifest(
         manifest_path,
-        implementation=("vs-mlrt" if args.implementation == "vstrt" else "VSGAN-tensorrt-docker"),
+        implementation="vs-mlrt",
         capture_scope=(
             "shared-input-inference"
             if canonical_manifest_path is not None
@@ -331,7 +315,7 @@ def capture(args: argparse.Namespace) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--implementation", choices=["vstrt", "vsgan"], required=True)
+    parser.add_argument("--implementation", choices=["vstrt"], required=True)
     parser.add_argument("--manifest", required=True)
     parser.add_argument(
         "--implementations",

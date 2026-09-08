@@ -54,6 +54,38 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Changed
+
+- Host benchmark entrypoints resolve pure-Python helpers from the checkout's
+  `src/` directory without requiring a host installation of `trtvideo`.
+- CLI smoke checks print compact success lines instead of full help text;
+  failed commands retain their captured output and stop the check.
+- Updated the shared production, model-tools, benchmark, and vs-mlrt base to
+  digest-pinned TensorRT `26.08-py3` (TensorRT `11.2.1.2`, CUDA toolkit `13.4.1`).
+  Rebuild engines and use the new versioned benchmark timing cache; quality
+  gates, campaigns, and diagnostics must be collected for the new runtime.
+  Missing base-image provenance is reported as `unknown`, not an assumed image.
+- Replaced VSGAN-tensorrt-docker with pinned TheAnimeScripter in the active
+  comparative and tuned benchmark matrix. TAS has a separate engine/runtime
+  and a quality-gated CPU/NVDEC x FFmpeg/neLux search; vs-mlrt retains its
+  stream search. Use `build-tas`, `build-tas-engine`, `run-tas`, `TAS_ENGINE`,
+  `TAS_ARGS`, and `--tas-engine` instead of the VSGAN interfaces. Old workflow
+  states cannot resume the new participant contract. The TAS adapter fixes
+  static-engine shape binding, uses image-locked initialization, and normalizes
+  NVENC settings without changing native per-frame operations. Cached quality
+  preflight is bound to the shared CPU/GPU session contract and checked against
+  live hardware before starting or resuming a sweep.
+- Published fresh September RTX 3090 and RTX 4090 tuned campaigns and
+  diagnostics for trtvideo, vs-mlrt, and TAS on TensorRT 11.2.1.2. Updated
+  tables, conclusions, and light/dark figures, including TAS I/O categories,
+  per-configuration CPU/VRAM charts kept separate by search stage,
+  retry history, and the retained RTX 4090 stability outlier. Earlier VSGAN
+  results remain in Git history. Export rechecks artifact hashes, quality
+  roles, TAS preflight profiles, shared hardware, and recorded runtime metadata
+  before publication. Candidate resource medians are recomputed from the same
+  raw runs as FPS, with explicit baseline-relative VRAM accounting and hashed
+  suite/run provenance.
+
 ## 0.7.0 - 2026-09-03
 
 ### Added

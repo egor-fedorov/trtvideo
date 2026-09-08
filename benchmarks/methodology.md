@@ -6,12 +6,19 @@ The benchmark tests whether the GPU-resident
 `NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC` pipeline retains an advantage
 across the complete path from compressed input to a valid MP4 output.
 
+The active matrix is trtvideo, vs-mlrt (`vstrt`), and TheAnimeScripter (`tas`).
+vs-mlrt is the shared-engine technical reference; TAS is a separate product
+with selectable CPU/NVDEC decoding and FFmpeg/neLux output. Previously
+published VSGAN-tensorrt-docker campaigns retain their original metadata,
+numbers, and figures. They are historical evidence under their recorded
+contract, not measurements of TAS or a substitute for a fresh shared campaign.
+
 The following result classes are kept separate:
 
 1. `upstream-default` - each external product uses the scheduling defaults
    recorded from its pinned upstream version.
 2. `tuned` - each external product uses a workload-specific configuration
-   selected by the declared adaptive search and independent quality gate.
+   selected by its declared search and independent quality gate.
 3. `trtexec diagnostic` - the inference ceiling without decode, colorspace,
    encode, or mux.
 
@@ -27,12 +34,19 @@ performance or quality conclusion about Video2X.
 
 The VapourSynth source filter is a configuration choice. DGDecNV provides NVDEC
 through a closed-source Windows-only AviSynth plugin made free on 2021-04-26. It
-is absent from the pinned VSGAN image and documented vs-mlrt workflow and cannot
+is absent from the documented vs-mlrt workflow and cannot
 run in the Linux benchmark containers. It would not remove the H2D/D2H
 transfers around `libvstrt` because VapourSynth graph frames enter and leave
 inference in host memory.
 
 The project always uses its production GPU-resident video path.
+
+The current project, vs-mlrt, and TAS environments use TensorRT `11.2.1.2`.
+The project and vs-mlrt share the digest-pinned `26.08-py3` base and serialized
+engine. TAS retains its separately pinned dependencies and native builder;
+matching TensorRT versions does not imply identical CUDA, Python, or build
+settings. Environment provenance, rather than this current configuration,
+defines the runtime of each historical result.
 
 ## Workflow Separation
 
@@ -42,14 +56,14 @@ Benchmark execution is divided by purpose:
    external timer, validation, and resource accounting used by comparisons. It
    supports before/after engineering decisions but cannot establish a
    competitor advantage.
-2. `comparative campaign` rotates project, vstrt, and VSGAN runs by round and
+2. `comparative campaign` rotates trtvideo, vstrt, and TAS runs by round and
    combines them only after inference/product-output gates pass and the
    preprocessing diagnostic is complete. This is the sole source of publishable
    competitor claims.
 3. `diagnostics` includes `trtexec`, Nsight Systems, and per-stage profiling.
    Diagnostic timings are never mixed into project or competitor FPS tables.
 
-Project and VapourSynth implementations share the same measurement core while
+Project, VapourSynth, and TAS implementations share the same measurement core while
 retaining separate command and lifecycle adapters. Raw output is isolated under
 `artefacts/benchmarks/project/`,
 `artefacts/benchmarks/comparative/`, and
@@ -94,45 +108,70 @@ hash-pinned H.264 asset.
 Every comparative campaign requires:
 
 ```text
-engine SHA256 identical
+canonical ONNX SHA256 identical; engine SHA256 recorded per runtime
 input/output dtype identical
 static input/output shape identical
 batch size = 1
 full-frame processing
 tiling disabled
 execution profile recorded
-requests/streams/threads recorded
+participant-specific scheduling and I/O settings recorded
 CUDA Graph state recorded
 ```
 
-The project and vstrt use the same TensorRT 11 serialized engine. The pinned
-VSGAN runtime cannot load that engine, so its TensorRT 10.16 engine is built
-from the same canonical ONNX on the same GPU, with matching shape, dtype,
-batch, and builder intent. Engine hashes and TensorRT runtimes differ and must
-be shown explicitly. VSGAN is pinned by immutable image digest and source
-revision. Only `.vpy` configuration, model/engine mounts, and the encoder
-adapter are allowed; the upstream inference stack is unchanged.
+The project and vstrt use the same TensorRT 11 serialized engine. TAS uses its
+own upstream builder and pinned runtime to build a separate engine from the
+same canonical ONNX on the same GPU. The static shapes, batch, FP32 bindings,
+and mixed-FP16 graph remain unchanged; `--half false` preserves the TAS FP32
+boundaries rather than converting the prepared graph again. Building happens
+outside the measured process. Engine hashes and actual runtime versions are
+published per participant; separately built engines need not differ in bytes.
 
-## VapourSynth Execution Profiles
+The TAS adapter may select the prebuilt engine, configure the declared NVENC
+contract, assert the actual backend, and capture diagnostic tensors in a
+separate process. It must not change inference, queues, CUDA Graph execution,
+synchronization, or color conversion. Model downloads, implicit engine
+rebuilding, and backend fallback during measurement invalidate the run.
 
-The vstrt and VSGAN runners expose two scheduling profiles:
+Two initialization normalizations are explicit. The static engine declares
+the processing shape: the adapter requires matching input width/height and
+uses multiple 1 instead of TAS's `_detectRequiredMultiple` heuristic. For
+static ONNX, probing square shapes 49..80 can yield its fallback of 16,
+which would pad height 1080 to 1088 and violate the canonical engine shape.
+Bypassing that heuristic does not modify pixels or the graph. Interactive
+dependency installation is replaced by the image-locked bootstrap. Together
+with prebuilt-engine lookup and P4/CBR settings these are benchmark adapter
+normalizations, not an unmodified upstream CLI or a rewritten frame pipeline.
+
+Source revision, image identity, adapter evidence, and Python, PyTorch,
+TensorRT, neLux, and FFmpeg versions accompany the results.
+
+## Execution Profiles
+
+vs-mlrt exposes the following scheduling profiles:
 
 | Profile | vspipe requests | TensorRT streams | VapourSynth threads | CUDA Graph |
 |---|---:|---:|---:|---:|
 | vstrt `upstream-default` | auto | 1 | runtime default | off |
-| VSGAN `upstream-default` | auto | 4 | 4 | off |
-| either `tuned` | explicit | explicit | explicit | explicit |
+| vstrt `tuned` | explicit | explicit | explicit | explicit |
 
 `auto` is not converted to a guessed host-dependent integer. The runner omits
 the corresponding `vspipe --requests` or `.vpy` thread argument and lets the
-pinned VapourSynth runtime resolve its own default. VSGAN's upstream-default
-stream and thread counts come from its pinned `inference_config.py`; vstrt keeps
-its documented one-stream default.
+pinned VapourSynth runtime resolve its own default. vs-mlrt keeps its
+documented one-stream default.
 
 Preset profiles reject conflicting scheduling overrides. Tuned mode requires
-explicit values for requests, TensorRT streams, VapourSynth threads, and CUDA
+explicit vs-mlrt values for requests, TensorRT streams, VapourSynth threads, and CUDA
 Graph, including explicit `auto` or `--no-cuda-graph` choices. Every resolved
 value is written to the plan and measured-run manifest.
+
+TAS profiles use different fields: `execution_profile`, `decode_method`,
+`writer`, and `cuda_graph=true`. Its I/O-default profile is CPU decode with
+the FFmpeg writer; tuned candidates cover CPU/NVDEC x FFmpeg/neLux. The
+canonical model/precision and encoder are normalized in both profiles, so
+`upstream-default` is not an untouched factory command. There are no fictional
+VapourSynth threads or `num_streams` in a TAS profile, and its native CUDA
+Graph is not disabled merely to match the project.
 
 `execution_profile` is the canonical scheduling-profile name across Make,
 runner CLIs, manifests, quality evidence, and campaign aggregation.
@@ -142,11 +181,11 @@ metadata, and report structure rather than in the scheduling profile.
 `upstream-default` is a vendor-default baseline, not a maximum-throughput claim.
 In particular, vstrt keeps `num_streams=1` even when the GPU is not saturated.
 The `tuned` profile uses a workload-specific two-stage adaptive search selected
-by `benchmarks/workflows/canonical.json`. Both competitors use automatic vspipe
-requests and runtime-default VapourSynth threads while the search considers
-`num_streams=1..8`.
+by `benchmarks/workflows/canonical.json`. vs-mlrt uses automatic vspipe
+requests and runtime-default VapourSynth threads while its search considers
+`num_streams=1..8`; TAS uses the finite I/O grid described below.
 
-Stage 1 is reconnaissance. Each stream count receives one run with CUDA Graph
+For vs-mlrt, stage 1 is reconnaissance. Each stream count receives one run with CUDA Graph
 disabled. RealESRGAN uses 300 measured frames and 30 warmup frames; SPAN keeps
 1000 measured frames and 100 warmup frames. The search may stop after two
 consecutive points are more than 1% below the best observed throughput, but it
@@ -172,14 +211,25 @@ and two more when the initial relative spread exceeds 1%. A final spread above
 provisional stream winner. Every measured run must preserve the workload,
 input, ONNX, engine, image, encoder, revision, and complete media contract.
 
-The selected candidate is the lowest stream count within 1% of the confirmed
+The selected vs-mlrt candidate is the lowest stream count within 1% of the confirmed
 peak median end-to-end FPS, with CUDA Graph off preferred when the same stream
-count remains peak-equivalent. This deliberately gives each competitor the
+count remains peak-equivalent. This deliberately gives vs-mlrt the
 most resource-efficient configuration that preserves its peak throughput.
 Selection completion is proven by `search-state.json`: it records every
 reconnaissance point, the stop reason, sentinel or resource-limit evidence,
 shortlist, confirmation evidence, and graph probe. Missing evidence or an
 unproven stop invalidates the search.
+
+TAS first checks full quality for all four I/O configurations, then measures
+each eligible point once during reconnaissance. The top three eligible points
+(or all remaining points if fewer) receive independent confirmation under the
+same 1000-frame 3+2 policy. Within 1% of the confirmed peak, lower median peak
+VRAM wins, followed by lower median attributed CPU and stable candidate ID.
+This tie-break deliberately favors the external product's resource use.
+Completion requires evidence for the exhausted grid, not a stream sentinel
+or an inferred extremum. A verified CUDA OOM is a resource limit of that I/O
+configuration only; invalid thermal conditions are still fatal measurement
+errors, not grounds to choose a different configuration.
 
 During the 300-frame RealESRGAN reconnaissance pass, NVENC rate control does not
 reliably converge. The observed bitrate is recorded but not validated. The
@@ -187,13 +237,14 @@ search assumes that residual NVENC workload differences do not change the
 broad candidate ordering. Shortlisted candidates and all published results are
 remeasured over 1000 frames with bitrate validation enabled.
 
-Only the selected pair runs exact-profile tensor-space diagnostics, shared-input
+After search, the selected pair runs exact-profile tensor-space diagnostics, shared-input
 inference parity, and full product-output quality gates. A candidate-specific
 inference or product-output failure is retained as disqualification evidence
-and promotes the next confirmed candidate. If both external wrappers instead
+and promotes the next confirmed candidate. If both external implementations instead
 produce the same byte-identical invalid MP4, tuning stops with a common
 product-path failure rather than attributing it to scheduling and exhausting
-the shortlist. Numeric preprocessing differences are diagnostic and never
+the shortlist. This winner check does not replace TAS's pre-search quality
+check for each I/O path. Numeric preprocessing differences are diagnostic and never
 disqualify a candidate. Sweep FPS is never published as a final product
 comparison.
 
@@ -215,20 +266,20 @@ the same workload, repository revision, and GPU contract. This avoids using a
 
 Each profile has separate per-implementation, product-output, and campaign
 directories.
-A campaign stores its profile and exact vstrt/VSGAN argument strings in an
+A campaign stores its profile and exact vs-mlrt/TAS argument strings in an
 immutable `campaign.config.json`; resume and aggregation reject a changed
 configuration. The aggregator also requires every measured and product-output
 manifest to use the selected execution profile and unchanged scheduling
 parameters. Results from different profiles therefore cannot form one campaign.
+Workflow state, search state, and campaign configuration from the previous
+VSGAN participant contract cannot resume the TAS matrix. Preserve historical
+artifacts unchanged and start a new namespace; do not migrate measured rounds.
 
-External `vspipe | ffmpeg` encoding is normalized to pinned Ubuntu FFmpeg
-`7:6.1.1-3ubuntu5`. The upstream binary requires NVENC API 13.1 and driver 610+,
-which are unavailable on the benchmark host. This adapter is recorded in
-implementation metadata; changing VSGAN internals constitutes a fork.
-
-CUDA Graph is disabled for upstream-default. The current project implementation
-does not expose CUDA Graph; external graph-enabled configurations may be
-evaluated only as explicit tuned candidates.
+Both TAS output backends and vs-mlrt's external FFmpeg encoder receive the same
+NVENC output contract. TAS neLux output is not secretly replaced by a raw
+FFmpeg pipe. The current project does not expose CUDA Graph; vs-mlrt defaults
+to graph-off and tunes it explicitly, while TAS retains its native graph-on
+execution. These are recorded implementation choices, not a shared on/off knob.
 
 ## Output Contract
 
@@ -311,7 +362,7 @@ The capture imports the same `NvcodecFrameProcessor` as production and adds only
 synchronized device-to-host copies at those boundaries. The resulting input is
 the canonical inference tensor.
 
-For shared-input inference, each external VSScript reads the canonical FP32 CHW
+For shared-input inference, the vs-mlrt VSScript reads the canonical FP32 CHW
 file directly and copies its R, G, and B planes into a writable one-frame
 `RGBS` clip. This bypasses container demux, BestSource video decode, and zimg
 YUV-to-RGB conversion without asking a media decoder to interpret FP32 tensors.
@@ -327,12 +378,14 @@ tolerances:
 The shared-input output limits allow small TensorRT-version differences while
 rejecting a materially different engine result. `max_abs` remains diagnostic,
 not an acceptance limit; non-finite inference tensors fail the gate. vstrt uses
-the exact project engine. Pinned VSGAN uses its native TRT10.16 engine built
-from the same ONNX because serialized engines are runtime-version-specific.
+the exact project engine. TAS receives the same shared tensors through its
+native TensorRT class and its separately built engine. Its captured input
+must likewise be byte-identical before comparing the output numerically.
 
 The preprocessing diagnostic separately captures the actual RGB tensor before
-TensorRT in each production graph: NVDEC/CV-CUDA for trtvideo and
-BestSource/zimg for the measured VapourSynth paths. It reports RMSE, p99,
+TensorRT in each production graph: NVDEC/CV-CUDA for trtvideo,
+BestSource/zimg for vs-mlrt, and the selected decode/color path for TAS.
+It reports RMSE, p99,
 PSNR, range extrema, and the fraction outside `[0, 1]`, but has no numeric
 acceptance threshold. Every measured path nevertheless presents the model with
 normalized RGB in `[0, 1]`: the project saturates while converting through its
@@ -529,7 +582,8 @@ Comparative tables contain:
 - median end-to-end FPS and wall time;
 - median average CPU cores and share of available CPU capacity;
 - average power and joules/frame;
-- peak VRAM;
+- median per-run peak VRAM increase above the pre-run baseline
+  (`nvml.memory.peak_delta_mib`), not total occupied device memory;
 - output size and actual bitrate.
 
 `trtexec` QPS is published separately as an inference-only ceiling and is not
@@ -565,6 +619,17 @@ The runner records an allowlisted environment:
 
 Hostname, username, IP address, GPU UUID/serial, container IDs, absolute host
 paths, and a complete environment dump are not recorded.
+
+TAS quality preflight records the same static CPU/GPU contract used by run
+identity validation: GPU index, model, compute capability, VRAM, driver,
+power limit, persistence mode, CPU model, and logical core count. A short
+Docker/NVML probe checks it before cached preflight reuse and before starting
+or resuming a sweep, including when the workflow skips a completed preflight
+step. A mismatch or unavailable probe stops execution before the first search
+measurement. Recorded evidence can still be validated without a live GPU.
+This allowlisted contract cannot distinguish two physically different GPUs
+with identical recorded fields; moving to another host still requires a fresh
+session rather than reusing preflight or search results.
 
 ## Validity And Success
 

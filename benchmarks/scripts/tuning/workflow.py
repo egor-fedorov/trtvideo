@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -12,18 +13,23 @@ from pathlib import Path
 from typing import Any, Literal, cast, overload
 
 from benchmarks.scripts.campaign.core import CONFIG_NAME
-from benchmarks.scripts.contracts.manifest import execution_profile
+from benchmarks.scripts.contracts.manifest import artifact_path, execution_profile
 from benchmarks.scripts.tuning.adaptive import (
     CandidatePoint,
     has_confirmed_decline,
+    resource_medians,
     select_peak_equivalent,
     sentinel_recovers,
     shortlist,
+    stream_count,
     upper_boundary_unresolved,
 )
 from benchmarks.scripts.tuning.contract import (
+    Candidate,
     Implementation,
+    ImplementationProfile,
     MeasurementPolicy,
+    TasCandidate,
     TunedCandidate,
     TuningContract,
     TuningContractError,
@@ -34,6 +40,7 @@ from benchmarks.scripts.tuning.rank import (
     TuningEvidenceError,
     candidate_directory,
     load_disqualifications,
+    load_tas_preflight,
     rank_tuned_candidates,
 )
 from benchmarks.scripts.tuning.resource_limit import (
@@ -188,25 +195,25 @@ def _base_make_variables(
     *,
     variant: str,
     engine: Path,
-    vsgan_engine: Path,
+    tas_engine: Path,
     gpu_id: int,
 ) -> dict[str, str]:
     return {
         "MANIFEST": paths.relative(paths.manifest),
         "VARIANT": variant,
         "ENGINE": paths.relative(engine),
-        "VSGAN_ENGINE": paths.relative(vsgan_engine),
+        "TAS_ENGINE": paths.relative(tas_engine),
         "GPU_ID": str(gpu_id),
         "EXECUTION_PROFILE": "tuned",
     }
 
 
 def _candidate_variables(
-    candidate: TunedCandidate,
+    candidate: Candidate,
     base: dict[str, str],
 ) -> dict[str, str]:
     values = dict(base)
-    values["VSTRT_ARGS" if candidate.implementation == "vstrt" else "VSGAN_ARGS"] = (
+    values["VSTRT_ARGS" if candidate.implementation == "vstrt" else "TAS_ARGS"] = (
         candidate.runner_arguments()
     )
     return values
@@ -239,7 +246,7 @@ def _write_selection(
 def _validate_search_suite_contract(
     *,
     suite: dict[str, Any],
-    candidate: TunedCandidate,
+    candidate: Candidate,
     policy: MeasurementPolicy,
     suite_path: Path,
 ) -> None:
@@ -271,7 +278,7 @@ def _validate_search_suite_contract(
 
 def _search_point(
     *,
-    candidate: TunedCandidate,
+    candidate: Candidate,
     suite_path: Path,
     policy: MeasurementPolicy,
     paths: WorkflowPaths,
@@ -292,26 +299,46 @@ def _search_point(
         raise TuningWorkflowError(f"Search suite has no statistics: {suite_path}")
     median_fps = statistics.get("median_fps")
     relative_spread = statistics.get("relative_spread")
-    if not isinstance(median_fps, (int, float)) or isinstance(median_fps, bool) or median_fps <= 0:
+    if (
+        not isinstance(median_fps, (int, float))
+        or isinstance(median_fps, bool)
+        or not math.isfinite(median_fps)
+        or median_fps <= 0
+    ):
         raise TuningWorkflowError(f"Search suite has no positive median FPS: {suite_path}")
     if (
         not isinstance(relative_spread, (int, float))
         or isinstance(relative_spread, bool)
+        or not math.isfinite(relative_spread)
         or relative_spread < 0
     ):
         raise TuningWorkflowError(f"Search suite has no valid relative spread: {suite_path}")
+    peak_vram = cpu_cores = None
+    if isinstance(candidate, TasCandidate):
+        runs = suite.get("runs")
+        if not isinstance(runs, list) or not all(isinstance(run, dict) for run in runs):
+            raise TuningWorkflowError("TAS suite is missing run manifests")
+        try:
+            peak_vram, cpu_cores = resource_medians(
+                _load_json(artifact_path(paths.root, run.get("manifest"), label="TAS run"))
+                for run in runs
+            )
+        except ValueError as exc:
+            raise TuningWorkflowError(str(exc)) from exc
     return CandidatePoint(
         candidate=candidate,
         median_fps=float(median_fps),
         relative_spread=float(relative_spread),
         suite_path=paths.relative(suite_path),
+        median_peak_vram_mib=peak_vram,
+        median_cpu_cores=cpu_cores,
     )
 
 
 @overload
 def _measure_search_candidate(
     *,
-    candidate: TunedCandidate,
+    candidate: Candidate,
     stage: str,
     policy: MeasurementPolicy,
     base: dict[str, str],
@@ -325,7 +352,7 @@ def _measure_search_candidate(
 @overload
 def _measure_search_candidate(
     *,
-    candidate: TunedCandidate,
+    candidate: Candidate,
     stage: str,
     policy: MeasurementPolicy,
     base: dict[str, str],
@@ -338,7 +365,7 @@ def _measure_search_candidate(
 
 def _measure_search_candidate(
     *,
-    candidate: TunedCandidate,
+    candidate: Candidate,
     stage: str,
     policy: MeasurementPolicy,
     base: dict[str, str],
@@ -360,7 +387,7 @@ def _measure_search_candidate(
     )
     if required:
         output_variable = (
-            "VSTRT_OUTPUT_DIR" if candidate.implementation == "vstrt" else "VSGAN_OUTPUT_DIR"
+            "VSTRT_OUTPUT_DIR" if candidate.implementation == "vstrt" else "TAS_OUTPUT_DIR"
         )
         runner.run(
             f"run-{candidate.implementation}",
@@ -398,19 +425,58 @@ def _measure_search_candidate(
 
 
 def _resource_limit_record(
-    candidate: TunedCandidate,
+    candidate: Candidate,
     evidence: ResourceLimitEvidence,
 ) -> dict[str, Any]:
     return {
         "candidate_id": candidate.candidate_id,
-        "num_streams": candidate.num_streams,
+        **(
+            {"num_streams": candidate.num_streams}
+            if isinstance(candidate, TunedCandidate)
+            else {"execution_profile": candidate.execution_profile()}
+        ),
         **evidence.as_dict(),
     }
 
 
+def _run_tas_reconnaissance(
+    *,
+    contract: TuningContract,
+    preflight: dict[str, dict[str, Any]],
+    base: dict[str, str],
+    paths: WorkflowPaths,
+    runner: MakeRunner,
+    resume: bool,
+) -> tuple[list[CandidatePoint], list[dict[str, Any]]]:
+    """Exhaust the categorical grid; an OOM does not stop other configurations."""
+    points = []
+    limits = []
+    for candidate in contract.for_implementation("tas"):
+        if preflight[candidate.candidate_id]["status"] != "valid":
+            _progress(
+                f"[tuned reconnaissance] {candidate.candidate_id}: excluded by quality preflight"
+            )
+            continue
+        measured = _measure_search_candidate(
+            candidate=candidate,
+            stage="reconnaissance",
+            policy=contract.search.reconnaissance,
+            base=base,
+            paths=paths,
+            runner=runner,
+            resume=resume,
+            allow_resource_limit=True,
+        )
+        if isinstance(measured, ResourceLimitEvidence):
+            limits.append(_resource_limit_record(candidate, measured))
+        else:
+            points.append(measured)
+    return points, limits
+
+
 def _run_reconnaissance(
     *,
-    implementation: Implementation,
+    implementation: Literal["vstrt"],
     contract: TuningContract,
     base: dict[str, str],
     paths: WorkflowPaths,
@@ -492,8 +558,8 @@ def _run_reconnaissance(
         sentinel,
         relative_margin=contract.search.decline_margin,
     ):
-        measured_streams = {point.candidate.num_streams for point in points}
-        measured_streams.add(sentinel.candidate.num_streams)
+        measured_streams = {stream_count(point.candidate) for point in points}
+        measured_streams.add(stream_count(sentinel.candidate))
         for streams in contract.search.stream_range:
             if streams in measured_streams:
                 continue
@@ -510,7 +576,7 @@ def _run_reconnaissance(
             )
         completed = sorted(
             points + [sentinel],
-            key=lambda point: point.candidate.num_streams,
+            key=lambda point: stream_count(point.candidate),
         )
         if upper_boundary_unresolved(
             completed,
@@ -528,7 +594,7 @@ def _run_reconnaissance(
             None,
         )
     return (
-        sorted(points + [sentinel], key=lambda point: point.candidate.num_streams),
+        sorted(points + [sentinel], key=lambda point: stream_count(point.candidate)),
         "decline-confirmed",
         early_stop_after,
         None,
@@ -544,7 +610,7 @@ def _run_confirmation(
     paths: WorkflowPaths,
     runner: MakeRunner,
     resume: bool,
-) -> tuple[list[CandidatePoint], TunedCandidate | None]:
+) -> tuple[list[CandidatePoint], Candidate | None]:
     selected = shortlist(
         reconnaissance,
         size=contract.search.shortlist_size,
@@ -568,10 +634,15 @@ def _run_confirmation(
     if provisional is None:
         raise TuningWorkflowError(f"No confirmed {implementation} candidate remains")
     graph_candidate = None
-    if contract.implementation(implementation).probe_cuda_graph:
+    profile = contract.implementation(implementation)
+    if (
+        isinstance(profile, ImplementationProfile)
+        and profile.probe_cuda_graph
+        and isinstance(provisional.candidate, TunedCandidate)
+    ):
         graph_candidate = contract.make_candidate(
-            implementation,
-            provisional.candidate.num_streams,
+            provisional.candidate.implementation,
+            stream_count(provisional.candidate),
             cuda_graph=True,
         )
         confirmed.append(
@@ -605,6 +676,16 @@ def _write_or_verify_search_state(
     _write_json(path, value)
 
 
+def _verify_resume_schema(sweep_dir: Path) -> None:
+    """Never execute or reuse a legacy competitor matrix in a new sweep."""
+    for name in ("search-state.json", "selection.json"):
+        path = sweep_dir / name
+        if path.is_file() and _load_json(path).get("schema_version") != 3:
+            raise TuningWorkflowError("Legacy tuning evidence is read-only; choose a new sweep")
+    if (sweep_dir / "candidates" / "vsgan").exists():
+        raise TuningWorkflowError("Legacy tuning evidence is read-only; choose a new sweep")
+
+
 def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     """Run adaptive reconnaissance and confirm only the strongest candidates."""
     paths = _workflow_paths(args)
@@ -613,40 +694,99 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
     )
     workload = load_manifest(paths.manifest)
     engine = _required_file(paths, Path(args.engine), label="Engine")
-    vsgan_engine = _required_file(
+    tas_engine = _required_file(
         paths,
-        Path(args.vsgan_engine),
-        label="VSGAN engine",
+        Path(args.tas_engine),
+        label="TAS engine",
     )
     runner = MakeRunner(paths, executable=args.make)
-    if paths.sweep_dir.exists() and any(paths.sweep_dir.iterdir()) and not args.resume:
+    _verify_resume_schema(paths.sweep_dir)
+    preflight_path = paths.sweep_dir / "tas-preflight" / "preflight.json"
+    preflight = load_tas_preflight(
+        preflight_path,
+        root=paths.root,
+        contract=contract,
+        workload=workload,
+        variant=args.variant,
+        engine_sha256=_sha256(engine),
+        tas_engine_sha256=_sha256(tas_engine),
+        workload_sha256=_sha256(paths.manifest),
+        gpu_id=args.gpu_id,
+    )
+    preflight_record = {"path": paths.relative(preflight_path), "sha256": _sha256(preflight_path)}
+    search_state_path = paths.sweep_dir / "search-state.json"
+    if search_state_path.is_file():
+        previous = _load_json(search_state_path)
+        expected_resume = {
+            "tas_preflight": preflight_record,
+            "workload_id": workload["id"],
+            "variant": args.variant,
+            "workload_sha256": _sha256(paths.manifest),
+            "search_policy": contract.search.as_dict(),
+            "selection_policy": contract.selection.as_dict(),
+            "contract": {
+                "path": paths.relative(_under_root(paths, Path(args.contract), label="contract")),
+                "sha256": _sha256(_under_root(paths, Path(args.contract), label="contract")),
+                "schema_version": contract.schema_version,
+            },
+        }
+        if any(previous.get(key) != value for key, value in expected_resume.items()):
+            raise TuningWorkflowError("Search inputs or TAS preflight changed; start a new sweep")
+    if (
+        paths.sweep_dir.exists()
+        and any(entry.name != "tas-preflight" for entry in paths.sweep_dir.iterdir())
+        and not args.resume
+    ):
         raise TuningWorkflowError(f"Sweep directory is not empty; use --resume: {paths.sweep_dir}")
     paths.sweep_dir.mkdir(parents=True, exist_ok=True)
     base = _base_make_variables(
         paths,
         variant=args.variant,
         engine=engine,
-        vsgan_engine=vsgan_engine,
+        tas_engine=tas_engine,
         gpu_id=args.gpu_id,
     )
 
     implementation_states = {}
     for implementation in PRODUCTS:
         implementation_name = cast(Implementation, implementation)
+        completion: dict[str, Any]
         _progress(f"[tuned search] {implementation}: reconnaissance")
-        (
-            reconnaissance,
-            completion_reason,
-            early_stop_after,
-            resource_limit,
-        ) = _run_reconnaissance(
-            implementation=implementation_name,
-            contract=contract,
-            base=base,
-            paths=paths,
-            runner=runner,
-            resume=args.resume,
-        )
+        if implementation_name == "tas":
+            reconnaissance, resource_limits = _run_tas_reconnaissance(
+                contract=contract,
+                preflight=preflight,
+                base=base,
+                paths=paths,
+                runner=runner,
+                resume=args.resume,
+            )
+            completion = {
+                "completion_reason": "grid-exhausted",
+                "resource_limits": resource_limits,
+                "quality_exclusions": [
+                    key for key, entry in preflight.items() if entry["status"] == "invalid"
+                ],
+            }
+        else:
+            (
+                reconnaissance,
+                completion_reason,
+                early_stop_after,
+                resource_limit,
+            ) = _run_reconnaissance(
+                implementation=implementation_name,
+                contract=contract,
+                base=base,
+                paths=paths,
+                runner=runner,
+                resume=args.resume,
+            )
+            completion = {
+                "completion_reason": completion_reason,
+                "early_stop_after_streams": early_stop_after,
+                "resource_limit": resource_limit,
+            }
         _progress(f"[tuned search] {implementation}: confirmation")
         confirmation, graph_candidate = _run_confirmation(
             implementation=implementation_name,
@@ -658,9 +798,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             resume=args.resume,
         )
         implementation_states[implementation] = {
-            "completion_reason": completion_reason,
-            "early_stop_after_streams": early_stop_after,
-            "resource_limit": resource_limit,
+            **completion,
             "reconnaissance": [point.as_dict() for point in reconnaissance],
             "shortlist": [
                 candidate.candidate_id
@@ -670,13 +808,15 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
                 )
             ],
             "confirmation": [point.as_dict() for point in confirmation],
-            "cuda_graph_probe": (
-                graph_candidate.candidate_id if graph_candidate is not None else None
+            **(
+                {"cuda_graph_probe": graph_candidate.candidate_id if graph_candidate else None}
+                if implementation_name == "vstrt"
+                else {}
             ),
         }
 
     state = {
-        "schema_version": 2,
+        "schema_version": 3,
         "document_type": "adaptive-tuning-search",
         "status": "complete",
         "workload_id": workload["id"],
@@ -688,6 +828,7 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
             "schema_version": contract.schema_version,
         },
         "workload_sha256": _sha256(paths.manifest),
+        "tas_preflight": preflight_record,
         "search_policy": contract.search.as_dict(),
         "selection_policy": contract.selection.as_dict(),
         "implementations": implementation_states,
@@ -722,23 +863,36 @@ def run_sweep(args: argparse.Namespace) -> dict[str, Any]:
 def _selected_candidates(
     selection: dict[str, Any],
     contract: TuningContract,
-) -> dict[str, TunedCandidate]:
+) -> dict[str, Candidate]:
+    if selection.get("schema_version") != 3:
+        raise TuningWorkflowError("Legacy tuned selection is read-only; start a schema 3 sweep")
     if selection.get("status") != "valid":
         raise TuningWorkflowError("Tuned candidate selection is not valid")
     winners = selection.get("winners")
     if not isinstance(winners, dict):
         raise TuningWorkflowError("Tuned candidate selection has no winners")
-    result = {}
+    if set(winners) != set(PRODUCTS):
+        raise TuningWorkflowError("Tuned candidate selection changed implementations")
+    result: dict[str, Candidate] = {}
     for implementation in PRODUCTS:
         winner = winners.get(implementation)
         candidate_id = winner.get("candidate_id") if isinstance(winner, dict) else None
         if not isinstance(candidate_id, str):
             raise TuningWorkflowError(f"Tuned candidate selection has no {implementation} winner")
-        result[implementation] = contract.candidate(candidate_id)
+        assert isinstance(winner, dict)
+        candidate = contract.candidate(candidate_id)
+        if candidate.implementation != implementation:
+            raise TuningWorkflowError("Tuned winner changed implementation")
+        if (
+            winner.get("execution_profile") != candidate.execution_profile()
+            or winner.get("runner_arguments") != candidate.runner_arguments()
+        ):
+            raise TuningWorkflowError("Tuned winner changed execution profile or arguments")
+        result[implementation] = candidate
     return result
 
 
-def _winner_signature(winners: dict[str, TunedCandidate]) -> str:
+def _winner_signature(winners: dict[str, Candidate]) -> str:
     return "__".join(winners[implementation].candidate_id for implementation in sorted(winners))
 
 
@@ -814,7 +968,7 @@ def _failed_inference_implementations(report_path: Path) -> dict[str, str]:
 def _record_disqualifications(
     path: Path,
     *,
-    winners: dict[str, TunedCandidate],
+    winners: dict[str, Candidate],
     failures: dict[str, str],
     evidence: Path,
     paths: WorkflowPaths,
@@ -849,10 +1003,10 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
     )
     workload = load_manifest(paths.manifest)
     engine = _required_file(paths, Path(args.engine), label="Engine")
-    vsgan_engine = _required_file(
+    tas_engine = _required_file(
         paths,
-        Path(args.vsgan_engine),
-        label="VSGAN engine",
+        Path(args.tas_engine),
+        label="TAS engine",
     )
     runner = MakeRunner(paths, executable=args.make)
     disqualifications_path = paths.sweep_dir / "disqualifications.json"
@@ -889,13 +1043,13 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             paths,
             variant=args.variant,
             engine=engine,
-            vsgan_engine=vsgan_engine,
+            tas_engine=tas_engine,
             gpu_id=args.gpu_id,
         )
         variables = {
             **base,
             "VSTRT_ARGS": winners["vstrt"].runner_arguments(),
-            "VSGAN_ARGS": winners["vsgan"].runner_arguments(),
+            "TAS_ARGS": winners["tas"].runner_arguments(),
             "MODEL_SPACE_DIR": paths.relative(tensor_quality_dir),
             "PRODUCT_OUTPUT_DIR": paths.relative(product_output_dir),
         }
@@ -947,7 +1101,7 @@ def run_winner_quality(args: argparse.Namespace) -> dict[str, Any]:
             continue
 
         final_report = {
-            "schema_version": 1,
+            "schema_version": 3,
             "document_type": "tuned-winner-quality",
             "status": "valid",
             "publishable": False,
@@ -988,10 +1142,16 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
     )
     quality_path = paths.sweep_dir / "final-quality.json"
     quality = _load_json(quality_path)
-    if quality.get("status") != "valid" or quality.get("variant") != args.variant:
+    if (
+        quality.get("schema_version") != 3
+        or quality.get("status") != "valid"
+        or quality.get("variant") != args.variant
+    ):
         raise TuningWorkflowError("Full tuned winner quality is not valid")
     selection = _load_json(paths.sweep_dir / "selection.json")
     winners = _selected_candidates(selection, contract)
+    if quality.get("winners") != selection.get("winners"):
+        raise TuningWorkflowError("Full tuned quality changed selected winners")
     signature = _winner_signature(winners)
     quality_values = quality["quality"]
     inference_report = _under_root(
@@ -1010,10 +1170,10 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
         label="Product-output report",
     )
     engine = _required_file(paths, Path(args.engine), label="Engine")
-    vsgan_engine = _required_file(
+    tas_engine = _required_file(
         paths,
-        Path(args.vsgan_engine),
-        label="VSGAN engine",
+        Path(args.tas_engine),
+        label="TAS engine",
     )
     campaign_dir = paths.sweep_dir / "winner-campaign" / signature
     campaign_resume = _resume_existing_campaign(
@@ -1025,11 +1185,11 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
             paths,
             variant=args.variant,
             engine=engine,
-            vsgan_engine=vsgan_engine,
+            tas_engine=tas_engine,
             gpu_id=args.gpu_id,
         ),
         "VSTRT_ARGS": winners["vstrt"].runner_arguments(),
-        "VSGAN_ARGS": winners["vsgan"].runner_arguments(),
+        "TAS_ARGS": winners["tas"].runner_arguments(),
         "MODEL_SPACE_DIR": paths.relative(inference_report.parent),
         "PRODUCT_OUTPUT_DIR": paths.relative(product_report.parent),
         "CAMPAIGN_DIR": paths.relative(campaign_dir),
@@ -1054,7 +1214,7 @@ def run_winner_campaign(args: argparse.Namespace) -> dict[str, Any]:
     ):
         raise TuningWorkflowError(f"Tuned winner campaign is not publishable: {campaign_path}")
     report = {
-        "schema_version": 1,
+        "schema_version": 3,
         "document_type": "tuned-winner-campaign",
         "status": "valid",
         "publishable": False,
@@ -1100,7 +1260,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--variant", choices=["720p", "1080p"], required=True)
     parser.add_argument("--engine", required=True)
-    parser.add_argument("--vsgan-engine", required=True)
+    parser.add_argument("--tas-engine", required=True)
     parser.add_argument("--gpu-id", type=int, default=0)
     parser.add_argument("--sweep-dir", required=True)
     parser.add_argument("--root", default=".")

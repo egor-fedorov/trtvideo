@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from benchmarks.scripts.workflow.cli import _require_supported_python
-from benchmarks.scripts.workflow.matrix import load_workflow_matrix
+from benchmarks.scripts.workflow.matrix import WorkflowMatrixError, load_workflow_matrix
 from benchmarks.scripts.workflow.orchestrator import (
     Step,
     WorkflowError,
@@ -70,7 +71,7 @@ def test_project_goal_covers_complete_selected_matrix_without_competitors() -> N
         any("--skip-bitrate-validation" in argument for argument in step.command)
         for step in smoke_steps
     )
-    assert "build-vsgan" not in targets
+    assert "build-tas" not in targets
     assert "quality-gates" not in targets
 
 
@@ -91,8 +92,8 @@ def test_comparative_goal_covers_build_quality_and_campaign() -> None:
 
     assert len(plan) == 12
     assert "build-vstrt" in targets
-    assert "build-vsgan" in targets
-    assert "build-vsgan-engine" in targets
+    assert "build-tas" in targets
+    assert "build-tas-engine" in targets
     assert "quality-gates" in targets
     assert targets[-1] == "run-comparative"
     assert "EXECUTION_PROFILE=upstream-default" in plan[-1].command
@@ -109,12 +110,19 @@ def test_tuned_goal_runs_each_phase_then_verifies_both_model_matrices() -> None:
     )
     targets = _targets(plan)
 
-    assert len(plan) == 41
+    assert len(plan) == 45
+    assert targets.count("preflight-tas-quality") == 4
     assert targets.count("run-tuned-sweep") == 4
     assert targets.count("run-tuned-quality") == 4
     assert targets.count("run-tuned-campaign") == 4
     assert targets.count("verify-tuned-matrix") == 2
     first_quality = targets.index("run-tuned-quality")
+    last_smoke = max(index for index, step in enumerate(plan) if step.key.startswith("smoke:"))
+    preflight_positions = [
+        index for index, target in enumerate(targets) if target == "preflight-tas-quality"
+    ]
+    assert last_smoke < min(preflight_positions)
+    assert max(preflight_positions) < targets.index("run-tuned-sweep")
     last_sweep = len(targets) - 1 - targets[::-1].index("run-tuned-sweep")
     first_campaign = targets.index("run-tuned-campaign")
     assert last_sweep < first_quality < first_campaign
@@ -142,7 +150,7 @@ def test_diagnostics_goal_runs_all_ceilings_and_one_nsight_trace() -> None:
 
     assert targets.count("run-trtexec") == 4
     assert targets.count("profile-nsight") == 1
-    assert "build-vsgan" not in targets
+    assert "build-tas" not in targets
 
 
 def test_resume_skips_only_successfully_recorded_steps(tmp_path: Path) -> None:
@@ -225,3 +233,82 @@ def test_workflow_rejects_unsupported_host_python(
 
     with pytest.raises(WorkflowError, match=r">=3\.10,<3\.13"):
         _require_supported_python()
+
+
+def test_canonical_matrix_passes_tas_engine_to_every_selected_stage() -> None:
+    matrix = load_workflow_matrix(MATRIX_PATH)
+    selection = matrix.select(workload_key="span", variant_name="720p")[0]
+    engine = "models/benchmarks/liveaction-span/engines/tas/liveaction_span_720p.engine"
+    assert selection.variant.tas_engine == engine
+    plan = build_plan(
+        root=ROOT,
+        matrix=matrix,
+        options=WorkflowOptions(goal="tuned", workload_key="span", variant_name="720p"),
+    )
+
+    for step in plan:
+        if "span-720p" in step.key:
+            assert f"TAS_ENGINE={engine}" in step.command
+    preflight = next(step for step in plan if step.command[3] == "preflight-tas-quality")
+    assert "EXECUTION_PROFILE=tuned" in preflight.command
+    assert "TUNING_CONTRACT=benchmarks/tuning/span_candidates.json" in preflight.command
+    assert any(step.command[3] == "run-tas" for step in plan)
+
+
+def test_legacy_workflow_matrix_is_rejected(tmp_path: Path) -> None:
+    document = json.loads(MATRIX_PATH.read_text())
+    document["schema_version"] = 1
+    path = tmp_path / "matrix.json"
+    path.write_text(json.dumps(document))
+
+    with pytest.raises(WorkflowMatrixError, match="Unsupported workflow matrix"):
+        load_workflow_matrix(path)
+
+
+def test_legacy_workflow_resume_is_rejected_even_with_matching_context(tmp_path: Path) -> None:
+    path = tmp_path / "state.json"
+    context = {"goal": "tuned", "participants": ["trtvideo", "vstrt", "tas"]}
+    path.write_text(json.dumps({"schema_version": 1, "context": context, "completed_steps": []}))
+
+    with pytest.raises(WorkflowError, match="legacy workflow state"):
+        WorkflowState.open(path, context=context, resume=True)
+
+
+def test_tas_preflight_failure_stops_sweep_and_can_resume(tmp_path: Path) -> None:
+    matrix = load_workflow_matrix(MATRIX_PATH)
+    plan = build_plan(
+        root=ROOT,
+        matrix=matrix,
+        options=WorkflowOptions(goal="tuned", workload_key="span", variant_name="720p"),
+    )
+    state_path = tmp_path / "state.json"
+    context = {"goal": "tuned"}
+    state = WorkflowState.open(state_path, context=context, resume=False)
+    attempted: list[str] = []
+
+    def fail_preflight(command: tuple[str, ...], _cwd: Path) -> None:
+        target = command[3]
+        attempted.append(target)
+        if target == "preflight-tas-quality":
+            raise subprocess.CalledProcessError(2, command)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        run_plan(plan, root=ROOT, state=state, dry_run=False, executor=fail_preflight)
+
+    assert attempted[-1] == "preflight-tas-quality"
+    assert "run-tuned-sweep" not in attempted
+    resumed = WorkflowState.open(state_path, context=context, resume=True)
+    assert "tuned:preflight:span-720p" not in resumed.completed_keys
+    attempted.clear()
+
+    def succeed(command: tuple[str, ...], _cwd: Path) -> None:
+        attempted.append(command[3])
+
+    run_plan(plan, root=ROOT, state=resumed, dry_run=False, executor=succeed)
+
+    assert attempted == [
+        "preflight-tas-quality",
+        "run-tuned-sweep",
+        "run-tuned-quality",
+        "run-tuned-campaign",
+    ]

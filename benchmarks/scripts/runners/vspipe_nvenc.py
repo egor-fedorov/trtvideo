@@ -11,7 +11,7 @@ from trtvideo.video.nvcodec.encoder import NvencCbrContract
 
 @dataclass(frozen=True)
 class VspipeNvencConfig:
-    """Immutable inputs shared by the vstrt and pinned VSGAN command paths."""
+    """Immutable inputs for the vs-mlrt vspipe-to-NVENC command path."""
 
     script: str
     source: str

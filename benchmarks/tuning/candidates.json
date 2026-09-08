@@ -1,10 +1,13 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "selection": {
     "metric": "median_end_to_end_fps",
     "equivalence_margin": 0.01,
     "max_relative_spread": 0.05,
-    "tie_breaker": "lowest_num_streams_then_graph_off"
+    "tie_breaker": {
+      "vstrt": "lowest_num_streams_then_graph_off",
+      "tas": "lowest_median_peak_vram_then_cpu_then_id"
+    }
   },
   "search": {
     "minimum_streams": 1,
@@ -44,10 +47,10 @@
       "vapoursynth_threads": "auto",
       "probe_cuda_graph": true
     },
-    "vsgan": {
-      "requests": "auto",
-      "vapoursynth_threads": "auto",
-      "probe_cuda_graph": true
+    "tas": {
+      "decode_methods": ["cpu", "nvdec"],
+      "writers": ["ffmpeg", "nelux"],
+      "cuda_graph": true
     }
   }
 }

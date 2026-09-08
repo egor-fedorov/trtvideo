@@ -1,32 +1,32 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 HOST_PYTHON ?= python3
+HOST_PYTHON_RUN = PYTHONPATH="$(ROOT)/src$${PYTHONPATH:+:$$PYTHONPATH}" "$(HOST_PYTHON)"
 PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' "$(ROOT)/pyproject.toml")
 BENCHMARK_IMAGE ?= trtvideo:benchmark
 VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
-VSGAN_IMAGE ?= trtvideo:benchmark-vsgan
-VSGAN_UPSTREAM_IMAGE ?= docker.io/styler00dollar/vsgan_tensorrt@sha256:1f23b8b43864021fb5a9e795c72e0a51b2bba568e6bbc24be175f924b828aaef
+TAS_IMAGE ?= trtvideo:benchmark-tas
 
 MANIFEST ?= benchmarks/workloads/realesrgan_x2plus_madrid.json
 IMPLEMENTATIONS ?= benchmarks/implementations.json
 VARIANT ?= 1080p
 ENGINE ?=
 PLAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/realesrgan_x2plus_$(VARIANT).engine
-VSGAN_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/vsgan/realesrgan_x2plus_$(VARIANT).engine
+TAS_ENGINE ?= models/benchmarks/realesrgan-x2plus/engines/tas/realesrgan_x2plus_$(VARIANT).engine
 ONNX ?= models/benchmarks/realesrgan-x2plus/onnx/realesrgan_x2plus_$(VARIANT)_fp16.onnx
-TRT_TIMING_CACHE ?= models/cache/benchmark-trt11.cache
+TRT_TIMING_CACHE ?= models/cache/benchmark-trt11.2.1.2.cache
 GPU_ID ?= 0
 ARGS ?=
 TRTEXEC_ARGS ?=
 VSTRT_ARGS ?=
-VSGAN_ARGS ?=
+TAS_ARGS ?=
 NSIGHT_ARGS ?=
 EXECUTION_PROFILE ?= upstream-default
 WORKLOAD_NAME := $(basename $(notdir $(MANIFEST)))
 PROJECT_OUTPUT_DIR ?= artefacts/benchmarks/project/$(WORKLOAD_NAME)-$(VARIANT)
 TRTVIDEO_OUTPUT_DIR ?= $(PROJECT_OUTPUT_DIR)
 VSTRT_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUTION_PROFILE)/vstrt/$(WORKLOAD_NAME)-$(VARIANT)
-VSGAN_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUTION_PROFILE)/vsgan/$(WORKLOAD_NAME)-$(VARIANT)
+TAS_OUTPUT_DIR ?= artefacts/benchmarks/comparative/per-implementation/$(EXECUTION_PROFILE)/tas/$(WORKLOAD_NAME)-$(VARIANT)
 TRTEXEC_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/trtexec/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_OUTPUT_DIR ?= artefacts/benchmarks/diagnostics/nsight/$(WORKLOAD_NAME)-$(VARIANT)
 NSIGHT_FRAMES ?= 120
@@ -59,17 +59,17 @@ ifeq ($(strip $(PROJECT_VERSION)),)
 $(error Could not read the project version from $(ROOT)/pyproject.toml)
 endif
 
-.PHONY: help build build-vstrt build-vsgan build-project-engine build-vsgan-engine prepare verify
-.PHONY: run-project run-trtvideo plan-trtexec plan-vstrt plan-vsgan plan-nsight dry-run
-.PHONY: run-trtexec run-vstrt run-vsgan
+.PHONY: help build build-vstrt build-tas build-project-engine build-tas-engine prepare verify
+.PHONY: run-project run-trtvideo plan-trtexec plan-vstrt plan-tas plan-nsight dry-run
+.PHONY: run-trtexec run-vstrt run-tas
 .PHONY: profile-nsight
 .PHONY: capture-model-trtvideo
-.PHONY: capture-preprocessing-vstrt capture-preprocessing-vsgan
-.PHONY: capture-inference-vstrt capture-inference-vsgan
+.PHONY: capture-preprocessing-vstrt capture-preprocessing-tas
+.PHONY: capture-inference-vstrt capture-inference-tas preflight-tas-quality
 .PHONY: compare-preprocessing compare-inference tensor-quality
-.PHONY: capture-output-trtvideo capture-output-vstrt capture-output-vsgan
+.PHONY: capture-output-trtvideo capture-output-vstrt capture-output-tas
 .PHONY: compare-product-output product-output-parity quality-gates
-.PHONY: campaign-preflight campaign-trtvideo campaign-vstrt campaign-vsgan
+.PHONY: campaign-preflight campaign-trtvideo campaign-vstrt campaign-tas
 .PHONY: aggregate-campaign run-campaign run-comparative
 .PHONY: run-tuned-sweep rank-tuned run-tuned-quality run-tuned-campaign
 .PHONY: verify-tuned-matrix
@@ -79,9 +79,9 @@ help:
 	@printf '%s\n' \
 		'build               Build the project benchmark image' \
 		'build-vstrt         Build the TensorRT 11 VapourSynth image' \
-		'build-vsgan         Build the pinned upstream VSGAN benchmark wrapper' \
+		'build-tas           Build the pinned TheAnimeScripter benchmark image' \
 		'build-project-engine  Build one project TRT11 engine (ONNX/ENGINE)' \
-		'build-vsgan-engine  Build a pinned VSGAN TRT10.16 engine (ONNX/VSGAN_ENGINE)' \
+		'build-tas-engine    Build a TAS engine with its upstream builder (ONNX/TAS_ENGINE)' \
 		'prepare             Download and prepare the selected workload assets' \
 		'verify              Verify the selected workload assets' \
 		'dry-run             Print diagnostic and selected-profile plans' \
@@ -89,13 +89,14 @@ help:
 		'run-comparative     Run/resume the selected-profile rotation' \
 		'run-trtvideo        Run the low-level project implementation suite' \
 		'run-vstrt           Run vstrt with EXECUTION_PROFILE (ENGINE required)' \
-		'run-vsgan           Run pinned VSGAN (VSGAN_ENGINE required)' \
+		'run-tas             Run pinned TheAnimeScripter (TAS_ENGINE required)' \
 		'run-trtexec         Run the internal TensorRT diagnostic (ENGINE required)' \
 		'plan-nsight         Print the project Nsight diagnostic plan' \
 		'profile-nsight      Capture one project Nsight Systems trace' \
 		'tensor-quality      Check shared-input inference; diagnose preprocessing' \
 		'product-output-parity  Compare retained MP4 outputs with PSNR/SSIM' \
 		'quality-gates       Run tensor and product-output quality gates' \
+		'preflight-tas-quality Check all four TAS I/O configurations before tuning' \
 		'run-tuned-sweep     Evaluate every declared tuned scheduling candidate' \
 		'rank-tuned          Rebuild the tuned candidate selection report' \
 		'run-tuned-quality   Fully validate winners; promote on candidate failure' \
@@ -123,13 +124,12 @@ build-vstrt: build
 		-f "$(ROOT)/benchmarks/docker/vstrt.Dockerfile" \
 		-t $(VSTRT_IMAGE) "$(ROOT)"
 
-build-vsgan:
+build-tas:
 	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BASE_IMAGE="$(VSGAN_UPSTREAM_IMAGE)" \
 		--build-arg VCS_REF="$$(git -C "$(ROOT)" rev-parse HEAD)" \
 		--build-arg VCS_DIRTY="$$(if test -z "$$(git -C "$(ROOT)" status --porcelain)"; then echo 0; else echo 1; fi)" \
-		-f "$(ROOT)/benchmarks/docker/vsgan.Dockerfile" \
-		-t $(VSGAN_IMAGE) "$(ROOT)"
+		-f "$(ROOT)/benchmarks/docker/tas.Dockerfile" \
+		-t $(TAS_IMAGE) "$(ROOT)"
 
 build-project-engine:
 	@test -n "$(ONNX)" || (echo "ERROR: ONNX is required" >&2; exit 2)
@@ -142,18 +142,20 @@ build-project-engine:
 			-o /app/$(ENGINE) \
 			--timing-cache /app/$(TRT_TIMING_CACHE)
 
-build-vsgan-engine:
-	mkdir -p "$(ROOT)/models" "$(ROOT)/models/cache"
+build-tas-engine:
+	@test -n "$(ONNX)" || (echo "ERROR: ONNX is required" >&2; exit 2)
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/$(dir $(TAS_ENGINE))"
 	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+		-e TRTVIDEO_IMAGE_REF="$(TAS_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(TAS_IMAGE))" \
 		-v "$(ROOT)/models:/app/models" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.workloads.build_vsgan_engine \
+		$(TAS_IMAGE) python3 -m benchmarks.scripts.workloads.build_tas_engine \
 			--manifest /app/$(MANIFEST) \
 			--variant $(VARIANT) \
 			--onnx /app/$(ONNX) \
-			--output /app/$(VSGAN_ENGINE) \
-			--timing-cache /app/models/cache/vsgan-trt10.16.0.72.cache \
+			--output /app/$(TAS_ENGINE) \
+			--gpu-id $(GPU_ID) \
 			$(ARGS)
 
 prepare:
@@ -226,23 +228,23 @@ plan-vstrt:
 			--execution-profile $(EXECUTION_PROFILE) \
 			--dry-run $(ARGS) $(VSTRT_ARGS)
 
-plan-vsgan:
+plan-tas:
 	mkdir -p "$(ROOT)/artefacts/benchmarks"
-	docker run --rm --user "$$(id -u):$$(id -g)" \
+	docker run --rm --network none --user "$$(id -u):$$(id -g)" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.runners.vsgan \
+		$(TAS_IMAGE) python3 -m benchmarks.scripts.runners.tas \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
-			--engine /app/$(VSGAN_ENGINE) \
+			--engine /app/$(TAS_ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
+			--output-dir /app/$(TAS_OUTPUT_DIR) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			--dry-run $(ARGS) $(VSGAN_ARGS)
+			--dry-run $(ARGS) $(TAS_ARGS)
 
-dry-run: plan-trtexec plan-vstrt plan-vsgan
+dry-run: plan-trtexec plan-vstrt plan-tas
 
 plan-nsight:
 	mkdir -p "$(ROOT)/artefacts/benchmarks"
@@ -295,24 +297,24 @@ run-vstrt:
 			--execution-profile $(EXECUTION_PROFILE) \
 			$(ARGS) $(VSTRT_ARGS)
 
-run-vsgan:
-	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(VSGAN_OUTPUT_DIR)"
-	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+run-tas:
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(TAS_OUTPUT_DIR)"
+	docker run --rm --network none --gpus all --user "$$(id -u):$$(id -g)" \
+		-e TRTVIDEO_IMAGE_REF="$(TAS_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(TAS_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 -m benchmarks.scripts.runners.vsgan \
+		$(TAS_IMAGE) python3 -m benchmarks.scripts.runners.tas \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
-			--engine /app/$(VSGAN_ENGINE) \
+			--engine /app/$(TAS_ENGINE) \
 			--gpu-id $(GPU_ID) \
-			--output-dir /app/$(VSGAN_OUTPUT_DIR) \
+			--output-dir /app/$(TAS_OUTPUT_DIR) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			$(ARGS) $(VSGAN_ARGS)
+			$(ARGS) $(TAS_ARGS)
 
 profile-nsight:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
@@ -371,27 +373,25 @@ capture-preprocessing-vstrt:
 			--output-dir /app/$(MODEL_SPACE_DIR)/production/vstrt \
 			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
 
-capture-preprocessing-vsgan:
-	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/production/vsgan"
-	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+capture-preprocessing-tas:
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/production/tas"
+	docker run --rm --network none --gpus all --user "$$(id -u):$$(id -g)" \
+		-e TRTVIDEO_IMAGE_REF="$(TAS_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(TAS_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 \
-			-m benchmarks.scripts.quality.capture_vspipe \
-			--implementation vsgan \
+		$(TAS_IMAGE) python3 -m benchmarks.scripts.quality.capture_tas \
+			--implementation tas \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
-			--engine /app/$(VSGAN_ENGINE) \
-			--script /app/benchmarks/vsgan/upscale.vpy \
+			--engine /app/$(TAS_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(EXECUTION_PROFILE) \
-			--output-dir /app/$(MODEL_SPACE_DIR)/production/vsgan \
-			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
+			--output-dir /app/$(MODEL_SPACE_DIR)/production/tas \
+			$(MODEL_SPACE_ARGS) $(TAS_ARGS)
 
 capture-inference-vstrt:
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
@@ -415,28 +415,26 @@ capture-inference-vstrt:
 			--output-dir /app/$(MODEL_SPACE_DIR)/inference/vstrt \
 			$(MODEL_SPACE_ARGS) $(VSTRT_ARGS)
 
-capture-inference-vsgan:
-	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
-	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/inference/vsgan"
-	docker run --rm --gpus all --user "$$(id -u):$$(id -g)" \
-		-e TRTVIDEO_IMAGE_REF="$(VSGAN_IMAGE)" \
-		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(VSGAN_IMAGE))" \
+capture-inference-tas:
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
+	mkdir -p "$(ROOT)/models" "$(ROOT)/videos" "$(ROOT)/$(MODEL_SPACE_DIR)/inference/tas"
+	docker run --rm --network none --gpus all --user "$$(id -u):$$(id -g)" \
+		-e TRTVIDEO_IMAGE_REF="$(TAS_IMAGE)" \
+		-e TRTVIDEO_IMAGE_ID="$$(docker image inspect --format '{{.Id}}' $(TAS_IMAGE))" \
 		-v "$(ROOT)/models:/app/models:ro" \
 		-v "$(ROOT)/videos:/app/videos:ro" \
 		-v "$(ROOT)/artefacts:/app/artefacts" \
-		$(VSGAN_IMAGE) /opt/vsgan-benchmark/bin/python3 \
-			-m benchmarks.scripts.quality.capture_vspipe \
-			--implementation vsgan \
+		$(TAS_IMAGE) python3 -m benchmarks.scripts.quality.capture_tas \
+			--implementation tas \
 			--manifest /app/$(MANIFEST) \
 			--implementations /app/$(IMPLEMENTATIONS) \
 			--variant $(VARIANT) \
-			--engine /app/$(VSGAN_ENGINE) \
-			--script /app/benchmarks/vsgan/upscale.vpy \
+			--engine /app/$(TAS_ENGINE) \
 			--gpu-id $(GPU_ID) \
 			--execution-profile $(EXECUTION_PROFILE) \
 			--shared-input-manifest /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
-			--output-dir /app/$(MODEL_SPACE_DIR)/inference/vsgan \
-			$(MODEL_SPACE_ARGS) $(VSGAN_ARGS)
+			--output-dir /app/$(MODEL_SPACE_DIR)/inference/tas \
+			$(MODEL_SPACE_ARGS) $(TAS_ARGS)
 
 compare-preprocessing:
 	docker run --rm --user "$$(id -u):$$(id -g)" \
@@ -446,7 +444,7 @@ compare-preprocessing:
 			--variant $(VARIANT) \
 			--reference /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
 			--candidate /app/$(MODEL_SPACE_DIR)/production/vstrt/manifest.json \
-			--candidate /app/$(MODEL_SPACE_DIR)/production/vsgan/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/production/tas/manifest.json \
 			--output /app/$(MODEL_SPACE_DIR)/preprocessing-diagnostic.json
 
 compare-inference:
@@ -457,7 +455,7 @@ compare-inference:
 			--variant $(VARIANT) \
 			--reference /app/$(MODEL_SPACE_DIR)/production/trtvideo/manifest.json \
 			--candidate /app/$(MODEL_SPACE_DIR)/inference/vstrt/manifest.json \
-			--candidate /app/$(MODEL_SPACE_DIR)/inference/vsgan/manifest.json \
+			--candidate /app/$(MODEL_SPACE_DIR)/inference/tas/manifest.json \
 			--output /app/$(MODEL_SPACE_DIR)/inference-parity.json
 
 tensor-quality:
@@ -465,14 +463,14 @@ tensor-quality:
 	$(MAKE) capture-model-trtvideo
 	@printf '[quality:tensors 2/7] Capture vs-mlrt production preprocessing\n'
 	$(MAKE) capture-preprocessing-vstrt
-	@printf '[quality:tensors 3/7] Capture VSGAN production preprocessing\n'
-	$(MAKE) capture-preprocessing-vsgan
+	@printf '[quality:tensors 3/7] Capture TheAnimeScripter production preprocessing\n'
+	$(MAKE) capture-preprocessing-tas
 	@printf '[quality:tensors 4/7] Record preprocessing diagnostic\n'
 	$(MAKE) compare-preprocessing
 	@printf '[quality:tensors 5/7] Run vs-mlrt from shared RGB tensors\n'
 	$(MAKE) capture-inference-vstrt
-	@printf '[quality:tensors 6/7] Run VSGAN from shared RGB tensors\n'
-	$(MAKE) capture-inference-vsgan
+	@printf '[quality:tensors 6/7] Run TheAnimeScripter from shared RGB tensors\n'
+	$(MAKE) capture-inference-tas
 	@printf '[quality:tensors 7/7] Validate shared-input inference parity\n'
 	$(MAKE) compare-inference
 
@@ -486,9 +484,9 @@ capture-output-vstrt:
 		VSTRT_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/vstrt" \
 		ARGS="$(QUALITY_RUN_ARGS)"
 
-capture-output-vsgan:
-	$(MAKE) run-vsgan \
-		VSGAN_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/vsgan" \
+capture-output-tas:
+	$(MAKE) run-tas \
+		TAS_OUTPUT_DIR="$(PRODUCT_OUTPUT_DIR)/tas" \
 		ARGS="$(QUALITY_RUN_ARGS)"
 
 compare-product-output:
@@ -499,7 +497,7 @@ compare-product-output:
 			--variant $(VARIANT) \
 			--reference /app/$(PRODUCT_OUTPUT_DIR)/trtvideo/run-01/manifest.json \
 			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vstrt/run-01/manifest.json \
-			--candidate /app/$(PRODUCT_OUTPUT_DIR)/vsgan/run-01/manifest.json \
+			--candidate /app/$(PRODUCT_OUTPUT_DIR)/tas/run-01/manifest.json \
 			--output /app/$(PRODUCT_OUTPUT_DIR)/product-output-parity.json \
 			--root /app
 
@@ -508,26 +506,38 @@ product-output-parity:
 	$(MAKE) capture-output-trtvideo
 	@printf '[quality:product-output 2/4] Run vs-mlrt quality output\n'
 	$(MAKE) capture-output-vstrt
-	@printf '[quality:product-output 3/4] Run VSGAN quality output\n'
-	$(MAKE) capture-output-vsgan
+	@printf '[quality:product-output 3/4] Run TheAnimeScripter quality output\n'
+	$(MAKE) capture-output-tas
 	@printf '[quality:product-output 4/4] Compare decoded outputs\n'
 	$(MAKE) compare-product-output
 
 quality-gates: tensor-quality product-output-parity
 
+preflight-tas-quality:
+	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.quality.preflight_tas \
+		--root "$(ROOT)" \
+		--manifest "$(MANIFEST)" \
+		--variant "$(VARIANT)" \
+		--engine "$(ENGINE)" \
+		--tas-engine "$(TAS_ENGINE)" \
+		--gpu-id "$(GPU_ID)" \
+		--output-dir "$(TUNING_DIR)/tas-preflight"
+
 run-tuned-sweep:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow sweep \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow sweep \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
 		--engine "$(ENGINE)" \
-		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--tas-engine "$(TAS_ENGINE)" \
 		--gpu-id "$(GPU_ID)" \
 		--sweep-dir "$(TUNING_DIR)" \
 		$(if $(filter 1,$(TUNING_RESUME)),--resume,)
 
 rank-tuned:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.rank \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.rank \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
@@ -537,28 +547,28 @@ rank-tuned:
 		--disqualifications "$(TUNING_DIR)/disqualifications.json"
 
 run-tuned-quality:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow quality \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow quality \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
 		--engine "$(ENGINE)" \
-		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--tas-engine "$(TAS_ENGINE)" \
 		--gpu-id "$(GPU_ID)" \
 		--sweep-dir "$(TUNING_DIR)"
 
 run-tuned-campaign:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.workflow campaign \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.workflow campaign \
 		--contract "$(TUNING_CONTRACT)" \
 		--manifest "$(MANIFEST)" \
 		--variant "$(VARIANT)" \
 		--engine "$(ENGINE)" \
-		--vsgan-engine "$(VSGAN_ENGINE)" \
+		--tas-engine "$(TAS_ENGINE)" \
 		--gpu-id "$(GPU_ID)" \
 		--sweep-dir "$(TUNING_DIR)" \
 		$(if $(filter 1,$(RESUME)),--resume,)
 
 verify-tuned-matrix:
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.tuning.matrix \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.tuning.matrix \
 		--root "$(ROOT)" \
 		--campaign-720p "$(TUNING_720_DIR)/final-campaign.json" \
 		--campaign-1080p "$(TUNING_1080_DIR)/final-campaign.json" \
@@ -628,9 +638,9 @@ campaign-preflight:
 		'import sys; version = sys.version_info[:2]; raise SystemExit(0 if (3, 10) <= version < (3, 13) else 1)' || \
 		(echo "ERROR: comparative campaign requires host Python >= 3.10,<3.13 ($(HOST_PYTHON))" >&2; exit 2)
 	@test -n "$(ENGINE)" || (echo "ERROR: ENGINE is required" >&2; exit 2)
-	@test -n "$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE is required" >&2; exit 2)
+	@test -n "$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE is required" >&2; exit 2)
 	@test -f "$(ROOT)/$(ENGINE)" || (echo "ERROR: ENGINE not found: $(ENGINE)" >&2; exit 2)
-	@test -f "$(ROOT)/$(VSGAN_ENGINE)" || (echo "ERROR: VSGAN_ENGINE not found: $(VSGAN_ENGINE)" >&2; exit 2)
+	@test -f "$(ROOT)/$(TAS_ENGINE)" || (echo "ERROR: TAS_ENGINE not found: $(TAS_ENGINE)" >&2; exit 2)
 	@test -z "$$(git -C "$(ROOT)" status --porcelain)" || \
 		(echo "ERROR: campaign requires a clean worktree" >&2; exit 2)
 	@if test -e "$(ROOT)/$(CAMPAIGN_DIR)" && test "$(RESUME)" != "1"; then \
@@ -638,7 +648,7 @@ campaign-preflight:
 		exit 2; \
 	fi
 	@revision="$$(git -C "$(ROOT)" rev-parse HEAD)"; \
-	for image in "$(BENCHMARK_IMAGE)" "$(VSTRT_IMAGE)" "$(VSGAN_IMAGE)"; do \
+	for image in "$(BENCHMARK_IMAGE)" "$(VSTRT_IMAGE)" "$(TAS_IMAGE)"; do \
 		docker run --rm -e EXPECTED_REVISION="$$revision" "$$image" sh -c \
 			'test "$$TRTVIDEO_BUILD_REVISION" = "$$EXPECTED_REVISION" && test "$$TRTVIDEO_BUILD_DIRTY" = "0"' || { \
 			echo "ERROR: $$image was not built from clean revision $$revision" >&2; \
@@ -674,17 +684,17 @@ campaign-vstrt:
 			ARGS="$(CAMPAIGN_RUN_ARGS)"; \
 	fi
 
-campaign-vsgan:
-	@output="$(ROOT)/$(CAMPAIGN_DIR)/vsgan/round-$(ROUND)"; \
+campaign-tas:
+	@output="$(ROOT)/$(CAMPAIGN_DIR)/tas/round-$(ROUND)"; \
 	manifest="$$output/run-01/manifest.json"; \
 	if test -f "$$manifest"; then \
 		test "$(RESUME)" = "1" || exit 2; \
 		grep -q '"status": "valid"' "$$manifest" || { echo "ERROR: invalid existing $$manifest" >&2; exit 2; }; \
-		echo "Resume: VSGAN round $(ROUND) is already valid"; \
+		echo "Resume: TheAnimeScripter round $(ROUND) is already valid"; \
 	elif test -e "$$output"; then \
-		echo "ERROR: partial VSGAN round $(ROUND); remove $$output before resume" >&2; exit 2; \
+		echo "ERROR: partial TheAnimeScripter round $(ROUND); remove $$output before resume" >&2; exit 2; \
 	else \
-		$(MAKE) run-vsgan VSGAN_OUTPUT_DIR="$(CAMPAIGN_DIR)/vsgan/round-$(ROUND)" \
+		$(MAKE) run-tas TAS_OUTPUT_DIR="$(CAMPAIGN_DIR)/tas/round-$(ROUND)" \
 			ARGS="$(CAMPAIGN_RUN_ARGS)"; \
 	fi
 
@@ -703,14 +713,14 @@ aggregate-campaign:
 			$(ARGS)
 
 run-campaign: campaign-preflight
-	cd "$(ROOT)" && "$(HOST_PYTHON)" -m benchmarks.scripts.campaign.run \
+	cd "$(ROOT)" && $(HOST_PYTHON_RUN) -m benchmarks.scripts.campaign.run \
 		--campaign-dir "$(ROOT)/$(CAMPAIGN_DIR)" \
 		--make-campaign-dir "$(CAMPAIGN_DIR)" \
 		--benchmarks-dir "$(ROOT)/benchmarks" \
 		--idle-seconds "$(CAMPAIGN_IDLE_SECONDS)" \
 		--execution-profile "$(EXECUTION_PROFILE)" \
 		--vstrt-arguments="$(VSTRT_ARGS)" \
-		--vsgan-arguments="$(VSGAN_ARGS)" \
+		--tas-arguments="$(TAS_ARGS)" \
 		$(if $(filter 1,$(RESUME)),--resume,)
 
 run-comparative: run-campaign

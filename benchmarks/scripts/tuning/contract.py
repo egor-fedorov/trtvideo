@@ -8,11 +8,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-Implementation = Literal["vstrt", "vsgan"]
+Implementation = Literal["vstrt", "tas"]
 AutoOrInt = Literal["auto"] | int
+DecodeMethod = Literal["cpu", "nvdec"]
+Writer = Literal["ffmpeg", "nelux"]
 
 _CANDIDATE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-_IMPLEMENTATIONS: tuple[Implementation, ...] = ("vstrt", "vsgan")
+_IMPLEMENTATIONS: tuple[Implementation, ...] = ("vstrt", "tas")
 
 
 class TuningContractError(ValueError):
@@ -49,13 +51,15 @@ class TunedCandidate:
     """One explicit VapourSynth scheduling point."""
 
     candidate_id: str
-    implementation: Implementation
+    implementation: Literal["vstrt"]
     requests: AutoOrInt
     num_streams: int
     vapoursynth_threads: AutoOrInt
     cuda_graph: bool
 
     def __post_init__(self) -> None:
+        if self.implementation != "vstrt":
+            raise TuningContractError("Stream candidates are only supported for vstrt")
         if not _CANDIDATE_ID_RE.fullmatch(self.candidate_id):
             raise TuningContractError(
                 "Candidate id must contain only lowercase letters, digits, and hyphens"
@@ -82,6 +86,39 @@ class TunedCandidate:
                 graph_option,
             )
         )
+
+
+@dataclass(frozen=True)
+class TasCandidate:
+    """One native TAS I/O configuration; CUDA Graph is always enabled."""
+
+    candidate_id: str
+    decode_method: DecodeMethod
+    writer: Writer
+    implementation: Literal["tas"] = "tas"
+    cuda_graph: Literal[True] = True
+
+    def __post_init__(self) -> None:
+        if self.decode_method not in ("cpu", "nvdec") or self.writer not in ("ffmpeg", "nelux"):
+            raise TuningContractError("Unsupported TAS decoder or writer")
+        if self.implementation != "tas" or self.cuda_graph is not True:
+            raise TuningContractError("TAS candidates require native CUDA Graph enabled")
+        if self.candidate_id != f"tas-{self.decode_method}-{self.writer}":
+            raise TuningContractError("TAS candidate id must match its decoder and writer")
+
+    def execution_profile(self) -> dict[str, str | int | bool]:
+        return {
+            "execution_profile": "tuned",
+            "decode_method": self.decode_method,
+            "writer": self.writer,
+            "cuda_graph": True,
+        }
+
+    def runner_arguments(self) -> str:
+        return f"--decode-method {self.decode_method} --writer {self.writer}"
+
+
+Candidate = TunedCandidate | TasCandidate
 
 
 @dataclass(frozen=True)
@@ -249,16 +286,18 @@ class SelectionPolicy:
     metric: str
     equivalence_margin: float
     max_relative_spread: float
-    tie_breaker: str
+    tie_breaker: dict[str, str]
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> SelectionPolicy:
         if value.get("metric") != "median_end_to_end_fps":
             raise TuningContractError("Selection metric must be 'median_end_to_end_fps'")
-        if value.get("tie_breaker") != "lowest_num_streams_then_graph_off":
-            raise TuningContractError(
-                "Selection tie_breaker must be 'lowest_num_streams_then_graph_off'"
-            )
+        tie_breaker = {
+            "vstrt": "lowest_num_streams_then_graph_off",
+            "tas": "lowest_median_peak_vram_then_cpu_then_id",
+        }
+        if value.get("tie_breaker") != tie_breaker:
+            raise TuningContractError("Selection tie_breaker must declare native vstrt/TAS rules")
         return cls(
             metric="median_end_to_end_fps",
             equivalence_margin=_fraction(
@@ -270,10 +309,10 @@ class SelectionPolicy:
                 value.get("max_relative_spread"),
                 field="selection.max_relative_spread",
             ),
-            tie_breaker="lowest_num_streams_then_graph_off",
+            tie_breaker=tie_breaker,
         )
 
-    def as_dict(self) -> dict[str, str | float]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "metric": self.metric,
             "equivalence_margin": self.equivalence_margin,
@@ -286,7 +325,7 @@ class SelectionPolicy:
 class ImplementationProfile:
     """Scheduling values fixed while one competitor is searched."""
 
-    implementation: Implementation
+    implementation: Literal["vstrt"]
     requests: AutoOrInt
     vapoursynth_threads: AutoOrInt
     probe_cuda_graph: bool
@@ -294,7 +333,7 @@ class ImplementationProfile:
     @classmethod
     def from_dict(
         cls,
-        implementation: Implementation,
+        implementation: Literal["vstrt"],
         value: dict[str, Any],
     ) -> ImplementationProfile:
         probe_cuda_graph = value.get("probe_cuda_graph")
@@ -313,6 +352,34 @@ class ImplementationProfile:
                 field=f"implementations.{implementation}.vapoursynth_threads",
             ),
             probe_cuda_graph=probe_cuda_graph,
+        )
+
+
+@dataclass(frozen=True)
+class TasProfile:
+    """The complete, unordered TAS decoder/writer search space."""
+
+    implementation: Literal["tas"] = "tas"
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> TasProfile:
+        expected = {
+            "decode_methods": ["cpu", "nvdec"],
+            "writers": ["ffmpeg", "nelux"],
+            "cuda_graph": True,
+        }
+        if value != expected or value.get("cuda_graph") is not True:
+            raise TuningContractError("TAS must declare the full native decoder/writer grid")
+        return cls()
+
+    @property
+    def candidates(self) -> tuple[TasCandidate, ...]:
+        decoders: tuple[DecodeMethod, ...] = ("cpu", "nvdec")
+        writers: tuple[Writer, ...] = ("ffmpeg", "nelux")
+        return tuple(
+            TasCandidate(f"tas-{decoder}-{writer}", decoder, writer)
+            for decoder in decoders
+            for writer in writers
         )
 
 
@@ -348,12 +415,14 @@ class TuningContract:
     selection: SelectionPolicy
     search: SearchPolicy
     project_profile: ProjectProfile
-    implementations: tuple[ImplementationProfile, ...]
+    implementations: tuple[ImplementationProfile | TasProfile, ...]
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> TuningContract:
-        if value.get("schema_version") != 2:
-            raise TuningContractError("Unsupported tuning contract schema_version")
+        if value.get("schema_version") != 3:
+            raise TuningContractError(
+                "Unsupported tuning contract schema_version; legacy evidence is read-only"
+            )
         selection_value = value.get("selection")
         search_value = value.get("search")
         project_profile_value = value.get("project_profile")
@@ -367,20 +436,23 @@ class TuningContract:
         if not isinstance(implementations_value, dict):
             raise TuningContractError("Tuning implementations must be an object")
         if set(implementations_value) != set(_IMPLEMENTATIONS):
-            raise TuningContractError("Tuning contract must define vstrt and vsgan")
-        implementations = tuple(
-            ImplementationProfile.from_dict(implementation, implementations_value[implementation])
-            for implementation in _IMPLEMENTATIONS
-            if isinstance(implementations_value[implementation], dict)
-        )
-        if len(implementations) != len(_IMPLEMENTATIONS):
+            raise TuningContractError("Tuning contract must define vstrt and tas")
+        if not all(isinstance(item, dict) for item in implementations_value.values()):
             raise TuningContractError("Every tuning implementation must be an object")
+        implementations = (
+            ImplementationProfile.from_dict("vstrt", implementations_value["vstrt"]),
+            TasProfile.from_dict(implementations_value["tas"]),
+        )
         selection = SelectionPolicy.from_dict(selection_value)
         search = SearchPolicy.from_dict(search_value)
         if selection.max_relative_spread != search.confirmation.max_relative_spread:
             raise TuningContractError("Selection and confirmation max_relative_spread must match")
+        if search.shortlist_size != 3:
+            raise TuningContractError("TAS finite search requires shortlist_size=3")
+        if search.reconnaissance.initial_runs != 1 or search.reconnaissance.extra_runs_on_spread:
+            raise TuningContractError("Reconnaissance requires one run per candidate")
         return cls(
-            schema_version=2,
+            schema_version=3,
             selection=selection,
             search=search,
             project_profile=ProjectProfile.from_dict(project_profile_value),
@@ -388,9 +460,12 @@ class TuningContract:
         )
 
     @property
-    def candidates(self) -> tuple[TunedCandidate, ...]:
-        candidates = []
+    def candidates(self) -> tuple[Candidate, ...]:
+        candidates: list[Candidate] = []
         for profile in self.implementations:
+            if isinstance(profile, TasProfile):
+                candidates.extend(profile.candidates)
+                continue
             for streams in self.search.stream_range:
                 candidates.append(self.make_candidate(profile.implementation, streams))
                 if profile.probe_cuda_graph:
@@ -403,12 +478,12 @@ class TuningContract:
                     )
         return tuple(candidates)
 
-    def implementation(self, name: Implementation) -> ImplementationProfile:
+    def implementation(self, name: Implementation) -> ImplementationProfile | TasProfile:
         return next(profile for profile in self.implementations if profile.implementation == name)
 
     def make_candidate(
         self,
-        implementation: Implementation,
+        implementation: Literal["vstrt"],
         num_streams: int,
         *,
         cuda_graph: bool = False,
@@ -419,10 +494,11 @@ class TuningContract:
                 f"{self.search.minimum_streams}..{self.search.maximum_streams}"
             )
         profile = self.implementation(implementation)
+        if not isinstance(profile, ImplementationProfile):
+            raise TuningContractError("TAS uses a finite I/O grid, not stream candidates")
         if cuda_graph and not profile.probe_cuda_graph:
             raise TuningContractError(f"{implementation} does not allow a CUDA Graph probe")
-        thread_suffix = "-tauto" if implementation == "vsgan" else ""
-        candidate_id = f"{implementation}-s{num_streams}{thread_suffix}-g{int(cuda_graph)}"
+        candidate_id = f"{implementation}-s{num_streams}-g{int(cuda_graph)}"
         return TunedCandidate(
             candidate_id=candidate_id,
             implementation=implementation,
@@ -435,12 +511,12 @@ class TuningContract:
     def for_implementation(
         self,
         implementation: Implementation,
-    ) -> tuple[TunedCandidate, ...]:
+    ) -> tuple[Candidate, ...]:
         return tuple(
             candidate for candidate in self.candidates if candidate.implementation == implementation
         )
 
-    def candidate(self, candidate_id: str) -> TunedCandidate:
+    def candidate(self, candidate_id: str) -> Candidate:
         for candidate in self.candidates:
             if candidate.candidate_id == candidate_id:
                 return candidate

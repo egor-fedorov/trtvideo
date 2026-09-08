@@ -32,6 +32,10 @@ tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaign
 Both groups remain unit tests. Real GPU and performance runs live in
 `benchmarks/`, not in `tests/`.
 
+Host benchmark command smoke tests use Python `-S` with the checkout's `src/`
+on `PYTHONPATH`, disabling installed site-packages so the checks image cannot
+mask undeclared host dependencies.
+
 ### Media Integration
 
 The checks image also runs a GPU-free FFmpeg integration test:
@@ -51,6 +55,10 @@ streams that cannot be copied into MP4.
 The non-GPU checks image validates Docker entrypoints. `benchmark-trtvideo` is
 copied into this image only for test parity with the benchmark target; it is not
 installed as a production project script.
+
+`make cli-smoke` (also part of `make check`) prints one `PASS` line per
+successful command. On failure it prints the command, exit code, and captured
+stdout/stderr, then stops. Run an individual command below to view its full help.
 
 ```bash
 docker run --rm trtvideo:dev trtvideo --help

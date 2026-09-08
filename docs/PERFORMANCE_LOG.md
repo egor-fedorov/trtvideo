@@ -15,9 +15,54 @@ privacy rewrite. They remain immutable labels from the original measurement
 records but are not expected to resolve in the rewritten history. Current
 publication evidence must come from one clean post-rewrite revision.
 
-## 2026-08-18 - Cross-GPU SPAN scaling
+## 2026-09-08 - TAS comparison on TensorRT 11.2.1.2
 
-Independent, fully valid Madrid sessions measured the current tuned comparison
+Fresh Madrid sessions on RTX 3090 / Ryzen 5 5600 at 350 W and RTX 4090 /
+Ryzen 7 5700X3D at 450 W measured trtvideo, vs-mlrt, and TheAnimeScripter
+from clean revision `b5bf437e17813ea2f6fc1b268a479b612f83dc08`. All three
+use TensorRT 11.2.1.2; TAS replaces VSGAN from the August publications.
+Each final process measures 1000 frames, including startup and finalization,
+after independent search, confirmation, and quality gates.
+
+| Workload | Input | RTX 3090 trtvideo / fastest external | Difference | RTX 4090 trtvideo / fastest external | Difference |
+|---|---|---:|---:|---:|---:|
+| RealESRGAN_x2plus | 720p | 6.216 / 6.328 vs-mlrt | -1.77% | 10.443 / 10.399 TAS | +0.42% |
+| RealESRGAN_x2plus | 1080p | 2.795 / 2.831 vs-mlrt | -1.27% | 4.469 / 4.515 vs-mlrt | -1.02% |
+| SPAN | 720p | 55.782 / 55.174 vs-mlrt | +1.10% | 100.149 / 91.755 TAS | +9.15% |
+| SPAN | 1080p | 26.181 / 25.301 TAS | +3.48% | 48.569 / 46.419 TAS | +4.63% |
+
+FPS units apply throughout. Only RTX 4090 SPAN 720p exceeds the predeclared
++/-5% parity band against the fastest external product. TAS selects native
+NVDEC decode and neLux output for every workload. On RTX 4090 SPAN it uses
+2.14/2.22 CPU cores and 2313/3926 MiB peak VRAM, compared with vs-mlrt's
+11.63/11.78 cores and 6693/13854 MiB. trtvideo remains lower at 0.74/0.57
+cores and 1753/2805 MiB.
+
+This narrows the interpretation of the August scaling observation below:
+trtvideo's RTX 4090 SPAN gaps against vs-mlrt remain +19.15%/+24.98%, but
+against TAS they are +9.15%/+4.63%. Host processing/transport remains a
+plausible limitation of the measured VapourSynth path, not a universal
+explanation for all competitors. The sessions change the TensorRT stack,
+engines, participant set, and measurement conditions relative to August;
+they are not a controlled runtime-version A/B, and no FPS change is attributed
+solely to the TensorRT update.
+
+The 36 RTX 3090 and 42 RTX 4090 retained final runs pass validation. Twelve
+thermal-invalid attempts on RTX 3090 and three failed attempts on RTX 4090
+(two CUDA failures and a TAS hang) were archived and retried, not included in
+medians. RTX 4090 RealESRGAN 1080p uses five rounds and retains a vs-mlrt
+outlier: 5.49% full spread, 1.49% four-of-five consensus spread. Confirmation
+versus final medians differ by at most 0.338% on RTX 3090 and 0.204% on RTX
+4090. These controls do not erase retry history or prove failure-free operation.
+Both Nsight traces retain zero frame-loop H2D/D2H copies.
+
+Evidence: [RTX 3090](../benchmarks/results/rtx-3090/README.md) and
+[RTX 4090](../benchmarks/results/rtx-4090/README.md), exported from
+`08092026-3090-tuned_diagnostics` and `08092026-4090-tuned_diagnostics`.
+
+## 2026-08-18 - Cross-GPU SPAN scaling (historical participants)
+
+Independent, validated Madrid sessions measured trtvideo, vs-mlrt, and VSGAN
 on an RTX 3090 with a six-core Ryzen 5 5600 and on an RTX 4090 with an eight-core
 Ryzen 7 5700X3D. Before the RTX 4090 measurement, the working hypothesis was
 that additional host CPU capacity would reduce the external SPAN path's gap.
@@ -42,10 +87,10 @@ was not captured in Nsight Systems. The resulting forward hypothesis is limited
 to SPAN-like light models where GPU compute improves faster than the
 host/transport path; RealESRGAN remains a compute-bound parity result.
 
-Evidence:
+Historical evidence (the current paths now contain the September TAS sessions):
 
-- [`benchmarks/results/rtx-3090/`](../benchmarks/results/rtx-3090/README.md)
-- [`benchmarks/results/rtx-4090/`](../benchmarks/results/rtx-4090/README.md)
+- [August RTX 3090 snapshot](https://github.com/egor-fedorov/trtvideo/blob/b5bf437e17813ea2f6fc1b268a479b612f83dc08/benchmarks/results/rtx-3090/README.md)
+- [August RTX 4090 snapshot](https://github.com/egor-fedorov/trtvideo/blob/b5bf437e17813ea2f6fc1b268a479b612f83dc08/benchmarks/results/rtx-4090/README.md)
 
 ## 2026-07-29 - Corrected color path and streaming mux baseline
 

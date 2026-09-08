@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -172,18 +173,18 @@ def test_validate_evidence_requires_same_encoder(tmp_path: Path) -> None:
         ),
         root=tmp_path,
     )
-    vsgan = OutputEvidence.load(
+    tas = OutputEvidence.load(
         _write_run_manifest(
             tmp_path,
-            name="vsgan",
-            product="VSGAN-tensorrt-docker",
+            name="tas",
+            product="TheAnimeScripter",
             engine_sha256="4" * 64,
         ),
         root=tmp_path,
     )
 
     with pytest.raises(ProductOutputError, match="changed encoder"):
-        validate_evidence_set(reference, [vstrt, vsgan], expected_frames=1000)
+        validate_evidence_set(reference, [vstrt, tas], expected_frames=1000)
 
 
 def test_compare_product_outputs_builds_valid_report(
@@ -205,13 +206,17 @@ def test_compare_product_outputs_builds_valid_report(
         ),
         _write_run_manifest(
             tmp_path,
-            name="vsgan",
-            product="VSGAN-tensorrt-docker",
+            name="tas",
+            product="TheAnimeScripter",
             engine_sha256="4" * 64,
         ),
     ]
 
-    def fake_metric(*args, metric: str, **kwargs) -> dict:
+    metric_directories = []
+    crop_directories = {}
+
+    def fake_metric(*args, metric: str, output_dir: Path, **kwargs) -> dict:
+        metric_directories.append((output_dir, metric))
         if metric == "psnr":
             return {
                 "exact": False,
@@ -225,9 +230,13 @@ def test_compare_product_outputs_builds_valid_report(
         "benchmarks.scripts.quality.product_output.run_metric",
         fake_metric,
     )
+
+    def fake_crops(evidence: OutputEvidence, *, output_dir: Path, **kwargs) -> list:
+        crop_directories[evidence.product] = output_dir
+        return []
+
     monkeypatch.setattr(
-        "benchmarks.scripts.quality.product_output.generate_visual_crops",
-        lambda *args, **kwargs: [],
+        "benchmarks.scripts.quality.product_output.generate_visual_crops", fake_crops
     )
 
     report = compare_product_outputs(
@@ -242,3 +251,59 @@ def test_compare_product_outputs_builds_valid_report(
     assert report["status"] == "valid"
     assert report["publishable"] is True
     assert len(report["comparisons"]) == 2
+    assert [item["implementation"] for item in report["comparisons"]] == [
+        "vs-mlrt",
+        "TheAnimeScripter",
+    ]
+    assert report["comparisons"][1]["engine_sha256"] == "4" * 64
+    assert set(report["visual_crops"]) == {"trtvideo", "vs-mlrt", "TheAnimeScripter"}
+    report_dir = tmp_path / "artefacts/quality/report"
+    assert metric_directories == [
+        (report_dir / candidate, metric)
+        for candidate in ("vstrt", "tas")
+        for metric in ("psnr", "ssim")
+    ]
+    assert crop_directories == {
+        "trtvideo": report_dir / "crops/trtvideo",
+        "vs-mlrt": report_dir / "crops/vstrt",
+        "TheAnimeScripter": report_dir / "crops/tas",
+    }
+
+
+@pytest.mark.parametrize(
+    "products",
+    [
+        [],
+        ["vs-mlrt"],
+        ["TheAnimeScripter"],
+        ["vs-mlrt", "vs-mlrt"],
+        ["vs-mlrt", "unknown"],
+        ["vs-mlrt", "TheAnimeScripter", "TheAnimeScripter"],
+    ],
+)
+def test_validate_evidence_requires_exact_candidate_set(
+    tmp_path: Path, products: list[str]
+) -> None:
+    reference = OutputEvidence.load(
+        _write_run_manifest(tmp_path, name="trtvideo", product="trtvideo", engine_sha256="3" * 64),
+        root=tmp_path,
+    )
+    with pytest.raises(ProductOutputError, match="exactly vs-mlrt and TheAnimeScripter"):
+        validate_evidence_set(
+            reference,
+            [replace(reference, product=product) for product in products],
+            expected_frames=1000,
+        )
+
+
+def test_validate_evidence_requires_shared_vsmlrt_engine(tmp_path: Path) -> None:
+    reference = OutputEvidence.load(
+        _write_run_manifest(tmp_path, name="trtvideo", product="trtvideo", engine_sha256="3" * 64),
+        root=tmp_path,
+    )
+    candidates = [
+        replace(reference, product="vs-mlrt", engine_sha256="4" * 64),
+        replace(reference, product="TheAnimeScripter", engine_sha256="5" * 64),
+    ]
+    with pytest.raises(ProductOutputError, match="vs-mlrt changed the shared engine"):
+        validate_evidence_set(reference, candidates, expected_frames=1000)

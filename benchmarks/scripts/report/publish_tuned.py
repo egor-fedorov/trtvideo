@@ -5,13 +5,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from benchmarks.scripts.runtime.suite import compute_suite_statistics
+from benchmarks.scripts.tuning.adaptive import resource_medians
 
 CANONICAL_ROOT = PurePosixPath("artefacts/benchmarks/comparative/tuning")
 DEFAULT_OUTPUT = Path("benchmarks/results/rtx-3090/tuned.json")
 DEFAULT_IMPLEMENTATIONS = Path("benchmarks/implementations.json")
 DEFAULT_TUNING_CONTRACT = Path("benchmarks/tuning/candidates.json")
+ACTIVE_IMPLEMENTATIONS = ("trtvideo", "vstrt", "tas")
+EXTERNAL_IMPLEMENTATIONS = ("vstrt", "tas")
 CANONICAL_WORKLOADS = (
     ("realesrgan_x2plus_madrid", "RealESRGAN_x2plus", "720p"),
     ("realesrgan_x2plus_madrid", "RealESRGAN_x2plus", "1080p"),
@@ -53,7 +59,10 @@ class EvidenceSource:
             relative = PurePosixPath(path).relative_to(CANONICAL_ROOT)
         except ValueError as exc:
             raise PublicationError(f"Artifact path escapes tuned evidence: {path}") from exc
-        return self.root / Path(*relative.parts)
+        resolved = (self.root / Path(*relative.parts)).resolve()
+        if not resolved.is_relative_to(self.root):
+            raise PublicationError(f"Artifact path escapes tuned evidence: {path}")
+        return resolved
 
 
 def _workloads_for_source(source: EvidenceSource) -> tuple[tuple[str, str, str], ...]:
@@ -71,23 +80,144 @@ def _workloads_for_source(source: EvidenceSource) -> tuple[tuple[str, str, str],
     return CANONICAL_WORKLOADS
 
 
+def _verified_artifact(
+    source: EvidenceSource, record: Any, *, label: str
+) -> tuple[Path, dict[str, Any]]:
+    if not isinstance(record, dict) or not isinstance(record.get("path"), str):
+        raise PublicationError(f"{label} evidence is missing")
+    path = source.resolve(record["path"])
+    report = _load(path)
+    if record.get("sha256") != _digest(path):
+        raise PublicationError(f"{label} SHA256 changed or is missing: {path}")
+    return path, report
+
+
+def _check_session_environment(
+    actual: dict[str, Any], expected: dict[str, Any], *, label: str
+) -> None:
+    # These are the same immutable environment fields compared by campaign aggregation.
+    for key in ("repository_revision", "gpu", "cpu"):
+        if not expected.get(key) or actual.get(key) != expected[key]:
+            raise PublicationError(f"{label} session {key} differs or is missing")
+
+
 def _identity_interpretation(identities: list[dict[str, Any]]) -> str:
     tensors_identical = all(item["candidate_tensor_sha256_sets_identical"] for item in identities)
     outputs_identical = all(item["candidate_mp4_sha256_identical"] for item in identities)
     if tensors_identical and outputs_identical:
-        return (
-            "Independent vs-mlrt and VSGAN captures are byte-identical for every "
-            "published workload."
-        )
+        return "Independent external captures are byte-identical for every published workload."
     return (
-        "Identity is reported per workload. vs-mlrt and VSGAN use independent "
-        "captures and separately built TensorRT 11 and TensorRT 10.16 engines; "
+        "Identity is reported per workload. External implementations use independent "
+        "captures and separately built TensorRT engines; "
         "non-identical outputs remain publishable only when the numerical inference "
         "and decoded-product quality gates pass."
     )
 
 
-def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
+def _candidate_measurement(
+    source: EvidenceSource,
+    value: dict[str, Any],
+    *,
+    directory: Path,
+    stage: str,
+    campaign: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind resource medians to the exact runs that produced the candidate FPS."""
+    suite_path = source.resolve(value.get("evidence", {}).get("suite", ""))
+    expected = directory / "candidates" / value["implementation"] / value["candidate_id"]
+    if suite_path != expected / stage / "performance/suite.json":
+        raise PublicationError(f"Candidate suite does not belong to {stage}: {suite_path}")
+    suite = _load(suite_path)
+    if suite.get("status") != "valid" or suite.get("errors") or not suite.get("runs"):
+        raise PublicationError(f"Candidate suite is not valid: {suite_path}")
+    parameters = suite["parameters"]
+    profile = value["execution_profile"]
+    manifests, records, fps = [], [], []
+    for index, entry in enumerate(suite["runs"], start=1):
+        path = source.resolve(entry["manifest"])
+        if (
+            path != suite_path.parent / f"run-{index:02d}/manifest.json"
+            or entry.get("index") != index
+            or entry.get("status") != "valid"
+        ):
+            raise PublicationError(f"Candidate suite run changed: {path}")
+        run = _load(path)
+        if run.get("status") != "valid" or run.get("errors"):
+            raise PublicationError(f"Candidate run is not valid: {path}")
+        for key in ("workload_id", "variant", "benchmark_contract_version"):
+            if suite.get(key) != campaign[key] or run.get(key) != campaign[key]:
+                raise PublicationError(f"Candidate run {key} changed: {path}")
+        if any(
+            parameters.get(key) != expected_value or run["parameters"].get(key) != expected_value
+            for key, expected_value in {**profile, "frames": parameters["frames"]}.items()
+        ):
+            raise PublicationError(f"Candidate run parameters changed: {path}")
+        environment = run["environment"]
+        image = environment["image"]
+        _check_session_environment(
+            {**environment, "repository_revision": image.get("repository_revision")},
+            campaign["environment"],
+            label=str(path),
+        )
+        if str(image.get("source_dirty")) != "0":
+            raise PublicationError(f"Candidate run was built from dirty source: {path}")
+        metrics = run["measured"]["metrics"]
+        nvml, cpu = metrics.get("nvml", {}), metrics.get("cpu", {})
+        if (
+            nvml.get("valid") is not True
+            or nvml.get("errors")
+            or cpu.get("accounting") != "getrusage(RUSAGE_CHILDREN)"
+            or cpu.get("scope") != "measured-child-process-tree"
+        ):
+            raise PublicationError(f"Candidate resource accounting is invalid: {path}")
+        rate = metrics.get("end_to_end_fps")
+        if (
+            not isinstance(rate, (int, float))
+            or isinstance(rate, bool)
+            or not math.isfinite(rate)
+            or rate <= 0
+            or entry.get("end_to_end_fps") != rate
+        ):
+            raise PublicationError(f"Candidate run FPS changed: {path}")
+        fps.append(rate)
+        manifests.append(run)
+        records.append({"path": source.canonical(path), "sha256": _digest(path)})
+    statistics = compute_suite_statistics(fps)
+    if any(suite["statistics"].get(key) != val for key, val in statistics.items()) or any(
+        value.get(key) != statistics[key] for key in ("median_fps", "relative_spread")
+    ):
+        raise PublicationError(f"Candidate FPS statistics changed: {suite_path}")
+    try:
+        vram, cores = resource_medians(manifests)
+    except ValueError as exc:
+        raise PublicationError(f"Candidate resources are invalid: {suite_path}: {exc}") from exc
+    for key, val in (("median_peak_vram_mib", vram), ("median_cpu_cores", cores)):
+        if key in value and value[key] != val:
+            raise PublicationError(f"Candidate {key} changed: {suite_path}")
+    return {
+        "median_cpu_cores": cores,
+        "median_peak_vram_mib": vram,
+        "resource_measurement": {
+            "stage": stage,
+            "frames_per_run": parameters["frames"],
+            "run_count": len(manifests),
+            "cpu_accounting": "getrusage(RUSAGE_CHILDREN)",
+            "cpu_scope": "measured-child-process-tree",
+            "vram_metric": "peak_delta_mib",
+            "suite": {"path": source.canonical(suite_path), "sha256": _digest(suite_path)},
+            "runs": records,
+        },
+    }
+
+
+def _compact_candidate(
+    source: EvidenceSource,
+    value: dict[str, Any],
+    *,
+    directory: Path,
+    stage: str,
+    campaign: dict[str, Any],
+) -> dict[str, Any]:
     result = {
         "candidate_id": value["candidate_id"],
         "implementation": value["implementation"],
@@ -98,9 +228,98 @@ def _compact_candidate(value: dict[str, Any]) -> dict[str, Any]:
         "relative_spread": value.get("relative_spread"),
         "errors": value.get("errors", []),
     }
-    if value.get("evidence"):
-        result["evidence"] = value["evidence"]
+    for key in ("evidence", "median_cpu_cores", "median_peak_vram_mib"):
+        if key in value:
+            result[key] = value[key]
+    if value["status"] == "eligible":
+        result.update(
+            _candidate_measurement(
+                source, value, directory=directory, stage=stage, campaign=campaign
+            )
+        )
     return result
+
+
+def _compact_tas_preflight(source: EvidenceSource, record: dict[str, Any]) -> dict[str, Any]:
+    path, report = _verified_artifact(source, record, label="TAS preflight")
+    profiles = report.get("profiles")
+    expected_profiles = {
+        f"tas-{decode}-{writer}": {
+            "execution_profile": "tuned",
+            "decode_method": decode,
+            "writer": writer,
+            "cuda_graph": True,
+        }
+        for decode in ("cpu", "nvdec")
+        for writer in ("ffmpeg", "nelux")
+    }
+    if (
+        report.get("schema_version") != 1
+        or report.get("document_type") != "tas-quality-preflight"
+        or report.get("status") != "valid"
+        or not isinstance(profiles, dict)
+        or set(profiles) != set(expected_profiles)
+    ):
+        raise PublicationError(f"TAS preflight is incomplete or has an unsupported schema: {path}")
+    candidates = []
+    eligible = []
+    for candidate_id, expected_profile in expected_profiles.items():
+        profile = profiles[candidate_id]
+        if (
+            not isinstance(profile, dict)
+            or profile.get("candidate_id") != candidate_id
+            or profile.get("execution_profile") != expected_profile
+            or profile.get("status") not in {"valid", "disqualified"}
+        ):
+            raise PublicationError(f"TAS preflight profile changed: {candidate_id}")
+        result_path, result = _verified_artifact(
+            source, profile.get("result"), label=f"TAS preflight {candidate_id} result"
+        )
+        if result_path != path.parent / candidate_id / "result.json" or result != {
+            key: value for key, value in profile.items() if key != "result"
+        }:
+            raise PublicationError(f"TAS preflight profile summary changed: {candidate_id}")
+        valid = profile["status"] == "valid"
+        if valid:
+            eligible.append(candidate_id)
+        if profile.get("returncode") != (0 if valid else 2) or bool(profile.get("errors")) == valid:
+            raise PublicationError(f"TAS preflight profile outcome changed: {candidate_id}")
+        quality = {}
+        for name, public_name, status in (
+            ("preprocessing", "preprocessing_diagnostic", "complete"),
+            ("inference", "inference_parity", "valid"),
+            ("product_output", "product_output", "valid"),
+        ):
+            evidence = profile.get("evidence", {}).get(name)
+            if evidence is None and not valid and name == "product_output":
+                continue
+            _, quality_report = _verified_artifact(
+                source, evidence, label=f"TAS preflight {candidate_id} {name}"
+            )
+            if (valid or name == "preprocessing") and quality_report.get("status") != status:
+                raise PublicationError(
+                    f"TAS preflight quality status changed: {candidate_id}/{name}"
+                )
+            quality[public_name] = evidence
+        candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "execution_profile": profile["execution_profile"],
+                "status": profile["status"],
+                "quality": quality,
+                "errors": profile["errors"],
+                "result": profile["result"],
+            }
+        )
+    if not eligible or report.get("eligible_candidates") != eligible:
+        raise PublicationError(f"TAS preflight eligibility changed: {path}")
+    return {
+        "path": source.canonical(path),
+        "sha256": record["sha256"],
+        "status": report["status"],
+        "eligible_candidates": eligible,
+        "candidates": candidates,
+    }
 
 
 def _optional_min(values: list[Any]) -> float | None:
@@ -221,8 +440,72 @@ def _compact_result(
     campaign: dict[str, Any],
     implementation: str,
     value: dict[str, Any],
+    metadata: dict[str, Any],
 ) -> dict[str, Any]:
     statistics = value["statistics"]
+    run_paths = [source.resolve(item["manifests"][implementation]) for item in campaign["rounds"]]
+    runs = [_load(path) for path in run_paths]
+    if not runs or any(run.get("status") != "valid" for run in runs):
+        raise PublicationError(f"Campaign has missing or invalid {implementation} run evidence")
+    for path, run in zip(run_paths, runs, strict=True):
+        environment = run["environment"]
+        image = environment["image"]
+        _check_session_environment(
+            {**environment, "repository_revision": image.get("repository_revision")},
+            campaign["environment"],
+            label=str(path),
+        )
+        if str(image.get("source_dirty")) != "0":
+            raise PublicationError(f"Campaign run was built from dirty source: {path}")
+        if implementation in EXTERNAL_IMPLEMENTATIONS:
+            recorded = environment.get("implementation", {})
+            for key, expected in metadata.items():
+                if key != "product" and recorded.get(key) != expected:
+                    raise PublicationError(
+                        f"{implementation} publication metadata {key} differs from run: {path}"
+                    )
+    first_run = runs[0]
+    runtime = {
+        "image": first_run["environment"]["image"],
+        "software": first_run["environment"]["software"],
+    }
+    if implementation == "tas":
+        native = first_run["measured"]["validation"].get("runtime_evidence", {})
+        if native.get("status") != "valid" or native.get("errors") != []:
+            raise PublicationError("TAS result lacks valid native runtime evidence")
+        profile = campaign["parameters"]["execution_profiles"][implementation]
+        expected = {
+            "decode_method": profile["decode_method"],
+            "writer": profile["writer"],
+            "cuda_graph": True,
+            "engine_reused": True,
+            "engine_sha256": value["engine_sha256"],
+            "onnx_sha256": campaign["assets"]["onnx_sha256"],
+        }
+        if any(native.get(key) != expected_value for key, expected_value in expected.items()):
+            raise PublicationError("TAS native execution differs from the selected campaign")
+        if any(run["measured"]["validation"].get("runtime_evidence") != native for run in runs[1:]):
+            raise PublicationError("TAS native runtime evidence changed between campaign rounds")
+        if native.get("source_revision") != metadata["source_revision"]:
+            raise PublicationError("TAS source_revision differs from native runtime evidence")
+        for name in ("python", "torch", "tensorrt", "nelux", "ffmpeg"):
+            key = f"{name}_version"
+            if key in metadata and native.get("runtime", {}).get(name) != metadata[key]:
+                raise PublicationError(f"TAS {key} differs from native runtime evidence")
+        runtime["software"] = native["runtime"]
+        runtime["native_execution"] = {
+            key: native[key]
+            for key in (
+                "source_revision",
+                "adapter_sha256",
+                "decode_method",
+                "writer",
+                "cuda_graph",
+                "engine_reused",
+                "engine_sha256",
+                "onnx_sha256",
+            )
+        }
     return {
         "implementation": implementation,
         "product": value["product"],
@@ -247,6 +530,16 @@ def _compact_result(
         "lifecycle_intervals_sec": statistics["median_lifecycle_intervals_sec"],
         "session_observations": _run_observations(source, campaign, implementation),
         "stability": value["stability"],
+        "execution_profile": campaign["parameters"]["execution_profiles"].get(
+            implementation, {"execution_profile": campaign["execution_profile"]}
+        ),
+        "runtime": runtime,
+        "engine_manifest_sha256": first_run.get("assets", {})
+        .get("engine_manifest", {})
+        .get("sha256"),
+        "run_evidence": [
+            {"path": source.canonical(path), "sha256": _digest(path)} for path in run_paths
+        ],
     }
 
 
@@ -255,7 +548,7 @@ def _intra_session_reproducibility(
     campaign: dict[str, Any],
 ) -> dict[str, Any]:
     comparisons = []
-    for implementation in ("vstrt", "vsgan"):
+    for implementation in selection["winners"]:
         confirmation_fps = float(selection["winners"][implementation]["median_fps"])
         final_fps = float(campaign["implementations"][implementation]["statistics"]["median_fps"])
         comparisons.append(
@@ -290,15 +583,28 @@ def _output_identity(
     workload_name: str,
     variant: str,
     winners: dict[str, Any],
+    quality: dict[str, Any],
 ) -> dict[str, Any]:
-    winner_key = f"{winners['vsgan']['candidate_id']}__{winners['vstrt']['candidate_id']}"
+    winner_key = "__".join(winners[name]["candidate_id"] for name in sorted(winners))
     quality_root = source.root / f"{base}-{variant}" / "winner-quality" / winner_key
     tensor_root = quality_root / "tensor-quality"
-    product_report = _load(quality_root / "product-output" / "product-output-parity.json")
+    _, product_report = _verified_artifact(
+        source, quality["product_output"], label="Product identity report"
+    )
+    _, inference_report = _verified_artifact(
+        source, quality["inference_parity"], label="Inference identity report"
+    )
     capture_paths = {
-        name: tensor_root / "inference" / name / "manifest.json" for name in ("vstrt", "vsgan")
+        name: tensor_root / "inference" / name / "manifest.json" for name in sorted(winners)
     }
     captures = {name: _load(path) for name, path in capture_paths.items()}
+    for name, capture in captures.items():
+        if not any(
+            item["implementation"] == capture["implementation"]
+            and item.get("capture_manifest_sha256") == _digest(capture_paths[name])
+            for item in inference_report["comparisons"]
+        ):
+            raise PublicationError(f"{name} capture SHA256 differs from inference report")
     tensor_digests = {name: _tensor_set_digest(value) for name, value in captures.items()}
     comparisons = product_report["comparisons"]
     output_digests = {item["implementation"]: item["output_sha256"] for item in comparisons}
@@ -329,22 +635,68 @@ def _compact_workload(
     base: str,
     workload_name: str,
     variant: str,
+    metadata: dict[str, Any],
 ) -> dict[str, Any]:
     directory = source.root / f"{base}-{variant}"
     selection_path = directory / "selection.json"
     selection = _load(selection_path)
     matrix = _load(source.root / f"{base}-matrix.json")
     matrix_variant = matrix["variants"][variant]
-    campaign_path = source.resolve(matrix_variant["campaign"]["path"])
-    campaign = _load(campaign_path)
-    inference_path = source.resolve(matrix_variant["quality"]["inference_parity"]["path"])
-    preprocessing_path = source.resolve(
-        matrix_variant["quality"]["preprocessing_diagnostic"]["path"]
+    campaign_path, campaign = _verified_artifact(
+        source, matrix_variant.get("campaign"), label=f"{base}-{variant} campaign"
     )
-    product_path = source.resolve(matrix_variant["quality"]["product_output"]["path"])
-    inference_report = _load(inference_path)
-    preprocessing_report = _load(preprocessing_path)
-    product_report = _load(product_path)
+    if set(campaign.get("implementations", {})) != set(ACTIVE_IMPLEMENTATIONS):
+        raise PublicationError("New publications require trtvideo, vstrt, and tas participants")
+    if selection.get("status") != "valid" or set(selection.get("winners", {})) != set(
+        EXTERNAL_IMPLEMENTATIONS
+    ):
+        raise PublicationError(
+            f"Selection does not contain valid TAS/vs-mlrt winners: {selection_path}"
+        )
+    if (
+        campaign.get("status") != "valid"
+        or campaign.get("publishable") is not True
+        or campaign.get("execution_profile") != "tuned"
+        or campaign.get("variant") != variant
+    ):
+        raise PublicationError(f"Campaign is not publishable: {campaign_path}")
+    quality = {}
+    for name, (status, gate) in {
+        "inference_parity": ("valid", True),
+        "preprocessing_diagnostic": ("complete", False),
+        "product_output": ("valid", None),
+    }.items():
+        path, report = _verified_artifact(
+            source, matrix_variant.get("quality", {}).get(name), label=name
+        )
+        if (
+            report.get("status") != status
+            or report.get("publishable") is not True
+            or report.get("variant") != variant
+            or report.get("workload_id") != campaign["workload_id"]
+        ):
+            raise PublicationError(f"{name} quality evidence is not publishable: {path}")
+        if gate is not None:
+            if report.get("acceptance_gate") is not gate:
+                raise PublicationError(f"{name} acceptance role changed: {path}")
+            if report.get("contract_version") != campaign["parameters"].get(
+                "tensor_quality_contract_version"
+            ):
+                raise PublicationError(f"{name} contract version changed: {path}")
+        quality[name] = (path, report)
+    inference_path, inference_report = quality["inference_parity"]
+    preprocessing_path, preprocessing_report = quality["preprocessing_diagnostic"]
+    product_path, product_report = quality["product_output"]
+    matrix_environment = matrix.get("environment", {})
+    campaign_environment = campaign["environment"]
+    if matrix_environment.get("repository_revision") != campaign_environment.get(
+        "repository_revision"
+    ) or any(
+        matrix_environment.get("gpu", {}).get(key) is None
+        or matrix_environment["gpu"][key] != campaign_environment.get("gpu", {}).get(key)
+        for key in ("name", "driver_version", "power_limit_w")
+    ):
+        raise PublicationError(f"Publication matrix session environment differs: {campaign_path}")
     search_state_path = directory / "search-state.json"
     search = selection["search"]
     return {
@@ -364,13 +716,25 @@ def _compact_workload(
                 "resource_limits": search["resource_limits"],
             },
             "winners": selection["winners"],
-            "reconnaissance": [_compact_candidate(item) for item in selection["reconnaissance"]],
-            "candidates": [_compact_candidate(item) for item in selection["candidates"]],
+            "tas_preflight": _compact_tas_preflight(source, selection["tas_preflight"]),
+            **{
+                key: [
+                    _compact_candidate(
+                        source, item, directory=directory, stage=stage, campaign=campaign
+                    )
+                    for item in selection[key]
+                ]
+                for key, stage in (
+                    ("reconnaissance", "reconnaissance"),
+                    ("candidates", "confirmation"),
+                )
+            },
             "disqualifications": selection["disqualifications"],
         },
         "intra_session_reproducibility": _intra_session_reproducibility(selection, campaign),
         "final_campaign": {
             "execution_profile": campaign["execution_profile"],
+            "participants": list(ACTIVE_IMPLEMENTATIONS),
             "workload_id": campaign["workload_id"],
             "variant": campaign["variant"],
             "benchmark_contract_version": campaign["benchmark_contract_version"],
@@ -397,8 +761,10 @@ def _compact_workload(
                 "product_output": _compact_product_output(source, product_report, product_path),
             },
             "results": [
-                _compact_result(source, campaign, name, campaign["implementations"][name])
-                for name in ("trtvideo", "vsgan", "vstrt")
+                _compact_result(
+                    source, campaign, name, campaign["implementations"][name], metadata[name]
+                )
+                for name in ACTIVE_IMPLEMENTATIONS
             ],
         },
     }
@@ -414,9 +780,9 @@ def _implementation_metadata(path: Path) -> dict[str, Any]:
             if key in {"source", "source_revision", "version", "tensorrt_version"}
         }
         | {"product": "vs-mlrt"},
-        "vsgan": {
+        "tas": {
             key: value
-            for key, value in source["vsgan"].items()
+            for key, value in source["tas"].items()
             if key
             in {
                 "source",
@@ -426,9 +792,18 @@ def _implementation_metadata(path: Path) -> dict[str, Any]:
                 "tensorrt_version",
                 "exact_model_match",
                 "exact_engine_match",
+                "execution_profiles",
+                "python_version",
+                "torch_version",
+                "nelux_version",
+                "ffmpeg_version",
+                "adapter",
+                "adapter_sha256",
+                "encoder_adapter",
+                "engine_builder",
             }
         }
-        | {"product": "VSGAN-tensorrt-docker"},
+        | {"product": "TheAnimeScripter"},
     }
 
 
@@ -438,8 +813,9 @@ def build_document(
     tuning_contract_path: Path,
 ) -> dict[str, Any]:
     workload_specs = _workloads_for_source(source)
+    metadata = _implementation_metadata(implementations_path)
     workloads = [
-        _compact_workload(source, base, workload_name, variant)
+        _compact_workload(source, base, workload_name, variant, metadata)
         for base, workload_name, variant in workload_specs
     ]
     first_campaign_path = source.resolve(workloads[0]["final_campaign"]["campaign"]["path"])
@@ -449,6 +825,12 @@ def build_document(
     environment = manifest["environment"]
     revision = environment["image"]["repository_revision"]
     date_utc = str(manifest["started_at_utc"])[:10]
+    for workload in workloads:
+        _check_session_environment(
+            workload["final_campaign"]["environment"],
+            raw_campaign["environment"],
+            label=f"{workload['workload_id']} {workload['variant']}",
+        )
 
     matrices = []
     for base in dict.fromkeys(base for base, _, _ in workload_specs):
@@ -463,7 +845,14 @@ def build_document(
         )
 
     identities = [
-        _output_identity(source, base, workload_name, variant, workload["selection"]["winners"])
+        _output_identity(
+            source,
+            base,
+            workload_name,
+            variant,
+            workload["selection"]["winners"],
+            workload["final_campaign"]["quality"],
+        )
         for (base, workload_name, variant), workload in zip(workload_specs, workloads, strict=True)
     ]
     independent = {
@@ -484,11 +873,11 @@ def build_document(
             for workload in workloads
         ),
     }
-    if not all(independent.values()):
+    if not all(value for key, value in independent.items() if key != "engine_sha256_differ"):
         raise PublicationError("External provenance is not independent")
 
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "document_type": "published_tuned_results",
         "status": "valid",
         "publishable": True,
@@ -497,9 +886,11 @@ def build_document(
             "measurement_revision": revision,
             "source_dirty": False,
             "execution_profile": "tuned",
+            "participants": list(ACTIVE_IMPLEMENTATIONS),
             "claim_scope": (
-                "Best validated throughput selected by the predeclared adaptive two-stage "
-                "search, followed by independent quality gates and rotated winner campaigns."
+                "Best validated throughput selected by the predeclared vs-mlrt stream "
+                "search and TAS categorical I/O grid with independent confirmation, "
+                "followed by independent quality gates and rotated winner campaigns."
             ),
         },
         "environment": {
@@ -508,7 +899,7 @@ def build_document(
                 "image": environment["image"],
                 "software": environment["software"],
             },
-            "implementations": _implementation_metadata(implementations_path),
+            "implementations": metadata,
         },
         "methodology": {
             "measured_frames": 1000,
