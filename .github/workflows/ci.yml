@@ -33,7 +33,10 @@ jobs:
         run: make lint
 
       - name: Run mypy
-        run: make typecheck
+        run: make typecheck-mypy
+
+      - name: Run ty
+        run: make typecheck-ty
 
       - name: Compile Python sources
         run: make compile

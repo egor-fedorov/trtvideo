@@ -61,7 +61,7 @@ make build-dev
 make check
 ```
 
-`make check` covers Ruff, formatting, mypy, compileall, unit tests, GPU-free
+`make check` covers Ruff, formatting, mypy, ty, compileall, unit tests, GPU-free
 media integration, CLI smoke tests, and generated benchmark-figure drift. Test
 layers and GPU acceptance criteria are documented in
 [`docs/TESTING.md`](docs/TESTING.md).

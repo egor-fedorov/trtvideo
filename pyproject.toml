@@ -86,6 +86,7 @@ dev = [
     "pytest>=8,<9",
     "ruff>=0.11,<1",
     "mypy>=1.15,<2",
+    "ty==0.0.82",
 ]
 
 [project.scripts]
@@ -152,4 +153,31 @@ warn_unreachable = true
 disable_error_code = [
     # Heavy runtime libraries without stubs often collapse return values to Any.
     "no-any-return",
+]
+
+
+[tool.ty.environment]
+python-version = "3.12"
+python-platform = "linux"
+root = ["./src", "."]
+
+[tool.ty.src]
+include = ["src/trtvideo", "benchmarks"]
+
+[tool.ty.analysis]
+# Keep mypy-specific suppressions independent from the second type checker.
+respect-type-ignore-comments = false
+# GPU and model-export dependencies are intentionally absent from the checks image.
+allowed-unresolved-imports = [
+    "PyNvVideoCodec",
+    "cuda.bindings.runtime",
+    "cvcuda",
+    "nvtx",
+    "onnx.**",
+    "onnxconverter_common",
+    "onnxruntime",
+    "onnxscript",
+    "spandrel",
+    "tensorrt",
+    "torch.**",
 ]

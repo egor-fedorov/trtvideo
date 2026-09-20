@@ -60,7 +60,7 @@ make check
 ```
 
 After Python changes, run at least `ruff check .` through the development image.
-Before committing Python code, run the complete `make check` gate: Ruff, mypy,
+Before committing Python code, run the complete `make check` gate: Ruff, mypy, ty,
 compileall, and unit tests.
 
 GPU/runtime smoke tests and benchmarks run on a GPU host. Commands and acceptance

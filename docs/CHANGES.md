@@ -54,6 +54,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ## Unreleased
 
+### Added
+
+- Added ty alongside mypy as a required Docker and CI type-checking gate for
+  application and benchmark code. `make typecheck` runs both checkers;
+  `make typecheck-mypy` and `make typecheck-ty` run them individually.
+
 ### Changed
 
 - Host benchmark entrypoints resolve pure-Python helpers from the checkout's
