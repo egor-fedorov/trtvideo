@@ -184,6 +184,14 @@ make check
 
 `make format` applies Ruff import sorting and Black-compatible formatting.
 `make lint` checks both formatting and Ruff lint rules without changing files.
+`make typecheck` runs both mypy and [ty](https://docs.astral.sh/ty/) over
+`src/trtvideo` and `benchmarks`. Use `make typecheck-mypy` or
+`make typecheck-ty` to run either checker separately in the development image.
+ty is version-pinned in the dev dependencies; both tools are required gates,
+not advisory checks. ty allows unresolved imports only for the explicitly listed
+GPU/model-export dependencies absent from the lightweight checks image; missing
+project imports remain errors. Its configuration does not reuse mypy's
+`type: ignore` suppressions.
 `make figures-check` regenerates benchmark SVGs in a temporary directory and
 requires byte-for-byte equality with the committed figures.
 
@@ -193,7 +201,7 @@ changes to dependencies in `pyproject.toml`/`uv.lock` or to
 version change does not require an image rebuild.
 
 GitHub Actions builds the same checks image for pull requests and pushes to
-`main`, then reports Ruff, mypy, compileall, unit tests, media integration tests,
+`main`, then reports Ruff, mypy, ty, compileall, unit tests, media integration tests,
 CLI smoke, and benchmark-figure drift as separate steps. A separate workflow
 runs BuildKit static validation for the production Dockerfile without
 downloading the 26 GB runtime image. Full production and benchmark builds remain

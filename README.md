@@ -358,7 +358,7 @@ not validate a model-specific TensorRT engine, input codec, required VRAM, or
 throughput; those remain workload-dependent and require a short processing
 smoke test.
 
-Build the development image with Ruff and mypy:
+Build the development image with Ruff, mypy, and ty:
 
 ```bash
 make build-dev
