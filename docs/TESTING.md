@@ -1,6 +1,6 @@
 # Testing
 
-Project tests run through the lightweight Docker checks image defined in
+Default checks run through the lightweight Docker checks image defined in
 `docker/checks.Dockerfile`. The local host does not need TensorRT,
 PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
 
@@ -49,6 +49,22 @@ metadata, and an attachment. The test applies the shared output mapping,
 validates every preserved stream with `ffprobe`, and fully decodes video plus
 both audio tracks. A separate case confirms that MP4 preflight rejects source
 streams that cannot be copied into MP4.
+
+### Export Integration
+
+CPU tests against the real PyTorch, ONNXScript, and ONNX Runtime libraries run
+separately from the lightweight checks image:
+
+```bash
+make build-typecheck-runtime
+make test-export-integration
+```
+
+`tests/model_tools/` checks the pixel-unshuffle translation both in eager mode
+and through the registered PyTorch ONNX exporter. Channel-distinct inputs must
+match PyTorch exactly, and the exported graph must not use the incompatible
+`SpaceToDepth` lowering. No GPU, model weights, or TensorRT engines are needed.
+These tests are not part of `make check` or its media integration layer.
 
 ### CLI/Docker Smoke
 
@@ -208,3 +224,40 @@ downloading the 26 GB runtime image. Full production and benchmark builds remain
 a GPU-host or self-hosted-runner acceptance check. Versioned releases build only
 the production target, smoke-test `trtvideo` and `build-engine` by immutable
 digest, and verify that model-conversion and benchmark commands are absent.
+
+### Full-Dependency Type Audit
+
+To run both type checkers with the installed runtime, export, and benchmark
+libraries instead of the lightweight environment:
+
+```bash
+make build-typecheck-runtime
+make typecheck-runtime
+```
+
+The build uses the root Dockerfile's `benchmark` target with `INSTALL_DEV=1`
+and the same frozen dependency lock. It writes a separate
+`trtvideo:typecheck-runtime` image without replacing production or benchmark
+tags. Override `TYPECHECK_RUNTIME_IMAGE` on both commands to use another tag.
+The checks read the current checkout; rebuild the image after Dockerfile,
+base-image, or dependency changes. Neither the build nor the audit needs GPU
+access. Runtime driver readiness is still checked separately with `trtvideo doctor`.
+
+The audit first requires the full dependency set to be installed and prints its
+versions. It then runs both checkers with the existing project configuration,
+even if one fails, and preserves a nonzero exit status on failure. It is an
+opt-in diagnostic, not part of `make check` or the lightweight CI gate.
+
+**Known limitation:** this audit currently fails in ty on native GPU symbols
+without static declarations (for example, `tensorrt.Logger` and `cvcuda.Tensor`).
+The installed TensorRT, CV-CUDA, CUDA bindings, and PyNvVideoCodec packages do
+not supply the needed stubs. mypy skips these untyped imports under the existing
+configuration; installing the libraries does not make their API type-safe.
+These diagnostics are deliberately not suppressed. Partial API stubs and
+replacement of the runtime's `Any` annotations are the next step before this
+audit can become a required gate.
+
+The ONNXScript translator uses narrowly scoped `INT64` casts for automatically
+promoted index literals and integer constants whose dtype is absent from the
+generic operator signature. Casts do not change execution or graph operations;
+`make test-export-integration` checks the real eager and export paths on CPU.

@@ -1,6 +1,7 @@
 IMAGE ?= trtvideo:latest
 MODEL_TOOLS_IMAGE ?= trtvideo:model-tools
 DEV_IMAGE ?= trtvideo:dev
+TYPECHECK_RUNTIME_IMAGE ?= trtvideo:typecheck-runtime
 DOCKER_RUN ?= docker run --rm -e PYTHONPATH=/app/src -v "$$PWD:/app"
 PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' pyproject.toml)
 DEMO_DIR := $(CURDIR)/.demo
@@ -12,7 +13,7 @@ ifeq ($(strip $(PROJECT_VERSION)),)
 $(error Could not read the project version from pyproject.toml)
 endif
 
-.PHONY: build build-model-tools build-dev demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty compile test-unit test-media-integration check cli-smoke shell
+.PHONY: build build-model-tools build-dev build-typecheck-runtime demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty typecheck-runtime compile test-unit test-media-integration test-export-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -38,6 +39,15 @@ build-dev:
 	DOCKER_BUILDKIT=1 docker build \
 		-f docker/checks.Dockerfile \
 		-t $(DEV_IMAGE) .
+
+build-typecheck-runtime:
+	DOCKER_BUILDKIT=1 docker build \
+		--build-arg INSTALL_DEV=1 \
+		--build-arg VERSION="$(PROJECT_VERSION)" \
+		--build-arg VCS_REF="$$(git rev-parse HEAD)" \
+		--build-arg VCS_DIRTY="$$(if test -z "$$(git status --porcelain)"; then echo 0; else echo 1; fi)" \
+		--target benchmark \
+		-t $(TYPECHECK_RUNTIME_IMAGE) .
 
 demo: build-model-tools
 	mkdir -p "$(DEMO_DIR)"
@@ -79,6 +89,13 @@ typecheck-mypy:
 typecheck-ty:
 	$(DOCKER_RUN) $(DEV_IMAGE) ty check
 
+typecheck-runtime:
+	$(DOCKER_RUN) $(TYPECHECK_RUNTIME_IMAGE) python3 -c \
+		'from importlib.metadata import version; import sys; print("\n".join(f"{name}=={version(name)}" for name in sys.argv[1:]))' \
+		tensorrt cuda-bindings cvcuda-cu12 pynvvideocodec torch torchvision onnx \
+		onnxscript onnxruntime onnxconverter-common spandrel nvtx nvidia-ml-py mypy ty
+	$(MAKE) -k typecheck DEV_IMAGE="$(TYPECHECK_RUNTIME_IMAGE)"
+
 compile:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m compileall -q src/trtvideo benchmarks tests
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m py_compile \
@@ -89,6 +106,9 @@ test-unit:
 
 test-media-integration:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q -m docker tests/integration
+
+test-export-integration:
+	$(DOCKER_RUN) $(TYPECHECK_RUNTIME_IMAGE) python3 -m pytest -q tests/model_tools
 
 define cli_help_check
 	@if output="$$( $(DOCKER_RUN) $(DEV_IMAGE) $(1) --help 2>&1 )"; then \

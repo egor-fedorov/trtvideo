@@ -59,6 +59,10 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added ty alongside mypy as a required Docker and CI type-checking gate for
   application and benchmark code. `make typecheck` runs both checkers;
   `make typecheck-mypy` and `make typecheck-ty` run them individually.
+- Added an opt-in full-dependency type audit (`make build-typecheck-runtime`
+  and `make typecheck-runtime`) and CPU ONNX export integration tests
+  (`make test-export-integration`). The audit exposes the remaining native GPU
+  typing gaps without suppressing them or changing the lightweight CI gate.
 
 ### Changed
 
