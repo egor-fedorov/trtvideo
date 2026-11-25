@@ -142,6 +142,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.12"
 files = ["src/trtvideo", "benchmarks"]
+mypy_path = ["$MYPY_CONFIG_FILE_DIR/stubs", "$MYPY_CONFIG_FILE_DIR/src"]
 check_untyped_defs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
@@ -155,11 +156,28 @@ disable_error_code = [
     "no-any-return",
 ]
 
+[[tool.mypy.overrides]]
+module = [
+    "trtvideo.runtime",
+    "trtvideo.runtime.*",
+    "trtvideo.pipelines.nvcodec",
+    "trtvideo.video.nvcodec.frame_processor",
+    "trtvideo.video.nvcodec.surface",
+    "trtvideo.cli.build_engine",
+    "trtvideo.diagnostics.profiling",
+]
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_any_explicit = true
+warn_return_any = true
+enable_error_code = ["no-any-return"]
+
 
 [tool.ty.environment]
 python-version = "3.12"
 python-platform = "linux"
 root = ["./src", "."]
+extra-paths = ["./stubs"]
 
 [tool.ty.src]
 include = ["src/trtvideo", "benchmarks"]
@@ -167,17 +185,13 @@ include = ["src/trtvideo", "benchmarks"]
 [tool.ty.analysis]
 # Keep mypy-specific suppressions independent from the second type checker.
 respect-type-ignore-comments = false
-# GPU and model-export dependencies are intentionally absent from the checks image.
+# Native GPU APIs use the local stubs; export libraries are absent from the checks image.
 allowed-unresolved-imports = [
-    "PyNvVideoCodec",
-    "cuda.bindings.runtime",
-    "cvcuda",
     "nvtx",
     "onnx.**",
     "onnxconverter_common",
     "onnxruntime",
     "onnxscript",
     "spandrel",
-    "tensorrt",
     "torch.**",
 ]

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from benchmarks.scripts.contracts.engine import (
     EngineContractError,
@@ -31,6 +31,12 @@ from benchmarks.scripts.workloads.manifest import (
 
 _DECODE_BATCH_SIZE = 8
 
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
+
+    from trtvideo.runtime.buffers import CudaBufferProvider
+
 
 def _quality_frame_indices(
     manifest: dict[str, Any],
@@ -45,17 +51,16 @@ def _quality_frame_indices(
 
 
 def _write_gpu_tensor(
-    tensor: Any,
+    tensor: CudaBufferProvider,
     *,
     stage: str,
     frame_index: int,
     output_dir: Path,
 ) -> TensorArtifact:
-    import cuda.bindings.runtime as cudart
     import numpy as np
 
     path = output_dir / f"{stage}.frame-{frame_index:06d}.f32"
-    host = _copy_gpu_tensor_to_host(tensor, cudart=cudart, np=np)
+    host = _copy_gpu_tensor_to_host(tensor)
     contiguous = np.ascontiguousarray(host[0], dtype="<f4")
     shape = (
         int(contiguous.shape[0]),
@@ -72,8 +77,11 @@ def _write_gpu_tensor(
     )
 
 
-def _copy_gpu_tensor_to_host(tensor: Any, *, cudart: Any, np: Any) -> Any:
+def _copy_gpu_tensor_to_host(tensor: CudaBufferProvider) -> NDArray[np.float16 | np.float32]:
     """Copy a possibly pitch-padded NCHW CV-CUDA tensor into host memory."""
+    import cuda.bindings.runtime as cudart
+    import numpy as np
+
     interface = tensor.cuda().__cuda_array_interface__
     shape = tuple(int(value) for value in interface["shape"])
     if len(shape) != 4 or shape[0] != 1 or shape[1] != 3:
@@ -94,7 +102,8 @@ def _copy_gpu_tensor_to_host(tensor: Any, *, cudart: Any, np: Any) -> Any:
         raise ModelSpaceError(f"Captured tensor width is not contiguous: strides={strides}")
 
     device_pointer = int(interface["data"][0])
-    host = np.empty(shape, dtype=dtype)
+    # The interface's dtype string is dynamic; the allowlist above narrows it.
+    host = np.empty(shape, dtype=cast("np.dtype[np.float16 | np.float32]", dtype))
     destination_pointer = int(host.ctypes.data)
     row_bytes = shape[3] * dtype.itemsize
     for batch_index in range(shape[0]):

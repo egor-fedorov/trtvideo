@@ -64,6 +64,8 @@ make test-export-integration
 and through the registered PyTorch ONNX exporter. Channel-distinct inputs must
 match PyTorch exactly, and the exported graph must not use the incompatible
 `SpaceToDepth` lowering. No GPU, model weights, or TensorRT engines are needed.
+The same layer checks engine-build precision metadata against real ONNX
+protobufs, including FP32 bindings with FP16 weights and non-tensor value info.
 These tests are not part of `make check` or its media integration layer.
 
 ### CLI/Docker Smoke
@@ -204,10 +206,26 @@ make check
 `src/trtvideo` and `benchmarks`. Use `make typecheck-mypy` or
 `make typecheck-ty` to run either checker separately in the development image.
 ty is version-pinned in the dev dependencies; both tools are required gates,
-not advisory checks. ty allows unresolved imports only for the explicitly listed
-GPU/model-export dependencies absent from the lightweight checks image; missing
-project imports remain errors. Its configuration does not reuse mypy's
-`type: ignore` suppressions.
+not advisory checks. Both use the local [native API declarations](../stubs/README.md)
+for CUDA bindings, TensorRT, CV-CUDA, and PyNvVideoCodec. ty allows unresolved
+imports only for the remaining explicitly listed optional dependencies absent
+from the lightweight checks image; missing project imports remain errors. Its
+configuration does not reuse mypy's `type: ignore` suppressions.
+
+`make typecheck-contracts` runs static positive and negative probes through both
+checkers. The positive probes assert concrete types across the production frame
+path; negative probes cover representative project/native boundaries, not every
+SDK argument. Each intentionally invalid call must fail, not just produce a
+nonzero exit code for the whole file. These tests live in `tests/typing/`, never
+execute native libraries, and run as part of `make typecheck`, `make check`, the
+full-dependency audit, and CI.
+
+The runtime, production frame processor/pipeline, engine builder, and profiler
+also enable stricter mypy rules: missing function annotations, bare generics,
+explicit `Any`, and returning `Any` from typed functions are errors. The builder
+keeps native imports lazy, so CLI help and pure-Python tests still work without
+TensorRT. The profiler's event batches and summary fields retain their types;
+quality capture keeps CUDA pointers, copy calls, and FP16/FP32 host arrays typed.
 `make figures-check` regenerates benchmark SVGs in a temporary directory and
 requires byte-for-byte equality with the committed figures.
 
@@ -248,14 +266,23 @@ versions. It then runs both checkers with the existing project configuration,
 even if one fails, and preserves a nonzero exit status on failure. It is an
 opt-in diagnostic, not part of `make check` or the lightweight CI gate.
 
-**Known limitation:** this audit currently fails in ty on native GPU symbols
-without static declarations (for example, `tensorrt.Logger` and `cvcuda.Tensor`).
-The installed TensorRT, CV-CUDA, CUDA bindings, and PyNvVideoCodec packages do
-not supply the needed stubs. mypy skips these untyped imports under the existing
-configuration; installing the libraries does not make their API type-safe.
-These diagnostics are deliberately not suppressed. Partial API stubs and
-replacement of the runtime's `Any` annotations are the next step before this
-audit can become a required gate.
+The native libraries do not supply the needed static declarations. The local
+stubs describe only the API used by the production pipeline, not the complete
+vendor SDKs. Core tensors, streams, CUDA event results, decoder frames, and
+encoded bitstreams retain their types through the frame path. TensorRT network,
+parser, builder config, optimization profiles, timing cache, and serialized
+buffers are covered as well. Native callables are bound directly where needed,
+instead of passing modules through attributes that mypy treats as untyped
+`ModuleType` objects. Real typed dependencies such as PyTorch and ONNXScript
+are still checked against their installed declarations, not replaced with
+project stubs.
+
+This is not complete strict typing of the repository: environment discovery in
+`doctor`, export tooling, and some benchmark/JSON adapters still use `Any`. Nor
+does a green audit prove that a stub matches an updated native binary: check the
+declarations against the installed API whenever those dependencies change.
+Shape, dtype, color, ownership, and synchronization correctness still require
+unit and GPU tests; static typing does not prove them.
 
 The ONNXScript translator uses narrowly scoped `INT64` casts for automatically
 promoted index literals and integer constants whose dtype is absent from the

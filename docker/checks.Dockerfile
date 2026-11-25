@@ -30,6 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
 
 COPY README.md ./
 COPY src/ src/
+COPY stubs/ stubs/
 COPY benchmarks/ benchmarks/
 COPY tests/ tests/
 COPY --chmod=755 benchmarks/bin/benchmark-trtvideo /usr/local/bin/benchmark-trtvideo

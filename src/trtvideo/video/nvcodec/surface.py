@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+from trtvideo.runtime.buffers import CudaArrayInterface, CudaBufferProvider
 
 
 class CudaArrayView:
     """Keep a CUDA buffer owner alive while exposing a different tensor view."""
 
-    def __init__(self, interface: dict[str, Any], owner: Any):
+    def __init__(self, interface: CudaArrayInterface, owner: object) -> None:
         self.__cuda_array_interface__ = interface
         self.owner = owner
 
 
-def nv12_nhwc_view(source: Any, *, height: int, width: int) -> CudaArrayView:
+def nv12_nhwc_view(source: CudaBufferProvider, *, height: int, width: int) -> CudaArrayView:
     """Expose a possibly pitch-padded NV12 surface as a cropped NHWC tensor."""
     cuda_buffer = source.cuda()
     interface = cuda_buffer.__cuda_array_interface__
@@ -65,7 +65,7 @@ def nv12_nhwc_view(source: Any, *, height: int, width: int) -> CudaArrayView:
 
 
 def nv12_plane_views(
-    source: Any,
+    source: CudaBufferProvider,
     *,
     height: int,
     width: int,

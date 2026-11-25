@@ -3,17 +3,29 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import Any
+from typing import Protocol, overload, runtime_checkable
 
 import cuda.bindings.runtime as cudart
 
 
-def _checked(result: Any, operation: str) -> tuple[Any, ...]:
+@overload
+def _checked[*Values](
+    result: tuple[cudart.cudaError_t, *Values], operation: str
+) -> tuple[*Values]: ...
+
+
+@overload
+def _checked(result: cudart.cudaError_t, operation: str) -> tuple[()]: ...
+
+
+def _checked[*Values](
+    result: tuple[cudart.cudaError_t, *Values] | cudart.cudaError_t, operation: str
+) -> tuple[*Values] | tuple[()]:
     values = result if isinstance(result, tuple) else (result,)
     error = values[0]
     if error != cudart.cudaError_t.cudaSuccess:
         raise RuntimeError(f"{operation} failed: {error}")
-    return tuple(values[1:])
+    return values[1:]
 
 
 def set_device(device_id: int) -> None:
@@ -28,17 +40,27 @@ def device_name(device_id: int) -> str:
         "cudaGetDeviceProperties",
     )
     name = properties.name
-    if isinstance(name, bytes):
-        return name.split(b"\0", 1)[0].decode("utf-8", errors="replace")
-    return str(name)
+    return name.split(b"\0", 1)[0].decode("utf-8", errors="replace")
 
 
-def _stream_handle(stream: Any) -> int:
+@runtime_checkable
+class StreamHandle(Protocol):
+    @property
+    def handle(self) -> int: ...
+
+
+@runtime_checkable
+class TorchStreamHandle(Protocol):
+    @property
+    def cuda_stream(self) -> int: ...
+
+
+def _stream_handle(stream: int | StreamHandle | TorchStreamHandle) -> int:
     if isinstance(stream, int):
         return stream
-    if hasattr(stream, "handle"):
+    if isinstance(stream, StreamHandle):
         return int(stream.handle)
-    if hasattr(stream, "cuda_stream"):
+    if isinstance(stream, TorchStreamHandle):
         return int(stream.cuda_stream)
     raise TypeError(f"Unsupported CUDA stream object: {type(stream)!r}")
 
@@ -50,7 +72,7 @@ class CudaEvent:
         (self._event,) = _checked(cudart.cudaEventCreate(), "cudaEventCreate")
         self._closed = False
 
-    def record(self, stream: Any) -> None:
+    def record(self, stream: int | StreamHandle | TorchStreamHandle) -> None:
         """Record this event on the supplied CUDA stream."""
         _checked(
             cudart.cudaEventRecord(self._event, _stream_handle(stream)),

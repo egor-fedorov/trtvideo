@@ -11,30 +11,33 @@ Usage:
         --max-shape input:1x3x1080x1920
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 import os
 import sys
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
-trt: Any = None
-TRT_LOGGER: Any = None
+if TYPE_CHECKING:
+    import onnx
+    import tensorrt as trt
+
+TRT_LOGGER: trt.Logger | None = None
 ShapeArg = tuple[str, tuple[int, ...]]
 ProfileShapes = tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
 
 
-def _load_tensorrt() -> None:
+def _load_tensorrt() -> trt.Logger:
     """Load TensorRT only after argparse handled lightweight flags such as --help."""
-    global TRT_LOGGER, trt
-    if trt is not None:
-        return
+    global TRT_LOGGER
+    if TRT_LOGGER is None:
+        import tensorrt as trt
 
-    import tensorrt as trt_module
-
-    trt = trt_module
-    TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+        TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+    return TRT_LOGGER
 
 
 def parse_shape_arg(value: str) -> ShapeArg:
@@ -61,13 +64,13 @@ def parse_shape_arg(value: str) -> ShapeArg:
     return name, dims
 
 
-def shape_has_dynamic_dims(shape: Sequence[int]) -> bool:
+def shape_has_dynamic_dims(shape: Iterable[int]) -> bool:
     """Return True when a TensorRT tensor shape contains dynamic axes."""
     return any(dim < 0 for dim in shape)
 
 
 def validate_profile_shapes(
-    input_tensor: Any,
+    input_tensor: trt.ITensor,
     min_shape: ShapeArg | None,
     opt_shape: ShapeArg | None,
     max_shape: ShapeArg | None,
@@ -115,15 +118,13 @@ def validate_profile_shapes(
     return min_dims, opt_dims, max_dims
 
 
-def _onnx_tensor_elem_type(tensor: Any) -> int | None:
-    tensor_type = getattr(getattr(tensor, "type", None), "tensor_type", None)
-    if tensor_type is None:
+def _onnx_tensor_elem_type(tensor: onnx.ValueInfoProto) -> int | None:
+    if not tensor.type.HasField("tensor_type"):
         return None
-    elem_type = getattr(tensor_type, "elem_type", 0)
-    return elem_type or None
+    return int(tensor.type.tensor_type.elem_type) or None
 
 
-def _onnx_model_precision(model: Any) -> str:
+def _onnx_model_precision(model: onnx.ModelProto) -> str:
     """Infer model compute precision from ONNX tensor and initializer dtypes."""
     import onnx
 
@@ -158,7 +159,9 @@ def infer_onnx_precision(onnx_path: str) -> str:
     return _onnx_model_precision(onnx.load(onnx_path, load_external_data=False))
 
 
-def _trt_dtype_precision(dtype: Any) -> str:
+def _trt_dtype_precision(dtype: trt.DataType) -> str:
+    import tensorrt as trt
+
     if dtype == trt.DataType.HALF:
         return "fp16"
     if dtype == trt.DataType.FLOAT:
@@ -166,7 +169,7 @@ def _trt_dtype_precision(dtype: Any) -> str:
     return str(dtype)
 
 
-def _engine_io_precision(input_dtype: Any, output_dtype: Any) -> str:
+def _engine_io_precision(input_dtype: trt.DataType, output_dtype: trt.DataType) -> str:
     input_precision = _trt_dtype_precision(input_dtype)
     output_precision = _trt_dtype_precision(output_dtype)
     if input_precision == output_precision:
@@ -183,10 +186,10 @@ def sha256_file(path: str) -> str:
     return digest.hexdigest()
 
 
-def load_timing_cache(config: Any, timing_cache_path: str | None) -> None:
+def load_timing_cache(config: trt.IBuilderConfig, timing_cache_path: str | None) -> bool:
     """Attach an optional TensorRT timing cache to the builder config."""
     if timing_cache_path is None:
-        return
+        return True
 
     cache_data = b""
     if os.path.exists(timing_cache_path):
@@ -197,24 +200,34 @@ def load_timing_cache(config: Any, timing_cache_path: str | None) -> None:
         print(f"  Timing cache: new cache will be written to {timing_cache_path}")
 
     cache = config.create_timing_cache(cache_data)
-    config.set_timing_cache(cache, False)
+    if cache is None:
+        print("  ERROR: Failed to create TensorRT timing cache.")
+        return False
+    if not config.set_timing_cache(cache, False):
+        print("  ERROR: TensorRT rejected the timing cache for this build.")
+        return False
+    return True
 
 
-def save_timing_cache(config: Any, timing_cache_path: str | None) -> None:
+def save_timing_cache(config: trt.IBuilderConfig, timing_cache_path: str | None) -> bool:
     """Persist TensorRT timing cache after a successful build."""
     if timing_cache_path is None:
-        return
+        return True
 
     cache = config.get_timing_cache()
     if cache is None:
-        print("  WARNING: TensorRT did not return a timing cache.")
-        return
+        print("  ERROR: TensorRT did not return the requested timing cache.")
+        return False
 
     os.makedirs(os.path.dirname(timing_cache_path) or ".", exist_ok=True)
     serialized_cache = cache.serialize()
+    if serialized_cache is None:
+        print("  ERROR: Failed to serialize TensorRT timing cache.")
+        return False
     with open(timing_cache_path, "wb") as f:
         f.write(bytes(serialized_cache))
     print(f"  Timing cache saved: {timing_cache_path}")
+    return True
 
 
 def profile_manifest(profile_shapes: ProfileShapes | None) -> dict[str, list[int]] | None:
@@ -235,15 +248,17 @@ def write_engine_manifest(
     manifest_path: str,
     onnx_path: str,
     engine_path: str,
-    input_tensor: Any,
-    output_tensor: Any,
+    input_tensor: trt.ITensor,
+    output_tensor: trt.ITensor,
     profile_shapes: ProfileShapes | None,
     precision: str,
     io_precision: str,
     timing_cache_path: str | None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Write a sidecar manifest with engine compatibility metadata."""
-    manifest = {
+    import tensorrt as trt
+
+    manifest: dict[str, object] = {
         "schema_version": 1,
         "engine_path": engine_path,
         "engine_sha256": sha256_file(engine_path),
@@ -304,10 +319,15 @@ def build_engine(
     Returns:
         True on success, False on error.
     """
-    _load_tensorrt()
-    builder = trt.Builder(TRT_LOGGER)
+    import tensorrt as trt
+
+    logger = _load_tensorrt()
+    builder = trt.Builder(logger)
     network = builder.create_network()
-    parser = trt.OnnxParser(network, TRT_LOGGER)
+    if network is None:
+        print("  ERROR: Failed to create TensorRT network.")
+        return False
+    parser = trt.OnnxParser(network, logger)
 
     # Parse ONNX
     print(f"  Parsing ONNX: {onnx_path}")
@@ -319,7 +339,11 @@ def build_engine(
 
     # Builder config
     config = builder.create_builder_config()
-    load_timing_cache(config, timing_cache_path)
+    if config is None:
+        print("  ERROR: Failed to create TensorRT builder config.")
+        return False
+    if not load_timing_cache(config, timing_cache_path):
+        return False
 
     # 8 GB workspace for intermediate buffers during optimization
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 8 << 30)  # 8 GB
@@ -330,6 +354,9 @@ def build_engine(
 
     input_tensor = network.get_input(0)
     output_tensor = network.get_output(0)
+    if input_tensor is None or output_tensor is None:
+        print("  ERROR: Parsed ONNX network must have an input and an output tensor.")
+        return False
     precision = infer_onnx_precision(onnx_path)
     io_precision = _engine_io_precision(input_tensor.dtype, output_tensor.dtype)
 
@@ -360,9 +387,18 @@ def build_engine(
             return False
 
         profile = builder.create_optimization_profile()
+        if profile is None:
+            print("  ERROR: Failed to create TensorRT optimization profile.")
+            return False
         profile_min, profile_opt, profile_max = profile_shapes
-        profile.set_shape(input_tensor.name, profile_min, profile_opt, profile_max)
-        config.add_optimization_profile(profile)
+        try:
+            profile.set_shape(input_tensor.name, profile_min, profile_opt, profile_max)
+        except ValueError as exc:
+            print(f"  ERROR: TensorRT rejected the optimization profile shapes: {exc}")
+            return False
+        if config.add_optimization_profile(profile) < 0:
+            print("  ERROR: TensorRT rejected the optimization profile.")
+            return False
         print(f"  Profile min: {profile_min}")
         print(f"  Profile opt: {profile_opt}")
         print(f"  Profile max: {profile_max}")
@@ -382,7 +418,8 @@ def build_engine(
 
     size_mb = os.path.getsize(engine_path) / (1024 * 1024)
     print(f"  Engine saved: {engine_path} ({size_mb:.1f} MB)")
-    save_timing_cache(config, timing_cache_path)
+    if not save_timing_cache(config, timing_cache_path):
+        return False
 
     if manifest_path is not None:
         write_engine_manifest(
@@ -446,12 +483,14 @@ def main() -> None:
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
 
-    _load_tensorrt()
+    import tensorrt as trt
+
+    logger = _load_tensorrt()
 
     if args.verbose:
-        TRT_LOGGER.min_severity = trt.Logger.VERBOSE
+        logger.min_severity = trt.Logger.VERBOSE
     elif args.quiet:
-        TRT_LOGGER.min_severity = trt.Logger.ERROR
+        logger.min_severity = trt.Logger.ERROR
 
     if not args.quiet:
         print(f"TensorRT version: {trt.__version__}\n")

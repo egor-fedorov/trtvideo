@@ -13,7 +13,7 @@ ifeq ($(strip $(PROJECT_VERSION)),)
 $(error Could not read the project version from pyproject.toml)
 endif
 
-.PHONY: build build-model-tools build-dev build-typecheck-runtime demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty typecheck-runtime compile test-unit test-media-integration test-export-integration check cli-smoke shell
+.PHONY: build build-model-tools build-dev build-typecheck-runtime demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty typecheck-contracts typecheck-runtime compile test-unit test-media-integration test-export-integration check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -81,13 +81,16 @@ format-check:
 lint: format-check
 	$(DOCKER_RUN) $(DEV_IMAGE) ruff check .
 
-typecheck: typecheck-mypy typecheck-ty
+typecheck: typecheck-mypy typecheck-ty typecheck-contracts
 
 typecheck-mypy:
 	$(DOCKER_RUN) $(DEV_IMAGE) mypy
 
 typecheck-ty:
 	$(DOCKER_RUN) $(DEV_IMAGE) ty check
+
+typecheck-contracts:
+	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q tests/typing
 
 typecheck-runtime:
 	$(DOCKER_RUN) $(TYPECHECK_RUNTIME_IMAGE) python3 -c \
