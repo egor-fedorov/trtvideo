@@ -59,9 +59,18 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Added ty alongside mypy as a required Docker and CI type-checking gate for
   application and benchmark code. `make typecheck` runs both checkers;
   `make typecheck-mypy` and `make typecheck-ty` run them individually.
+- Added an opt-in full-dependency type audit (`make build-typecheck-runtime`
+  and `make typecheck-runtime`) and CPU ONNX export integration tests
+  (`make test-export-integration`). Partial native API declarations cover the
+  production CUDA/TensorRT/CV-CUDA/NVCodec frame path and TensorRT engine builder.
+  Core runtime, builder, and profiler modules enforce stricter typing; positive
+  and negative type-contract tests run in both environments and lightweight CI.
 
 ### Changed
 
+- Engine builds stop with an explicit error if TensorRT cannot create required
+  objects or rejects the requested timing cache or optimization profile, rather
+  than continuing with incomplete build settings.
 - Host benchmark entrypoints resolve pure-Python helpers from the checkout's
   `src/` directory without requiring a host installation of `trtvideo`.
 - CLI smoke checks print compact success lines instead of full help text;

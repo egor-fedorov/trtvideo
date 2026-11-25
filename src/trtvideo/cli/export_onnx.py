@@ -13,7 +13,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from trtvideo.cli.prepare_onnx import TARGETS, TargetSpec, parse_size
 from trtvideo.models.export_conformance import (
@@ -94,14 +94,19 @@ def freeze_reparameterized_convs(model: Any) -> int:
 
 def _translate_pixel_unshuffle(self: Any, downscale_factor: int) -> Any:
     """Translate aten.pixel_unshuffle while preserving PyTorch channel order."""
+    from onnxscript import INT64
     from onnxscript import opset18 as op
 
+    # ONNXScript promotes these lists to INT64 tensors while tracing/evaluating;
+    # its operator annotations describe the tensors, not the accepted literals.
+    indices = [cast(INT64, [index]) for index in range(5)]
     input_shape = op.Shape(self)
-    batch = op.Slice(input_shape, [0], [1])
-    channels = op.Slice(input_shape, [1], [2])
-    height = op.Slice(input_shape, [2], [3])
-    width = op.Slice(input_shape, [3], [4])
-    factor = op.Constant(value_ints=[downscale_factor])
+    batch = op.Slice(input_shape, indices[0], indices[1])
+    channels = op.Slice(input_shape, indices[1], indices[2])
+    height = op.Slice(input_shape, indices[2], indices[3])
+    width = op.Slice(input_shape, indices[3], indices[4])
+    # value_ints fixes the dtype, but Constant's return annotation is generic.
+    factor = cast(INT64, op.Constant(value_ints=[downscale_factor]))
     output_h = op.Div(height, factor)
     output_w = op.Div(width, factor)
 

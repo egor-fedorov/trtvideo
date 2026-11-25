@@ -1,11 +1,13 @@
 """Runtime engine protocols used by video pipelines."""
 
-from typing import Any, Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
 
 from trtvideo.models.manifest import ModelSpec, TensorSpec
 
-TensorLike = Any
-CudaStream = Any
+if TYPE_CHECKING:
+    import cvcuda
 
 
 class RuntimeEngine(Protocol):
@@ -16,9 +18,9 @@ class RuntimeEngine(Protocol):
     output_specs: tuple[TensorSpec, ...]
     input_name: str
     output_name: str
-    input_dtype: Any
-    output_dtype: Any
-    stream: CudaStream
+    input_dtype: cvcuda.Type
+    output_dtype: cvcuda.Type
+    stream: cvcuda.Stream
     stream_handle: int
     gpu_name: str
     input_w: int

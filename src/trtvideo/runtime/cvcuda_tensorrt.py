@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, TextIO
 
 import tensorrt as trt
 
 from trtvideo.models.manifest import ModelSpec, TensorDType, make_upscale_model_spec
-from trtvideo.runtime import CudaStream, TensorLike
 from trtvideo.runtime.cuda import CudaEvent, device_name, set_device
+
+if TYPE_CHECKING:
+    import cvcuda
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
 
-def _cvcuda_dtype_from_trt(dtype: trt.DataType, cvcuda: Any) -> Any:
+def _cvcuda_dtype_from_trt(dtype: trt.DataType) -> cvcuda.Type:
+    import cvcuda
+
     if dtype == trt.DataType.FLOAT:
         return cvcuda.Type.F32
     if dtype == trt.DataType.HALF:
@@ -31,7 +35,7 @@ def _model_dtype_from_trt(dtype: trt.DataType) -> TensorDType:
     raise ValueError(f"Unsupported TensorRT tensor dtype: {dtype}")
 
 
-def _tensor_pointer(tensor: Any) -> int:
+def _tensor_pointer(tensor: cvcuda.Tensor) -> int:
     interface = tensor.cuda().__cuda_array_interface__
     return int(interface["data"][0])
 
@@ -45,11 +49,10 @@ class CvcudaTensorRTRuntime:
         quiet: bool = False,
         gpu_id: int = 0,
         log_stream: TextIO | None = None,
-    ):
+    ) -> None:
         set_device(gpu_id)
         import cvcuda
 
-        self.cvcuda = cvcuda
         self.quiet = quiet
         self.log_stream = log_stream if log_stream is not None else sys.stderr
         self.gpu_id = gpu_id
@@ -68,7 +71,10 @@ class CvcudaTensorRTRuntime:
             print("  Rebuild: build-engine <model>.onnx", file=self.log_stream)
             sys.exit(1)
 
-        self.context = self.engine.create_execution_context()
+        context = self.engine.create_execution_context()
+        if context is None:
+            raise RuntimeError("Failed to create TensorRT execution context")
+        self.context = context
         input_names = []
         output_names = []
         for index in range(self.engine.num_io_tensors):
@@ -90,8 +96,8 @@ class CvcudaTensorRTRuntime:
         self.input_trt_dtype = self.engine.get_tensor_dtype(self.input_name)
         self.output_trt_dtype = self.engine.get_tensor_dtype(self.output_name)
         try:
-            self.input_dtype = _cvcuda_dtype_from_trt(self.input_trt_dtype, cvcuda)
-            self.output_dtype = _cvcuda_dtype_from_trt(self.output_trt_dtype, cvcuda)
+            self.input_dtype = _cvcuda_dtype_from_trt(self.input_trt_dtype)
+            self.output_dtype = _cvcuda_dtype_from_trt(self.output_trt_dtype)
             input_model_dtype = _model_dtype_from_trt(self.input_trt_dtype)
             output_model_dtype = _model_dtype_from_trt(self.output_trt_dtype)
         except ValueError as exc:
@@ -160,7 +166,7 @@ class CvcudaTensorRTRuntime:
             print(f"  Scale:  {self.model_spec.scale}x", file=self.log_stream)
             print("  Tensor buffers: CV-CUDA (PyTorch-free)", file=self.log_stream)
 
-    def execute(self) -> Any:
+    def execute(self) -> cvcuda.Tensor:
         """Enqueue inference against the pre-bound CV-CUDA tensors."""
         if not self.context.execute_async_v3(self.stream_handle):
             raise RuntimeError("TensorRT execute_async_v3 failed")
@@ -168,11 +174,11 @@ class CvcudaTensorRTRuntime:
 
     def infer(
         self,
-        inputs: Mapping[str, TensorLike],
+        inputs: Mapping[str, cvcuda.Tensor],
         *,
-        stream: CudaStream | None = None,
+        stream: cvcuda.Stream | None = None,
         synchronize: bool | None = None,
-    ) -> dict[str, TensorLike]:
+    ) -> dict[str, cvcuda.Tensor]:
         """Run raw inference for callers that provide the pre-bound input tensor."""
         if stream is not None and stream is not self.stream:
             raise ValueError("CvcudaTensorRTRuntime uses its owned CV-CUDA stream")

@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass
 
 import pytest
@@ -82,7 +83,7 @@ def test_engine_io_precision_returns_matching_precision(
     class FakeTrt:
         DataType = FakeDataType
 
-    monkeypatch.setattr(build_engine, "trt", FakeTrt)
+    monkeypatch.setitem(sys.modules, "tensorrt", FakeTrt)
 
     assert build_engine._engine_io_precision(FakeDataType.FLOAT, FakeDataType.FLOAT) == "fp32"
     assert build_engine._engine_io_precision(FakeDataType.HALF, FakeDataType.HALF) == "fp16"
@@ -98,6 +99,6 @@ def test_engine_io_precision_returns_mixed_for_different_bindings(
     class FakeTrt:
         DataType = FakeDataType
 
-    monkeypatch.setattr(build_engine, "trt", FakeTrt)
+    monkeypatch.setitem(sys.modules, "tensorrt", FakeTrt)
 
     assert build_engine._engine_io_precision(FakeDataType.FLOAT, FakeDataType.HALF) == "mixed"

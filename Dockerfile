@@ -83,6 +83,7 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
         --extra docker --extra export --extra benchmark
 
 COPY benchmarks/ benchmarks/
+COPY stubs/ stubs/
 COPY --chmod=755 benchmarks/bin/benchmark-trtvideo /usr/local/bin/benchmark-trtvideo
 
 FROM runtime AS production

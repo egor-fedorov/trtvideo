@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from trtvideo.benchmarking.lifecycle import LifecycleRecorder
 from trtvideo.diagnostics.nvtx import NvtxAnnotator
@@ -42,6 +43,9 @@ from trtvideo.video.output import (
 )
 from trtvideo.video.probe import VideoProbeError, probe_video
 
+if TYPE_CHECKING:
+    from PyNvVideoCodec import DecodedFrame, PyNvEncoder, ThreadedDecoder
+
 
 class NvcodecPipeline:
     """Orchestrate NVDEC -> CV-CUDA -> TensorRT -> CV-CUDA -> NVENC."""
@@ -60,14 +64,13 @@ class NvcodecPipeline:
         "NVENC encode": "encode",
     }
 
-    def __init__(self, config: ProcessConfig):
+    def __init__(self, config: ProcessConfig) -> None:
         self.config = config
         self._info: VideoMetadata | None = None
         self._color: SdrColorContract | None = None
         self._runtime_engine: CvcudaTensorRTRuntime | None = None
-        self._decoder: Any | None = None
-        self._encoder: Any | None = None
-        self._nvc: Any | None = None
+        self._decoder: ThreadedDecoder | None = None
+        self._encoder: PyNvEncoder | None = None
         self._muxer: StreamingFfmpegMuxer | None = None
         self._frame_processor: NvcodecFrameProcessor | None = None
         self._profiler: ProfileCollector | None = None
@@ -223,7 +226,6 @@ class NvcodecPipeline:
         self._log("Initializing NVDEC...")
         import PyNvVideoCodec as nvc
 
-        self._nvc = nvc
         color_spec_name = self._color_contract().cvcuda_spec_name
         self._log_verbose(f"CV-CUDA color spec: {color_spec_name}")
         self._decoder = nvc.ThreadedDecoder(
@@ -237,10 +239,11 @@ class NvcodecPipeline:
         )
 
     def _setup_encoder(self) -> None:
+        import PyNvVideoCodec as nvc
+
         runtime = self._runtime()
         info = self._video_info()
         color = self._color_contract()
-        nvc = self._nvc_module()
         self._frame_processor = NvcodecFrameProcessor(
             runtime,
             color_spec_name=color.cvcuda_spec_name,
@@ -317,14 +320,14 @@ class NvcodecPipeline:
             "Pass --bitrate-mbps explicitly."
         )
 
-    def _decode_frames(self):
+    def _decode_frames(self) -> Iterator[DecodedFrame]:
         """Yield NV12 surfaces while respecting ThreadedDecoder ownership."""
         runtime = self._runtime()
         decoder = self._decoder_instance()
         fetch_batch = decoder.get_batch_frames
         if self._nvtx.enabled:
 
-            def annotated_fetch_batch(batch_size: int):
+            def annotated_fetch_batch(batch_size: int) -> list[DecodedFrame]:
                 with self._nvtx.range("trtvideo.nvcodec.decode_batch"):
                     return decoder.get_batch_frames(batch_size)
 
@@ -407,7 +410,7 @@ class NvcodecPipeline:
         if not self.config.quiet:
             self._log(render_progress(event))
 
-    def _process_frame(self, raw_frame: Any) -> None:
+    def _process_frame(self, raw_frame: DecodedFrame) -> None:
         if self._profiler is not None:
             self._process_frame_profiled(raw_frame)
             return
@@ -423,7 +426,7 @@ class NvcodecPipeline:
         nv12_output = processor.postprocess()
         self._write_bitstream(encoder.Encode(nv12_output))
 
-    def _process_frame_nvtx(self, raw_frame: Any) -> None:
+    def _process_frame_nvtx(self, raw_frame: DecodedFrame) -> None:
         processor = self._processor()
         encoder = self._encoder_instance()
         nv12_input = processor.wrap_nv12(raw_frame)
@@ -436,7 +439,7 @@ class NvcodecPipeline:
         with self._nvtx.range("trtvideo.nvcodec.nvenc_encode"):
             self._write_bitstream(encoder.Encode(nv12_output))
 
-    def _process_frame_profiled(self, raw_frame: Any) -> None:
+    def _process_frame_profiled(self, raw_frame: DecodedFrame) -> None:
         runtime = self._runtime()
         processor = self._processor()
         encoder = self._encoder_instance()
@@ -588,7 +591,7 @@ class NvcodecPipeline:
         }
         write_json_document(destination, report)
 
-    def _write_bitstream(self, bitstream: Any) -> None:
+    def _write_bitstream(self, bitstream: bytes) -> None:
         if bitstream:
             self._output_muxer().write(bytearray(bitstream))
 
@@ -612,20 +615,15 @@ class NvcodecPipeline:
             raise RuntimeError("NVCodec frame processor is not initialized")
         return self._frame_processor
 
-    def _decoder_instance(self) -> Any:
+    def _decoder_instance(self) -> ThreadedDecoder:
         if self._decoder is None:
             raise RuntimeError("NVDEC decoder is not initialized")
         return self._decoder
 
-    def _encoder_instance(self) -> Any:
+    def _encoder_instance(self) -> PyNvEncoder:
         if self._encoder is None:
             raise RuntimeError("NVENC encoder is not initialized")
         return self._encoder
-
-    def _nvc_module(self) -> Any:
-        if self._nvc is None:
-            raise RuntimeError("PyNvVideoCodec is not initialized")
-        return self._nvc
 
     def _output_muxer(self) -> StreamingFfmpegMuxer:
         if self._muxer is None:

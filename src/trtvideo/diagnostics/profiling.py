@@ -1,13 +1,29 @@
 """CUDA event-based profiling and reports for pipeline stages."""
 
+from __future__ import annotations
+
 import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, TextIO, TypedDict
 
 from trtvideo.runtime import RuntimeEngine
 from trtvideo.video.metadata import VideoMetadata
+
+if TYPE_CHECKING:
+    from trtvideo.runtime.cuda import CudaEvent
+
+
+class ProfileSummary(TypedDict):
+    warmup_frames: int
+    frames: int
+    processing_fps: float
+    avg_frame_sec: float
+    avg_frame_ms: float
+    min_frame_ms: float
+    max_frame_ms: float
+    stage_ms: dict[str, float]
 
 
 class ProfileCollector:
@@ -33,23 +49,23 @@ class ProfileCollector:
         gpu_stages: list[str],
         synchronize: Callable[[], None],
         skip_warmup: int = 1,
-    ):
+    ) -> None:
         self.stage_names = stage_names
         self.gpu_stages = gpu_stages
         self._synchronize = synchronize
         self.skip_warmup = skip_warmup
-        self._events: list[tuple] = []
+        self._events: list[tuple[CudaEvent, ...]] = []
         self._wall_times: dict[str, list[float]] = {
             name: [] for name in stage_names if name not in gpu_stages
         }
-        self._summary_cache: dict[str, Any] | None = None
+        self._summary_cache: ProfileSummary | None = None
 
     def record_wall_time(self, stage_name: str, duration_s: float) -> None:
         """Record a wall-clock measurement for a CPU-bound stage (in seconds)."""
         self._wall_times[stage_name].append(duration_s)
         self._summary_cache = None
 
-    def commit(self, events: tuple) -> None:
+    def commit(self, events: tuple[CudaEvent, ...]) -> None:
         """Store sequential CUDA events for one frame."""
         self._events.append(events)
         self._summary_cache = None
@@ -58,7 +74,7 @@ class ProfileCollector:
     def committed_count(self) -> int:
         return len(self._events)
 
-    def summary(self, frame_times: list[float]) -> dict[str, Any]:
+    def summary(self, frame_times: list[float]) -> ProfileSummary:
         """Return machine-readable profiling summary."""
         if self._summary_cache is not None:
             return self._summary_cache
@@ -90,7 +106,7 @@ class ProfileCollector:
         min_frame_sec = min(measured_frame_times) if measured_frame_times else 0.0
         max_frame_sec = max(measured_frame_times) if measured_frame_times else 0.0
         processing_fps = 1.0 / wall_avg_sec if wall_avg_sec > 0 else 0.0
-        result = {
+        result: ProfileSummary = {
             "warmup_frames": skip,
             "frames": len(measured_frame_times),
             "processing_fps": processing_fps,
@@ -102,9 +118,7 @@ class ProfileCollector:
         }
         for frame_events in self._events:
             for event in frame_events:
-                close = getattr(event, "close", None)
-                if close is not None:
-                    close()
+                event.close()
         self._events.clear()
         self._summary_cache = result
         return result

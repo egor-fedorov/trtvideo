@@ -38,6 +38,9 @@ jobs:
       - name: Run ty
         run: make typecheck-ty
 
+      - name: Check native API typing contracts
+        run: make typecheck-contracts
+
       - name: Compile Python sources
         run: make compile
 

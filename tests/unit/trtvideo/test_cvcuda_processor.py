@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -53,7 +54,7 @@ class FakeCvcuda:
     def Tensor(self, shape, dtype, layout):
         return FakeTensor(shape, dtype, layout)
 
-    def as_tensor(self, value, layout):
+    def as_tensor(self, value, layout=None):
         interface = value.__cuda_array_interface__
         return FakeTensor(
             interface["shape"],
@@ -92,8 +93,40 @@ class FakeRuntime:
         return self.gpu_output
 
 
-def test_frame_processor_shares_production_preprocess_and_inference() -> None:
+@pytest.fixture
+def runtime(monkeypatch):
     runtime = FakeRuntime()
+    monkeypatch.setitem(sys.modules, "cvcuda", runtime.cvcuda)
+    return runtime
+
+
+@pytest.mark.parametrize("shape", [(4, 8), (4, 8, 1)])
+def test_frame_processor_wraps_padded_surface_without_copying(runtime, shape) -> None:
+    processor = NvcodecFrameProcessor(
+        runtime,
+        color_spec_name="bt709",
+        limited_range=True,
+    )
+    frame = SimpleNamespace(
+        __cuda_array_interface__={
+            "version": 3,
+            "shape": shape,
+            "typestr": "|u1",
+            "data": (16384, False),
+            "strides": None,
+        }
+    )
+
+    wrapped = processor.wrap_nv12(frame)
+
+    assert wrapped.pointer == 16384
+    assert wrapped.shape == (1, 3, 4, 1)
+    assert wrapped.strides == (24, 8, 1, 1)
+    assert wrapped.layout == "NHWC"
+    assert runtime.cvcuda.calls == []
+
+
+def test_frame_processor_shares_production_preprocess_and_inference(runtime) -> None:
     processor = NvcodecFrameProcessor(
         runtime,
         color_spec_name="bt709",
@@ -131,8 +164,7 @@ def test_frame_processor_shares_production_preprocess_and_inference() -> None:
     assert uv_to_limited[3:5] == pytest.approx((224 / 255, 128 * (1 - 224 / 255)))
 
 
-def test_frame_processor_keeps_full_range_nv12_without_range_conversion() -> None:
-    runtime = FakeRuntime()
+def test_frame_processor_keeps_full_range_nv12_without_range_conversion(runtime) -> None:
     processor = NvcodecFrameProcessor(
         runtime,
         color_spec_name="bt709",

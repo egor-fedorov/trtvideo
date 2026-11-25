@@ -1,6 +1,6 @@
 # Testing
 
-Project tests run through the lightweight Docker checks image defined in
+Default checks run through the lightweight Docker checks image defined in
 `docker/checks.Dockerfile`. The local host does not need TensorRT,
 PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
 
@@ -49,6 +49,24 @@ metadata, and an attachment. The test applies the shared output mapping,
 validates every preserved stream with `ffprobe`, and fully decodes video plus
 both audio tracks. A separate case confirms that MP4 preflight rejects source
 streams that cannot be copied into MP4.
+
+### Export Integration
+
+CPU tests against the real PyTorch, ONNXScript, and ONNX Runtime libraries run
+separately from the lightweight checks image:
+
+```bash
+make build-typecheck-runtime
+make test-export-integration
+```
+
+`tests/model_tools/` checks the pixel-unshuffle translation both in eager mode
+and through the registered PyTorch ONNX exporter. Channel-distinct inputs must
+match PyTorch exactly, and the exported graph must not use the incompatible
+`SpaceToDepth` lowering. No GPU, model weights, or TensorRT engines are needed.
+The same layer checks engine-build precision metadata against real ONNX
+protobufs, including FP32 bindings with FP16 weights and non-tensor value info.
+These tests are not part of `make check` or its media integration layer.
 
 ### CLI/Docker Smoke
 
@@ -188,10 +206,26 @@ make check
 `src/trtvideo` and `benchmarks`. Use `make typecheck-mypy` or
 `make typecheck-ty` to run either checker separately in the development image.
 ty is version-pinned in the dev dependencies; both tools are required gates,
-not advisory checks. ty allows unresolved imports only for the explicitly listed
-GPU/model-export dependencies absent from the lightweight checks image; missing
-project imports remain errors. Its configuration does not reuse mypy's
-`type: ignore` suppressions.
+not advisory checks. Both use the local [native API declarations](../stubs/README.md)
+for CUDA bindings, TensorRT, CV-CUDA, and PyNvVideoCodec. ty allows unresolved
+imports only for the remaining explicitly listed optional dependencies absent
+from the lightweight checks image; missing project imports remain errors. Its
+configuration does not reuse mypy's `type: ignore` suppressions.
+
+`make typecheck-contracts` runs static positive and negative probes through both
+checkers. The positive probes assert concrete types across the production frame
+path; negative probes cover representative project/native boundaries, not every
+SDK argument. Each intentionally invalid call must fail, not just produce a
+nonzero exit code for the whole file. These tests live in `tests/typing/`, never
+execute native libraries, and run as part of `make typecheck`, `make check`, the
+full-dependency audit, and CI.
+
+The runtime, production frame processor/pipeline, engine builder, and profiler
+also enable stricter mypy rules: missing function annotations, bare generics,
+explicit `Any`, and returning `Any` from typed functions are errors. The builder
+keeps native imports lazy, so CLI help and pure-Python tests still work without
+TensorRT. The profiler's event batches and summary fields retain their types;
+quality capture keeps CUDA pointers, copy calls, and FP16/FP32 host arrays typed.
 `make figures-check` regenerates benchmark SVGs in a temporary directory and
 requires byte-for-byte equality with the committed figures.
 
@@ -208,3 +242,49 @@ downloading the 26 GB runtime image. Full production and benchmark builds remain
 a GPU-host or self-hosted-runner acceptance check. Versioned releases build only
 the production target, smoke-test `trtvideo` and `build-engine` by immutable
 digest, and verify that model-conversion and benchmark commands are absent.
+
+### Full-Dependency Type Audit
+
+To run both type checkers with the installed runtime, export, and benchmark
+libraries instead of the lightweight environment:
+
+```bash
+make build-typecheck-runtime
+make typecheck-runtime
+```
+
+The build uses the root Dockerfile's `benchmark` target with `INSTALL_DEV=1`
+and the same frozen dependency lock. It writes a separate
+`trtvideo:typecheck-runtime` image without replacing production or benchmark
+tags. Override `TYPECHECK_RUNTIME_IMAGE` on both commands to use another tag.
+The checks read the current checkout; rebuild the image after Dockerfile,
+base-image, or dependency changes. Neither the build nor the audit needs GPU
+access. Runtime driver readiness is still checked separately with `trtvideo doctor`.
+
+The audit first requires the full dependency set to be installed and prints its
+versions. It then runs both checkers with the existing project configuration,
+even if one fails, and preserves a nonzero exit status on failure. It is an
+opt-in diagnostic, not part of `make check` or the lightweight CI gate.
+
+The native libraries do not supply the needed static declarations. The local
+stubs describe only the API used by the production pipeline, not the complete
+vendor SDKs. Core tensors, streams, CUDA event results, decoder frames, and
+encoded bitstreams retain their types through the frame path. TensorRT network,
+parser, builder config, optimization profiles, timing cache, and serialized
+buffers are covered as well. Native callables are bound directly where needed,
+instead of passing modules through attributes that mypy treats as untyped
+`ModuleType` objects. Real typed dependencies such as PyTorch and ONNXScript
+are still checked against their installed declarations, not replaced with
+project stubs.
+
+This is not complete strict typing of the repository: environment discovery in
+`doctor`, export tooling, and some benchmark/JSON adapters still use `Any`. Nor
+does a green audit prove that a stub matches an updated native binary: check the
+declarations against the installed API whenever those dependencies change.
+Shape, dtype, color, ownership, and synchronization correctness still require
+unit and GPU tests; static typing does not prove them.
+
+The ONNXScript translator uses narrowly scoped `INT64` casts for automatically
+promoted index literals and integer constants whose dtype is absent from the
+generic operator signature. Casts do not change execution or graph operations;
+`make test-export-integration` checks the real eager and export paths on CPU.
