@@ -464,8 +464,6 @@ def main() -> None:
     if args.output is None:
         args.output = os.path.splitext(args.onnx)[0] + ".engine"
 
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-
     _load_tensorrt()
 
     if args.verbose:

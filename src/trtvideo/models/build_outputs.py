@@ -12,7 +12,10 @@ def validate_destinations(outputs: Sequence[Path], inputs: Sequence[Path]) -> No
     seen = {path.resolve() for path in inputs}
     for path in outputs:
         resolved = path.resolve()
-        if resolved in seen or path.is_symlink() or (path.exists() and not path.is_file()):
+        overlaps = any(
+            resolved.is_relative_to(other) or other.is_relative_to(resolved) for other in seen
+        )
+        if overlaps or path.is_symlink() or (path.exists() and not path.is_file()):
             raise ValueError(f"Invalid or overlapping engine build destination: {path}")
         seen.add(resolved)
 
@@ -25,7 +28,9 @@ def staged_build(outputs: Sequence[Path]) -> Generator[dict[Path, Path], None, N
         backups: dict[Path, Path] = {}
         for dest in outputs:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            directory = Path(stack.enter_context(TemporaryDirectory(prefix=".build-", dir=dest.parent)))
+            directory = Path(
+                stack.enter_context(TemporaryDirectory(prefix=".build-", dir=dest.parent))
+            )
             staged[dest] = directory / "new"
         yield staged
 

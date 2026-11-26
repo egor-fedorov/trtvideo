@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from trtvideo.cli import build_engine
+from trtvideo.models.build_outputs import validate_destinations
 
 
 @pytest.fixture
@@ -83,3 +84,12 @@ def test_build_rejects_overlapping_outputs_before_builder(
     monkeypatch.setattr(build_engine, "_load_tensorrt", lambda: pytest.fail("builder started"))
     with pytest.raises(ValueError, match="overlapping"):
         build_engine.build_engine(str(graph), str(graph), timing_cache_path=str(graph))
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_output_must_not_be_another_artifacts_parent(tmp_path, reverse):
+    engine = tmp_path / "model.engine"
+    paths = [engine, engine / "cache"]
+    with pytest.raises(ValueError, match="overlapping"):
+        validate_destinations(paths[::-1] if reverse else paths, [])
+    assert not engine.exists()
