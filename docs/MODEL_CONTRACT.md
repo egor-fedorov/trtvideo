@@ -18,7 +18,7 @@ The production runtime accepts a TensorRT engine with this contract:
 | Batch | Static batch 1 |
 | Spatial dimensions | Static, positive, and matched to the decoded input |
 | Scale | Uniform positive integer in both spatial dimensions |
-| Binding dtype | FP32 in the pinned image (see FP16 limitation below) |
+| Binding dtype | FP32 or FP16, independently for input and output |
 | Value range | Normalized RGB in `[0, 1]` |
 | Execution | Full-frame only; no tiling |
 
@@ -31,10 +31,10 @@ compile a dynamic ONNX graph with an optimization profile, but the production
 runtime does not select dynamic shapes or resize its buffers. A dynamic engine
 is not currently usable for video processing.
 
-TensorRT binding dtype and internal graph precision are separate. The pinned
-CV-CUDA 0.16.0 Python build cannot expose FP16 buffers for engine input or
-output. Use FP32 bindings; the graph can still run with FP16 weights and
-operations, as in the tested preparation path:
+TensorRT binding dtype and internal graph precision are separate. CV-CUDA
+0.19 supports true FP16 buffers at the engine boundary. You do not have to
+change your model's input or output to run FP16 operations: the standard
+checkpoint preparation path retains FP32 bindings around a mixed-FP16 graph:
 
 ```text
 FP32 RGB input -> mixed-FP16 ONNX graph -> FP32 RGB output

@@ -92,7 +92,8 @@ reports without that snapshot are not reusable. Identical hardware fields do
 not prove the same physical server, so do not resume a session after moving
 hosts. The probe does not run inference or alter the measured process timer.
 
-The current project/vs-mlrt base is TensorRT `26.08-py3` (`11.2.1.2`). Rebuild
+The controlled project/vs-mlrt benchmark base is TensorRT `26.08-py3`
+(`11.2.1.2`), not the production image used by `make build`. Rebuild
 the project engines on each benchmark GPU; vs-mlrt shares those engines, while
 TAS still uses its native builder. The default project timing cache is now
 `models/cache/benchmark-trt11.2.1.2.cache`; do not point `TRT_TIMING_CACHE` at

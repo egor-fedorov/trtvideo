@@ -4,6 +4,8 @@ HOST_PYTHON ?= python3
 HOST_PYTHON_RUN = PYTHONPATH="$(ROOT)/src$${PYTHONPATH:+:$$PYTHONPATH}" "$(HOST_PYTHON)"
 PROJECT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)"$$/\1/p' "$(ROOT)/pyproject.toml")
 BENCHMARK_IMAGE ?= trtvideo:benchmark
+# The controlled comparison and its timing cache have their own TensorRT pin.
+BENCHMARK_BASE_IMAGE := nvcr.io/nvidia/tensorrt:26.08-py3@sha256:3b127f45630cd56bf43d2ef70d7f50a7ee37e42bda4ba11adaaa069af2098125
 VSTRT_IMAGE ?= trtvideo:benchmark-vstrt
 TAS_IMAGE ?= trtvideo:benchmark-tas
 
@@ -111,6 +113,7 @@ help:
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
+		--build-arg BASE_IMAGE="$(BENCHMARK_BASE_IMAGE)" \
 		--build-arg BUILD_DATE="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 		--build-arg VERSION="$(PROJECT_VERSION)" \
 		--build-arg VCS_REF="$$(git -C "$(ROOT)" rev-parse HEAD)" \

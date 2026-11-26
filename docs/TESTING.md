@@ -90,10 +90,9 @@ docker run --rm --gpus all -e PYTHONPATH=/app/src -v "$PWD:/app:ro" \
 
 The test builds temporary identity engines for 854x480 and 1280x480, copies a
 known pattern respecting the actual buffer pitches, and requires an exact match
-before encoding. It also verifies that a non-linear HWC output is rejected.
-On CV-CUDA 0.16.0 it verifies the diagnostic for true FP16 I/O and skips only
-the numerical FP16 case. This test is separate from the GPU-free `make check`
-gate.
+before encoding. FP32, true FP16, and mixed input/output types must all pass on
+the production image; a non-linear HWC output must be rejected. This test is
+separate from the GPU-free `make check` gate.
 
 The self-contained manual GPU smoke test is:
 

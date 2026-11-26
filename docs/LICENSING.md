@@ -24,6 +24,13 @@ also contains CPU-only PyTorch, torchvision, Spandrel, ONNX Script, ONNX
 Runtime, and ONNX conversion tools. Benchmark-only diagnostics remain confined
 to non-published targets.
 
+The November 2026 source update uses the same NVIDIA TensorRT container
+family (26.11, Ubuntu 24.04), the CUDA 13 build of CV-CUDA, and CPU wheels
+for model export. The updated direct package declarations are recorded in
+[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md). Review the new base
+notices and both image SBOMs for the next release; prior attestations describe
+only the images to which they are attached.
+
 ## NVIDIA Components And Benchmark Publication
 
 The Dockerfile pins the TensorRT NGC base by digest. The base-provided NVIDIA

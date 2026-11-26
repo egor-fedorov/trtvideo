@@ -25,6 +25,15 @@ def test_project_engine_build_has_overridable_versioned_timing_cache() -> None:
     assert "--timing-cache /app/$(TRT_TIMING_CACHE)" in recipe("build-project-engine")
 
 
+def test_benchmark_build_uses_its_declared_base_instead_of_the_production_default() -> None:
+    source = (ROOT / "benchmarks/Makefile").read_text()
+    metadata = json.loads((ROOT / "benchmarks/implementations.json").read_text())
+    ref = re.escape(metadata["implementations"]["trtexec"]["source"])
+    assert re.search(rf"^BENCHMARK_BASE_IMAGE := {ref}@sha256:[0-9a-f]{{64}}$", source, re.M)
+    assert '--build-arg BASE_IMAGE="$(BENCHMARK_BASE_IMAGE)"' in recipe("build")
+    assert '--build-arg BASE_IMAGE="$(BENCHMARK_IMAGE)"' in recipe("build-vstrt")
+
+
 def test_tas_image_build_uses_separate_dockerfile() -> None:
     command = recipe("build-tas")
     assert "benchmarks/docker/tas.Dockerfile" in command

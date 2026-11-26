@@ -133,7 +133,9 @@ def collect_environment(gpu: dict[str, Any]) -> dict[str, Any]:
             "torch": _package_version("torch"),
             "cuda": _cuda_runtime_version(),
             "tensorrt": _package_version("tensorrt"),
-            "cvcuda": _package_version("cvcuda-cu12") or _package_version("cvcuda"),
+            "cvcuda": _package_version("cvcuda-cu13")
+            or _package_version("cvcuda-cu12")
+            or _package_version("cvcuda"),
             "pynvvideocodec": _package_version("pynvvideocodec"),
             "nvidia_ml_py": _package_version("nvidia-ml-py"),
             "ffmpeg": _command_version(["ffmpeg", "-version"]),
