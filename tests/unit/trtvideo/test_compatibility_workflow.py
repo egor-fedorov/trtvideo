@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
+import struct
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
+import onnx
 import pytest
 
 from trtvideo.compatibility.workflow import (
@@ -21,6 +25,7 @@ from trtvideo.compatibility.workflow import (
     workflow_context,
 )
 from trtvideo.diagnostics.doctor import CheckResult, DoctorReport
+from trtvideo.models.onnx_preparation import preparation_path
 
 
 def _source(tmp_path: Path, suffix: str) -> Path:
@@ -401,7 +406,12 @@ def _artifact_executor(plan, executed: list[str]):
         executed.append(step.key)
         for output in step.outputs:
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_bytes(f"{step.key}:{output.name}".encode())
+            if output.suffix == ".onnx":
+                onnx.save(
+                    onnx.helper.make_model(onnx.helper.make_graph([], step.key, [], [])), output
+                )
+            else:
+                output.write_bytes(f"{step.key}:{output.name}".encode())
 
     return execute
 
@@ -437,6 +447,111 @@ def test_resume_skips_valid_steps_and_reruns_changed_artifact_chain(
         executor=_artifact_executor(resumed_plan, third),
     )
     assert third == ["input", "export", "prepare", "engine", "smoke", "report"]
+
+
+def test_resume_refuses_changed_external_source_before_any_command(
+    tmp_path: Path, make_weighted_onnx
+) -> None:
+    from onnx.tools import update_model_dims
+
+    from trtvideo.cli.prepare_onnx import save_static_variant
+
+    base = replace(_options(tmp_path, source_format="onnx"), scale=1)
+    source = make_weighted_onnx(base.source_artifact, external=True, dynamic=True)
+    original_graph = source.read_bytes()
+
+    def fresh(options) -> tuple[float, list[str]]:
+        plan = build_plan(options)
+        executed: list[str] = []
+        write_outputs = _artifact_executor(plan, executed)
+
+        def execute(command) -> None:
+            write_outputs(command)
+            if command[0] == "prepare-onnx":
+                save_static_variant(
+                    onnx_module=onnx,
+                    update_model_dims_module=update_model_dims,
+                    source_path=str(source),
+                    output_path=str(plan.paths.prepared_onnx),
+                    inp_name="input",
+                    out_name="output",
+                    input_h=720,
+                    input_w=1280,
+                    scale=1,
+                )
+
+        run_workflow(plan, doctor_runner=lambda **_: _doctor(), executor=execute)
+        gain = onnx.load(plan.paths.prepared_onnx).graph.initializer[0]
+        return struct.unpack("<f", gain.raw_data)[0], executed
+
+    assert fresh(base)[0] == 0.5
+    assert fresh(replace(base, resume=True)) == (0.5, [])
+    plan = build_plan(replace(base, resume=True))
+    journal = plan.paths.state.read_bytes()
+    prepared = plan.paths.prepared_onnx.read_bytes()
+    weights = tmp_path / "weights.bin"
+    stat = weights.stat()
+    weights.write_bytes(struct.pack("<f", 0.75))
+    os.utime(weights, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert source.read_bytes() == original_graph
+    with pytest.raises(CompatibilityWorkflowError, match="new --output-dir"):
+        run_workflow(plan, doctor_runner=lambda **_: _doctor(), executor=lambda _: pytest.fail())
+    assert plan.paths.state.read_bytes() == journal
+    assert plan.paths.prepared_onnx.read_bytes() == prepared
+    assert fresh(replace(base, output_dir=tmp_path / "fresh"))[0] == 0.75
+
+
+@pytest.mark.parametrize("missing", [True, False])
+def test_resume_repeats_prepare_if_generated_external_weights_changed(
+    tmp_path: Path, make_weighted_onnx, missing: bool
+) -> None:
+    base = _options(tmp_path)
+    plan = build_plan(base)
+    executed: list[str] = []
+    write_outputs = _artifact_executor(plan, executed)
+
+    def execute(command) -> None:
+        write_outputs(command)
+        if command[0] == "prepare-onnx":
+            make_weighted_onnx(plan.paths.prepared_onnx, external=True)
+
+    run_workflow(plan, doctor_runner=lambda **_: _doctor(), executor=execute)
+    weights = plan.paths.onnx_dir / "weights.bin"
+    if missing:
+        weights.unlink()
+    else:
+        weights.write_bytes(struct.pack("<f", 0.75))
+    executed.clear()
+    run_workflow(
+        build_plan(replace(base, resume=True)),
+        doctor_runner=lambda **_: _doctor(),
+        executor=execute,
+    )
+    assert executed == ["prepare", "engine", "smoke", "report"]
+
+
+def test_resume_rejects_pre_bundle_journal_without_modifying_it(tmp_path: Path) -> None:
+    path = tmp_path / "compatibility.state.json"
+    path.write_text('{"schema_version":1}', encoding="utf-8")
+    with pytest.raises(CompatibilityWorkflowError, match="new --output-dir"):
+        WorkflowState.open(path, context={}, resume=True)
+    assert path.read_text(encoding="utf-8") == '{"schema_version":1}'
+
+
+def test_missing_preparation_receipt_resumes_without_reexporting_checkpoint(tmp_path):
+    base = _options(tmp_path)
+    plan = build_plan(base)
+    executed: list[str] = []
+    execute = _artifact_executor(plan, executed)
+    run_workflow(plan, doctor_runner=lambda **_: _doctor(), executor=execute)
+    preparation_path(plan.paths.prepared_onnx).unlink()
+    executed.clear()
+    run_workflow(
+        build_plan(replace(base, resume=True)),
+        doctor_runner=lambda **_: _doctor(),
+        executor=execute,
+    )
+    assert executed == ["prepare", "engine", "smoke", "report"]
 
 
 def test_failed_step_is_not_recorded_and_partial_outputs_are_removed(

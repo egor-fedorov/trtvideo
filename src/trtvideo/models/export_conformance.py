@@ -11,6 +11,8 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from trtvideo.models.onnx_bundle import inspect_onnx_bundle
+
 EXPORT_CONFORMANCE_DOCUMENT_TYPE = "model-export-conformance"
 EXPORT_CONFORMANCE_SCHEMA_VERSION = 2
 EXPORT_CONTRACT_METADATA_KEY = "trtvideo.export_contract"
@@ -170,11 +172,13 @@ def build_conformance_report(
         raise ExportConformanceError("Generated export-conformance probe hash does not match")
     exports = []
     for path in sorted(exported_paths):
+        identity = inspect_onnx_bundle(path).identity()
         exports.append(
             {
                 "path": path.relative_to(output_dir).as_posix(),
-                "sha256": sha256_file(path),
-                "size_bytes": path.stat().st_size,
+                "sha256": identity["graph_sha256"],
+                "size_bytes": identity["graph_size_bytes"],
+                "onnx_bundle": identity,
             }
         )
     return {
@@ -294,7 +298,11 @@ def validate_conformance_report(
         raise ExportConformanceError("Export-conformance metrics are missing")
     for name in ("max_abs", "mean_abs", "rmse", "relative_l2", "psnr_db"):
         value = metrics.get(name)
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
             raise ExportConformanceError(f"Export-conformance metric {name!r} is invalid")
     if any(metrics[name] < 0 for name in ("max_abs", "mean_abs", "rmse", "relative_l2")):
         raise ExportConformanceError("Export-conformance error metrics cannot be negative")

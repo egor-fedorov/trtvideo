@@ -18,6 +18,7 @@ from trtvideo.compatibility.evidence import (
     engine_evidence,
     file_identity,
     public_value,
+    source_engine_binding,
 )
 from trtvideo.compatibility.input import input_manifest_evidence
 from trtvideo.compatibility.media import (
@@ -26,8 +27,9 @@ from trtvideo.compatibility.media import (
     validate_media,
 )
 from trtvideo.diagnostics.doctor import DoctorReport, run_doctor
+from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
 
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
 _MAX_ISSUE_BODY_BYTES = 60 * 1024
 SourceFormat = Literal["checkpoint", "onnx"]
 
@@ -167,6 +169,7 @@ def render_issue_markdown(report: dict[str, Any]) -> str:
                 {
                     "source_format": model["source_format"],
                     "source_artifact": model["source_artifact"],
+                    "source_engine_binding": report["source_engine_binding"],
                     "tensor_contract": report.get("engine", {}).get("input"),
                     "output_contract": report.get("engine", {}).get("output"),
                     "scale": report.get("engine", {}).get("scale"),
@@ -244,6 +247,7 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
     source: dict[str, Any] = {}
     engine: dict[str, Any] = {}
     conformance: dict[str, Any] | None = None
+    binding: dict[str, str] | None = None
     commands: str | None = None
     media: dict[str, Any] = {"valid": False, "errors": ["Media was not inspected"]}
     input_preparation: dict[str, Any] | None = None
@@ -264,8 +268,17 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
     if request.expected_frames <= 0:
         errors.append("Expected frame count must be greater than zero")
     try:
-        source = file_identity(request.source_artifact)
-    except CompatibilityEvidenceError as exc:
+        if request.source_format == "onnx":
+            identity = inspect_onnx_bundle(request.source_artifact).identity()
+            source = {
+                "name": request.source_artifact.name,
+                "sha256": identity["graph_sha256"],
+                "size_bytes": identity["graph_size_bytes"],
+                "onnx_bundle": identity,
+            }
+        else:
+            source = file_identity(request.source_artifact)
+    except (CompatibilityEvidenceError, OnnxBundleError) as exc:
         errors.append(str(exc))
 
     model_spec = None
@@ -289,11 +302,19 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
                     source_identity=source,
                     expected_scale=model_spec.scale,
                 )
-            except CompatibilityEvidenceError as exc:
+                binding = source_engine_binding(
+                    engine, conformance["exports"], export_dir=request.export_conformance.parent
+                )
+            except (CompatibilityEvidenceError, OnnxBundleError) as exc:
                 errors.append(str(exc))
     elif request.source_format == "onnx":
         if request.export_conformance is not None:
             errors.append("Existing ONNX reports must omit checkpoint export-conformance evidence")
+        if source and engine:
+            try:
+                binding = source_engine_binding(engine, [source], export_dir=None)
+            except CompatibilityEvidenceError as exc:
+                errors.append(str(exc))
         warnings.append(
             "Existing ONNX source has no checkpoint export-conformance evidence; "
             "the result can qualify only as community-reported"
@@ -356,6 +377,7 @@ def generate_compatibility_report(request: CompatibilityRequest) -> dict[str, An
         },
         "commands": commands,
         "export_conformance": conformance,
+        "source_engine_binding": binding,
         "engine": engine,
         "environment": {
             "image": image,

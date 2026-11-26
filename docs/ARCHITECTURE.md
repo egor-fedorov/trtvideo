@@ -367,8 +367,12 @@ an FP32 ONNX graph produced by the same export path, then enforces shape,
 finite-value, RMSE, maximum-error, and PSNR limits. The source output determines
 the uniform integer scale, and every full-size export must preserve it.
 Successful evidence is bound to that scale, the checkpoint hash,
-exporter/tool versions, and generated static FP32 ONNX hashes. This model-tools
-operation is outside the production image and all performance timing.
+exporter/tool versions, and generated static FP32 ONNX hashes. Preparation
+links its source bundle to each generated bundle; the builder retains this
+link alongside the identity of the ONNX it actually consumed. The bundle
+covers graph bytes and all referenced external weights; the engine sidecar's
+legacy `model_sha256` still hashes only the graph. Compatibility reports verify
+these links outside inference and all performance timing.
 
 ## Known Limitations
 

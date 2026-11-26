@@ -103,7 +103,14 @@ parameters, image revision, and GPU/driver/TensorRT fingerprint match. Generated
 files are hash-checked; changing one invalidates that step and all downstream
 steps. A failed final validation retains its diagnostic JSON and Markdown;
 `--resume` replaces them while retrying that unfinished tail. User-supplied
-checkpoints, ONNX files, and input videos are never deleted.
+checkpoints, ONNX files, external weights, and input videos are never deleted.
+
+For ONNX with external data, mount the model directory, not just the
+`.onnx` file. Keep referenced weights at their original relative paths inside
+that directory. Changing a source weight, even without changing the graph,
+requires a fresh `--output-dir`. Changing a generated weight instead reruns
+its producing step. Journals from before external-data tracking also require
+a fresh directory.
 
 For an existing ONNX graph, replace `--checkpoint` with `--onnx`. A fully static
 graph supplies its own input resolution and is passed directly to
@@ -229,6 +236,14 @@ For a static graph, `prepare-onnx --precision fp16` only rewrites precision. If
 the graph is already static with the intended precision and bindings, pass it
 directly to `build-engine`.
 
+When preparation produces an ONNX file, keep the accompanying
+`<output>.onnx.prepare.json` beside it until the engine is built. It records
+the input and output bundle identities, resolution, scale and precision.
+`build-engine` checks the prepared bundle and copies the evidence into
+`.engine.json`; a stale preparation manifest is an error. To link a dynamic
+original to a mixed-precision build, pass `--size` and `--precision` in the
+same preparation command, as above.
+
 This route cannot prove equivalence to a source checkpoint because there is no
 PyTorch reference. `prepare-onnx` changes shape metadata and precision; it does
 not certify the model's RGB semantics. A successful build and video smoke test
@@ -352,6 +367,14 @@ image digest. Do not use `latest` for compatibility evidence.
 For an existing ONNX model, use `--source-format onnx` and omit
 `--export-conformance`. The report records that source-checkpoint equivalence is
 unavailable without treating it as a failed community report.
+
+The report must link the claimed ONNX (or a specific conformance-checked
+checkpoint export) to the ONNX used by the builder. A matching filename or
+tensor shape is not enough. For older engine manifests, a matching graph
+SHA256 is sufficient only for a demonstrably single-file, direct build. If
+the source used external weights or was converted without preparation
+evidence, rerun the missing preparation/build steps. Alternatively, report
+the actual build input as an ONNX source, not as the original model.
 
 `--input-manifest` is optional for manually prepared media. When supplied, the
 report verifies that it hashes the actual input and carries the pinned fixture's

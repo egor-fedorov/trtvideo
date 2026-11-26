@@ -12,12 +12,20 @@ Usage:
 """
 
 import argparse
-import hashlib
 import json
 import os
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
+
+from trtvideo.models.onnx_bundle import (
+    OnnxBundleError,
+    OnnxIdentity,
+    inspect_onnx_bundle,
+    sha256_file,
+)
+from trtvideo.models.onnx_preparation import Preparation, read_preparation
 
 trt: Any = None
 TRT_LOGGER: Any = None
@@ -174,15 +182,6 @@ def _engine_io_precision(input_dtype: Any, output_dtype: Any) -> str:
     return "mixed"
 
 
-def sha256_file(path: str) -> str:
-    """Return SHA256 for a model/build artifact."""
-    digest = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def load_timing_cache(config: Any, timing_cache_path: str | None) -> None:
     """Attach an optional TensorRT timing cache to the builder config."""
     if timing_cache_path is None:
@@ -234,6 +233,8 @@ def write_engine_manifest(
     *,
     manifest_path: str,
     onnx_path: str,
+    onnx_identity: OnnxIdentity,
+    preparation: Preparation | None,
     engine_path: str,
     input_tensor: Any,
     output_tensor: Any,
@@ -246,9 +247,10 @@ def write_engine_manifest(
     manifest = {
         "schema_version": 1,
         "engine_path": engine_path,
-        "engine_sha256": sha256_file(engine_path),
+        "engine_sha256": sha256_file(Path(engine_path)),
         "onnx_path": onnx_path,
-        "model_sha256": sha256_file(onnx_path),
+        "model_sha256": onnx_identity["graph_sha256"],
+        "onnx_bundle": onnx_identity,
         "onnx_opset": None,
         "tensorrt_version": trt.__version__,
         "precision": precision,
@@ -272,6 +274,8 @@ def write_engine_manifest(
         "cuda_version": None,
         "gpu_compute_capability": None,
     }
+    if preparation is not None:
+        manifest["onnx_preparation"] = preparation
 
     os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
     with open(manifest_path, "w", encoding="utf-8") as f:
@@ -304,6 +308,9 @@ def build_engine(
     Returns:
         True on success, False on error.
     """
+    source = Path(onnx_path).absolute()
+    source_identity = inspect_onnx_bundle(source).identity()
+    preparation = read_preparation(source, source_identity)
     _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
     network = builder.create_network()
@@ -311,11 +318,10 @@ def build_engine(
 
     # Parse ONNX
     print(f"  Parsing ONNX: {onnx_path}")
-    with open(onnx_path, "rb") as f:
-        if not parser.parse(f.read()):
-            for i in range(parser.num_errors):
-                print(f"  ONNX Parse Error: {parser.get_error(i)}")
-            return False
+    if not parser.parse_from_file(str(source)):
+        for i in range(parser.num_errors):
+            print(f"  ONNX Parse Error: {parser.get_error(i)}")
+        return False
 
     # Builder config
     config = builder.create_builder_config()
@@ -376,6 +382,9 @@ def build_engine(
         print("  ERROR: Compilation failed!")
         return False
 
+    if manifest_path is not None and inspect_onnx_bundle(source).identity() != source_identity:
+        raise OnnxBundleError("ONNX graph or external data changed during the engine build")
+
     # Save
     with open(engine_path, "wb") as f:
         f.write(serialized_engine)
@@ -388,6 +397,8 @@ def build_engine(
         write_engine_manifest(
             manifest_path=manifest_path,
             onnx_path=onnx_path,
+            onnx_identity=source_identity,
+            preparation=preparation,
             engine_path=engine_path,
             input_tensor=input_tensor,
             output_tensor=output_tensor,
@@ -462,15 +473,18 @@ def main() -> None:
     parsed_max = parse_shape_arg(args.max_shape) if args.max_shape else None
     manifest_path = None if args.no_manifest else (args.manifest or f"{args.output}.json")
     # Profile validation needs the parsed network input, so it happens inside build_engine.
-    success = build_engine(
-        args.onnx,
-        args.output,
-        parsed_min,
-        parsed_opt,
-        parsed_max,
-        timing_cache_path=args.timing_cache,
-        manifest_path=manifest_path,
-    )
+    try:
+        success = build_engine(
+            args.onnx,
+            args.output,
+            parsed_min,
+            parsed_opt,
+            parsed_max,
+            timing_cache_path=args.timing_cache,
+            manifest_path=manifest_path,
+        )
+    except OnnxBundleError as exc:
+        sys.exit(f"ERROR: {exc}")
     if not success:
         sys.exit(1)
 

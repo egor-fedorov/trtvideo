@@ -23,6 +23,13 @@ from trtvideo.models.export_conformance import (
     infer_upscale_scale,
 )
 from trtvideo.models.manifest import ModelSpec, TensorDType, make_upscale_model_spec
+from trtvideo.models.onnx_bundle import (
+    OnnxBundleError,
+    OnnxIdentity,
+    inspect_onnx_bundle,
+    parse_onnx_identity,
+)
+from trtvideo.models.onnx_preparation import validate_preparation
 
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SENSITIVE_COMMAND_PATTERNS = (
@@ -193,6 +200,22 @@ def engine_evidence(engine_path: Path) -> tuple[dict[str, Any], ModelSpec]:
         "builder_optimization_level": optimization_level,
         "builder_flags": builder_flags,
     }
+    if "onnx_bundle" in sidecar:
+        bundle = parse_onnx_identity(sidecar["onnx_bundle"])
+        if bundle["graph_sha256"] != model_sha256:
+            raise CompatibilityEvidenceError("Engine model_sha256 disagrees with its ONNX bundle")
+        summary["onnx_bundle"] = bundle
+        if "onnx_preparation" in sidecar:
+            preparation = validate_preparation(sidecar["onnx_preparation"], bundle)
+            if (preparation["height"], preparation["width"]) != spec.inputs[0].shape[
+                2:
+            ] or preparation["scale"] not in (None, spec.scale):
+                raise CompatibilityEvidenceError("ONNX preparation dimensions do not match engine")
+            summary["onnx_preparation"] = preparation
+    elif "onnx_preparation" in sidecar:
+        raise CompatibilityEvidenceError(
+            "Engine has ONNX preparation evidence but no build input identity"
+        )
     return summary, spec
 
 
@@ -299,13 +322,22 @@ def conformance_evidence(
         size_bytes = export.get("size_bytes")
         if not isinstance(size_bytes, int) or isinstance(size_bytes, bool) or size_bytes <= 0:
             raise CompatibilityEvidenceError("Exported ONNX size must be a positive integer")
-        export_identities.append(
-            {
-                "name": _artifact_name(export.get("path"), "Exported ONNX name"),
-                "sha256": _require_sha256(export.get("sha256"), "Exported ONNX SHA256"),
-                "size_bytes": size_bytes,
-            }
-        )
+        entry: dict[str, Any] = {
+            "name": _artifact_name(export.get("path"), "Exported ONNX name"),
+            "sha256": _require_sha256(export.get("sha256"), "Exported ONNX SHA256"),
+            "size_bytes": size_bytes,
+        }
+        if "onnx_bundle" in export:
+            bundle = parse_onnx_identity(export["onnx_bundle"])
+            if (bundle["graph_sha256"], bundle["graph_size_bytes"]) != (
+                entry["sha256"],
+                size_bytes,
+            ):
+                raise CompatibilityEvidenceError(
+                    "Export-conformance ONNX hash/size disagree with bundle"
+                )
+            entry["onnx_bundle"] = bundle
+        export_identities.append(entry)
 
     return {
         "document": file_identity(path),
@@ -332,6 +364,66 @@ def conformance_evidence(
         "tools": sanitized_tools,
         "exports": export_identities,
     }
+
+
+def _legacy_export_identity(entry: dict[str, Any], directory: Path) -> OnnxIdentity | None:
+    # Two graph-only records cannot establish that the export had no external weights.
+    # For an old direct build, the actual adjacent single-file export can establish this.
+    path = directory / entry["name"]
+    if not path.is_file() or path.is_symlink() or path.parent != directory:
+        return None
+    try:
+        identity = inspect_onnx_bundle(path).identity()
+    except OnnxBundleError:
+        return None
+    if (
+        identity["external_file_count"] == 0
+        and identity["graph_sha256"] == entry["sha256"]
+        and identity["graph_size_bytes"] == entry["size_bytes"]
+    ):
+        return identity
+    return None
+
+
+def source_engine_binding(
+    engine: dict[str, Any], sources: list[dict[str, Any]], *, export_dir: Path | None
+) -> dict[str, str]:
+    """Match the claimed source (or one registered checkpoint export) to a proven build input."""
+    stages = [("direct", engine.get("onnx_bundle"))]
+    if "onnx_preparation" in engine:
+        stages.append(("prepared", engine["onnx_preparation"]["source"]))
+    for route, build_input in stages:
+        for entry in sources:
+            supplied = entry.get("onnx_bundle")
+            if build_input is None:  # Legacy engine manifest: only a direct single-file match.
+                if entry["sha256"] != engine["onnx_sha256"]:
+                    continue
+                if supplied is None and export_dir is not None:
+                    supplied = _legacy_export_identity(entry, export_dir)
+                matches = supplied is not None and supplied["external_file_count"] == 0
+            elif supplied is not None:
+                matches = supplied == build_input
+            else:  # Legacy conformance: a matching, demonstrably single-file export is sufficient.
+                matches = (
+                    build_input["external_file_count"] == 0
+                    and build_input["graph_sha256"] == entry["sha256"]
+                    and build_input["graph_size_bytes"] == entry["size_bytes"]
+                )
+            if matches:
+                result = {"build": route}
+                if export_dir is not None:
+                    result["matched_export"] = entry["name"]
+                return result
+    if export_dir is not None:
+        raise CompatibilityEvidenceError(
+            "Cannot link any verified checkpoint export to the engine. Use the matching "
+            "export-conformance report; rerun export-onnx, prepare-onnx (if used) and build-engine "
+            "if the export or preparation evidence is missing."
+        )
+    raise CompatibilityEvidenceError(
+        "Cannot link the supplied ONNX to the engine. Use the actual build input or rerun "
+        "prepare-onnx (if used) and build-engine with the matching source and external weights."
+    )
 
 
 def command_evidence(path: Path) -> str:

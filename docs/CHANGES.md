@@ -101,6 +101,11 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Prevented silent inference corruption when CV-CUDA padded rows beyond the
   stride expected by TensorRT (for example, 854-pixel FP32 input). Linear
   engine bindings now use packed rows and are checked before processing.
+- Fixed `compatibility-check --resume` reusing stale results after an external
+  ONNX weight file changed. Older journals require a new output directory.
+- Fixed manual compatibility reports accepting an unrelated engine with the
+  same tensor shapes. Reports now verify direct and prepared ONNX builds
+  against the claimed model or its specific checkpoint export.
 
 ## 0.7.0 - 2026-09-03
 

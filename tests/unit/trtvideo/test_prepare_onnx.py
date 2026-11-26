@@ -8,6 +8,7 @@ from types import ModuleType
 
 import pytest
 
+from trtvideo.cli import build_engine, prepare_onnx
 from trtvideo.cli.export_onnx import (
     PIXEL_UNSHUFFLE_TRANSPOSE_PERMUTATION,
     _validate_channel_major_unshuffle_graph,
@@ -22,6 +23,68 @@ from trtvideo.cli.prepare_onnx import (
     output_path_for_variant,
     parse_size,
 )
+from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
+from trtvideo.models.onnx_preparation import preparation_path, read_preparation
+
+
+def test_preparation_records_each_target_from_original_bundle(
+    tmp_path, make_weighted_onnx, monkeypatch
+):
+    source = make_weighted_onnx(tmp_path / "source.onnx", external=True, dynamic=True)
+    output = tmp_path / "prepared"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prepare-onnx",
+            str(source),
+            "--scale",
+            "1",
+            "--size",
+            "32x32",
+            "--size",
+            "64x48",
+            "--output_dir",
+            str(output),
+        ],
+    )
+    prepare_onnx.main()
+    before = inspect_onnx_bundle(source).identity()
+    for width, height in ((32, 32), (64, 48)):
+        graph = output / f"source_{width}x{height}.onnx"
+        record = read_preparation(graph, inspect_onnx_bundle(graph).identity())
+        assert record["source"] == before
+        assert (record["width"], record["height"], record["scale"]) == (width, height, 1)
+        assert record["precision"] == "fp32"
+        assert record["source"]["external_file_count"] == 1
+        assert record["output"]["external_file_count"] == 0
+    make_weighted_onnx(graph, weight=0.75)
+    monkeypatch.setattr(
+        build_engine, "_load_tensorrt", lambda: pytest.fail("must not start builder")
+    )
+    with pytest.raises(OnnxBundleError, match="rerun prepare-onnx"):
+        build_engine.build_engine(str(graph), str(tmp_path / "model.engine"))
+
+
+def test_failed_conversion_does_not_leave_old_preparation_receipt(
+    tmp_path, make_weighted_onnx, monkeypatch
+):
+    source = make_weighted_onnx(tmp_path / "source.onnx")
+    output = tmp_path / "source_fp16.onnx"
+    preparation_path(output).write_text("{}")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prepare-onnx", str(source), "--output_dir", str(tmp_path), "--precision", "fp16"],
+    )
+
+    def fail(src, out):
+        raise RuntimeError("conversion failed")
+
+    monkeypatch.setattr(prepare_onnx, "convert_to_mixed_precision", fail)
+    with pytest.raises(RuntimeError, match="conversion failed"):
+        prepare_onnx.main()
+    assert not preparation_path(output).exists()
 
 
 def test_export_filename_uses_explicit_model_name() -> None:

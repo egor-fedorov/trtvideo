@@ -27,6 +27,7 @@ from trtvideo.models.export_conformance import (
     conformance_report_path,
     deterministic_probe,
     infer_upscale_scale,
+    sha256_file,
     write_conformance_report,
 )
 
@@ -354,6 +355,7 @@ def main() -> None:
 
     # Load model
     log("Loading model...")
+    source_sha256 = sha256_file(Path(args.model_path))
     model = load_model(args.model_path)
     log(f"  Model loaded: {type(model).__name__}")
 
@@ -391,6 +393,8 @@ def main() -> None:
         exported_paths=exported_paths,
         output_dir=output_dir,
     )
+    if report["model"]["source_sha256"] != source_sha256:
+        sys.exit("ERROR: Checkpoint changed during export; rerun export-onnx")
     write_conformance_report(report_path, report)
     log(f"Export conformance: valid ({report_path})")
 
