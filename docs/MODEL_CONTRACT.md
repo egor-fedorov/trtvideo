@@ -239,6 +239,10 @@ directly to `build-engine`.
 When preparation produces an ONNX file, keep the accompanying
 `<output>.onnx.prepare.json` beside it until the engine is built. It records
 the input and output bundle identities, resolution, scale and precision.
+When rebuilding, the engine, requested timing cache and optional manifest
+are staged before replacing the previous files. A cache serialization or
+publication error does not invalidate a previously successful build.
+
 `build-engine` checks the prepared bundle and copies the evidence into
 `.engine.json`; a stale preparation manifest is an error. To link a dynamic
 original to a mixed-precision build, pass `--size` and `--precision` in the
