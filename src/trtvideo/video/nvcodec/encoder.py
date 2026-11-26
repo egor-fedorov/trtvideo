@@ -1,12 +1,27 @@
-"""NVENC settings shared by production and comparative benchmarks."""
+"""NVENC packet handling and settings for production and comparative benchmarks."""
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Any
+from typing import Any, TypedDict
 
 from trtvideo.video.fps import parse_fps_fraction
+
+
+class NvencPacket(TypedDict):
+    """Packet returned by PyNvVideoCodec 2.2 Encode and EndEncode."""
+
+    data: bytes
+    timestamp: int
+    picture_type: int
+
+
+def write_encoded_packets(packets: Iterable[NvencPacket], write: Callable[[bytes], None]) -> None:
+    """Forward Encode or EndEncode payloads in bitstream order, including delayed packets."""
+    for packet in packets:
+        write(packet["data"])
 
 
 def format_nvenc_fps(value: str) -> str:
