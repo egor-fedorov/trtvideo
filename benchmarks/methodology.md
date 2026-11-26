@@ -345,6 +345,14 @@ necessary: export conformance catches a common ONNX defect, while shared-input
 and product-output evidence cover TensorRT/runtime differences and the complete
 video path.
 
+For each resolution, asset preparation verifies the FP16 conversion receipt
+against the conformance-checked FP32 bundle, the actual FP16 bytes, precision,
+dimensions, scale, and the converter policy and library versions. The asset
+lock includes that receipt and its hash. Canonical prepared FP16 files are
+self-contained so downstream graph hashes identify all weights. A stale or
+missing receipt requires `make -C benchmarks prepare`; only affected FP16 variants
+are reconverted when the FP32 exports are valid. `make -C benchmarks verify` is read-only.
+
 A pixel diff of only the final MP4 conflates model output, colorspace conversion,
 and lossy encoding. VMAF or quality claims require a separate reference
 degradation dataset and are not inferred from the throughput workload.

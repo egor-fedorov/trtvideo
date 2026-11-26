@@ -30,6 +30,17 @@ from trtvideo.models.export_conformance import (
     export_tool_versions,
     validate_conformance_report,
 )
+from trtvideo.models.onnx_bundle import (
+    OnnxBundleError,
+    OnnxIdentity,
+    inspect_onnx_bundle,
+    parse_onnx_identity,
+)
+from trtvideo.models.onnx_preparation import (
+    current_fp16_converter,
+    preparation_path,
+    read_preparation,
+)
 
 DOWNLOAD_CHUNK_SIZE = 8 * 1024 * 1024
 PROGRESS_STEP = 256 * 1024 * 1024
@@ -404,13 +415,14 @@ def verify_export_conformance(
 
     onnx_dir = repo_path(root, model["onnx_dir"])
     exported_files: dict[str, tuple[str, int]] = {}
+    bundles: dict[str, OnnxIdentity] = {}
     try:
         for variant in model["variants"]:
             path = repo_path(root, variant["fp32_path"])
-            exported_files[path.relative_to(onnx_dir).as_posix()] = (
-                sha256_file(path),
-                path.stat().st_size,
-            )
+            name = path.relative_to(onnx_dir).as_posix()
+            bundle = inspect_onnx_bundle(path).identity()
+            bundles[name] = bundle
+            exported_files[name] = (bundle["graph_sha256"], bundle["graph_size_bytes"])
         comparison = validate_conformance_report(
             report,
             model_name=model["export_name"],
@@ -420,6 +432,17 @@ def verify_export_conformance(
             tool_versions=export_tool_versions(),
             expected_scale=model["scale"],
         )
+        for item in report["exports"]:
+            bundle = bundles[item["path"]]
+            if "onnx_bundle" in item:
+                if parse_onnx_identity(item["onnx_bundle"]) != bundle:
+                    raise WorkloadError(
+                        f"FP32 export bundle changed: {item['path']}; rerun prepare"
+                    )
+            elif bundle["external_file_count"]:
+                raise WorkloadError(
+                    "FP32 export conformance does not cover external weights; rerun prepare"
+                )
     except (OSError, ExportConformanceError, ValueError) as exc:
         raise WorkloadError(f"Invalid export-conformance report {report_path}: {exc}") from exc
 
@@ -432,7 +455,7 @@ def verify_export_conformance(
         "scale": model["scale"],
         "tools": report["tools"],
         "comparison": comparison,
-        "exports": report["exports"],
+        "exports": [{**item, "onnx_bundle": bundles[item["path"]]} for item in report["exports"]],
     }
 
 
@@ -456,29 +479,70 @@ def prepare_clips(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
         validate_video_probe(probe_video(output), variant=variant, clip=clip)
 
 
+def verified_variant(
+    model: dict[str, Any], variant: dict[str, Any], root: Path, conformance: dict[str, Any]
+) -> dict[str, Any]:
+    output = repo_path(root, variant["fp16_path"])
+    source = (
+        repo_path(root, variant["fp32_path"])
+        .relative_to(repo_path(root, model["onnx_dir"]))
+        .as_posix()
+    )
+    anchor = next(item["onnx_bundle"] for item in conformance["exports"] if item["path"] == source)
+    width, height, scale = variant["input_width"], variant["input_height"], model["scale"]
+    try:
+        identity = inspect_onnx_bundle(output).identity()
+        # Downstream engine locks identify canonical prepared ONNX by its graph hash.
+        if identity["external_file_count"]:
+            raise OnnxBundleError("canonical FP16 must be a self-contained ONNX")
+        receipt = read_preparation(output, identity)
+        if receipt is None or receipt["source"] != anchor:
+            raise OnnxBundleError("missing or mismatched FP32 source evidence")
+        if (receipt["width"], receipt["height"], receipt["scale"], receipt["precision"]) != (
+            width,
+            height,
+            scale,
+            "fp16",
+        ) or receipt.get("converter") != current_fp16_converter():
+            raise OnnxBundleError("stale FP16 conversion parameters or tool versions")
+        contract = verify_onnx(output, width=width, height=height, scale=scale)
+        return {
+            "sha256": identity["graph_sha256"],
+            "size_bytes": identity["graph_size_bytes"],
+            "preparation_sha256": sha256_file(preparation_path(output)),
+            "preparation": receipt,
+            **contract,
+        }
+    except (OSError, OnnxBundleError, WorkloadError) as exc:
+        raise WorkloadError(f"Unverified FP16 variant {output.name}: {exc}; rerun prepare") from exc
+
+
 def prepare_model(manifest: dict[str, Any], root: Path, *, force: bool) -> None:
     """Export static FP32 ONNX variants and convert them to mixed FP16."""
     model = manifest["model"]
     variants = model["variants"]
+    commands = build_model_commands(manifest, root)
+    conformance = None
     if not force:
         try:
-            verify_export_conformance(manifest, root)
-            for variant in variants:
-                verify_onnx(
-                    repo_path(root, variant["fp16_path"]),
-                    width=variant["input_width"],
-                    height=variant["input_height"],
-                    scale=model["scale"],
-                )
-        except WorkloadError:
-            pass
-        else:
-            print("Using verified mixed-FP16 ONNX variants")
-            return
-
-    repo_path(root, model["onnx_dir"]).mkdir(parents=True, exist_ok=True)
-    for command in build_model_commands(manifest, root):
+            conformance = verify_export_conformance(manifest, root)
+        except WorkloadError as exc:
+            print(f"Re-exporting FP32: {exc}")
+    if conformance is None:
+        repo_path(root, model["onnx_dir"]).mkdir(parents=True, exist_ok=True)
+        run_command(commands[0])
+        conformance = verify_export_conformance(manifest, root)
+    for variant, command in zip(variants, commands[1:], strict=True):
+        if not force:
+            try:
+                verified_variant(model, variant, root, conformance)
+            except WorkloadError as exc:
+                print(exc)
+            else:
+                print(f"Using verified mixed-FP16 ONNX: {variant['name']}")
+                continue
         run_command(command)
+        verified_variant(model, variant, root, conformance)
 
 
 def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
@@ -515,21 +579,12 @@ def verify_assets(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
         )
 
     for variant in model["variants"]:
-        path = repo_path(root, variant["fp16_path"])
-        onnx_contract = verify_onnx(
-            path,
-            width=variant["input_width"],
-            height=variant["input_height"],
-            scale=model["scale"],
-        )
         assets.append(
             {
                 "kind": "onnx",
                 "variant": variant["name"],
                 "path": variant["fp16_path"],
-                "sha256": sha256_file(path),
-                "size_bytes": path.stat().st_size,
-                **onnx_contract,
+                **verified_variant(model, variant, root, export_conformance),
             }
         )
 
