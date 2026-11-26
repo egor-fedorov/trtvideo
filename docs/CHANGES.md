@@ -101,6 +101,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Prevented silent inference corruption when CV-CUDA padded rows beyond the
   stride expected by TensorRT (for example, 854-pixel FP32 input). Linear
   engine bindings now use packed rows and are checked before processing.
+- Failed `build-engine` rebuilds no longer overwrite a working engine, timing
+  cache or manifest. A requested cache must be successfully serialized.
 - Fixed `compatibility-check --resume` reusing stale results after an external
   ONNX weight file changed. Older journals require a new output directory.
 - Fixed manual compatibility reports accepting an unrelated engine with the

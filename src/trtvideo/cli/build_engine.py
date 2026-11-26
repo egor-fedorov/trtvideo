@@ -19,13 +19,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from trtvideo.models.build_outputs import staged_build, validate_destinations
 from trtvideo.models.onnx_bundle import (
     OnnxBundleError,
     OnnxIdentity,
     inspect_onnx_bundle,
     sha256_file,
 )
-from trtvideo.models.onnx_preparation import Preparation, read_preparation
+from trtvideo.models.onnx_preparation import Preparation, preparation_path, read_preparation
 
 trt: Any = None
 TRT_LOGGER: Any = None
@@ -196,24 +197,18 @@ def load_timing_cache(config: Any, timing_cache_path: str | None) -> None:
         print(f"  Timing cache: new cache will be written to {timing_cache_path}")
 
     cache = config.create_timing_cache(cache_data)
-    config.set_timing_cache(cache, False)
+    if cache is None or not config.set_timing_cache(cache, False):
+        raise ValueError("TensorRT could not create or attach the requested timing cache")
 
 
-def save_timing_cache(config: Any, timing_cache_path: str | None) -> None:
-    """Persist TensorRT timing cache after a successful build."""
-    if timing_cache_path is None:
-        return
-
+def save_timing_cache(config: Any, staged_path: Path) -> None:
     cache = config.get_timing_cache()
     if cache is None:
-        print("  WARNING: TensorRT did not return a timing cache.")
-        return
-
-    os.makedirs(os.path.dirname(timing_cache_path) or ".", exist_ok=True)
+        raise ValueError("TensorRT did not return the requested timing cache")
     serialized_cache = cache.serialize()
-    with open(timing_cache_path, "wb") as f:
-        f.write(bytes(serialized_cache))
-    print(f"  Timing cache saved: {timing_cache_path}")
+    if serialized_cache is None:
+        raise ValueError("TensorRT could not serialize the requested timing cache")
+    staged_path.write_bytes(serialized_cache)
 
 
 def profile_manifest(profile_shapes: ProfileShapes | None) -> dict[str, list[int]] | None:
@@ -231,11 +226,12 @@ def profile_manifest(profile_shapes: ProfileShapes | None) -> dict[str, list[int
 
 def write_engine_manifest(
     *,
-    manifest_path: str,
+    manifest_path: Path,
     onnx_path: str,
     onnx_identity: OnnxIdentity,
     preparation: Preparation | None,
     engine_path: str,
+    staged_engine: Path,
     input_tensor: Any,
     output_tensor: Any,
     profile_shapes: ProfileShapes | None,
@@ -247,7 +243,7 @@ def write_engine_manifest(
     manifest = {
         "schema_version": 1,
         "engine_path": engine_path,
-        "engine_sha256": sha256_file(Path(engine_path)),
+        "engine_sha256": sha256_file(staged_engine),
         "onnx_path": onnx_path,
         "model_sha256": onnx_identity["graph_sha256"],
         "onnx_bundle": onnx_identity,
@@ -277,11 +273,9 @@ def write_engine_manifest(
     if preparation is not None:
         manifest["onnx_preparation"] = preparation
 
-    os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
         f.write("\n")
-    print(f"  Manifest saved: {manifest_path}")
     return manifest
 
 
@@ -309,7 +303,20 @@ def build_engine(
         True on success, False on error.
     """
     source = Path(onnx_path).absolute()
-    source_identity = inspect_onnx_bundle(source).identity()
+    bundle = inspect_onnx_bundle(source)
+    source_identity = bundle.identity()
+    engine_dest = Path(engine_path)
+    cache_dest = Path(timing_cache_path) if timing_cache_path is not None else None
+    manifest_dest = Path(manifest_path) if manifest_path is not None else None
+    outputs = [dest for dest in (engine_dest, cache_dest, manifest_dest) if dest is not None]
+    validate_destinations(
+        outputs,
+        [
+            source,
+            preparation_path(source),
+            *(source.parent / f.location for f in bundle.external_files),
+        ],
+    )
     preparation = read_preparation(source, source_identity)
     _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
@@ -385,28 +392,30 @@ def build_engine(
     if manifest_path is not None and inspect_onnx_bundle(source).identity() != source_identity:
         raise OnnxBundleError("ONNX graph or external data changed during the engine build")
 
-    # Save
-    with open(engine_path, "wb") as f:
-        f.write(serialized_engine)
-
-    size_mb = os.path.getsize(engine_path) / (1024 * 1024)
+    with staged_build(outputs) as staged:
+        size_mb = staged[engine_dest].write_bytes(serialized_engine) / (1024 * 1024)
+        if cache_dest is not None:
+            save_timing_cache(config, staged[cache_dest])
+        if manifest_dest is not None:
+            write_engine_manifest(
+                manifest_path=staged[manifest_dest],
+                onnx_path=onnx_path,
+                onnx_identity=source_identity,
+                preparation=preparation,
+                engine_path=engine_path,
+                staged_engine=staged[engine_dest],
+                input_tensor=input_tensor,
+                output_tensor=output_tensor,
+                profile_shapes=profile_shapes,
+                precision=precision,
+                io_precision=io_precision,
+                timing_cache_path=timing_cache_path,
+            )
     print(f"  Engine saved: {engine_path} ({size_mb:.1f} MB)")
-    save_timing_cache(config, timing_cache_path)
-
-    if manifest_path is not None:
-        write_engine_manifest(
-            manifest_path=manifest_path,
-            onnx_path=onnx_path,
-            onnx_identity=source_identity,
-            preparation=preparation,
-            engine_path=engine_path,
-            input_tensor=input_tensor,
-            output_tensor=output_tensor,
-            profile_shapes=profile_shapes,
-            precision=precision,
-            io_precision=io_precision,
-            timing_cache_path=timing_cache_path,
-        )
+    if cache_dest is not None:
+        print(f"  Timing cache saved: {cache_dest}")
+    if manifest_dest is not None:
+        print(f"  Manifest saved: {manifest_dest}")
     return True
 
 
@@ -483,7 +492,7 @@ def main() -> None:
             timing_cache_path=args.timing_cache,
             manifest_path=manifest_path,
         )
-    except OnnxBundleError as exc:
+    except (OSError, ValueError) as exc:
         sys.exit(f"ERROR: {exc}")
     if not success:
         sys.exit(1)
