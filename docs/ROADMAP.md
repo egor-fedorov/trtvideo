@@ -8,7 +8,7 @@ work belongs in `docs/CHANGES.md`, measured changes in
 
 ## Later
 
-- improve the media contract for VFR, rotation, SAR/DAR, duration, and missing
+- improve the media contract for rotation, SAR/DAR, duration, and missing
   `nb_frames`;
 - add P010/HDR metadata handling, tonemapping, and color management;
 - add runtime dynamic-shape inference if it provides a concrete workflow

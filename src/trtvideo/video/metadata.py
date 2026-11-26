@@ -1,6 +1,7 @@
 """Normalized video metadata used by processing components."""
 
 from dataclasses import dataclass
+from fractions import Fraction
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,3 +20,6 @@ class VideoMetadata:
     color_primaries: str | None = None
     video_bit_rate: int | None = None
     container_bit_rate: int | None = None
+    time_base: Fraction | None = None
+    start_pts: int | None = None
+    duration_ts: int | None = None

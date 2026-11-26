@@ -66,7 +66,7 @@ delegating cohesive policies to typed collaborators:
 - `video/metadata.py` owns the normalized video metadata value object;
 - `video/probe.py` adapts FFprobe output without terminating the process;
 - `video/color.py` owns SDR metadata normalization and CV-CUDA/FFmpeg mapping;
-- `video/output/` separates preservation preflight, streaming mux, and atomic
+- `video/output/` separates preservation preflight, timestamped mux, and atomic
   output publication behind one stable package API;
 - `diagnostics/profiling.py` owns isolated stage collection and report writing;
 - `benchmarking/lifecycle.py` owns optional benchmark lifecycle markers.
@@ -190,12 +190,13 @@ Per-frame processing order:
 6. CV-CUDA converts the output RGB back to full-range NV12. Limited-range jobs
    compress Y and UV back to their video code ranges before encoding.
 7. NV12 is passed to NVENC through PyNvVideoCodec.
-8. The pipeline writes the `data` bytes of each NVENC packet to a long-lived
-   FFmpeg subprocess in encoder order, including packets returned at flush.
-   FFmpeg concurrently muxes the encoded video and
-   all supported source non-video streams into the private output container.
-9. In `finalize()`, the pipeline drains NVENC, closes FFmpeg stdin, and waits
-   for container finalization, including MP4 `faststart` when applicable.
+8. Each decoded frame supplies its presentation timestamp. The encoder echoes
+   a submission ID with each compressed packet, including delayed packets at
+   flush. The low-level PyNvVideoCodec muxer writes these packets to a private
+   video-only MP4 with their original spacing. Durations come from the next PTS
+   or, at EOF, from the end of the video stream or the final packet duration.
+9. FFmpeg restores the original video start offset and stream-copies the video
+   and source non-video tracks into the final container, with MP4 faststart.
 
 The production pipeline and trtvideo tensor-quality reference share
 `NvcodecFrameProcessor` for surface wrapping, preprocess, TensorRT enqueue, and
@@ -210,7 +211,7 @@ Generic video concerns stay directly under `src/trtvideo/video/`:
 contract, `fps.py` preserves rational frame rates, `frames.py` owns
 implementation-independent iterator limits, and `color.py` owns the normalized
 SDR conversion contract. The `output/` package separates preservation policy,
-the long-lived FFmpeg mux process, and atomic publication. NVIDIA-specific
+timed packet writing, final remux, and atomic publication. NVIDIA-specific
 bitrate, decoder lifetime, encoder policy, CUDA surfaces, and frame processing
 live under `src/trtvideo/video/nvcodec/`; its `frame_processor.py` is shared by
 production and the tensor-quality reference capture.
@@ -220,9 +221,8 @@ use the runtime CV-CUDA stream. Its native handle is passed to TensorRT and
 NVENC. This preserves GPU operation order without a per-frame
 `cudaStreamSynchronize`. PyTorch remains available for model export but is not
 imported by ordinary video inference. The CPU remains the orchestration layer
-and forwards the compressed bitstream through a pipe, but full frames do not
-move between CPU and GPU. The pipeline does not create or reread a temporary
-elementary-stream file.
+and writes compressed packets; full frames do not move between CPU and GPU.
+The intermediate MP4 is placed next to the output and removed after remux or failure.
 
 `GPU-resident` describes frame residency, not a CPU-free execution model. The
 current regular-enqueue path can occupy roughly one host core on launch-heavy
@@ -231,8 +231,8 @@ also synchronizes once per decoded batch before NVDEC surfaces may be reused.
 [Issue #9](https://github.com/egor-fedorov/trtvideo/issues/9) tracks direct CUDA
 Graph replay and blocking batch waits as separate CPU-overhead reductions.
 
-NVENC uses no B-frames, preserves the source rational FPS, and creates a GOP/IDR
-approximately once per second. This provides monotonic timestamps and a
+NVENC uses no B-frames and uses nominal FPS for rate control and GOP/IDR
+spacing, not for deriving presentation timestamps. This provides a
 seek-friendly output structure. Quality is controlled by an explicit
 `--bitrate-mbps` value or by an automatic estimate derived from source bitrate:
 
@@ -257,8 +257,8 @@ NV12 before NVENC. Full-range input bypasses those range transforms. The output
 receives populated `color_range`, `color_space`, `color_transfer`, and
 `color_primaries` fields.
 
-With `--max-frames`, output duration is limited using the exact FPS so audio
-does not continue beyond the last processed video frame.
+With `--max-frames`, one more decoded PTS (without inference) supplies the
+clip boundary when available. The copied streams use the same timeline.
 
 The pipeline uses one media-preservation contract:
 

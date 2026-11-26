@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import sys
 import time
+from fractions import Fraction
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from trtvideo.benchmarking.lifecycle import LifecycleRecorder
@@ -25,7 +27,6 @@ from trtvideo.pipelines.reporting import (
 from trtvideo.runtime.bindings import TensorBindingError
 from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
 from trtvideo.video.color import ColorContractError, SdrColorContract
-from trtvideo.video.frames import iter_limited_frames
 from trtvideo.video.metadata import VideoMetadata
 from trtvideo.video.nvcodec.bitrate import auto_bitrate_from_source
 from trtvideo.video.nvcodec.decoder import iter_locked_decode_frames
@@ -33,16 +34,15 @@ from trtvideo.video.nvcodec.encoder import (
     NvencCbrContract,
     format_nvenc_fps,
     gop_size_for_one_second,
-    write_encoded_packets,
 )
 from trtvideo.video.nvcodec.frame_processor import NvcodecFrameProcessor
 from trtvideo.video.output import (
     AtomicOutputTransaction,
     MediaPreservationError,
-    StreamingFfmpegMuxer,
-    build_ffmpeg_streaming_mux_command,
 )
-from trtvideo.video.probe import VideoProbeError, probe_video
+from trtvideo.video.output.timed_track import TimedVideoTrack, remux_track
+from trtvideo.video.output.timeline import PacketTimeline
+from trtvideo.video.probe import VideoProbeError, last_frame_end, probe_video, validate_video_clock
 
 
 class NvcodecPipeline:
@@ -70,7 +70,9 @@ class NvcodecPipeline:
         self._decoder: Any | None = None
         self._encoder: Any | None = None
         self._nvc: Any | None = None
-        self._muxer: StreamingFfmpegMuxer | None = None
+        self._track: TimedVideoTrack | None = None
+        self._timeline: PacketTimeline | None = None
+        self._slot = 0
         self._frame_processor: NvcodecFrameProcessor | None = None
         self._profiler: ProfileCollector | None = None
         self._working_output_path: Path | None = None
@@ -120,8 +122,12 @@ class NvcodecPipeline:
             preserve_chapters=self.config.max_frames <= 0,
         )
         try:
-            with transaction as working_output_path:
+            with (
+                transaction as working_output_path,
+                TemporaryDirectory(dir=working_output_path.parent, prefix=".trtvideo-") as tmp,
+            ):
                 self._working_output_path = working_output_path
+                self._track_path = Path(tmp) / "video.mp4"
                 self._lifecycle.mark_phase("preservation_preflight_completed")
                 try:
                     frame_loop_sec, active_pipeline_sec = self._execute_pipeline(frame_times)
@@ -208,6 +214,7 @@ class NvcodecPipeline:
                 f"got pix_fmt={info.pix_fmt or 'unknown'}. "
                 "Transcode or tonemap the input to SDR yuv420p first."
             )
+        validate_video_clock(self.config.input_path, info)
 
     def _log_input(self, info: VideoMetadata) -> None:
         self._log(
@@ -275,18 +282,16 @@ class NvcodecPipeline:
             fps=encoder_fps,
             **encoder_contract.pynvcodec_options(),
         )
-        mux_command = build_ffmpeg_streaming_mux_command(
-            video_codec=self.config.codec,
-            fps=info.fps_str,
-            source_input_path=str(self.config.input_path),
-            output_path=str(self._working_output()),
-            preserve_chapters=self.config.max_frames <= 0,
-            color_metadata_args=color.ffmpeg_args(),
-            duration_args=self._limited_duration_args(),
-            faststart=self.config.output_path.suffix.lower() in {".mp4", ".m4v", ".mov"},
+        assert info.time_base is not None
+        self._track = TimedVideoTrack(
+            self._track_path,
+            self.config.codec,
+            runtime.output_w,
+            runtime.output_h,
+            Fraction(info.fps_str),
+            info.time_base,
         )
-        self._log_verbose(f"Mux cmd: {' '.join(mux_command)}")
-        self._muxer = StreamingFfmpegMuxer.start(mux_command)
+        self._timeline = PacketTimeline(self._track.write)
 
     def _resolve_bitrate(self, runtime: CvcudaTensorRTRuntime) -> int:
         info = self._video_info()
@@ -351,10 +356,13 @@ class NvcodecPipeline:
         progress_enabled = not self.config.quiet or (
             self._progress_writer is not None and self._progress_writer.enabled
         )
-        for raw_frame in iter_limited_frames(
-            self._decode_frames(),
-            limit=self.config.max_frames,
-        ):
+        timeline = self._packet_timeline()
+        for raw_frame in self._decode_frames():
+            pts = raw_frame.getPTS()
+            if 0 < self.config.max_frames <= frame_index:
+                timeline.set_end(pts)
+                break
+            self._slot = timeline.submit(pts)
             started = time.perf_counter()
             self._process_frame(raw_frame)
             completed = time.perf_counter()
@@ -378,6 +386,12 @@ class NvcodecPipeline:
                 )
                 last_reported_frame = frame_index
                 last_reported_at = reported_at
+        else:
+            if timeline.last is None:
+                raise MediaPreservationError("No timestamped video frames decoded")
+            timeline.set_end(
+                last_frame_end(self.config.input_path, self._video_info(), timeline.last)
+            )
         if progress_enabled and frame_index > 0 and last_reported_frame != frame_index:
             reported_at = time.perf_counter()
             self._report_progress(
@@ -459,23 +473,34 @@ class NvcodecPipeline:
         profiler.commit(events)
 
     def _finalize(self) -> None:
-        muxer = self._output_muxer()
+        timeline = self._packet_timeline()
         with self._nvtx.range("trtvideo.nvcodec.nvenc_flush"):
-            write_encoded_packets(self._encoder_instance().EndEncode(), muxer.write)
+            timeline.receive(self._encoder_instance().EndEncode())
+            timeline.check_complete()
         self._lifecycle.mark_phase("encoder_drained")
-        muxer.close_input()
+        assert self._track is not None
+        self._track.close()
         self._lifecycle.mark_phase("mux_input_closed")
 
         self._log("\nFinalizing output container...")
         with self._nvtx.range("trtvideo.nvcodec.mux_finalize"):
-            muxer.finish()
+            base = self._video_info().time_base
+            assert base is not None and timeline.first is not None and timeline.end is not None
+            remux_track(
+                self._track.path,
+                self.config.input_path,
+                self._working_output(),
+                start=timeline.first * base,
+                end=timeline.end * base if self.config.max_frames else None,
+                color_args=self._color_contract().ffmpeg_args()
+                + self._color_contract().bitstream_args(self.config.codec),
+            )
         self._lifecycle.mark_phase("mux_completed")
 
     def _cleanup(self) -> None:
         self._frame_processor = None
-        if self._muxer is not None:
-            self._muxer.abort()
-            self._muxer = None
+        self._timeline = None
+        self._track = None
 
     def _report_profile(self, frame_times: list[float], wall_total: float) -> None:
         profiler = self._profiler
@@ -505,13 +530,6 @@ class NvcodecPipeline:
                 wall_total_sec=wall_total,
                 stage_key_map=self._PROFILE_STAGE_KEYS,
             )
-
-    def _limited_duration_args(self) -> list[str]:
-        info = self._video_info()
-        if self.config.max_frames <= 0 or info.fps <= 0:
-            return []
-        duration_sec = self.config.max_frames / info.fps
-        return ["-t", f"{duration_sec:.6f}"]
 
     def _print_stats(self, summary: ProcessTimingSummary) -> None:
         if self.config.quiet or summary.processed_frames == 0:
@@ -589,8 +607,10 @@ class NvcodecPipeline:
         write_json_document(destination, report)
 
     def _encode_frame(self, nv12_output: Any) -> None:
-        packets = self._encoder_instance().Encode(nv12_output)
-        write_encoded_packets(packets, self._output_muxer().write)
+        params = self._nvc_module().NV_ENC_PIC_PARAMS()
+        params.inputTimeStamp = self._slot
+        packets = self._encoder_instance().Encode(nv12_output, params)
+        self._packet_timeline().receive(packets)
 
     def _video_info(self) -> VideoMetadata:
         if self._info is None:
@@ -627,10 +647,10 @@ class NvcodecPipeline:
             raise RuntimeError("PyNvVideoCodec is not initialized")
         return self._nvc
 
-    def _output_muxer(self) -> StreamingFfmpegMuxer:
-        if self._muxer is None:
-            raise RuntimeError("FFmpeg output muxer is not initialized")
-        return self._muxer
+    def _packet_timeline(self) -> PacketTimeline:
+        if self._timeline is None:
+            raise RuntimeError("Video timeline is not initialized")
+        return self._timeline
 
     def _working_output(self) -> Path:
         if self._working_output_path is None:

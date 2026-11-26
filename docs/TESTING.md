@@ -198,6 +198,15 @@ make check
 
 `make format` applies Ruff import sorting and Black-compatible formatting.
 `make lint` checks both formatting and Ruff lint rules without changing files.
+The opt-in end-to-end timestamp regression builds a small TensorRT engine and
+generates its own inputs. It checks every video PTS and copied audio packet,
+H.264/HEVC, VFR and fractional CFR, nonzero start, frame limits and full decode:
+
+```bash
+docker run --rm --gpus all -v "$PWD/tests/gpu:/checks:ro" trtvideo:latest \
+  python3 -B /checks/check_video_timestamps.py -v
+```
+
 `make typecheck` runs both mypy and [ty](https://docs.astral.sh/ty/) over
 `src/trtvideo` and `benchmarks`. Use `make typecheck-mypy` or
 `make typecheck-ty` to run either checker separately in the development image.
