@@ -103,7 +103,14 @@ parameters, image revision, and GPU/driver/TensorRT fingerprint match. Generated
 files are hash-checked; changing one invalidates that step and all downstream
 steps. A failed final validation retains its diagnostic JSON and Markdown;
 `--resume` replaces them while retrying that unfinished tail. User-supplied
-checkpoints, ONNX files, and input videos are never deleted.
+checkpoints, ONNX files, external weights, and input videos are never deleted.
+
+For ONNX with external data, mount the model directory, not just the
+`.onnx` file. Keep referenced weights at their original relative paths inside
+that directory. Changing a source weight, even without changing the graph,
+requires a fresh `--output-dir`. Changing a generated weight instead reruns
+its producing step. Journals from before external-data tracking also require
+a fresh directory.
 
 For an existing ONNX graph, replace `--checkpoint` with `--onnx`. A fully static
 graph supplies its own input resolution and is passed directly to

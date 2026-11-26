@@ -33,8 +33,9 @@ from trtvideo.compatibility.input import (
     probe_video_size,
 )
 from trtvideo.diagnostics.doctor import DoctorReport, run_doctor
+from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
 
-WORKFLOW_SCHEMA_VERSION = 1
+WORKFLOW_SCHEMA_VERSION = 2
 HEARTBEAT_INTERVAL_SEC = 30.0
 MODEL_TOOLS_IMAGE = "ghcr.io/egor-fedorov/trtvideo-model-tools"
 SourceFormat = Literal["checkpoint", "onnx"]
@@ -591,6 +592,13 @@ def workflow_context(plan: CompatibilityPlan, doctor: DoctorReport) -> dict[str,
         }
     else:
         input_context = {"kind": "user-supplied", "identity": file_identity(options.input_video)}
+    if options.source_format == "onnx":
+        try:
+            source = inspect_onnx_bundle(options.source_artifact).record()
+        except OnnxBundleError as exc:
+            raise CompatibilityWorkflowError(f"Cannot verify source model: {exc}") from exc
+    else:
+        source = file_identity(options.source_artifact)
     return {
         "workflow_schema_version": WORKFLOW_SCHEMA_VERSION,
         "package_version": _package_version(),
@@ -601,7 +609,7 @@ def workflow_context(plan: CompatibilityPlan, doctor: DoctorReport) -> dict[str,
             "dirty": os.environ.get("TRTVIDEO_BUILD_DIRTY", "unknown"),
         },
         "source_format": options.source_format,
-        "source": file_identity(options.source_artifact),
+        "source": source,
         "model": {
             "name": options.model_name,
             "source": options.model_source,
@@ -619,6 +627,22 @@ def workflow_context(plan: CompatibilityPlan, doctor: DoctorReport) -> dict[str,
         "gpu": _doctor_fingerprint(doctor),
         "commands": [list(step.command) for step in plan.steps],
     }
+
+
+def _step_artifacts(step: WorkflowStep, root: Path) -> list[dict[str, Any]]:
+    artifacts: list[dict[str, Any]] = []
+    for output in step.outputs:
+        if not output.is_file() or not output.resolve().is_relative_to(root.resolve()):
+            raise CompatibilityWorkflowError(
+                f"{step.command_name} is missing an expected workspace artifact: {output}"
+            )
+        artifact: dict[str, Any] = {"path": output.relative_to(root).as_posix()}
+        if output.suffix == ".onnx":
+            artifact["onnx_bundle"] = inspect_onnx_bundle(output).record()
+        else:
+            artifact.update(size_bytes=output.stat().st_size, sha256=sha256_file(output))
+        artifacts.append(artifact)
+    return artifacts
 
 
 class WorkflowState:
@@ -654,10 +678,13 @@ class WorkflowState:
         except (OSError, json.JSONDecodeError) as exc:
             raise CompatibilityWorkflowError(f"Resume state is invalid: {path}") from exc
         if payload.get("schema_version") != WORKFLOW_SCHEMA_VERSION:
-            raise CompatibilityWorkflowError("Resume state schema is unsupported")
+            raise CompatibilityWorkflowError(
+                "Resume state schema is unsupported; start with a new --output-dir"
+            )
         if payload.get("context") != context:
             raise CompatibilityWorkflowError(
-                "Resume state does not match the current source, image, GPU, or options"
+                "Resume state does not match the current source (including external weights), "
+                "image, GPU, or options; start with a new --output-dir"
             )
         completed = payload.get("completed_steps")
         if not isinstance(completed, list) or any(not isinstance(item, dict) for item in completed):
@@ -679,19 +706,10 @@ class WorkflowState:
         os.replace(temporary, self.path)
 
     def complete(self, step: WorkflowStep, root: Path) -> None:
-        artifacts = []
-        for output in step.outputs:
-            if not output.is_file():
-                raise CompatibilityWorkflowError(
-                    f"{step.command_name} did not produce expected artifact: {output}"
-                )
-            artifacts.append(
-                {
-                    "path": output.relative_to(root).as_posix(),
-                    "sha256": sha256_file(output),
-                    "size_bytes": output.stat().st_size,
-                }
-            )
+        try:
+            artifacts = _step_artifacts(step, root)
+        except (OnnxBundleError, OSError) as exc:
+            raise CompatibilityWorkflowError(f"Cannot verify {step.command_name}: {exc}") from exc
         self.completed.append(
             {
                 "key": step.key,
@@ -711,23 +729,13 @@ class WorkflowState:
             )
         invalid_index: int | None = None
         for index, record in enumerate(self.completed):
-            artifacts = record.get("artifacts")
-            if not isinstance(artifacts, list):
+            try:
+                current = _step_artifacts(steps[index], root)
+            except (CompatibilityWorkflowError, OnnxBundleError, OSError):
                 invalid_index = index
                 break
-            for artifact in artifacts:
-                if not isinstance(artifact, dict) or not isinstance(artifact.get("path"), str):
-                    invalid_index = index
-                    break
-                path = root / artifact["path"]
-                if (
-                    not path.is_file()
-                    or path.stat().st_size != artifact.get("size_bytes")
-                    or sha256_file(path) != artifact.get("sha256")
-                ):
-                    invalid_index = index
-                    break
-            if invalid_index is not None:
+            if record.get("artifacts") != current:
+                invalid_index = index
                 break
         if invalid_index is None:
             return
