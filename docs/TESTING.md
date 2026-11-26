@@ -207,6 +207,16 @@ docker run --rm --gpus all -v "$PWD/tests/gpu:/checks:ro" trtvideo:latest \
   python3 -B /checks/check_video_timestamps.py -v
 ```
 
+To check ONNX provenance on a GPU, use a clean model-tools build. The test
+generates a 120-frame clip and models locally, checks direct and prepared
+external-weight builds, and verifies that changing just the weights blocks
+resume. No network or downloaded weights are needed:
+
+```bash
+docker run --rm --network none --gpus all -v "$PWD/tests/gpu:/checks:ro" trtvideo:model-tools \
+  python3 -B /checks/check_onnx_provenance.py -v
+```
+
 `make typecheck` runs both mypy and [ty](https://docs.astral.sh/ty/) over
 `src/trtvideo` and `benchmarks`. Use `make typecheck-mypy` or
 `make typecheck-ty` to run either checker separately in the development image.

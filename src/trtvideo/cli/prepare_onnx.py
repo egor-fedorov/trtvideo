@@ -14,7 +14,12 @@ import argparse
 import os
 import sys
 import warnings
+from pathlib import Path
 from typing import Any, Literal, TypedDict
+
+from trtvideo.models.export_conformance import ExportConformanceError, infer_upscale_scale
+from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
+from trtvideo.models.onnx_preparation import record_preparation
 
 
 class TargetSpec(TypedDict):
@@ -185,7 +190,13 @@ def main() -> None:
     verbosity.add_argument("--verbose", action="store_true", help="Verbose output")
     verbosity.add_argument("--quiet", action="store_true", help="Minimal output")
     args = parser.parse_args()
+    try:
+        _prepare(args)
+    except OnnxBundleError as exc:
+        sys.exit(f"ERROR: {exc}")
 
+
+def _prepare(args: argparse.Namespace) -> None:
     if not os.path.exists(args.onnx_path):
         print(f"ERROR: File not found: {args.onnx_path}")
         sys.exit(1)
@@ -197,8 +208,9 @@ def main() -> None:
     import onnx
     from onnx.tools import update_model_dims
 
-    model = onnx.load(args.onnx_path)
-    inp_name, inp_dims, out_name, out_dims = get_dims(model)
+    source = Path(args.onnx_path)
+    before = inspect_onnx_bundle(source).identity()
+    inp_name, inp_dims, out_name, out_dims = get_dims(onnx.load(source, load_external_data=False))
     basename = os.path.splitext(os.path.basename(args.onnx_path))[0]
     targets = [parse_size(size) for size in args.size] or TARGETS
 
@@ -216,7 +228,21 @@ def main() -> None:
 
         os.makedirs(args.output_dir, exist_ok=True)
         out_path = output_path_for_variant(args.output_dir, basename, None, args.precision)
-        convert_to_mixed_precision(args.onnx_path, out_path)
+        # Static conversion does not use --scale; record what the graph actually declares.
+        try:
+            scale = infer_upscale_scale(tuple(map(int, inp_dims)), tuple(map(int, out_dims)))
+        except (ValueError, ExportConformanceError):
+            scale = None
+        with record_preparation(
+            source,
+            before,
+            Path(out_path),
+            width=int(w),
+            height=int(h),
+            scale=scale,
+            precision=args.precision,
+        ):
+            convert_to_mixed_precision(args.onnx_path, out_path)
         size_mb = os.path.getsize(out_path) / (1024 * 1024)
         log(
             "\nStatic FP16 mixed-precision variant created "
@@ -243,22 +269,32 @@ def main() -> None:
                 f".{basename}_{target['name']}.fp32.tmp.onnx",
             )
 
-        # Reload: update_model_dims modifies the object in-place.
-        save_static_variant(
-            onnx_module=onnx,
-            update_model_dims_module=update_model_dims,
-            source_path=args.onnx_path,
-            output_path=static_path,
-            inp_name=inp_name,
-            out_name=out_name,
-            input_h=h_in,
-            input_w=w_in,
+        with record_preparation(
+            source,
+            before,
+            Path(out_path),
+            width=w_in,
+            height=h_in,
             scale=args.scale,
-        )
-
-        if args.precision == "fp16":
-            convert_to_mixed_precision(static_path, out_path)
-            os.remove(static_path)
+            precision=args.precision,
+        ):
+            try:
+                save_static_variant(
+                    onnx_module=onnx,
+                    update_model_dims_module=update_model_dims,
+                    source_path=args.onnx_path,
+                    output_path=static_path,
+                    inp_name=inp_name,
+                    out_name=out_name,
+                    input_h=h_in,
+                    input_w=w_in,
+                    scale=args.scale,
+                )
+                if args.precision == "fp16":
+                    convert_to_mixed_precision(static_path, out_path)
+            finally:
+                if args.precision == "fp16":
+                    Path(static_path).unlink(missing_ok=True)
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)
         io_note = " | FP32 I/O kept" if args.precision == "fp16" else ""

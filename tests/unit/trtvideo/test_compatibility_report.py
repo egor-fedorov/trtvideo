@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import struct
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,8 @@ from trtvideo.compatibility.media import MediaInspection, validate_media
 from trtvideo.compatibility.report import CompatibilityRequest, generate_compatibility_report
 from trtvideo.diagnostics.doctor import CheckResult, DoctorReport
 from trtvideo.models.export_conformance import EXPORT_PROBE_SHA256
+from trtvideo.models.onnx_bundle import inspect_onnx_bundle
+from trtvideo.models.onnx_preparation import read_preparation, record_preparation
 
 
 def _sha(data: bytes) -> str:
@@ -217,15 +221,36 @@ def test_media_validation_binds_video_to_engine_contract(tmp_path: Path) -> None
     assert result["output"]["video"]["video_bitrate_bps"] == 4_000_000
 
 
-def test_generate_report_writes_sanitized_json_and_markdown(
+def _export_entry(path: Path) -> dict:
+    identity = inspect_onnx_bundle(path).identity()
+    return {
+        "path": path.name,
+        "sha256": identity["graph_sha256"],
+        "size_bytes": identity["graph_size_bytes"],
+        "onnx_bundle": identity,
+    }
+
+
+@pytest.fixture
+def checkpoint_request(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
+    make_weighted_onnx,
+) -> CompatibilityRequest:
     source = tmp_path / "model.pth"
     source.write_bytes(b"weights")
     conformance_path = tmp_path / "model.export-conformance.json"
-    conformance_path.write_text(json.dumps(_conformance(source)), encoding="utf-8")
-    engine, _sidecar = _write_engine(tmp_path)
+    selected = _export_entry(make_weighted_onnx(tmp_path / "selected.onnx"))
+    other = _export_entry(make_weighted_onnx(tmp_path / "other.onnx", weight=0.25))
+    conformance = _conformance(source)
+    conformance["exports"] = [other, selected]
+    conformance["model"]["scale"] = 1
+    conformance["probe"]["output_shape"] = conformance["probe"]["input_shape"]
+    conformance_path.write_text(json.dumps(conformance), encoding="utf-8")
+    engine, sidecar = _write_engine(tmp_path)
+    sidecar["input"]["shape"] = sidecar["output"]["shape"] = [1, 3, 64, 64]
+    sidecar.update(model_sha256=selected["sha256"], onnx_bundle=selected["onnx_bundle"])
+    Path(f"{engine}.json").write_text(json.dumps(sidecar), encoding="utf-8")
     commands = tmp_path / "commands.txt"
     commands.write_text(
         "export-onnx models/model.pth --output_dir models/onnx\n"
@@ -255,8 +280,8 @@ def test_generate_report_writes_sanitized_json_and_markdown(
                     "size_bytes": len(b"input"),
                 },
                 "observed": {
-                    "width": 1280,
-                    "height": 720,
+                    "width": 64,
+                    "height": 64,
                     "frames": 120,
                     "fps": "24/1",
                     "audio_streams": 1,
@@ -270,16 +295,16 @@ def test_generate_report_writes_sanitized_json_and_markdown(
     )
     input_inspection = _inspection(
         name="input.mp4",
-        width=1280,
-        height=720,
+        width=64,
+        height=64,
         frames=200,
         codec="h264",
         packets=False,
     )
     output_inspection = _inspection(
         name="output.mp4",
-        width=2560,
-        height=1440,
+        width=64,
+        height=64,
         frames=120,
         codec="h264",
         packets=True,
@@ -306,27 +331,29 @@ def test_generate_report_writes_sanitized_json_and_markdown(
     monkeypatch.setenv("TRTVIDEO_BUILD_DIRTY", "0")
     monkeypatch.setenv("TRTVIDEO_BASE_IMAGE", "nvcr.io/nvidia/tensorrt:test")
 
-    report = generate_compatibility_report(
-        CompatibilityRequest(
-            model_name="2xExample",
-            model_source="https://example.test/model",
-            model_license="MIT",
-            source_format="checkpoint",
-            source_artifact=source,
-            engine=engine,
-            input_video=input_video,
-            output_video=output_video,
-            expected_frames=120,
-            commands_file=commands,
-            export_conformance=conformance_path,
-            image_reference="ghcr.io/example/trtvideo:test",
-            gpu_id=0,
-            output_dir=output_dir,
-            input_manifest=input_manifest,
-        )
+    return CompatibilityRequest(
+        model_name="2xExample",
+        model_source="https://example.test/model",
+        model_license="MIT",
+        source_format="checkpoint",
+        source_artifact=source,
+        engine=engine,
+        input_video=input_video,
+        output_video=output_video,
+        expected_frames=120,
+        commands_file=commands,
+        export_conformance=conformance_path,
+        image_reference="ghcr.io/example/trtvideo:test",
+        gpu_id=0,
+        output_dir=output_dir,
+        input_manifest=input_manifest,
     )
 
+
+def test_generate_report_writes_sanitized_json_and_markdown(tmp_path, checkpoint_request):
+    report = generate_compatibility_report(checkpoint_request)
     assert report["status"] == "valid"
+    assert report["source_engine_binding"] == {"build": "direct", "matched_export": "selected.onnx"}
     json_text = report["written_files"]["json"].read_text(encoding="utf-8")
     markdown = report["written_files"]["markdown"].read_text(encoding="utf-8")
     assert str(tmp_path) not in json_text
@@ -334,3 +361,110 @@ def test_generate_report_writes_sanitized_json_and_markdown(
     assert "2xExample" in markdown
     assert "community-reported" in markdown
     assert report["input_preparation"]["prepared_input"]["sha256"] == _sha(b"input")
+
+
+def test_same_shape_onnx_with_wrong_engine_is_invalid_even_in_legacy_report(
+    tmp_path, checkpoint_request
+):
+    path = Path(f"{checkpoint_request.engine}.json")
+    manifest = json.loads(path.read_text())
+    manifest.pop("onnx_bundle")
+    path.write_text(json.dumps(manifest))
+    request = replace(
+        checkpoint_request,
+        source_format="onnx",
+        export_conformance=None,
+        source_artifact=tmp_path / "selected.onnx",
+    )
+    assert generate_compatibility_report(request)["status"] == "valid"
+    wrong = generate_compatibility_report(replace(request, source_artifact=tmp_path / "other.onnx"))
+    assert wrong["status"] == "invalid"
+    assert any("Cannot link the supplied ONNX" in e for e in wrong["errors"])
+    assert wrong["source_engine_binding"] is None
+
+
+def test_external_onnx_requires_matching_weights_not_just_matching_graph(
+    tmp_path, checkpoint_request, make_weighted_onnx
+):
+    model = make_weighted_onnx(tmp_path / "external.onnx", external=True)
+    request = replace(
+        checkpoint_request, source_format="onnx", source_artifact=model, export_conformance=None
+    )
+    path = Path(f"{request.engine}.json")
+    manifest = json.loads(path.read_text())
+    bundle = inspect_onnx_bundle(model).identity()
+    manifest.update(onnx_bundle=bundle, model_sha256=bundle["graph_sha256"])
+    path.write_text(json.dumps(manifest))
+    assert generate_compatibility_report(request)["status"] == "valid"
+    (tmp_path / "weights.bin").write_bytes(struct.pack("<f", 0.75))
+    assert generate_compatibility_report(request)["status"] == "invalid"
+    manifest.pop("onnx_bundle")
+    path.write_text(json.dumps(manifest))
+    assert generate_compatibility_report(request)["status"] == "invalid"
+
+
+def test_prepared_checkpoint_and_manual_onnx_require_the_matching_export(
+    tmp_path, checkpoint_request, make_weighted_onnx
+):
+    original = tmp_path / "selected.onnx"
+    prepared = tmp_path / "prepared.onnx"
+    before = inspect_onnx_bundle(original).identity()
+    with record_preparation(
+        original, before, prepared, width=64, height=64, scale=1, precision="fp32"
+    ):
+        make_weighted_onnx(prepared, external=True)  # Same weights, different serialization.
+    after = inspect_onnx_bundle(prepared).identity()
+    path = Path(f"{checkpoint_request.engine}.json")
+    manifest = json.loads(path.read_text())
+    manifest.update(
+        model_sha256=after["graph_sha256"],
+        onnx_bundle=after,
+        onnx_preparation=read_preparation(prepared, after),
+    )
+    path.write_text(json.dumps(manifest))
+    onnx_request = replace(
+        checkpoint_request, source_format="onnx", source_artifact=original, export_conformance=None
+    )
+    for request in (checkpoint_request, onnx_request):
+        result = generate_compatibility_report(request)
+        assert result["status"] == "valid"
+        assert result["source_engine_binding"]["build"] == "prepared"
+
+    # Same checkpoint and passing conformance metrics, but only its other export is listed.
+    conformance_path = checkpoint_request.export_conformance
+    conformance = json.loads(conformance_path.read_text())
+    conformance["exports"] = conformance["exports"][:1]
+    conformance_path.write_text(json.dumps(conformance))
+    assert generate_compatibility_report(checkpoint_request)["status"] == "invalid"
+    manifest.pop("onnx_preparation")
+    path.write_text(json.dumps(manifest))
+    assert generate_compatibility_report(onnx_request)["status"] == "invalid"
+
+
+@pytest.mark.parametrize("keep_graph", [True, False])
+def test_historical_checkpoint_and_engine_require_proof_of_single_file_export(
+    tmp_path, checkpoint_request, keep_graph
+):
+    path = Path(f"{checkpoint_request.engine}.json")
+    manifest = json.loads(path.read_text())
+    manifest.pop("onnx_bundle")
+    path.write_text(json.dumps(manifest))
+    conformance_path = checkpoint_request.export_conformance
+    conformance = json.loads(conformance_path.read_text())
+    for entry in conformance["exports"]:
+        entry.pop("onnx_bundle")
+    conformance_path.write_text(json.dumps(conformance))
+    if not keep_graph:
+        (tmp_path / "selected.onnx").unlink()
+    result = generate_compatibility_report(checkpoint_request)
+    assert result["status"] == ("valid" if keep_graph else "invalid")
+
+
+def test_malformed_new_identity_cannot_downgrade_to_legacy(tmp_path, checkpoint_request):
+    path = Path(f"{checkpoint_request.engine}.json")
+    manifest = json.loads(path.read_text())
+    manifest["onnx_bundle"]["bundle_sha256"] = "0" * 64
+    path.write_text(json.dumps(manifest))
+    result = generate_compatibility_report(checkpoint_request)
+    assert result["status"] == "invalid"
+    assert any("digest does not match" in e for e in result["errors"])

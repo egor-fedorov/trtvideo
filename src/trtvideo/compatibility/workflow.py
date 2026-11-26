@@ -34,6 +34,7 @@ from trtvideo.compatibility.input import (
 )
 from trtvideo.diagnostics.doctor import DoctorReport, run_doctor
 from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
+from trtvideo.models.onnx_preparation import preparation_path
 
 WORKFLOW_SCHEMA_VERSION = 2
 HEARTBEAT_INTERVAL_SEC = 30.0
@@ -444,7 +445,7 @@ def build_plan(
                 key="prepare",
                 command_name="prepare-onnx",
                 command=_append_verbose(prepare_command, options.verbose),
-                outputs=(paths.prepared_onnx,),
+                outputs=(paths.prepared_onnx, preparation_path(paths.prepared_onnx)),
             )
         )
 

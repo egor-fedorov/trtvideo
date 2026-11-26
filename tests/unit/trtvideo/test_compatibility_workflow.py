@@ -25,6 +25,7 @@ from trtvideo.compatibility.workflow import (
     workflow_context,
 )
 from trtvideo.diagnostics.doctor import CheckResult, DoctorReport
+from trtvideo.models.onnx_preparation import preparation_path
 
 
 def _source(tmp_path: Path, suffix: str) -> Path:
@@ -535,6 +536,22 @@ def test_resume_rejects_pre_bundle_journal_without_modifying_it(tmp_path: Path) 
     with pytest.raises(CompatibilityWorkflowError, match="new --output-dir"):
         WorkflowState.open(path, context={}, resume=True)
     assert path.read_text(encoding="utf-8") == '{"schema_version":1}'
+
+
+def test_missing_preparation_receipt_resumes_without_reexporting_checkpoint(tmp_path):
+    base = _options(tmp_path)
+    plan = build_plan(base)
+    executed: list[str] = []
+    execute = _artifact_executor(plan, executed)
+    run_workflow(plan, doctor_runner=lambda **_: _doctor(), executor=execute)
+    preparation_path(plan.paths.prepared_onnx).unlink()
+    executed.clear()
+    run_workflow(
+        build_plan(replace(base, resume=True)),
+        doctor_runner=lambda **_: _doctor(),
+        executor=execute,
+    )
+    assert executed == ["prepare", "engine", "smoke", "report"]
 
 
 def test_failed_step_is_not_recorded_and_partial_outputs_are_removed(

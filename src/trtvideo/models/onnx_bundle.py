@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -54,6 +55,35 @@ class OnnxBundle:
             "external_file_count": len(self.external_files),
             "bundle_sha256": hashlib.sha256(canonical.encode("ascii")).hexdigest(),
         }
+
+
+def parse_onnx_identity(value: object) -> OnnxIdentity:
+    """Read only the public fields; never fall back to graph-only evidence on malformed data."""
+    if not isinstance(value, dict) or type(value.get("schema_version")) is not int:
+        raise OnnxBundleError("Invalid ONNX bundle identity")
+    graph, digest = value.get("graph_sha256"), value.get("bundle_sha256")
+    size, count = value.get("graph_size_bytes"), value.get("external_file_count")
+    if (
+        value["schema_version"] != 1
+        or not isinstance(graph, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", graph)
+        or not isinstance(digest, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        or type(size) is not int
+        or size <= 0
+        or type(count) is not int
+        or count < 0
+    ):
+        raise OnnxBundleError("Invalid ONNX bundle identity")
+    if count == 0 and OnnxBundle(graph, size, ()).identity()["bundle_sha256"] != digest:
+        raise OnnxBundleError("Single-file ONNX bundle digest does not match its graph")
+    return OnnxIdentity(
+        schema_version=1,
+        graph_sha256=graph,
+        graph_size_bytes=size,
+        external_file_count=count,
+        bundle_sha256=digest,
+    )
 
 
 def sha256_file(path: Path) -> str:

@@ -25,6 +25,7 @@ from trtvideo.models.onnx_bundle import (
     inspect_onnx_bundle,
     sha256_file,
 )
+from trtvideo.models.onnx_preparation import Preparation, read_preparation
 
 trt: Any = None
 TRT_LOGGER: Any = None
@@ -233,6 +234,7 @@ def write_engine_manifest(
     manifest_path: str,
     onnx_path: str,
     onnx_identity: OnnxIdentity,
+    preparation: Preparation | None,
     engine_path: str,
     input_tensor: Any,
     output_tensor: Any,
@@ -272,6 +274,8 @@ def write_engine_manifest(
         "cuda_version": None,
         "gpu_compute_capability": None,
     }
+    if preparation is not None:
+        manifest["onnx_preparation"] = preparation
 
     os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
     with open(manifest_path, "w", encoding="utf-8") as f:
@@ -306,6 +310,7 @@ def build_engine(
     """
     source = Path(onnx_path).absolute()
     source_identity = inspect_onnx_bundle(source).identity()
+    preparation = read_preparation(source, source_identity)
     _load_tensorrt()
     builder = trt.Builder(TRT_LOGGER)
     network = builder.create_network()
@@ -393,6 +398,7 @@ def build_engine(
             manifest_path=manifest_path,
             onnx_path=onnx_path,
             onnx_identity=source_identity,
+            preparation=preparation,
             engine_path=engine_path,
             input_tensor=input_tensor,
             output_tensor=output_tensor,
