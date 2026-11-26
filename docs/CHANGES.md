@@ -92,6 +92,15 @@ Before `1.0.0`, use pragmatic semantic versioning:
   raw runs as FPS, with explicit baseline-relative VRAM accounting and hashed
   suite/run provenance.
 
+### Fixed
+
+- Prevented silent inference corruption when CV-CUDA padded rows beyond the
+  stride expected by TensorRT (for example, 854-pixel FP32 input). Linear
+  engine bindings now use packed rows and are checked before processing.
+- Report an actionable error for true FP16 engine I/O when the installed
+  CV-CUDA Python bindings cannot expose that dtype. FP32 I/O with mixed FP16
+  inference is unchanged.
+
 ## 0.7.0 - 2026-09-03
 
 ### Added

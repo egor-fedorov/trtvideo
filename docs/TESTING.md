@@ -80,6 +80,21 @@ command, so changes cannot silently diverge from `make demo`.
 
 ### GPU Smoke
 
+To test the TensorRT memory layout without video codecs or model downloads,
+use the production image on a GPU host:
+
+```bash
+docker run --rm --gpus all -e PYTHONPATH=/app/src -v "$PWD:/app:ro" \
+  trtvideo:latest python3 -B tests/gpu/check_binding_strides.py -v
+```
+
+The test builds temporary identity engines for 854x480 and 1280x480, copies a
+known pattern respecting the actual buffer pitches, and requires an exact match
+before encoding. It also verifies that a non-linear HWC output is rejected.
+On CV-CUDA 0.16.0 it verifies the diagnostic for true FP16 I/O and skips only
+the numerical FP16 case. This test is separate from the GPU-free `make check`
+gate.
+
 The self-contained manual GPU smoke test is:
 
 ```bash

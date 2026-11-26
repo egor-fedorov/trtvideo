@@ -86,9 +86,11 @@ GPU-resident video path and does not import PyTorch. It:
 - constructs `ModelSpec` and, before allocating buffers, verifies that the
   engine represents static, single-frame RGB upscaling with NCHW layout, batch
   size 1, and a uniform integer scale factor;
-- supports FP32 and FP16 tensor bindings;
-- preallocates and reuses `gpu_input` and `gpu_output`;
-- binds them to the context with `set_tensor_address`;
+- preallocates `gpu_input` and `gpu_output` with packed rows for linear
+  TensorRT I/O (see [binding precision](MODEL_CONTRACT.md#runtime-contract));
+- checks both buffers' byte strides against the execution context before
+  binding either address. NVDEC surfaces and other CV-CUDA buffers may remain
+  pitch-padded; there is no per-frame layout check or copy;
 - runs inference with `execute_async_v3` on a CUDA stream.
 
 The runtime owns one `cvcuda.Stream` and passes its native handle to TensorRT
