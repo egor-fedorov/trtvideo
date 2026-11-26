@@ -592,7 +592,11 @@ def workflow_context(plan: CompatibilityPlan, doctor: DoctorReport) -> dict[str,
             "source_size_bytes": VIDEO_SIZE_BYTES,
         }
     else:
-        input_context = {"kind": "user-supplied", "identity": file_identity(options.input_video)}
+        input_context = {
+            "kind": "user-supplied",
+            "geometry_contract": 1,
+            "identity": file_identity(options.input_video),
+        }
     if options.source_format == "onnx":
         try:
             source = inspect_onnx_bundle(options.source_artifact).record()

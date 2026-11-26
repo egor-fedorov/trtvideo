@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
 
 from trtvideo.video.metadata import VideoMetadata
 
@@ -68,7 +69,7 @@ class SdrColorContract:
             self.color_primaries,
         ]
 
-    def bitstream_args(self, codec: str) -> list[str]:
+    def bitstream_args(self, codec: str, *, sar: Fraction = Fraction(1)) -> list[str]:
         """Set VUI as well as container tags: HEVC readers may prefer the SPS."""
         # H.273 code points used by FFmpeg's h264_metadata and hevc_metadata.
         primaries = {
@@ -128,4 +129,6 @@ class SdrColorContract:
             )
         except KeyError as exc:
             raise ColorContractError(f"Cannot signal SDR color metadata: {exc}") from exc
+        if sar != 1:
+            values += f":sample_aspect_ratio={sar.numerator}/{sar.denominator}"
         return ["-bsf:v", f"{codec}_metadata={values}"]

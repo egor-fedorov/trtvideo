@@ -26,12 +26,16 @@ from trtvideo.demo.media import (
     build_demo_input_command,
     validate_demo_video,
 )
+from trtvideo.video.color import SdrColorContract
+from trtvideo.video.geometry import DisplayGeometry
 from trtvideo.video.output import (
     MediaPreservationError,
     build_ffmpeg_stream_copy_args,
     preflight_output_container,
 )
+from trtvideo.video.output.preservation import has_display_rotation_option
 from trtvideo.video.output.timed_track import remux_track
+from trtvideo.video.probe import probe_video
 
 pytestmark = pytest.mark.docker
 
@@ -449,8 +453,29 @@ def test_compatibility_input_is_decodable_and_bound_to_its_manifest(tmp_path: Pa
             str(source),
         ]
     )
+    rotated = tmp_path / "custom.mp4"
+    modern = has_display_rotation_option()
+    _run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            *(["-display_rotation", "90"] if modern else []),
+            "-i",
+            str(source),
+            "-c",
+            "copy",
+            "-bsf:v",
+            "h264_metadata=sample_aspect_ratio=4/3",
+            "-aspect",
+            "64:27",
+            *([] if modern else ["-metadata:s:v:0", "rotate=90"]),
+            str(rotated),
+        ]
+    )
+    assert probe_video(rotated).geometry == DisplayGeometry(90, Fraction(4, 3))
     request = InputPreparation(
-        source=source,
+        source=rotated,
         output=tmp_path / "input.mp4",
         manifest=tmp_path / "input.json",
         width=128,
@@ -464,3 +489,73 @@ def test_compatibility_input_is_decodable_and_bound_to_its_manifest(tmp_path: Pa
     assert manifest["observed"]["frames"] == 24
     assert manifest["observed"]["full_decode"] is True
     assert evidence["prepared_input"] == manifest["output"]
+    assert probe_video(request.output).geometry == probe_video(rotated).geometry
+
+
+@pytest.mark.parametrize("codec,encoder", [("h264", "libx264"), ("hevc", "libx265")])
+@pytest.mark.parametrize("ext", ["mp4", "mov", "mkv"])
+@pytest.mark.parametrize("angle", [0, 90, 180, 270])
+def test_timed_remux_display_geometry(tmp_path, codec, encoder, ext, angle):
+    track, out = tmp_path / "track.mp4", tmp_path / f"out.{ext}"
+    geometry = DisplayGeometry(angle, Fraction(4, 3))
+    if angle and ext == "mkv" and not has_display_rotation_option():
+        with pytest.raises(MediaPreservationError, match="use MP4 or MOV"):
+            remux_track(
+                track,
+                track,
+                out,
+                start=Fraction(0),
+                end=None,
+                color_args=[],
+                geometry=geometry,
+                output_size=(128, 72),
+            )
+        return
+    _run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=128x72:r=24:d=0.15",
+            "-c:v",
+            encoder,
+            "-threads",
+            "1",
+            *(["-x265-params", "pools=none:frame-threads=1"] if codec == "hevc" else []),
+            str(track),
+        ]
+    )
+    color = SdrColorContract("tv", "bt709", "bt709", "bt709")
+    remux_track(
+        track,
+        track,
+        out,
+        start=Fraction(0),
+        end=None,
+        color_args=color.ffmpeg_args() + color.bitstream_args(codec, sar=geometry.sar),
+        geometry=geometry,
+        output_size=(128, 72),
+    )
+    assert probe_video(out).geometry == geometry
+
+    def pixel_hash(path):
+        return _run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-noautorotate",
+                "-i",
+                str(path),
+                "-map",
+                "0:v:0",
+                "-f",
+                "hash",
+                "-",
+            ]
+        ).stdout
+
+    assert pixel_hash(track) == pixel_hash(out)

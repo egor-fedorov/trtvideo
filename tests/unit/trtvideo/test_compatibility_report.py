@@ -231,6 +231,21 @@ def _export_entry(path: Path) -> dict:
     }
 
 
+def test_report_rejects_silently_removed_display_geometry(tmp_path):
+    engine, _ = _write_engine(tmp_path)
+    _, model = engine_evidence(engine)
+    source = _inspection(
+        name="in.mp4", width=1280, height=720, frames=4, codec="h264", packets=False
+    )
+    output = _inspection(
+        name="out.mp4", width=2560, height=1440, frames=4, codec="h264", packets=True
+    )
+    source.probe["streams"][0].update(sample_aspect_ratio="4:3", tags={"rotate": "90"})
+    result = validate_media(source, output, model=model, expected_frames=4)
+    assert not result["valid"]
+    assert "output display geometry differs from input" in result["errors"]
+
+
 @pytest.fixture
 def checkpoint_request(
     tmp_path: Path,
