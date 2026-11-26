@@ -263,6 +263,9 @@ clip boundary when available. The copied streams use the same timeline.
 The pipeline uses one media-preservation contract:
 
 - the enhanced stream replaces all source video streams;
+- quarter-turn display rotation is attached to the replacement track; pixel
+  aspect ratio is signalled in both the H.264/HEVC stream and the container.
+  Non-default geometry is checked on the staged output before publication;
 - every source audio, subtitle, data, and attachment stream is stream-copied;
 - global metadata, stream tags/dispositions, and chapters are retained;
 - no incompatible stream is silently transcoded or dropped.

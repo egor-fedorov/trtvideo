@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from fractions import Fraction
 
+from trtvideo.video.geometry import DisplayGeometry
+
 
 @dataclass(frozen=True, slots=True)
 class VideoMetadata:
@@ -23,3 +25,4 @@ class VideoMetadata:
     time_base: Fraction | None = None
     start_pts: int | None = None
     duration_ts: int | None = None
+    geometry: DisplayGeometry = DisplayGeometry()

@@ -60,17 +60,24 @@ def build_live_action_input_command(
     include_attribution: bool = True,
     require_audio: bool = True,
     modifications: str | None = None,
+    sample_aspect_ratio: Fraction | None = None,
 ) -> list[str]:
     """Build the shared live-action fixture transcode command."""
     duration_seconds = frames / Fraction(DEMO_FPS)
+    sar_filter = (
+        f"setsar={sample_aspect_ratio}:max=65535" if sample_aspect_ratio is not None else "setsar=1"
+    )
     video_filter = (
         f"fps=fps={DEMO_FPS}:round=near,"
         f"scale={width}:{height}:flags=lanczos:out_color_matrix=bt709:out_range=tv,"
-        "setsar=1,"
+        f"{sar_filter},"
         "setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709"
     )
     command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
-    command += ["-ss", str(start_seconds), "-i", str(source)]
+    command += ["-ss", str(start_seconds)]
+    if sample_aspect_ratio is not None:
+        command.append("-noautorotate")
+    command += ["-i", str(source)]
     command += ["-map", "0:v:0", "-map", "0:a:0" if require_audio else "0:a:0?"]
     command += [
         "-vf",

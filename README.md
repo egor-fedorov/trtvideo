@@ -698,6 +698,12 @@ timestamps. Uneven frame intervals and the original audio/video offset are
 preserved; there is no FPS conversion. Missing or non-increasing timestamps
 are an error, not a reason to guess a constant rate.
 
+Models see the coded width and height, even for portrait videos stored as a
+rotated landscape raster. MP4, MOV and MKV outputs preserve 90/180/270-degree
+display rotation and non-square pixels without rotating the model input.
+Mirrored or arbitrary display transforms are rejected before GPU processing.
+With an older FFmpeg without `-display_rotation`, use MP4 or MOV for rotated clips.
+
 Human status, interval progress, and the final summary are written to `stderr`.
 Progress uses the observed wall time for the latest frame-loop window rather
 than the asynchronous per-frame submission time:

@@ -8,6 +8,7 @@ import os
 import subprocess
 import urllib.request
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ from trtvideo.demo.config import (
     VIDEO_URL,
 )
 from trtvideo.demo.media import build_live_action_input_command
+from trtvideo.video.geometry import DEFAULT_GEOMETRY, DisplayGeometry
 
 INPUT_SCHEMA_VERSION = 1
 FIXTURE_CONTRACT_VERSION = "jacqueville-live-action-sdr-v1"
@@ -73,6 +75,11 @@ def _run_json(command: list[str]) -> dict[str, Any]:
 
 def probe_video_size(path: Path) -> tuple[int, int]:
     """Return the video size after checking the supported custom-input color contract."""
+    width, height, _ = _probe_custom_input(path)
+    return width, height
+
+
+def _probe_custom_input(path: Path) -> tuple[int, int, DisplayGeometry]:
     if not path.is_file():
         raise CompatibilityInputError(f"Input video does not exist: {path}")
     payload = _run_json(
@@ -82,8 +89,7 @@ def probe_video_size(path: Path) -> tuple[int, int]:
             "error",
             "-select_streams",
             "v:0",
-            "-show_entries",
-            "stream=width,height,color_space,color_transfer,color_primaries",
+            "-show_streams",
             "-of",
             "json",
             str(path),
@@ -125,7 +131,10 @@ def probe_video_size(path: Path) -> tuple[int, int]:
             f"Custom input must declare SDR BT.709 color metadata ({details}); "
             "convert it to BT.709 first"
         )
-    return width, height
+    try:
+        return width, height, DisplayGeometry.from_stream(stream)
+    except ValueError as exc:
+        raise CompatibilityInputError(f"Unsupported custom input geometry: {exc}") from exc
 
 
 def _verify_pinned_source(path: Path) -> bool:
@@ -163,7 +172,9 @@ def download_pinned_source(path: Path) -> None:
     os.replace(partial, path)
 
 
-def input_command(request: InputPreparation) -> list[str]:
+def input_command(
+    request: InputPreparation, geometry: DisplayGeometry = DEFAULT_GEOMETRY
+) -> list[str]:
     """Build the exact FFmpeg command represented by an input manifest."""
     source = request.source or request.source_cache
     if source is None:
@@ -177,10 +188,13 @@ def input_command(request: InputPreparation) -> list[str]:
         start_seconds=14 if request.uses_pinned_source else 0,
         include_attribution=request.uses_pinned_source,
         require_audio=request.uses_pinned_source,
+        sample_aspect_ratio=None if request.uses_pinned_source else geometry.sar,
     )
 
 
-def _validate_prepared_video(path: Path, request: InputPreparation) -> dict[str, Any]:
+def _validate_prepared_video(
+    path: Path, request: InputPreparation, geometry: DisplayGeometry
+) -> dict[str, Any]:
     probe = _run_json(
         [
             "ffprobe",
@@ -220,6 +234,11 @@ def _validate_prepared_video(path: Path, request: InputPreparation) -> dict[str,
         for field, wanted in expected.items()
         if video.get(field) != wanted
     ]
+    try:
+        if DisplayGeometry.from_stream(video) != geometry:
+            errors.append("source orientation or pixel aspect ratio was not preserved")
+    except ValueError as exc:
+        errors.append(str(exc))
     if request.uses_pinned_source and len(audios) != 1:
         errors.append(f"audio stream count: expected 1, got {len(audios)}")
     packet_payload = _run_json(
@@ -308,6 +327,7 @@ def prepare_input(request: InputPreparation) -> dict[str, Any]:
     if request.width <= 0 or request.height <= 0 or request.frames <= 0:
         raise CompatibilityInputError("Width, height, and frame count must be positive")
     source = request.source
+    geometry = DisplayGeometry()
     if request.uses_pinned_source:
         if request.source_cache is None:
             raise CompatibilityInputError("Pinned input preparation requires --source-cache")
@@ -316,7 +336,11 @@ def prepare_input(request: InputPreparation) -> dict[str, Any]:
     elif source is None or not source.is_file():
         raise CompatibilityInputError(f"Input video does not exist: {source}")
     else:
-        probe_video_size(source)
+        width, height, original = _probe_custom_input(source)
+        sar = original.sar * Fraction(width * request.height, height * request.width)
+        if max(sar.numerator, sar.denominator) > 65535:
+            raise CompatibilityInputError("Requested size cannot preserve source aspect ratio")
+        geometry = DisplayGeometry(original.rotation, sar)
 
     assert source is not None
     try:
@@ -330,11 +354,11 @@ def prepare_input(request: InputPreparation) -> dict[str, Any]:
     request.manifest.parent.mkdir(parents=True, exist_ok=True)
     request.output.unlink(missing_ok=True)
     request.manifest.unlink(missing_ok=True)
-    command = input_command(request)
+    command = input_command(request, geometry)
     print("Preparing compatibility input with FFmpeg...", flush=True)
     try:
         subprocess.run(command, check=True)
-        observed = _validate_prepared_video(request.output, request)
+        observed = _validate_prepared_video(request.output, request, geometry)
     except CompatibilityInputError:
         request.output.unlink(missing_ok=True)
         raise

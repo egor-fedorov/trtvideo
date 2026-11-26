@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from trtvideo.video.fps import parse_fps
+from trtvideo.video.geometry import DisplayGeometry
 from trtvideo.video.metadata import VideoMetadata
 
 
@@ -47,6 +48,7 @@ def _video_metadata(stream: dict[str, Any], container_bit_rate: int | None) -> V
             color_primaries=stream.get("color_primaries"),
             video_bit_rate=_parse_optional_int(stream.get("bit_rate")),
             container_bit_rate=container_bit_rate,
+            geometry=DisplayGeometry.from_stream(stream),
         )
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
         raise VideoProbeError(f"FFprobe returned invalid video metadata: {exc}") from exc

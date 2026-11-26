@@ -40,6 +40,7 @@ from trtvideo.video.output import (
     AtomicOutputTransaction,
     MediaPreservationError,
 )
+from trtvideo.video.output.preservation import rotation_args
 from trtvideo.video.output.timed_track import TimedVideoTrack, remux_track
 from trtvideo.video.output.timeline import PacketTimeline
 from trtvideo.video.probe import VideoProbeError, last_frame_end, probe_video, validate_video_clock
@@ -215,6 +216,7 @@ class NvcodecPipeline:
                 "Transcode or tonemap the input to SDR yuv420p first."
             )
         validate_video_clock(self.config.input_path, info)
+        rotation_args(info.geometry, self.config.output_path)
 
     def _log_input(self, info: VideoMetadata) -> None:
         self._log(
@@ -493,7 +495,11 @@ class NvcodecPipeline:
                 start=timeline.first * base,
                 end=timeline.end * base if self.config.max_frames else None,
                 color_args=self._color_contract().ffmpeg_args()
-                + self._color_contract().bitstream_args(self.config.codec),
+                + self._color_contract().bitstream_args(
+                    self.config.codec, sar=self._video_info().geometry.sar
+                ),
+                geometry=self._video_info().geometry,
+                output_size=(self._runtime().output_w, self._runtime().output_h),
             )
         self._lifecycle.mark_phase("mux_completed")
 

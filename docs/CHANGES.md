@@ -67,6 +67,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Video processing preserves source frame timestamps and audio sync on VFR
   inputs, including with `--max-frames`. Final remux requires temporary disk
   space for one additional compressed video track beside the output.
+- Video processing and user-supplied compatibility inputs preserve quarter-turn
+  display rotation and non-square pixels without changing engine dimensions.
+  Unsupported display transforms are rejected before inference.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
 - Updated production and model-tools to digest-pinned TensorRT `26.11-py3`

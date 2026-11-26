@@ -15,6 +15,7 @@ from typing import Any
 from trtvideo.compatibility.evidence import file_identity
 from trtvideo.models.manifest import ModelSpec
 from trtvideo.video.color import ColorContractError, SdrColorContract
+from trtvideo.video.geometry import DisplayGeometry
 from trtvideo.video.metadata import VideoMetadata
 
 
@@ -261,6 +262,20 @@ def validate_media(
     input_observed = _video_observation(input_stream, input_inspection)
     output_observed = _video_observation(output_stream, output_inspection)
     errors: list[str] = []
+    try:
+        for stream, observation in (
+            (input_stream, input_observed),
+            (output_stream, output_observed),
+        ):
+            geometry = DisplayGeometry.from_stream(stream)
+            observation.update(rotation=geometry.rotation, sample_aspect_ratio=str(geometry.sar))
+        if (input_observed["rotation"], input_observed["sample_aspect_ratio"]) != (
+            output_observed["rotation"],
+            output_observed["sample_aspect_ratio"],
+        ):
+            errors.append("output display geometry differs from input")
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+        errors.append(f"invalid video display geometry: {exc}")
 
     input_shape = model.inputs[0].shape
     output_shape = model.outputs[0].shape

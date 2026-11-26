@@ -62,7 +62,11 @@ class VideoTimestampsTest(unittest.TestCase):
                         "lavfi",
                         "-i",
                         "sine=sample_rate=44100:duration=4",
-                        *(["-vf", "select=lt(n\\,48)+not(mod(n\\,2))"] if name != "cfr" else []),
+                        *(
+                            ["-vf", "select=lt(n\\,48)+not(mod(n\\,2)),setsar=4/3"]
+                            if name != "cfr"
+                            else []
+                        ),
                         "-fps_mode",
                         "vfr",
                         "-c:v",
@@ -85,6 +89,26 @@ class VideoTimestampsTest(unittest.TestCase):
                     ],
                     check=True,
                 )
+                if name == "vfr":
+                    rotated = root / "portrait.mp4"
+                    subprocess.run(
+                        [
+                            "ffmpeg",
+                            "-v",
+                            "error",
+                            "-display_rotation",
+                            "90",
+                            "-i",
+                            str(source),
+                            "-map",
+                            "0",
+                            "-c",
+                            "copy",
+                            str(rotated),
+                        ],
+                        check=True,
+                    )
+                    source = rotated
                 source_v, packets = probe(source, "v:0")
                 _, audio = probe(source, "a:0")
                 pts = [p[0] for p in packets]
@@ -112,8 +136,8 @@ class VideoTimestampsTest(unittest.TestCase):
                 if name == "vfr":
                     self.assertEqual((len(pts), end), (72, Fraction(95, 24)))
                 cases = [
-                    (0, "h264", "mp4"),
                     (1, "h264", "mp4"),
+                    (0, "h264", "mp4"),
                     (49, "hevc", "mp4"),
                     (500, "hevc", "mp4"),
                     (0, "hevc", "mkv"),
@@ -140,6 +164,14 @@ class VideoTimestampsTest(unittest.TestCase):
                             check=True,
                         )
                         info, actual = probe(output, "v:0")
+                        self.assertEqual(
+                            info.get("sample_aspect_ratio", "1:1"),
+                            source_v.get("sample_aspect_ratio", "1:1"),
+                        )
+                        if name == "vfr":
+                            self.assertTrue(
+                                any(s.get("rotation") == 90 for s in info.get("side_data_list", []))
+                            )
                         count = min(limit or len(pts), len(pts))
                         tolerance = Fraction(info["time_base"]) if ext == "mkv" else 0
                         self.assertEqual(len(actual), count)

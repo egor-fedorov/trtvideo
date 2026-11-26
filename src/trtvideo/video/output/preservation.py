@@ -5,11 +5,45 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+from functools import cache
 from pathlib import Path
+
+from trtvideo.video.geometry import DisplayGeometry
 
 
 class MediaPreservationError(RuntimeError):
     """Raised when the requested output cannot satisfy the media contract."""
+
+
+@cache
+def has_display_rotation_option() -> bool:
+    try:
+        help_text = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-h", "full"], capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise MediaPreservationError("Cannot check FFmpeg rotation support") from exc
+    return "-display_rotation" in help_text.stdout
+
+
+def rotation_args(geometry: DisplayGeometry, output: Path) -> tuple[list[str], list[str]]:
+    """Input and output options for a stream copy, also checked before GPU startup."""
+    if geometry == DisplayGeometry():
+        return [], []
+    suffix = output.suffix.lower()
+    if suffix not in {".mp4", ".mov", ".m4v", ".mkv"}:
+        raise MediaPreservationError(
+            f"Cannot guarantee display geometry in {suffix}; use MP4 or MOV"
+        )
+    if not geometry.rotation:
+        return [], []
+    if has_display_rotation_option():
+        return ["-display_rotation:v:0", str(geometry.rotation)], []
+    if suffix == ".mkv":
+        raise MediaPreservationError(
+            "Rotated MKV requires FFmpeg with -display_rotation; use MP4 or MOV"
+        )
+    return [], ["-metadata:s:v:0", f"rotate={geometry.rotation}"]
 
 
 def build_ffmpeg_stream_copy_args(
