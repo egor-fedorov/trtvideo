@@ -690,7 +690,13 @@ attachment cannot be represented; choose an `.mkv` output in that case.
 Output is written to a same-directory temporary file and replaces the requested
 path atomically only after decode, encode, and mux complete successfully. A
 failed run returns a non-zero status, removes the partial temporary file, and
-leaves an existing output untouched.
+leaves an existing output untouched. Allow room next to the output for one
+additional compressed video track while the final container is being written.
+
+Constant- and variable-frame-rate (VFR) video use the source presentation
+timestamps. Uneven frame intervals and the original audio/video offset are
+preserved; there is no FPS conversion. Missing or non-increasing timestamps
+are an error, not a reason to guess a constant rate.
 
 Human status, interval progress, and the final summary are written to `stderr`.
 Progress uses the observed wall time for the latest frame-loop window rather
@@ -717,7 +723,7 @@ docker run --rm --gpus all \
 ```
 
 The result is written only after the video has been committed successfully. It
-records the engine, GPU, input/output shape and frame rate, request parameters,
+records the engine, GPU, input/output shape and nominal frame rate, request parameters,
 processed frame count, and distinct timing scopes. `frame_loop` covers decoded
 frame iteration; `active_pipeline` also covers encoder drain and mux
 finalization; `pipeline_wall` additionally covers in-process validation,
@@ -747,8 +753,9 @@ Completion documents and progress events carry independent `document_type` and
 `schema_version` fields. Report destinations must be distinct; in particular,
 `--result-json -` and `--progress-jsonl -` cannot both own `stdout`.
 
-With `--max-frames`, copied streams are shortened to the processed video
-duration. Chapters are omitted because their original timestamps may point
+With `--max-frames`, copied streams are cut at the end of the last selected
+video frame (audio packet granularity), not at a duration estimated from FPS.
+Chapters are omitted because their original timestamps may point
 beyond the shortened output.
 
 Select a specific CUDA device:

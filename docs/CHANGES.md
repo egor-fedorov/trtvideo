@@ -64,6 +64,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 - Host benchmark entrypoints resolve pure-Python helpers from the checkout's
   `src/` directory without requiring a host installation of `trtvideo`.
+- Video processing preserves source frame timestamps and audio sync on VFR
+  inputs, including with `--max-frames`. Final remux requires temporary disk
+  space for one additional compressed video track beside the output.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
 - Updated production and model-tools to digest-pinned TensorRT `26.11-py3`

@@ -67,3 +67,65 @@ class SdrColorContract:
             "-color_primaries",
             self.color_primaries,
         ]
+
+    def bitstream_args(self, codec: str) -> list[str]:
+        """Set VUI as well as container tags: HEVC readers may prefer the SPS."""
+        # H.273 code points used by FFmpeg's h264_metadata and hevc_metadata.
+        primaries = {
+            "bt709": 1,
+            "bt470m": 4,
+            "bt470bg": 5,
+            "smpte170m": 6,
+            "smpte240m": 7,
+            "film": 8,
+            "bt2020": 9,
+            "smpte428": 10,
+            "smpte431": 11,
+            "smpte432": 12,
+            "ebu3213": 22,
+            "jedec-p22": 22,
+        }
+        transfers = {
+            "bt709": 1,
+            "gamma22": 4,
+            "gamma28": 5,
+            "smpte170m": 6,
+            "smpte240m": 7,
+            "linear": 8,
+            "log": 9,
+            "log_sqrt": 10,
+            "iec61966-2-4": 11,
+            "bt1361e": 12,
+            "iec61966-2-1": 13,
+            "bt2020-10": 14,
+            "bt2020-12": 15,
+            "smpte428": 17,
+        }
+        matrices = {
+            "gbr": 0,
+            "bt709": 1,
+            "fcc": 4,
+            "bt470bg": 5,
+            "smpte170m": 6,
+            "smpte240m": 7,
+            "ycgco": 8,
+            "bt2020nc": 9,
+            "bt2020c": 10,
+            "smpte2085": 11,
+            "chroma-derived-nc": 12,
+            "chroma-derived-c": 13,
+            "ictcp": 14,
+            "ipt-c2": 15,
+            "ycgco-re": 16,
+            "ycgco-ro": 17,
+        }
+        try:
+            values = (
+                f"colour_primaries={primaries[self.color_primaries]}:"
+                f"transfer_characteristics={transfers[self.color_transfer]}:"
+                f"matrix_coefficients={matrices[self.color_space]}:"
+                f"video_full_range_flag={int(not self.limited_range)}"
+            )
+        except KeyError as exc:
+            raise ColorContractError(f"Cannot signal SDR color metadata: {exc}") from exc
+        return ["-bsf:v", f"{codec}_metadata={values}"]
