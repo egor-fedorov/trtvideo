@@ -53,8 +53,8 @@ the packages already present in the TensorRT base:
 
 | Component | License recorded by the package |
 |---|---|
-| CUDA Python bindings (`cuda-bindings`) | `LicenseRef-NVIDIA-SOFTWARE-LICENSE` |
-| CV-CUDA (`cvcuda-cu12`) | Apache-2.0 |
+| CUDA Python bindings ([`cuda-bindings` 13.5.0](https://pypi.org/project/cuda-bindings/13.5.0/)) | Apache-2.0 (Python package, not the underlying CUDA libraries) |
+| CV-CUDA ([`cvcuda-cu13` 0.19.0](https://pypi.org/project/cvcuda-cu13/0.19.0/)) | Apache-2.0 |
 | PyNvVideoCodec | MIT |
 | ONNX | Apache-2.0 |
 

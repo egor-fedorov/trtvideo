@@ -33,6 +33,7 @@ from trtvideo.video.nvcodec.encoder import (
     NvencCbrContract,
     format_nvenc_fps,
     gop_size_for_one_second,
+    write_encoded_packets,
 )
 from trtvideo.video.nvcodec.frame_processor import NvcodecFrameProcessor
 from trtvideo.video.output import (
@@ -418,16 +419,14 @@ class NvcodecPipeline:
             return
 
         processor = self._processor()
-        encoder = self._encoder_instance()
         nv12_input = processor.wrap_nv12(raw_frame)
         processor.preprocess(nv12_input)
         processor.infer()
         nv12_output = processor.postprocess()
-        self._write_bitstream(encoder.Encode(nv12_output))
+        self._encode_frame(nv12_output)
 
     def _process_frame_nvtx(self, raw_frame: Any) -> None:
         processor = self._processor()
-        encoder = self._encoder_instance()
         nv12_input = processor.wrap_nv12(raw_frame)
         with self._nvtx.range("trtvideo.nvcodec.nv12_to_rgb"):
             processor.preprocess(nv12_input)
@@ -436,12 +435,11 @@ class NvcodecPipeline:
         with self._nvtx.range("trtvideo.nvcodec.rgb_to_nv12"):
             nv12_output = processor.postprocess()
         with self._nvtx.range("trtvideo.nvcodec.nvenc_encode"):
-            self._write_bitstream(encoder.Encode(nv12_output))
+            self._encode_frame(nv12_output)
 
     def _process_frame_profiled(self, raw_frame: Any) -> None:
         runtime = self._runtime()
         processor = self._processor()
-        encoder = self._encoder_instance()
         profiler = self._profile_collector()
         events = tuple(runtime.create_timing_event() for _ in range(5))
         e0, e1, e2, e3, e4 = events
@@ -454,7 +452,7 @@ class NvcodecPipeline:
         e2.record(runtime.stream)
         nv12_output = processor.postprocess()
         e3.record(runtime.stream)
-        self._write_bitstream(encoder.Encode(nv12_output))
+        self._encode_frame(nv12_output)
         e4.record(runtime.stream)
 
         runtime.synchronize()
@@ -463,7 +461,7 @@ class NvcodecPipeline:
     def _finalize(self) -> None:
         muxer = self._output_muxer()
         with self._nvtx.range("trtvideo.nvcodec.nvenc_flush"):
-            self._write_bitstream(self._encoder_instance().EndEncode())
+            write_encoded_packets(self._encoder_instance().EndEncode(), muxer.write)
         self._lifecycle.mark_phase("encoder_drained")
         muxer.close_input()
         self._lifecycle.mark_phase("mux_input_closed")
@@ -590,9 +588,9 @@ class NvcodecPipeline:
         }
         write_json_document(destination, report)
 
-    def _write_bitstream(self, bitstream: Any) -> None:
-        if bitstream:
-            self._output_muxer().write(bytearray(bitstream))
+    def _encode_frame(self, nv12_output: Any) -> None:
+        packets = self._encoder_instance().Encode(nv12_output)
+        write_encoded_packets(packets, self._output_muxer().write)
 
     def _video_info(self) -> VideoMetadata:
         if self._info is None:

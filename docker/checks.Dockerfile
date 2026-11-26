@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG BASE_IMAGE=python:3.12-slim-bookworm
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.8.15
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.10
 
 FROM ${UV_IMAGE} AS uv
 FROM ${BASE_IMAGE}

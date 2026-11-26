@@ -41,9 +41,12 @@ inference in host memory.
 
 The project always uses its production GPU-resident video path.
 
-The current project, vs-mlrt, and TAS environments use TensorRT `11.2.1.2`.
-The project and vs-mlrt share the digest-pinned `26.08-py3` base and serialized
-engine. TAS retains its separately pinned dependencies and native builder;
+The controlled benchmark profile uses TensorRT `11.2.1.2` independently of
+the production release cycle. The benchmark Makefile pins the `26.08-py3`
+base for the project and vs-mlrt, which share a serialized engine. For exact
+reproduction, also check out the revision recorded in the publication: the
+base pin alone does not freeze Python dependencies. TAS retains its separately
+pinned dependencies and native builder;
 matching TensorRT versions does not imply identical CUDA, Python, or build
 settings. Environment provenance, rather than this current configuration,
 defines the runtime of each historical result.

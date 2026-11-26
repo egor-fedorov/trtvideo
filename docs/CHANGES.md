@@ -66,11 +66,12 @@ Before `1.0.0`, use pragmatic semantic versioning:
   `src/` directory without requiring a host installation of `trtvideo`.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
-- Updated the shared production, model-tools, benchmark, and vs-mlrt base to
-  digest-pinned TensorRT `26.08-py3` (TensorRT `11.2.1.2`, CUDA toolkit `13.4.1`).
-  Rebuild engines and use the new versioned benchmark timing cache; quality
-  gates, campaigns, and diagnostics must be collected for the new runtime.
-  Missing base-image provenance is reported as `unknown`, not an assumed image.
+- Updated production and model-tools to digest-pinned TensorRT `26.11-py3`
+  (TensorRT 11.5, CUDA 13.5), CV-CUDA 0.19 with true FP16 I/O, and
+  PyNvVideoCodec 2.2.4. Model-tools uses CPU-only PyTorch 2.15. Rebuild
+  engines and timing caches for the new runtime. The controlled benchmark
+  keeps a separate `26.08-py3` pin (TensorRT `11.2.1.2`); its measurements
+  do not describe the upgraded production image.
 - Replaced VSGAN-tensorrt-docker with pinned TheAnimeScripter in the active
   comparative and tuned benchmark matrix. TAS has a separate engine/runtime
   and a quality-gated CPU/NVDEC x FFmpeg/neLux search; vs-mlrt retains its
@@ -97,9 +98,6 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Prevented silent inference corruption when CV-CUDA padded rows beyond the
   stride expected by TensorRT (for example, 854-pixel FP32 input). Linear
   engine bindings now use packed rows and are checked before processing.
-- Report an actionable error for true FP16 engine I/O when the installed
-  CV-CUDA Python bindings cannot expose that dtype. FP32 I/O with mixed FP16
-  inference is unchanged.
 
 ## 0.7.0 - 2026-09-03
 

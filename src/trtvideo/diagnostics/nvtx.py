@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -45,7 +45,7 @@ class NvtxAnnotator:
         return cls(enabled=True, _push=push, _pop=pop)
 
     @contextmanager
-    def range(self, name: str) -> Iterator[None]:
+    def range(self, name: str) -> Generator[None, None, None]:
         """Annotate one range or behave as a no-op when diagnostics are disabled."""
         if not self.enabled:
             yield

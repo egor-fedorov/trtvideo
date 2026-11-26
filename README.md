@@ -308,11 +308,12 @@ static-ONNX compatibility, input preparation/reporting, and `build-engine`, but
 not PyTorch or model conversion tools. Use
 `make build IMAGE=example/name:tag` to select another name.
 
-Source builds use the digest-pinned NVIDIA TensorRT `26.08-py3` base
-(TensorRT `11.2.1.2`, CUDA toolkit `13.4.1`, Python 3.12). Rebuild engines when moving
-from the earlier TensorRT 11.0 image, and run `trtvideo doctor` plus a short
-processing smoke test on the target GPU before starting a batch. Released
-image tags retain the runtime versions recorded for their release.
+Production and model-tools source builds use the digest-pinned NVIDIA TensorRT
+`26.11-py3` base (TensorRT 11.5, CUDA 13.5, Python 3.12). Rebuild your engines
+from ONNX, use a fresh timing cache, and run `trtvideo doctor` and a short
+processing smoke test after upgrading. Released tags retain their original
+runtime. The [controlled benchmark profile](benchmarks/methodology.md) pins
+its own TensorRT version; its published FPS are not measurements of 26.11.
 
 Model export, dynamic ONNX preparation, checkpoint compatibility checks, and
 the self-contained demo use a separate image:

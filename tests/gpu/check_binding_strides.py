@@ -20,12 +20,18 @@ def _build_identity(
     shape: tuple[int, ...],
     dtype: trt.DataType,
     *,
+    output_dtype: trt.DataType | None = None,
     output_format: trt.TensorFormat = trt.TensorFormat.LINEAR,
 ) -> None:
     builder = trt.Builder(TRT_LOGGER)
     network = builder.create_network()
     source = network.add_input("source", dtype, shape)
-    output = network.add_identity(source).get_output(0)
+    layer = (
+        network.add_identity(source)
+        if output_dtype is None or output_dtype == dtype
+        else network.add_cast(source, output_dtype)
+    )
+    output = layer.get_output(0)
     output.name = "result"
     network.mark_output(output)
     output.allowed_formats = 1 << int(output_format)
@@ -53,20 +59,20 @@ def _copy_planes(tensor: cvcuda.Tensor, host: np.ndarray, *, upload: bool) -> No
 
 
 class BindingStridesTest(unittest.TestCase):
-    def _check_widths(
-        self, dtype: type[np.float16] | type[np.float32], engine_dtype: trt.DataType
-    ) -> None:
+    def _check_widths(self, input_dtype: trt.DataType, output_dtype: trt.DataType) -> None:
         for width in (854, 1280):
             with self.subTest(width=width), TemporaryDirectory() as directory:
                 shape = (1, 3, 480, width)
                 path = Path(directory, "identity.engine")
-                _build_identity(path, shape, engine_dtype)
+                _build_identity(path, shape, input_dtype, output_dtype=output_dtype)
                 runtime = CvcudaTensorRTRuntime(str(path), quiet=True)
                 values = np.random.default_rng(0).integers(1024, size=shape, dtype=np.int16)
-                expected = values.astype(dtype) / dtype(1024)
+                dtype = trt.nptype(input_dtype)
+                source = values.astype(dtype) / dtype(1024)
+                expected = source.astype(trt.nptype(output_dtype), copy=False)
                 # Mark unwritten pixels even if both bindings have the same padding.
                 actual = np.full_like(expected, -1)
-                _copy_planes(runtime.gpu_input, expected, upload=True)
+                _copy_planes(runtime.gpu_input, source, upload=True)
                 _copy_planes(runtime.gpu_output, actual, upload=True)
                 (status,) = cudart.cudaDeviceSynchronize()
                 self.assertEqual(status, cudart.cudaError_t.cudaSuccess)
@@ -77,7 +83,7 @@ class BindingStridesTest(unittest.TestCase):
                 np.testing.assert_array_equal(actual, expected)
 
     def test_fp32_identity(self) -> None:
-        self._check_widths(np.float32, trt.float32)
+        self._check_widths(trt.float32, trt.float32)
 
     def test_rejects_nonlinear_output(self) -> None:
         with TemporaryDirectory() as directory:
@@ -87,16 +93,12 @@ class BindingStridesTest(unittest.TestCase):
                 CvcudaTensorRTRuntime(str(path), quiet=True)
 
     def test_fp16_identity(self) -> None:
-        try:
-            _ = cvcuda.Type.F16
-        except (AttributeError, TypeError):
-            with TemporaryDirectory() as directory:
-                path = Path(directory, "half.engine")
-                _build_identity(path, (1, 3, 480, 854), trt.float16)
-                with self.assertRaisesRegex(TensorBindingError, "FP16 I/O bindings"):
-                    CvcudaTensorRTRuntime(str(path), quiet=True)
-            self.skipTest(f"CV-CUDA {cvcuda.__version__} cannot expose Type.F16")
-        self._check_widths(np.float16, trt.float16)
+        self._check_widths(trt.float16, trt.float16)
+
+    def test_mixed_bindings(self) -> None:
+        for src, dst in ((trt.float16, trt.float32), (trt.float32, trt.float16)):
+            with self.subTest(src=src, dst=dst):
+                self._check_widths(src, dst)
 
 
 if __name__ == "__main__":

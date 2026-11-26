@@ -190,8 +190,9 @@ Per-frame processing order:
 6. CV-CUDA converts the output RGB back to full-range NV12. Limited-range jobs
    compress Y and UV back to their video code ranges before encoding.
 7. NV12 is passed to NVENC through PyNvVideoCodec.
-8. NVENC writes H.264 or HEVC packets to a long-lived FFmpeg subprocess while
-   frame processing continues. FFmpeg concurrently muxes the encoded video and
+8. The pipeline writes the `data` bytes of each NVENC packet to a long-lived
+   FFmpeg subprocess in encoder order, including packets returned at flush.
+   FFmpeg concurrently muxes the encoded video and
    all supported source non-video streams into the private output container.
 9. In `finalize()`, the pipeline drains NVENC, closes FFmpeg stdin, and waits
    for container finalization, including MP4 `faststart` when applicable.

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=nvcr.io/nvidia/tensorrt:26.08-py3@sha256:3b127f45630cd56bf43d2ef70d7f50a7ee37e42bda4ba11adaaa069af2098125
+ARG BASE_IMAGE=nvcr.io/nvidia/tensorrt:26.11-py3@sha256:115a1b4a7c77fb72c019e57518601a047192b50d683bafb7cd16b38258d81039
 FROM ${BASE_IMAGE} AS runtime
 
 ARG BASE_IMAGE
@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends ffmpeg
 
-ARG UV_VERSION=0.8.15
+ARG UV_VERSION=0.13.10
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     python -m pip install "uv==${UV_VERSION}"
 
