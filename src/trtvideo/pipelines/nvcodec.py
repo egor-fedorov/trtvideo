@@ -22,6 +22,7 @@ from trtvideo.pipelines.reporting import (
     summarize_process_timing,
     write_json_document,
 )
+from trtvideo.runtime.bindings import TensorBindingError
 from trtvideo.runtime.cvcuda_tensorrt import CvcudaTensorRTRuntime
 from trtvideo.video.color import ColorContractError, SdrColorContract
 from trtvideo.video.frames import iter_limited_frames
@@ -91,6 +92,7 @@ class NvcodecPipeline:
             ColorContractError,
             MediaPreservationError,
             ProcessReportingError,
+            TensorBindingError,
             VideoProbeError,
         ) as exc:
             raise PipelineError(str(exc)) from exc

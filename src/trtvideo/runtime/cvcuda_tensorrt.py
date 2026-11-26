@@ -8,8 +8,9 @@ from typing import Any, TextIO
 
 import tensorrt as trt
 
-from trtvideo.models.manifest import ModelSpec, TensorDType, make_upscale_model_spec
+from trtvideo.models.manifest import ModelSpec, TensorDType, TensorSpec, make_upscale_model_spec
 from trtvideo.runtime import CudaStream, TensorLike
+from trtvideo.runtime.bindings import TensorBindingError, validate_binding_strides
 from trtvideo.runtime.cuda import CudaEvent, device_name, set_device
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
@@ -19,7 +20,13 @@ def _cvcuda_dtype_from_trt(dtype: trt.DataType, cvcuda: Any) -> Any:
     if dtype == trt.DataType.FLOAT:
         return cvcuda.Type.F32
     if dtype == trt.DataType.HALF:
-        return cvcuda.Type.F16
+        try:
+            return cvcuda.Type.F16
+        except (AttributeError, TypeError) as exc:
+            raise TensorBindingError(
+                f"CV-CUDA {cvcuda.__version__} cannot expose FP16 I/O bindings. "
+                "Use an engine with FP32 input and output; internal FP16 precision is supported."
+            ) from exc
     raise ValueError(f"Unsupported TensorRT tensor dtype: {dtype}")
 
 
@@ -29,11 +36,6 @@ def _model_dtype_from_trt(dtype: trt.DataType) -> TensorDType:
     if dtype == trt.DataType.HALF:
         return "fp16"
     raise ValueError(f"Unsupported TensorRT tensor dtype: {dtype}")
-
-
-def _tensor_pointer(tensor: Any) -> int:
-    interface = tensor.cuda().__cuda_array_interface__
-    return int(interface["data"][0])
 
 
 class CvcudaTensorRTRuntime:
@@ -97,7 +99,7 @@ class CvcudaTensorRTRuntime:
         except ValueError as exc:
             print(f"ERROR: Unsupported TensorRT engine contract: {exc}", file=self.log_stream)
             print(
-                "  Current video runtime supports fp32/fp16 RGB tensor bindings only.",
+                "  Use an engine with FP32 RGB input and output.",
                 file=self.log_stream,
             )
             sys.exit(1)
@@ -135,15 +137,19 @@ class CvcudaTensorRTRuntime:
             self.input_shape,
             self.input_dtype,
             layout="NCHW",
+            rowalign=1,
         )
         self.gpu_output = cvcuda.Tensor(
             self.output_shape,
             self.output_dtype,
             layout="NCHW",
+            rowalign=1,
         )
-        if not self.context.set_tensor_address(self.input_name, _tensor_pointer(self.gpu_input)):
+        input_ptr = self._binding_pointer(self.input_specs[0], self.gpu_input)
+        output_ptr = self._binding_pointer(self.output_specs[0], self.gpu_output)
+        if not self.context.set_tensor_address(self.input_name, input_ptr):
             raise RuntimeError(f"Failed to bind TensorRT input tensor: {self.input_name}")
-        if not self.context.set_tensor_address(self.output_name, _tensor_pointer(self.gpu_output)):
+        if not self.context.set_tensor_address(self.output_name, output_ptr):
             raise RuntimeError(f"Failed to bind TensorRT output tensor: {self.output_name}")
 
         if not quiet:
@@ -159,6 +165,21 @@ class CvcudaTensorRTRuntime:
             )
             print(f"  Scale:  {self.model_spec.scale}x", file=self.log_stream)
             print("  Tensor buffers: CV-CUDA (PyTorch-free)", file=self.log_stream)
+
+    def _binding_pointer(self, spec: TensorSpec, tensor: Any) -> int:
+        fmt = self.engine.get_tensor_format(spec.name)
+        if fmt != trt.TensorFormat.LINEAR:
+            raise TensorBindingError(
+                f"Incompatible binding {spec.name!r} (shape={spec.shape}, dtype={spec.dtype}): "
+                f"expected LINEAR TensorRT format, got {fmt}"
+            )
+        interface = tensor.cuda().__cuda_array_interface__
+        validate_binding_strides(
+            spec,
+            trt_element_strides=tuple(self.context.get_tensor_strides(spec.name)),
+            cuda_byte_strides=interface.get("strides"),
+        )
+        return int(interface["data"][0])
 
     def execute(self) -> Any:
         """Enqueue inference against the pre-bound CV-CUDA tensors."""
