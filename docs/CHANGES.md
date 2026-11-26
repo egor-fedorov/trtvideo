@@ -64,6 +64,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 - Host benchmark entrypoints resolve pure-Python helpers from the checkout's
   `src/` directory without requiring a host installation of `trtvideo`.
+- Benchmark preparation verifies each cached FP16 model against its FP32
+  export, conversion settings and tool versions. Rerun asset preparation once
+  for older caches; an unchanged verified resolution is not reconverted.
 - Video processing preserves source frame timestamps and audio sync on VFR
   inputs, including with `--max-frames`. Final remux requires temporary disk
   space for one additional compressed video track beside the output.

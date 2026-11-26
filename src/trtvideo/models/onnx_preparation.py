@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Generator
 from contextlib import contextmanager
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from trtvideo.models.onnx_bundle import (
     OnnxBundleError,
@@ -14,6 +16,46 @@ from trtvideo.models.onnx_bundle import (
     inspect_onnx_bundle,
     parse_onnx_identity,
 )
+
+KEEP_IO_TYPES_FOR_FP16 = True
+
+
+class Converter(TypedDict):
+    policy_version: int
+    onnx: str
+    onnxconverter_common: str
+    keep_io_types: bool
+
+
+def current_fp16_converter() -> Converter:
+    try:
+        return Converter(
+            policy_version=1,
+            onnx=version("onnx"),
+            onnxconverter_common=version("onnxconverter-common"),
+            keep_io_types=KEEP_IO_TYPES_FOR_FP16,
+        )
+    except PackageNotFoundError as exc:
+        raise OnnxBundleError("FP16 preparation requires the model-tools image") from exc
+
+
+def _read_converter(value: object) -> Converter:
+    if not isinstance(value, dict):
+        raise OnnxBundleError("Invalid FP16 converter identity; rerun prepare-onnx")
+    policy, keep = value.get("policy_version"), value.get("keep_io_types")
+    onnx, common = value.get("onnx"), value.get("onnxconverter_common")
+    if (
+        type(policy) is not int
+        or policy < 1
+        or type(keep) is not bool
+        or not isinstance(onnx, str)
+        or not isinstance(common, str)
+        or not all(re.fullmatch(r"[0-9][0-9A-Za-z.+_!-]{0,79}", v) for v in (onnx, common))
+    ):
+        raise OnnxBundleError("Invalid FP16 converter identity; rerun prepare-onnx")
+    return Converter(
+        policy_version=policy, keep_io_types=keep, onnx=onnx, onnxconverter_common=common
+    )
 
 
 class Preparation(TypedDict):
@@ -24,6 +66,7 @@ class Preparation(TypedDict):
     height: int
     scale: int | None
     precision: str
+    converter: NotRequired[Converter]
 
 
 def preparation_path(output: Path) -> Path:
@@ -51,7 +94,7 @@ def validate_preparation(value: object, output: OnnxIdentity) -> Preparation:
         or precision not in ("fp32", "fp16")
     ):
         raise OnnxBundleError("Invalid ONNX preparation parameters; rerun prepare-onnx")
-    return Preparation(
+    record = Preparation(
         schema_version=1,
         source=parse_onnx_identity(value.get("source")),
         output=output,
@@ -60,6 +103,9 @@ def validate_preparation(value: object, output: OnnxIdentity) -> Preparation:
         scale=scale,
         precision=precision,
     )
+    if "converter" in value:
+        record["converter"] = _read_converter(value["converter"])
+    return record
 
 
 def read_preparation(model: Path, output: OnnxIdentity) -> Preparation | None:
@@ -100,6 +146,8 @@ def record_preparation(
         scale=scale,
         precision=precision,
     )
+    if precision == "fp16":
+        record["converter"] = current_fp16_converter()
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)

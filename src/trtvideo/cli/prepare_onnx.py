@@ -19,7 +19,7 @@ from typing import Any, Literal, TypedDict
 
 from trtvideo.models.export_conformance import ExportConformanceError, infer_upscale_scale
 from trtvideo.models.onnx_bundle import OnnxBundleError, inspect_onnx_bundle
-from trtvideo.models.onnx_preparation import record_preparation
+from trtvideo.models.onnx_preparation import KEEP_IO_TYPES_FOR_FP16, record_preparation
 
 
 class TargetSpec(TypedDict):
@@ -33,7 +33,6 @@ TARGETS: list[TargetSpec] = [
     {"name": "1080p", "h": 1080, "w": 1920},
 ]
 ONNXPrecision = Literal["fp32", "fp16"]
-KEEP_IO_TYPES_FOR_FP16 = True
 FLOAT16_TRUNCATION_WARNING = r"the float32 number .* will be truncated to .*"
 
 
