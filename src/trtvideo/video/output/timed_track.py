@@ -9,11 +9,15 @@ from pathlib import Path
 from typing import Any
 
 from trtvideo.video.geometry import DEFAULT_GEOMETRY, DisplayGeometry
+from trtvideo.video.metadata import EMPTY_TRACK_PROPERTIES, VideoTrackProperties
 from trtvideo.video.nvcodec.encoder import NvencPacket
 from trtvideo.video.output.preservation import (
     MediaPreservationError,
     build_ffmpeg_stream_copy_args,
+    muxed_track_properties,
     rotation_args,
+    verify_video_track,
+    video_track_args,
 )
 from trtvideo.video.probe import probe_video
 
@@ -71,11 +75,13 @@ def remux_track(
     color_args: list[str],
     geometry: DisplayGeometry = DEFAULT_GEOMETRY,
     output_size: tuple[int, int] | None = None,
+    track_properties: VideoTrackProperties = EMPTY_TRACK_PROPERTIES,
 ) -> None:
     # The video-only track starts at zero. Apply a common origin shift only
     # for negative video starts; never reset the audio clock independently.
     shift = max(Fraction(0), -start)
     rotation_in, geometry_out = rotation_args(geometry, output)
+    expected = muxed_track_properties(track_properties, output)
     if geometry != DEFAULT_GEOMETRY and output_size is None:
         raise MediaPreservationError("Output dimensions required to preserve display geometry")
     if geometry.sar != 1 and output_size is not None:
@@ -99,6 +105,7 @@ def remux_track(
         *build_ffmpeg_stream_copy_args(preserve_chapters=end is None),
         *color_args,
         *geometry_out,
+        *video_track_args(expected),
         "-avoid_negative_ts",
         "disabled",
     ]
@@ -114,7 +121,9 @@ def remux_track(
     result = subprocess.run([*command, str(output)], capture_output=True, text=True)
     if result.returncode:
         raise MediaPreservationError(f"Cannot remux timestamped video: {result.stderr.strip()}")
-    if geometry != DEFAULT_GEOMETRY:
-        observed = probe_video(output)
-        if (observed.width, observed.height) != output_size or observed.geometry != geometry:
-            raise MediaPreservationError("Output container did not preserve video display geometry")
+    observed = probe_video(output)
+    verify_video_track(expected, observed.track_properties, output)
+    if geometry != DEFAULT_GEOMETRY and (
+        (observed.width, observed.height) != output_size or observed.geometry != geometry
+    ):
+        raise MediaPreservationError("Output container did not preserve video display geometry")

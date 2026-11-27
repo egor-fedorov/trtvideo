@@ -687,6 +687,12 @@ FFmpeg preflight verifies that all copied streams are supported by the selected
 output container. For example, an MP4 output is rejected when an SRT subtitle or
 attachment cannot be represented; choose an `.mkv` output in that case.
 
+The replacement video track retains its language, track name and supported
+disposition flags (for example, `original`). MKV can keep both a title and a
+distinct handler name. MP4/MOV use the handler name for a single track name;
+if two distinct names or a flag would be lost, the preflight stops before
+inference. Use MKV in that case.
+
 Output is written to a same-directory temporary file and replaces the requested
 path atomically only after decode, encode, and mux complete successfully. A
 failed run returns a non-zero status, removes the partial temporary file, and

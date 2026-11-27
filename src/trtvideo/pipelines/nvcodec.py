@@ -121,6 +121,7 @@ class NvcodecPipeline:
             str(self.config.input_path),
             str(self.config.output_path),
             preserve_chapters=self.config.max_frames <= 0,
+            track_properties=info.track_properties,
         )
         try:
             with (
@@ -499,6 +500,7 @@ class NvcodecPipeline:
                     self.config.codec, sar=self._video_info().geometry.sar
                 ),
                 geometry=self._video_info().geometry,
+                track_properties=self._video_info().track_properties,
                 output_size=(self._runtime().output_w, self._runtime().output_h),
             )
         self._lifecycle.mark_phase("mux_completed")

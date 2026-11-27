@@ -5,6 +5,7 @@ import pytest
 
 import trtvideo.video.output.preservation as output_preservation
 import trtvideo.video.output.transaction as output_transaction
+from trtvideo.video.metadata import VideoTrackProperties
 from trtvideo.video.output import (
     AtomicOutputTransaction,
     MediaPreservationError,
@@ -35,6 +36,39 @@ def test_stream_copy_args_include_every_non_video_stream() -> None:
         "-c",
         "copy",
     ]
+
+
+def test_video_tag_contract_ignores_technical_tags_and_muxer_defaults() -> None:
+    assert (
+        VideoTrackProperties.from_stream(
+            {
+                "tags": {
+                    "language": "und",
+                    "HANDLER_NAME": "VideoHandler",
+                    "encoder": "old",
+                    "rotate": "90",
+                    "DURATION": "00:10:00",
+                    "BPS": "10",
+                    "color_space": "bt709",
+                },
+                "disposition": {"attached_pic": 1, "default": 0},
+            }
+        )
+        == VideoTrackProperties()
+    )
+
+
+@pytest.mark.parametrize(
+    "flag",
+    ["default", "original", "dub", "comment", "forced", "hearing_impaired", "visual_impaired"],
+)
+def test_video_dispositions_must_survive(flag: str) -> None:
+    props = VideoTrackProperties.from_stream({"disposition": {flag: 1}})
+    assert props.dispositions == {flag}
+    with pytest.raises(MediaPreservationError, match=f"{flag}=1"):
+        output_preservation.verify_video_track(props, VideoTrackProperties(), Path("out.mp4"))
+    with pytest.raises(MediaPreservationError, match=f"{flag}=0"):
+        output_preservation.verify_video_track(VideoTrackProperties(), props, Path("out.mkv"))
 
 
 def test_stream_copy_args_omit_chapters_for_shortened_output() -> None:

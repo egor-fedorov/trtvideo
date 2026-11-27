@@ -29,6 +29,7 @@ from trtvideo.demo.media import (
 from trtvideo.video.color import SdrColorContract
 from trtvideo.video.geometry import DisplayGeometry
 from trtvideo.video.output import (
+    AtomicOutputTransaction,
     MediaPreservationError,
     build_ffmpeg_stream_copy_args,
     preflight_output_container,
@@ -294,6 +295,136 @@ def test_mp4_preflight_rejects_unrepresentable_source_streams(tmp_path: Path) ->
             str(tmp_path / "output.mp4"),
             preserve_chapters=True,
         )
+
+
+@pytest.mark.parametrize(
+    "source_ext,output_ext,title,handler,disposition",
+    [
+        ("mkv", "mkv", "Track title", "Camera A", "original+comment"),
+        ("mp4", "mp4", "", "Camera A", "default"),
+        ("mov", "mov", "", "Camera A", "default"),
+        ("mkv", "mp4", "Track title", "", "0"),
+        ("mkv", "mov", "Track title", "Track title", "0"),
+        ("mkv", "mp4", "Track title", "VideoHandler", "0"),
+    ],
+)
+def test_replacement_video_tags_roundtrip(
+    tmp_path, source_ext, output_ext, title, handler, disposition
+):
+    source, output = tmp_path / f"source.{source_ext}", tmp_path / f"out.{output_ext}"
+    track = tmp_path / "encoded.mp4"
+    _run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=s=64x64:r=24:d=0.25",
+            "-c:v",
+            "libx264",
+            str(track),
+        ]
+    )
+    _run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(track),
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=duration=0.25",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-metadata:s:a:0",
+            "language=spa",
+            "-metadata:s:v:0",
+            "language=ita",
+            "-metadata:s:v:0",
+            f"title={title}",
+            "-metadata:s:v:0",
+            f"handler_name={handler}",
+            "-metadata:s:v:0",
+            "old_stat=stale",
+            "-disposition:v:0",
+            disposition,
+            str(source),
+        ]
+    )
+    properties = probe_video(source).track_properties
+    preflight_output_container(
+        str(source), str(output), preserve_chapters=True, track_properties=properties
+    )
+    remux_track(
+        track,
+        source,
+        output,
+        start=Fraction(0),
+        end=None,
+        color_args=[],
+        track_properties=properties,
+    )
+    video, audio = _probe(output)["streams"]
+    tags = {k.lower(): v for k, v in video["tags"].items()}
+    assert tags["language"] == "ita"
+    assert "old_stat" not in tags
+    assert audio["tags"]["language"] == "spa"
+    if output_ext == "mkv":
+        assert tags["title"] == title
+        assert tags["handler_name"] == handler
+        assert video["disposition"]["original"] == video["disposition"]["comment"] == 1
+        assert video["disposition"]["default"] == 0
+    else:
+        assert tags["handler_name"] == (title or handler)
+        assert video["disposition"]["default"] == 1
+
+
+@pytest.mark.parametrize("reason", ["two_names", "original"])
+def test_lossy_video_properties_fail_preflight(tmp_path, reason):
+    source, output = tmp_path / "source.mkv", tmp_path / "previous.mp4"
+    _run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=s=64x64:r=24:d=0.25",
+            "-c:v",
+            "libx264",
+            "-metadata:s:v:0",
+            "title=Track title",
+            *(
+                ["-metadata:s:v:0", "handler_name=Camera A"]
+                if reason == "two_names"
+                else ["-disposition:v:0", "original"]
+            ),
+            str(source),
+        ]
+    )
+    output.write_bytes(b"previous output")
+    match = (
+        "title='Track title'.*handler_name='Camera A'" if reason == "two_names" else "original=1"
+    )
+    with (
+        pytest.raises(MediaPreservationError, match=match),
+        AtomicOutputTransaction(
+            str(source),
+            str(output),
+            preserve_chapters=True,
+            track_properties=probe_video(source).track_properties,
+        ),
+    ):
+        pytest.fail("Preflight accepted a lossy output")
+    assert output.read_bytes() == b"previous output"
+    assert not list(tmp_path.glob(".*.partial.*"))
 
 
 def test_timed_remux_keeps_all_vfr_pts_longer_audio_and_faststart(tmp_path: Path) -> None:
