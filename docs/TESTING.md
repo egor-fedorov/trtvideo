@@ -1,8 +1,9 @@
 # Testing
 
-Project tests run through the lightweight Docker checks image defined in
+The main development checks run through the lightweight Docker image defined in
 `docker/checks.Dockerfile`. The local host does not need TensorRT,
-PyNvVideoCodec, CV-CUDA, or a compatible Python runtime.
+PyNvVideoCodec, CV-CUDA, or a compatible Python runtime for `make check`.
+Native package acceptance is a separate test on a Linux GPU host.
 
 ## Layers
 
@@ -29,8 +30,8 @@ tests/unit/trtvideo/    # CLI, video helpers, and model/engine tooling
 tests/unit/benchmarks/  # benchmark runners, manifests, validation, and campaigns
 ```
 
-Both groups remain unit tests. Real GPU and performance runs live in
-`benchmarks/`, not in `tests/`.
+Both groups remain unit tests. Hardware acceptance tests live in `tests/gpu/`;
+performance measurements live in `benchmarks/`.
 
 Host benchmark command smoke tests use Python `-S` with the checkout's `src/`
 on `PYTHONPATH`, disabling installed site-packages so the checks image cannot
@@ -87,10 +88,11 @@ command, so changes cannot silently diverge from `make demo`.
 
 For the native path, build the sdist and wheel with
 `bash .github/scripts/build-python-dist.sh /tmp/trtvideo-dist` (empty destination).
-Install the wheel with the `gpu` extra in a clean Python 3.12 venv outside the
-checkout, with no system site packages or `PYTHONPATH`. Run that venv's Python
-on `tests/gpu/check_native_wheel.py`: it checks the installed doctor, builds a
-small static ONNX, processes eight frames and probes the resulting MP4.
+Run `bash .github/scripts/test-native-dist.sh /tmp/trtvideo-dist` on the native
+Linux GPU host. It installs the wheel with the `gpu` extra in a fresh Python
+3.12 venv outside the checkout, checks the installed doctor, builds a small
+static ONNX, processes eight frames and probes the resulting MP4. Set
+`RUNNER_TEMP` to a directory on disk if `/tmp` is a small tmpfs.
 Separately install the wheel's `demo` extra with CPU PyTorch and run the full demo
 twice in the same clean workspace. Both reports must be valid; the second run
 must reuse the engine and work without downloads. Never reuse a Docker engine
@@ -301,3 +303,23 @@ instruction to overwrite it. To exercise failure and retry without a GitHub
 release or GHCR access, run `python3 tests/release/check_promotion.py -v` on a
 Linux Docker host with Buildx and Make. This uses a disposable loopback registry
 and tiny image indexes; it does not replace the GPU check.
+
+### PyPI Publication
+
+Starting with the next stable public GitHub release, the same workflow builds
+the wheel and sdist once on a GitHub-hosted runner. The release tag must match
+`vMAJOR.MINOR.PATCH` and the project version. The existing GPU job installs
+the candidate wheel from that immutable Actions artifact before promoting the
+Docker images. The host needs the [native prerequisites](../README.md#native-linux-with-uv)
+and a disk-backed runner temp directory; uv provisions Python 3.12 if needed.
+A separate GitHub-hosted job downloads the same artifact by ID, verifies its
+digest and publishes both files without rebuilding. PRs, branch pushes and
+prereleases never publish to PyPI. To retry a transient failure, rerun the
+failed jobs in the same release run while its artifact is retained (14 days).
+
+The one-time [PyPI Trusted Publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
+for `trtvideo` uses GitHub owner `egor-fedorov`, repository `trtvideo`, workflow
+filename `release.yml` and environment `pypi`. Use that exact GitHub Environment
+name; no secrets or variables are needed. Only the publishing job uses this
+environment and requests a short-lived PyPI credential via OIDC. For additional
+protection, restrict the environment's deployment tags to `v*`.

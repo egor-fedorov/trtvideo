@@ -7,9 +7,10 @@ dependencies, model assets, or benchmark media change.
 
 ## Distribution Boundary
 
-| Material | Distributed by this repository or GHCR workflow? | Governing terms |
+| Material | Distributed by this project? | Governing terms |
 |---|---|---|
 | `trtvideo` source and documentation | Yes | Apache-2.0 |
+| Python wheel and sdist | Yes, for stable releases | Apache-2.0; project source, license and packaging metadata only |
 | Production container | Yes, for versioned releases | Mixed; see `THIRD_PARTY_NOTICES.md` and the release SBOM |
 | `model-tools` container | Yes, for versioned releases | Mixed; see `THIRD_PARTY_NOTICES.md` and its release SBOM |
 | Benchmark containers | No | Local/internal targets only |
@@ -23,6 +24,10 @@ PyNvVideoCodec, ONNX, and FFmpeg. The separately published `model-tools` image
 also contains CPU-only PyTorch, torchvision, Spandrel, ONNX Script, ONNX
 Runtime, and ONNX conversion tools. Benchmark-only diagnostics remain confined
 to non-published targets.
+
+The native Python distributions do not bundle CUDA, TensorRT, FFmpeg, PyTorch,
+models or media. Selecting an extra instructs the installer to fetch upstream
+dependencies separately; each dependency retains its own license.
 
 The November 2026 source update uses the same NVIDIA TensorRT container
 family (26.11, Ubuntu 24.04), the CUDA 13 build of CV-CUDA, and CPU wheels
