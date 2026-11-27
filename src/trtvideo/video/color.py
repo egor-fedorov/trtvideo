@@ -7,8 +7,47 @@ from fractions import Fraction
 
 from trtvideo.video.metadata import VideoMetadata
 
-_UNKNOWN_VALUES = {None, "", "unknown", "reserved"}
+_UNKNOWN_VALUES = {None, "", "unknown", "unspecified"}
 _HDR_TRANSFERS = {"smpte2084", "arib-std-b67"}
+
+
+# Keep CV-CUDA conversion and H.273 bitstream signalling in lockstep.
+_MATRICES = {
+    "bt709": ("bt709", 1),
+    "bt470bg": ("bt601", 5),
+    "smpte170m": ("bt601", 6),
+    "bt2020nc": ("bt2020", 9),
+}
+_PRIMARIES = {
+    "bt709": 1,
+    "bt470m": 4,
+    "bt470bg": 5,
+    "smpte170m": 6,
+    "smpte240m": 7,
+    "film": 8,
+    "bt2020": 9,
+    "smpte428": 10,
+    "smpte431": 11,
+    "smpte432": 12,
+    "ebu3213": 22,
+    "jedec-p22": 22,
+}
+_TRANSFERS = {
+    "bt709": 1,
+    "gamma22": 4,
+    "gamma28": 5,
+    "smpte170m": 6,
+    "smpte240m": 7,
+    "linear": 8,
+    "log": 9,
+    "log_sqrt": 10,
+    "iec61966-2-4": 11,
+    "bt1361e": 12,
+    "iec61966-2-1": 13,
+    "bt2020-10": 14,
+    "bt2020-12": 15,
+    "smpte428": 17,
+}
 
 
 class ColorContractError(ValueError):
@@ -28,14 +67,25 @@ class SdrColorContract:
     color_transfer: str
     color_primaries: str
 
+    def __post_init__(self) -> None:
+        if self.color_transfer in _HDR_TRANSFERS:
+            raise ColorContractError(
+                f"HDR input is not supported: color_transfer={self.color_transfer}. "
+                "Convert/tonemap to SDR first."
+            )
+        for field, value, supported in (
+            ("color_space", self.color_space, tuple(_MATRICES)),
+            ("color_range", self.color_range, ("pc", "tv")),
+            ("color_transfer", self.color_transfer, tuple(_TRANSFERS)),
+            ("color_primaries", self.color_primaries, tuple(_PRIMARIES)),
+        ):
+            if value not in supported:
+                raise ColorContractError(
+                    f"Unsupported SDR {field}={value!r}. Convert explicitly to SDR BT.709 first."
+                )
+
     @classmethod
     def from_video_info(cls, info: VideoMetadata) -> SdrColorContract:
-        if info.color_transfer in _HDR_TRANSFERS:
-            raise ColorContractError(
-                "HDR input is not supported by the current SDR RGB model contract: "
-                f"color_transfer={info.color_transfer}. Convert/tonemap to SDR first."
-            )
-
         default_space = "bt709" if info.width >= 1280 or info.height >= 720 else "smpte170m"
         return cls(
             color_range=_value_or_default(info.color_range, "tv"),
@@ -50,11 +100,7 @@ class SdrColorContract:
 
     @property
     def cvcuda_spec_name(self) -> str:
-        if self.color_space in {"bt2020nc", "bt2020c"}:
-            return "bt2020"
-        if self.color_space in {"smpte170m", "bt470bg", "bt470m"}:
-            return "bt601"
-        return "bt709"
+        return _MATRICES[self.color_space][0]
 
     def ffmpeg_args(self) -> list[str]:
         """Return explicit FFmpeg output color tags."""
@@ -71,64 +117,12 @@ class SdrColorContract:
 
     def bitstream_args(self, codec: str, *, sar: Fraction = Fraction(1)) -> list[str]:
         """Set VUI as well as container tags: HEVC readers may prefer the SPS."""
-        # H.273 code points used by FFmpeg's h264_metadata and hevc_metadata.
-        primaries = {
-            "bt709": 1,
-            "bt470m": 4,
-            "bt470bg": 5,
-            "smpte170m": 6,
-            "smpte240m": 7,
-            "film": 8,
-            "bt2020": 9,
-            "smpte428": 10,
-            "smpte431": 11,
-            "smpte432": 12,
-            "ebu3213": 22,
-            "jedec-p22": 22,
-        }
-        transfers = {
-            "bt709": 1,
-            "gamma22": 4,
-            "gamma28": 5,
-            "smpte170m": 6,
-            "smpte240m": 7,
-            "linear": 8,
-            "log": 9,
-            "log_sqrt": 10,
-            "iec61966-2-4": 11,
-            "bt1361e": 12,
-            "iec61966-2-1": 13,
-            "bt2020-10": 14,
-            "bt2020-12": 15,
-            "smpte428": 17,
-        }
-        matrices = {
-            "gbr": 0,
-            "bt709": 1,
-            "fcc": 4,
-            "bt470bg": 5,
-            "smpte170m": 6,
-            "smpte240m": 7,
-            "ycgco": 8,
-            "bt2020nc": 9,
-            "bt2020c": 10,
-            "smpte2085": 11,
-            "chroma-derived-nc": 12,
-            "chroma-derived-c": 13,
-            "ictcp": 14,
-            "ipt-c2": 15,
-            "ycgco-re": 16,
-            "ycgco-ro": 17,
-        }
-        try:
-            values = (
-                f"colour_primaries={primaries[self.color_primaries]}:"
-                f"transfer_characteristics={transfers[self.color_transfer]}:"
-                f"matrix_coefficients={matrices[self.color_space]}:"
-                f"video_full_range_flag={int(not self.limited_range)}"
-            )
-        except KeyError as exc:
-            raise ColorContractError(f"Cannot signal SDR color metadata: {exc}") from exc
+        values = (
+            f"colour_primaries={_PRIMARIES[self.color_primaries]}:"
+            f"transfer_characteristics={_TRANSFERS[self.color_transfer]}:"
+            f"matrix_coefficients={_MATRICES[self.color_space][1]}:"
+            f"video_full_range_flag={int(not self.limited_range)}"
+        )
         if sar != 1:
             values += f":sample_aspect_ratio={sar.numerator}/{sar.denominator}"
         return ["-bsf:v", f"{codec}_metadata={values}"]

@@ -104,6 +104,8 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Fixed
 
+- Reject explicitly unsupported SDR matrices and unsignallable color tags
+  before inference instead of processing with or reporting the wrong matrix.
 - Prevented silent inference corruption when CV-CUDA padded rows beyond the
   stride expected by TensorRT (for example, 854-pixel FP32 input). Linear
   engine bindings now use packed rows and are checked before processing.
