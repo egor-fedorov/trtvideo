@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -311,7 +312,9 @@ def _prepare_model(paths: DemoPaths, *, force: bool) -> None:
         paths.fp32_onnx,
         lambda: _valid_onnx(paths.fp32_onnx, fp16=False) and _valid_export_conformance(paths),
         [
-            "export-onnx",
+            sys.executable,
+            "-m",
+            "trtvideo.cli.export_onnx",
             "--model_path",
             str(paths.weights),
             "--output_dir",
@@ -327,7 +330,9 @@ def _prepare_model(paths: DemoPaths, *, force: bool) -> None:
         paths.fp16_onnx,
         lambda: _valid_onnx(paths.fp16_onnx, fp16=True),
         [
-            "prepare-onnx",
+            sys.executable,
+            "-m",
+            "trtvideo.cli.prepare_onnx",
             str(paths.fp32_onnx),
             "--output_dir",
             str(paths.onnx_dir),
@@ -363,7 +368,9 @@ def _build_engine(paths: DemoPaths, *, gpu_id: int, force: bool) -> bool:
         [
             "env",
             f"CUDA_VISIBLE_DEVICES={device}",
-            "build-engine",
+            sys.executable,
+            "-m",
+            "trtvideo.cli.build_engine",
             str(paths.fp16_onnx),
             "--output",
             str(paths.engine),
@@ -379,7 +386,9 @@ def _build_engine(paths: DemoPaths, *, gpu_id: int, force: bool) -> bool:
 def process_command(paths: DemoPaths, gpu_id: int) -> list[str]:
     """Build the canonical demo inference command."""
     return [
-        "trtvideo",
+        sys.executable,
+        "-m",
+        "trtvideo.cli.process",
         "--gpu-id",
         str(gpu_id),
         "--engine",

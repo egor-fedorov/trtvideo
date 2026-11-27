@@ -85,6 +85,17 @@ command, so changes cannot silently diverge from `make demo`.
 
 ### GPU Smoke
 
+For the native path, build the sdist and wheel with
+`bash .github/scripts/build-python-dist.sh /tmp/trtvideo-dist` (empty destination).
+Install the wheel with the `gpu` extra in a clean Python 3.12 venv outside the
+checkout, with no system site packages or `PYTHONPATH`. Run that venv's Python
+on `tests/gpu/check_native_wheel.py`: it checks the installed doctor, builds a
+small static ONNX, processes eight frames and probes the resulting MP4.
+Separately install the wheel's `demo` extra with CPU PyTorch and run the full demo
+twice in the same clean workspace. Both reports must be valid; the second run
+must reuse the engine and work without downloads. Never reuse a Docker engine
+or timing cache for this check.
+
 To test the TensorRT memory layout without video codecs or model downloads,
 use the production image on a GPU host:
 

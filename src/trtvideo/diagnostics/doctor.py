@@ -1,8 +1,10 @@
-"""Static runtime readiness checks for the Docker-first production path."""
+"""Static runtime readiness checks for container and native installs."""
 
 from __future__ import annotations
 
 import os
+import platform
+import sys
 from ctypes import CDLL
 from dataclasses import dataclass
 from importlib import import_module
@@ -108,31 +110,27 @@ def _inspect_cuda(gpu_id: int, *, importer: Any = import_module) -> _CudaSnapsho
     )
 
 
-def check_docker(
-    *,
-    marker: Path = Path("/.dockerenv"),
-    command_runner: Any = run,
-) -> CheckResult:
-    """Verify Docker execution, or a reachable daemon for a direct host install."""
-    if marker.exists():
+def check_environment(*, marker: Path = Path("/.dockerenv")) -> CheckResult:
+    """Describe the execution environment; native processing never contacts Docker."""
+    if marker.exists() or os.environ.get("TRTVIDEO_IMAGE_VARIANT"):
         return CheckResult("Docker", True, "container detected")
+    machine = platform.machine()
+    supported = sys.platform == "linux" and machine == "x86_64"
+    return CheckResult("Native", supported, f"{sys.platform} {machine} (requires Linux x86_64)")
 
-    executable = which("docker")
+
+def check_media_tool(name: str) -> CheckResult:
+    executable = which(name)
     if executable is None:
-        return CheckResult("Docker", False, "not running in Docker and docker is unavailable")
+        return CheckResult(name, False, f"install FFmpeg and put {name} on PATH")
     try:
-        completed = command_runner(
-            [executable, "info", "--format", "{{.ServerVersion}}"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        completed = run([executable, "-version"], capture_output=True, text=True, check=False)
     except OSError as exc:
-        return _failed("Docker", exc)
-    if completed.returncode != 0:
-        detail = completed.stderr.strip() or "docker daemon is unreachable"
-        return CheckResult("Docker", False, detail)
-    return CheckResult("Docker", True, f"daemon {completed.stdout.strip() or 'reachable'}")
+        return _failed(name, exc)
+    lines = completed.stdout.splitlines()
+    if completed.returncode != 0 or not lines:
+        return CheckResult(name, False, completed.stderr.strip() or f"{name} -version failed")
+    return CheckResult(name, True, lines[0])
 
 
 def check_driver(gpu_id: int, *, command_runner: Any = run) -> CheckResult:
@@ -273,7 +271,9 @@ def run_doctor(*, gpu_id: int, disk_path: Path) -> DoctorReport:
     """Run all static production-runtime checks in dependency order."""
     gpu, cuda, vram = check_cuda(gpu_id)
     checks = (
-        check_docker(),
+        check_environment(),
+        check_media_tool("ffmpeg"),
+        check_media_tool("ffprobe"),
         check_driver(gpu_id),
         gpu,
         cuda,

@@ -8,9 +8,10 @@ from trtvideo.diagnostics.doctor import (
     CheckResult,
     DoctorReport,
     check_cuda,
-    check_docker,
     check_driver,
     check_driver_library,
+    check_environment,
+    check_media_tool,
     check_pynvvideocodec,
 )
 
@@ -69,12 +70,18 @@ def test_docker_marker_avoids_daemon_probe(tmp_path: Path) -> None:
     marker = tmp_path / ".dockerenv"
     marker.touch()
 
-    result = check_docker(
-        marker=marker,
-        command_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError),
-    )
+    result = check_environment(marker=marker)
 
     assert result == CheckResult("Docker", True, "container detected")
+
+
+def test_native_environment_does_not_require_a_docker_daemon(tmp_path, monkeypatch) -> None:
+    monkeypatch.delenv("TRTVIDEO_IMAGE_VARIANT", raising=False)
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr("platform.machine", lambda: "x86_64")
+    result = check_environment(marker=tmp_path / "absent")
+    assert result.component == "Native" and result.passed
+    assert not check_media_tool("ffprobe").passed
 
 
 def test_driver_version_comes_from_nvidia_smi() -> None:

@@ -38,6 +38,11 @@ def render_report(report: DoctorReport) -> str:
         failed = sum(not check.passed for check in report.checks)
         noun = "check" if failed == 1 else "checks"
         lines.append(f"Not ready: {failed} required {noun} failed.")
+        if any(check.component == "Native" for check in report.checks):
+            lines.append(
+                "Native processing needs trtvideo[gpu], FFmpeg and an NVIDIA driver "
+                "with NVDEC/NVENC libraries."
+            )
     return "\n".join(lines)
 
 

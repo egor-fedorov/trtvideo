@@ -1,9 +1,10 @@
-"""Run the self-contained GPU demo from the model-tools image."""
+"""Run the self-contained GPU demo with an installed model export stack."""
 
 import argparse
-import shutil
+import os
 import sys
 from collections.abc import Sequence
+from importlib.util import find_spec
 from pathlib import Path
 
 from trtvideo.demo import DemoError
@@ -12,7 +13,7 @@ from trtvideo.demo import DemoError
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="trtvideo demo",
-        description="Upscale a five-second sample with RealESRGAN in the model-tools image.",
+        description="Upscale a five-second sample with RealESRGAN.",
     )
     parser.add_argument(
         "--root",
@@ -30,9 +31,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.gpu_id < 0:
         parser.error("--gpu-id must be non-negative")
-    if not all(shutil.which(tool) for tool in ("export-onnx", "prepare-onnx")):
+    export_modules = (
+        "torch",
+        "torchvision",
+        "onnx",
+        "onnxruntime",
+        "onnxscript",
+        "onnxconverter_common",
+        "spandrel",
+    )
+    if os.environ.get("TRTVIDEO_IMAGE_VARIANT") == "production" or not all(
+        find_spec(module) is not None for module in export_modules
+    ):
         print(
-            "The demo requires the ghcr.io/egor-fedorov/trtvideo-model-tools image.",
+            "Install trtvideo[demo] with CPU PyTorch or use the "
+            "ghcr.io/egor-fedorov/trtvideo-model-tools image.",
             file=sys.stderr,
         )
         return 2

@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -125,7 +126,7 @@ def test_demo_input_is_deterministic_live_action_excerpt(tmp_path: Path) -> None
 def test_demo_process_uses_explicit_engine(tmp_path: Path) -> None:
     command = process_command(DemoPaths.under(tmp_path), gpu_id=2)
 
-    assert command[0] == "trtvideo"
+    assert command[:3] == [sys.executable, "-m", "trtvideo.cli.process"]
     assert "--backend" not in command
     assert command[command.index("--gpu-id") + 1] == "2"
     assert command[command.index("--bitrate-mbps") + 1] == "12.0"
@@ -144,7 +145,13 @@ def test_demo_builds_engine_on_selected_gpu(tmp_path, monkeypatch, mask, device)
 
     demo_workflow._build_engine(DemoPaths.under(tmp_path), gpu_id=1, force=True)
 
-    assert commands[0][:3] == ["env", f"CUDA_VISIBLE_DEVICES={device}", "build-engine"]
+    assert commands[0][:5] == [
+        "env",
+        f"CUDA_VISIBLE_DEVICES={device}",
+        sys.executable,
+        "-m",
+        "trtvideo.cli.build_engine",
+    ]
 
 
 def test_demo_probe_accepts_video_with_source_audio() -> None:

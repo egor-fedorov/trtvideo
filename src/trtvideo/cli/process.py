@@ -14,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="trtvideo",
         description="GPU-resident TensorRT video processing",
         epilog=(
-            "Run 'trtvideo demo' in the model-tools image to try a sample, "
+            "Run 'trtvideo demo' with the demo extra or model-tools image to try a sample, "
             "'trtvideo doctor' to check the static runtime environment, or "
             "use 'trtvideo compatibility-check --help' to prepare model evidence."
         ),

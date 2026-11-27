@@ -56,6 +56,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added native Linux x86_64 processing and demo installs with the `gpu` and
+  `demo` Python extras. The environment doctor works without Docker and checks
+  FFmpeg and ffprobe. Docker remains the benchmark and compatibility reference.
 - Added `trtvideo demo` to the model-tools image: run the sample upscale from
   a mounted directory without cloning the repository or preparing an engine.
   `make demo` calls the same command from a checkout.
