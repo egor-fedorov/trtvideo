@@ -315,7 +315,7 @@ and [benchmark methodology](benchmarks/methodology.md#purpose).
   pipeline architecture.
 - [Model Contract](docs/MODEL_CONTRACT.md) - supported tensor contract, model
   preparation paths, conformance checks, and compatibility reporting.
-- [Testing](docs/TESTING.md) - test layers and the Docker-only quality gate.
+- [Testing](docs/TESTING.md) - Docker checks, native GPU tests and release acceptance.
 - [Contributing](CONTRIBUTING.md) - development workflow and pull-request
   expectations.
 - [Security](SECURITY.md) - supported revisions and private vulnerability
