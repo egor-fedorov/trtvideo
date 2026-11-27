@@ -22,6 +22,7 @@ by Poro26, CC BY-SA 4.0. The comparison is silent.*
 
 - [Measured Throughput And Resource Use](#measured-throughput-and-resource-use)
 - [Quick Start](#quick-start)
+- [Native Linux With uv](#native-linux-with-uv)
 - [Architecture](#architecture)
 - [Scope And Alternatives](#scope-and-alternatives)
 - [Documentation](#documentation)
@@ -96,6 +97,9 @@ and retried; all 36 retained campaign runs passed. See the
 
 ## Quick Start
 
+Docker is the reference environment. For the same GPU pipeline without Docker,
+see [Native Linux With uv](#native-linux-with-uv).
+
 On Linux with an NVIDIA driver and working Docker GPU passthrough, you can try
 the demo in any writable directory. No checkout, weights, or engine needed:
 
@@ -131,6 +135,48 @@ docker run --rm --gpus all \
 Use a version tag instead of `latest` for reproducible deployments. TensorRT
 engines are GPU- and runtime-specific, so they are not bundled in the image.
 See the [Docker workflow](#docker-workflow) to prepare your own model.
+
+## Native Linux With uv
+
+The native path targets **Linux x86_64, Python 3.12 and an NVIDIA GPU**.
+Install the NVIDIA driver with NVDEC/NVENC support (`nvidia-smi`,
+`libnvcuvid.so.1`, `libnvidia-encode.so.1`), FFmpeg including `ffprobe`
+and `libx264`, and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+No system TensorRT, CUDA toolkit, Docker daemon or global Python packages are
+required. The TensorRT library download alone is about 3.84 GB; allow additional
+disk space for the unpacked environment and uv cache. Allow access to
+PyPI and NVIDIA's wheel server; the demo also uses the CPU PyTorch index and
+downloads the pinned assets.
+
+**From a checkout today**, use the repository lock:
+
+```bash
+uv run --locked --no-dev --extra gpu trtvideo doctor
+uv run --locked --no-dev --extra demo trtvideo demo --root .demo-native
+```
+
+**Once the first Python release is on PyPI**, the install requires no checkout:
+
+```bash
+uv tool install --python 3.12 'trtvideo[gpu]'
+trtvideo doctor
+build-engine model.onnx --output model.engine
+trtvideo --engine model.engine --input input.mp4 --output output.mp4
+```
+
+To try the same five-second demo without installing a persistent command:
+
+```bash
+uvx --python 3.12 --torch-backend cpu --from 'trtvideo[demo]' trtvideo demo
+```
+
+The `gpu` extra does not install PyTorch. `demo` adds CPU model export; video
+processing still runs on the GPU. Look for `.demo/output/demo_1440p.mp4` and
+`.demo/demo-result.json`. Use different engine, timing-cache and demo paths
+for native and Docker installs: the native TensorRT wheel is 11.5.0.63, not
+the NGC build. Rebuild engines from the static ONNX when switching runtimes.
+Published benchmarks and compatibility reports still require their Docker
+environments. Windows, WSL and ARM are not validated native targets.
 
 ## Architecture
 
@@ -288,7 +334,7 @@ and [benchmark methodology](benchmarks/methodology.md#purpose).
 
 ## Host Requirements
 
-GPU runs require a host with the following components already configured:
+Docker GPU runs require a host with the following components already configured:
 
 - an NVIDIA driver;
 - Docker;
@@ -344,8 +390,9 @@ docker run --rm --gpus all \
 ```
 
 The command actively initializes CUDA, TensorRT, and a minimal CV-CUDA device
-allocation. It also checks Docker execution, the NVIDIA driver, the selected
-GPU, NVDEC/NVENC driver entry points, PyNvVideoCodec, available VRAM, and free
+allocation. It also reports native or container execution, checks FFmpeg and
+ffprobe, the NVIDIA driver, the selected GPU, NVDEC/NVENC driver entry points,
+PyNvVideoCodec, available VRAM, and free
 space plus write access on the selected filesystem. Use `--gpu-id` and
 `--disk-path` when the defaults do not describe the intended run.
 
@@ -369,7 +416,8 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 
 ## Demo Details
 
-`trtvideo demo` runs in the model-tools image. It downloads the pinned
+`trtvideo demo` runs in the model-tools image or with the native demo extra.
+It downloads the pinned
 `RealESRGAN_x2plus` v0.2.1 weights and the 20.1 MB Wikimedia original
 [`Jacqueville beach in may 2026 (0)`](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
 by Poro26 under CC BY-SA 4.0. It verifies both assets by size and SHA256, then

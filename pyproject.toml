@@ -48,7 +48,11 @@ gpu = [
     "cuda-bindings>=13,<14",
     "pynvvideocodec>=2.2.4,<3",
     "cvcuda-cu13>=0.19,<1",
+    "onnx>=1.16,<2",
+    "nvidia-cuda-runtime>=13.5,<13.6; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "tensorrt-cu13==11.5.0.63; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
+demo = ["trtvideo[gpu,export]"]
 docker = [
     "cuda-bindings>=13,<14",
     "pynvvideocodec>=2.2.4,<3",

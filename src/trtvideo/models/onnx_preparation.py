@@ -36,7 +36,7 @@ def current_fp16_converter() -> Converter:
             keep_io_types=KEEP_IO_TYPES_FOR_FP16,
         )
     except PackageNotFoundError as exc:
-        raise OnnxBundleError("FP16 preparation requires the model-tools image") from exc
+        raise OnnxBundleError("FP16 preparation requires trtvideo[demo] or the model-tools image") from exc
 
 
 def _read_converter(value: object) -> Converter:

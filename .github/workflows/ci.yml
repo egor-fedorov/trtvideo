@@ -10,6 +10,16 @@ permissions:
   contents: read
 
 jobs:
+  python-package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build and test the lightweight Python distributions
+        run: |
+          python3 -m venv "$RUNNER_TEMP/packaging"
+          "$RUNNER_TEMP/packaging/bin/pip" install uv==0.13.10
+          PATH="$RUNNER_TEMP/packaging/bin:$PATH" bash .github/scripts/build-python-dist.sh "$RUNNER_TEMP/dist"
+
   checks:
     runs-on: ubuntu-24.04
     steps:

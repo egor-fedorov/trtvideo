@@ -25,7 +25,8 @@ def test_public_demo_runs_workflow(arguments, root, gpu_id, force, monkeypatch, 
         calls.append((root, gpu_id, force))
         return DemoPaths.under(root)
 
-    monkeypatch.setattr("shutil.which", lambda name: f"/bin/{name}")
+    monkeypatch.delenv("TRTVIDEO_IMAGE_VARIANT", raising=False)
+    monkeypatch.setattr("trtvideo.cli.demo.find_spec", lambda name: object())
     monkeypatch.setattr(demo_workflow, "run_demo", fake_demo)
 
     assert main(["demo", *arguments]) == 0
@@ -36,12 +37,23 @@ def test_public_demo_runs_workflow(arguments, root, gpu_id, force, monkeypatch, 
 
 
 def test_public_demo_requires_model_tools_before_writing(tmp_path, monkeypatch, capsys) -> None:
-    monkeypatch.setenv("PATH", "")
+    monkeypatch.delenv("TRTVIDEO_IMAGE_VARIANT", raising=False)
+    monkeypatch.setattr(
+        "trtvideo.cli.demo.find_spec", lambda name: None if name == "torch" else object()
+    )
     root = tmp_path / "demo"
 
     assert main(["demo", "--root", str(root)]) == 2
-    assert "ghcr.io/egor-fedorov/trtvideo-model-tools" in capsys.readouterr().err
+    assert "trtvideo[demo]" in capsys.readouterr().err
     assert not root.exists()
+
+
+def test_public_demo_rejects_production_even_with_export_tools(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TRTVIDEO_IMAGE_VARIANT", "production")
+    monkeypatch.setattr("trtvideo.cli.demo.find_spec", lambda name: object())
+    assert main(["demo", "--root", str(tmp_path / "demo")]) == 2
+    assert "ghcr.io/egor-fedorov/trtvideo-model-tools" in capsys.readouterr().err
+    assert not (tmp_path / "demo").exists()
 
 
 def test_public_demo_help_needs_no_model_tools(monkeypatch, capsys) -> None:

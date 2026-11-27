@@ -340,6 +340,14 @@ wheels = [
 ]
 
 [[package]]
+name = "nvidia-cuda-runtime"
+version = "13.5.37"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/7c/14b8f5518f8951e9dca57ea80f44f8ea8bcc8671812e6cc38009f3205e57/nvidia_cuda_runtime-13.5.37-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:df2b79a8852f10d1fef8c848489c49eebb5754051bf870202a862831412b179d", size = 2504024, upload-time = "2026-11-04T23:22:14.265Z" },
+]
+
+[[package]]
 name = "nvidia-ml-py"
 version = "13.615.71"
 source = { registry = "https://pypi.org/simple" }
@@ -658,6 +666,30 @@ wheels = [
 ]
 
 [[package]]
+name = "tensorrt-cu13"
+version = "11.5.0.63"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tensorrt-cu13-bindings" },
+    { name = "tensorrt-cu13-libs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/22/c8/373256fa3e8722c34785895a7d3bfa750a1922adf4f47107d264281f9831/tensorrt_cu13-11.5.0.63.tar.gz", hash = "sha256:4c76804934c95650235d4d982d82a7778d5eac2b94455ab742c8bada9cfa252d", size = 17978, upload-time = "2026-11-17T20:34:40.794Z" }
+
+[[package]]
+name = "tensorrt-cu13-bindings"
+version = "11.5.0.63"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/f3/9fa6861701114a7d4cdbbeb40515966928a8203063cdf7f3cc131292363d/tensorrt_cu13_bindings-11.5.0.63-cp312-none-manylinux_2_28_x86_64.whl", hash = "sha256:fb210dd6fd291c57c449f18a4ae5fffd1ccd6598bd2ccc420e51d253fbb9d16a", size = 1259559, upload-time = "2026-11-17T19:45:19.181Z" },
+]
+
+[[package]]
+name = "tensorrt-cu13-libs"
+version = "11.5.0.63"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/14/2e4d8a4b12eba823609b6fcfb5d2f7d4783798aa0b6a39029bb6fa5f22b3/tensorrt_cu13_libs-11.5.0.63.tar.gz", hash = "sha256:6d385462778b233d5a3fdbddd20fba37a0500d1a9aaa6ef06a17e7a40f715dfe", size = 15502, upload-time = "2026-11-17T19:44:07.791Z" }
+
+[[package]]
 name = "torch"
 version = "2.15.0"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
@@ -746,6 +778,22 @@ benchmark = [
     { name = "nvidia-ml-py" },
     { name = "nvtx" },
 ]
+demo = [
+    { name = "cuda-bindings" },
+    { name = "cvcuda-cu13" },
+    { name = "nvidia-cuda-runtime", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "onnx" },
+    { name = "onnxconverter-common" },
+    { name = "onnxruntime" },
+    { name = "onnxscript" },
+    { name = "pynvvideocodec" },
+    { name = "spandrel" },
+    { name = "tensorrt-cu13", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "torch", version = "2.15.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.15.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "torchvision", version = "0.29.2", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torchvision", version = "0.29.2+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+]
 docker = [
     { name = "cuda-bindings" },
     { name = "cvcuda-cu13" },
@@ -766,7 +814,10 @@ export = [
 gpu = [
     { name = "cuda-bindings" },
     { name = "cvcuda-cu13" },
+    { name = "nvidia-cuda-runtime", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "onnx" },
     { name = "pynvvideocodec" },
+    { name = "tensorrt-cu13", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -787,20 +838,24 @@ requires-dist = [
     { name = "cvcuda-cu13", marker = "extra == 'docker'", specifier = ">=0.19,<1" },
     { name = "cvcuda-cu13", marker = "extra == 'gpu'", specifier = ">=0.19,<1" },
     { name = "numpy", marker = "extra == 'benchmark'", specifier = ">=2.0,<3" },
+    { name = "nvidia-cuda-runtime", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'gpu'", specifier = ">=13.5,<13.6" },
     { name = "nvidia-ml-py", marker = "extra == 'benchmark'", specifier = ">=13.610,<14" },
     { name = "nvtx", marker = "extra == 'benchmark'", specifier = ">=0.2,<1" },
     { name = "onnx", marker = "extra == 'docker'", specifier = ">=1.16,<2" },
     { name = "onnx", marker = "extra == 'export'", specifier = ">=1.16,<2" },
+    { name = "onnx", marker = "extra == 'gpu'", specifier = ">=1.16,<2" },
     { name = "onnxconverter-common", marker = "extra == 'export'", specifier = ">=1.16,<2" },
     { name = "onnxruntime", marker = "extra == 'export'", specifier = ">=1.23,<2" },
     { name = "onnxscript", marker = "extra == 'export'", specifier = ">=0.4,<1" },
     { name = "pynvvideocodec", marker = "extra == 'docker'", specifier = ">=2.2.4,<3" },
     { name = "pynvvideocodec", marker = "extra == 'gpu'", specifier = ">=2.2.4,<3" },
     { name = "spandrel", marker = "extra == 'export'", specifier = ">=0.4,<1" },
+    { name = "tensorrt-cu13", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'gpu'", specifier = "==11.5.0.63" },
     { name = "torch", marker = "extra == 'export'", specifier = ">=2.15,<2.16", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", marker = "extra == 'export'", specifier = ">=0.29.2,<0.30", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "trtvideo", extras = ["gpu", "export"], marker = "extra == 'demo'" },
 ]
-provides-extras = ["gpu", "docker", "benchmark", "export"]
+provides-extras = ["gpu", "demo", "docker", "benchmark", "export"]
 
 [package.metadata.requires-dev]
 dev = [
