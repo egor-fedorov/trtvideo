@@ -132,6 +132,21 @@ def test_demo_process_uses_explicit_engine(tmp_path: Path) -> None:
     assert command[command.index("--output") + 1].endswith("demo_1440p.mp4")
 
 
+@pytest.mark.parametrize(("mask", "device"), [(None, "1"), ("GPU-A,GPU-B", "GPU-B")])
+def test_demo_builds_engine_on_selected_gpu(tmp_path, monkeypatch, mask, device) -> None:
+    if mask is None:
+        monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
+    else:
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", mask)
+    commands = []
+    monkeypatch.setattr(demo_workflow, "_run", commands.append)
+    monkeypatch.setattr(demo_workflow, "_valid_engine_cache", lambda _: True)
+
+    demo_workflow._build_engine(DemoPaths.under(tmp_path), gpu_id=1, force=True)
+
+    assert commands[0][:3] == ["env", f"CUDA_VISIBLE_DEVICES={device}", "build-engine"]
+
+
 def test_demo_probe_accepts_video_with_source_audio() -> None:
     probe, packets = _valid_probe()
 

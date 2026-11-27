@@ -7,8 +7,12 @@ from collections.abc import Sequence
 
 
 def main(argv: Sequence[str] | None = None) -> int | None:
-    """Dispatch environment diagnostics or preserve the processing CLI."""
+    """Dispatch subcommands or preserve the processing CLI."""
     arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] == "demo":
+        from trtvideo.cli.demo import main as demo_main
+
+        return demo_main(arguments[1:])
     if arguments and arguments[0] == "doctor":
         from trtvideo.cli.doctor import main as doctor_main
 

@@ -103,9 +103,7 @@ def _download_pinned_asset(
         print(f"Using verified {label}: {path}")
         return
     if path.exists() and not force:
-        raise DemoError(
-            f"cached {label} is invalid: {path}. Rerun with DEMO_FORCE=1 to replace it."
-        )
+        raise DemoError(f"cached {label} is invalid: {path}. Rerun with --force to replace it.")
 
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_suffix(f"{path.suffix}.part")
@@ -340,11 +338,20 @@ def _prepare_model(paths: DemoPaths, *, force: bool) -> None:
     )
 
 
-def _build_engine(paths: DemoPaths, *, force: bool) -> bool:
+def _build_engine(paths: DemoPaths, *, gpu_id: int, force: bool) -> bool:
     reused = not force and _valid_engine_cache(paths)
     if reused:
         print(f"Using validated engine cache: {paths.engine}")
         return True
+
+    # build-engine uses its first visible device; keep the caller's CUDA ordering.
+    mask = os.environ.get("CUDA_VISIBLE_DEVICES")
+    device = str(gpu_id)
+    if mask is not None:
+        devices = mask.split(",")
+        if gpu_id >= len(devices) or devices[gpu_id].strip() in {"", "-1"}:
+            raise DemoError(f"GPU {gpu_id} is not visible in CUDA_VISIBLE_DEVICES={mask}")
+        device = devices[gpu_id].strip()
 
     paths.engine.parent.mkdir(parents=True, exist_ok=True)
     paths.timing_cache.parent.mkdir(parents=True, exist_ok=True)
@@ -354,6 +361,8 @@ def _build_engine(paths: DemoPaths, *, force: bool) -> bool:
         paths.timing_cache.unlink(missing_ok=True)
     _run(
         [
+            "env",
+            f"CUDA_VISIBLE_DEVICES={device}",
             "build-engine",
             str(paths.fp16_onnx),
             "--output",
@@ -395,7 +404,7 @@ def _run_process(paths: DemoPaths, *, gpu_id: int, engine_reused: bool) -> None:
         if not engine_reused:
             raise
         print("Cached engine failed at runtime; rebuilding it for the current GPU...")
-        _build_engine(paths, force=True)
+        _build_engine(paths, gpu_id=gpu_id, force=True)
         _run(command)
 
 
@@ -470,7 +479,7 @@ def run_demo(root: Path, *, gpu_id: int, force: bool) -> DemoPaths:
     download_video(paths.source_video, force=force)
     input_observed = _prepare_input(paths, force=force)
     _prepare_model(paths, force=force)
-    engine_reused = _build_engine(paths, force=force)
+    engine_reused = _build_engine(paths, gpu_id=gpu_id, force=force)
     _run_process(paths, gpu_id=gpu_id, engine_reused=engine_reused)
     output_observed = validate_demo_video(
         paths.output_video,

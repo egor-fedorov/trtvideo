@@ -56,6 +56,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 
 ### Added
 
+- Added `trtvideo demo` to the model-tools image: run the sample upscale from
+  a mounted directory without cloning the repository or preparing an engine.
+  `make demo` calls the same command from a checkout.
 - Added ty alongside mypy as a required Docker and CI type-checking gate for
   application and benchmark code. `make typecheck` runs both checkers;
   `make typecheck-mypy` and `make typecheck-ty` run them individually.

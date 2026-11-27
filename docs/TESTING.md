@@ -66,6 +66,7 @@ stdout/stderr, then stops. Run an individual command below to view its full help
 
 ```bash
 docker run --rm trtvideo:dev trtvideo --help
+docker run --rm trtvideo:dev trtvideo demo --help
 docker run --rm trtvideo:dev trtvideo doctor --help
 docker run --rm trtvideo:dev trtvideo compatibility-check --help
 docker run --rm trtvideo:dev trtvideo compatibility-report --help
@@ -108,7 +109,17 @@ The self-contained manual GPU smoke test is:
 make demo
 ```
 
-It builds the local `model-tools` target, then uses pinned RealESRGAN
+This builds the local `model-tools` target and invokes `trtvideo demo`.
+To test the packaged command without mounting the checkout, run this from
+an empty, writable host directory:
+
+```bash
+docker run --rm --gpus all --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:/work" --workdir /work trtvideo:model-tools trtvideo demo
+```
+
+Repeat with `--network none` before the image name to check offline cache reuse.
+Both entry points use pinned RealESRGAN
 weights and a verified five-second, 120-frame excerpt of the CC BY-SA 4.0
 `Jacqueville beach in may 2026 (0)` live-action source. The prepared input and
 validated result use browser- and desktop-friendly H.264/AAC MP4 containers.
@@ -121,7 +132,8 @@ first compares a small
 deterministic source-model probe between FP32 PyTorch and ONNX Runtime CPU and
 retains the evidence beside the ONNX. Generated artifacts are cached in
 `.demo/`; the prepared input sidecar binds its source hash and complete FFmpeg
-command. Use `DEMO_FORCE=1` to rebuild every cached artifact.
+command. Use `trtvideo demo --force` or `make demo DEMO_FORCE=1` to rebuild
+generated artifacts.
 
 Validate that:
 
