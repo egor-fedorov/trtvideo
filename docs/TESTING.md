@@ -88,8 +88,8 @@ To test the TensorRT memory layout without video codecs or model downloads,
 use the production image on a GPU host:
 
 ```bash
-docker run --rm --gpus all -e PYTHONPATH=/app/src -v "$PWD:/app:ro" \
-  trtvideo:latest python3 -B tests/gpu/check_binding_strides.py -v
+docker run --rm --gpus all -v "$PWD/tests/gpu:/checks:ro" \
+  trtvideo:latest python3 -B /checks/check_binding_strides.py -v
 ```
 
 The test builds temporary identity engines for 854x480 and 1280x480, copies a
@@ -245,7 +245,36 @@ GitHub Actions builds the same checks image for pull requests and pushes to
 `main`, then reports Ruff, mypy, ty, compileall, unit tests, media integration tests,
 CLI smoke, and benchmark-figure drift as separate steps. A separate workflow
 runs BuildKit static validation for the production Dockerfile without
-downloading the 26 GB runtime image. Full production and benchmark builds remain
-a GPU-host or self-hosted-runner acceptance check. Versioned releases build only
-the production target, smoke-test `trtvideo` and `build-engine` by immutable
-digest, and verify that model-conversion and benchmark commands are absent.
+downloading the 26 GB runtime image. PR checks do not require a GPU.
+
+### Release Acceptance
+
+On a trusted NVIDIA host with working NVDEC and NVENC, use a clean checkout
+to rehearse the release gate. The test target consumes existing images and
+never builds them or publishes tags:
+
+```bash
+make build build-model-tools IMAGE=trtvideo:release-qa MODEL_TOOLS_IMAGE=trtvideo:release-qa-tools
+make test-release-gpu IMAGE=trtvideo:release-qa MODEL_TOOLS_IMAGE=trtvideo:release-qa-tools
+```
+
+Only the test scripts are mounted, read-only. Production must pass the binding,
+color and video timeline tests; model-tools must pass the static and dynamic
+external-weight compatibility workflows. The containers run offline on device 0,
+without registry credentials, the Docker socket, or a source-code override.
+
+A published GitHub release uses one trusted `trtvideo-release` GPU runner. Each
+package gets a signed, resumable `candidate-<run_id>`. Both exact digests must
+pass the packaging checks, anonymous pulls and GPU gate before either package
+gets version or commit tags. Only the current stable GitHub release updates
+`latest`, after both sets of immutable tags have been verified in the registry.
+See the Actions summary for the digests, GPU, driver and test outcome.
+
+The two registry packages cannot be updated atomically. If publication is
+interrupted, rerun the **same** Actions run on a trusted GPU runner. It rechecks
+signed candidates, reruns the gate and finishes missing tags without rebuilding
+the verified images. A conflicting version/commit tag is an error, not an
+instruction to overwrite it. To exercise failure and retry without a GitHub
+release or GHCR access, run `python3 tests/release/check_promotion.py -v` on a
+Linux Docker host with Buildx and Make. This uses a disposable loopback registry
+and tiny image indexes; it does not replace the GPU check.

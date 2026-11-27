@@ -12,7 +12,7 @@ ifeq ($(strip $(PROJECT_VERSION)),)
 $(error Could not read the project version from pyproject.toml)
 endif
 
-.PHONY: build build-model-tools build-dev demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty compile test-unit test-media-integration check cli-smoke shell
+.PHONY: build build-model-tools build-dev demo demo-clean figures figures-check format format-check lint typecheck typecheck-mypy typecheck-ty compile test-unit test-media-integration test-release-gpu check cli-smoke shell
 
 build:
 	DOCKER_BUILDKIT=1 docker build \
@@ -89,6 +89,9 @@ test-unit:
 
 test-media-integration:
 	$(DOCKER_RUN) $(DEV_IMAGE) python3 -m pytest -q -m docker tests/integration
+
+test-release-gpu:
+	bash tests/gpu/release-smoke.sh "$(IMAGE)" "$(MODEL_TOOLS_IMAGE)"
 
 define cli_help_check
 	@if output="$$( $(DOCKER_RUN) $(DEV_IMAGE) $(1) --help 2>&1 )"; then \

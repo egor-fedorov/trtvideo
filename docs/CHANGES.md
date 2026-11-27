@@ -78,6 +78,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
   are rejected before inference.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
+- GHCR release tags now point to production and model-tools images only after
+  both candidates pass GPU checks by digest. Rehearse the same checks locally
+  with `make test-release-gpu`.
 - Updated production and model-tools to digest-pinned TensorRT `26.11-py3`
   (TensorRT 11.5, CUDA 13.5), CV-CUDA 0.19 with true FP16 I/O, and
   PyNvVideoCodec 2.2.4. Model-tools uses CPU-only PyTorch 2.15. Rebuild
