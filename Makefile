@@ -45,7 +45,7 @@ demo: build-model-tools
 		--user "$$(id -u):$$(id -g)" \
 		-e HOME=/tmp \
 		-v "$(DEMO_DIR):/app/.demo" \
-		$(MODEL_TOOLS_IMAGE) python3 -m trtvideo.cli.demo \
+		$(MODEL_TOOLS_IMAGE) trtvideo demo \
 			--root /app/.demo \
 			--gpu-id "$(DEMO_GPU_ID)" $(DEMO_FORCE_ARG)
 	@printf 'Validated output: %s/output/demo_1440p.mp4\n' "$(DEMO_DIR)"
@@ -106,11 +106,11 @@ endef
 
 cli-smoke:
 	$(call cli_help_check,trtvideo)
+	$(call cli_help_check,trtvideo demo)
 	$(call cli_help_check,trtvideo doctor)
 	$(call cli_help_check,trtvideo compatibility-check)
 	$(call cli_help_check,trtvideo compatibility-report)
 	$(call cli_help_check,benchmark-trtvideo)
-	$(call cli_help_check,python3 -m trtvideo.cli.demo)
 	$(call cli_help_check,export-onnx)
 	$(call cli_help_check,prepare-onnx)
 	$(call cli_help_check,prepare-compatibility-input)

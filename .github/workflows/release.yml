@@ -206,6 +206,7 @@ jobs:
         run: |
           set -euo pipefail
           reference="$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
+          docker run --rm "$reference" trtvideo demo --help >/dev/null
           docker run --rm "$reference" trtvideo compatibility-check --help >/dev/null
           docker run --rm "$reference" trtvideo compatibility-report --help >/dev/null
           docker run --rm "$reference" export-onnx --help >/dev/null

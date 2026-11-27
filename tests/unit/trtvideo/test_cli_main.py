@@ -1,11 +1,55 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from trtvideo.cli import compatibility_check, compatibility_report, doctor, process
 from trtvideo.cli.main import main
+from trtvideo.demo import workflow as demo_workflow
+from trtvideo.demo.config import DemoPaths
+
+
+@pytest.mark.parametrize(
+    ("arguments", "root", "gpu_id", "force"),
+    [
+        ([], Path(".demo"), 0, False),
+        (["--root", "sample", "--gpu-id", "2", "--force"], Path("sample"), 2, True),
+    ],
+)
+def test_public_demo_runs_workflow(arguments, root, gpu_id, force, monkeypatch, capsys) -> None:
+    calls = []
+
+    def fake_demo(root, *, gpu_id, force):
+        calls.append((root, gpu_id, force))
+        return DemoPaths.under(root)
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(demo_workflow, "run_demo", fake_demo)
+
+    assert main(["demo", *arguments]) == 0
+    assert calls == [(root, gpu_id, force)]
+    output = capsys.readouterr().out
+    assert f"Output: {root}/output/demo_1440p.mp4" in output
+    assert f"Report: {root}/demo-result.json" in output
+
+
+def test_public_demo_requires_model_tools_before_writing(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("PATH", "")
+    root = tmp_path / "demo"
+
+    assert main(["demo", "--root", str(root)]) == 2
+    assert "ghcr.io/egor-fedorov/trtvideo-model-tools" in capsys.readouterr().err
+    assert not root.exists()
+
+
+def test_public_demo_help_needs_no_model_tools(monkeypatch, capsys) -> None:
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit) as exc:
+        main(["demo", "--help"])
+    assert exc.value.code == 0
+    assert "usage: trtvideo demo" in capsys.readouterr().out
 
 
 def test_dispatcher_routes_doctor_arguments(monkeypatch) -> None:

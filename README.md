@@ -96,16 +96,28 @@ and retried; all 36 retained campaign runs passed. See the
 
 ## Quick Start
 
-On a Linux host with an NVIDIA driver, Docker, and working
-`docker run --gpus all` passthrough, pull the published production image:
+On Linux with an NVIDIA driver and working Docker GPU passthrough, you can try
+the demo in any writable directory. No checkout, weights, or engine needed:
+
+```bash
+docker run --rm --gpus all --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD:/work" --workdir /work \
+  ghcr.io/egor-fedorov/trtvideo-model-tools:v0.7.0 \
+  python3 -m trtvideo.cli.demo --root .demo
+```
+
+For a local build from `main`, replace the last two lines with
+`trtvideo:model-tools trtvideo demo`.
+The first run downloads the source clip and RealESRGAN weights, builds an
+engine for your GPU, and upscales five seconds of video. Open
+`.demo/output/demo_1440p.mp4` on the host. Rerun from the same directory to
+reuse the downloads and engine. See [Demo Details](#demo-details) for the
+validation report and cache options.
+
+**Already have an engine?** Use the smaller production image for your own video:
 
 ```bash
 docker pull ghcr.io/egor-fedorov/trtvideo:latest
-```
-
-Process a video with a prepared static TensorRT engine:
-
-```bash
 docker run --rm --gpus all \
   --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
@@ -118,20 +130,7 @@ docker run --rm --gpus all \
 
 Use a version tag instead of `latest` for reproducible deployments. TensorRT
 engines are GPU- and runtime-specific, so they are not bundled in the image.
-
-If you do not have a prepared model and engine, run the self-contained demo:
-
-```bash
-git clone https://github.com/egor-fedorov/trtvideo.git
-cd trtvideo
-make demo
-```
-
-The demo builds the model-tools image and a GPU-specific TensorRT engine,
-processes a five-second CC BY-SA live-action excerpt, validates the complete
-result, and writes `.demo/output/demo_1440p.mp4`. See the
-[Docker workflow](#docker-workflow) to prepare a model and process your own
-video.
+See the [Docker workflow](#docker-workflow) to prepare your own model.
 
 ## Architecture
 
@@ -370,7 +369,7 @@ formatting. CI runs the read-only formatting check as part of `make lint`.
 
 ## Demo Details
 
-The target builds the local model-tools image, downloads the pinned
+`trtvideo demo` runs in the model-tools image. It downloads the pinned
 `RealESRGAN_x2plus` v0.2.1 weights and the 20.1 MB Wikimedia original
 [`Jacqueville beach in may 2026 (0)`](https://commons.wikimedia.org/wiki/File:Jacqueville_beach_in_may_2026_(0).webm)
 by Poro26 under CC BY-SA 4.0. It verifies both assets by size and SHA256, then
@@ -388,14 +387,13 @@ video and machine-readable validation report are:
 .demo/demo-result.json
 ```
 
-Use another GPU index or rebuild generated assets explicitly:
-
-```bash
-make demo DEMO_GPU_ID=1
-make demo DEMO_FORCE=1
-```
-
-Remove the complete cache with `make demo-clean`. The validation report records
+Use `trtvideo demo --root DIR` to keep the cache and output elsewhere,
+`--gpu-id N` to select a visible GPU, or `--force` to rebuild generated
+assets. Keep the root on a mounted host directory so it survives `--rm`;
+use a separate root for each GPU if switching between cards.
+From a checkout, `make demo` builds the local model-tools image and runs the
+same command; `DEMO_GPU_ID=1` and `DEMO_FORCE=1` are its Make equivalents.
+`make demo-clean` removes the checkout's demo cache. The validation report records
 the model and video URLs, immutable hashes, attribution, licenses, selected
 source interval, processed assets, and relative input/output chroma retention.
 The prepared input cache is bound to the source hash and complete FFmpeg command,
@@ -886,10 +884,11 @@ prepare-compatibility-input
 build-engine
 ```
 
-The published model-tools image additionally enables checkpoint and dynamic
-ONNX compatibility checks and provides:
+The model-tools image built from this source additionally enables checkpoint
+and dynamic ONNX compatibility checks and provides:
 
 ```bash
+trtvideo demo
 export-onnx
 prepare-onnx
 ```
@@ -909,6 +908,7 @@ docker run --rm trtvideo:latest trtvideo compatibility-check --help
 docker run --rm trtvideo:latest trtvideo compatibility-report --help
 docker run --rm trtvideo:latest prepare-compatibility-input --help
 docker run --rm trtvideo:benchmark benchmark-trtvideo --help
+docker run --rm trtvideo:model-tools trtvideo demo --help
 docker run --rm trtvideo:model-tools export-onnx --help
 docker run --rm trtvideo:model-tools prepare-onnx --help
 docker run --rm trtvideo:latest build-engine --help
