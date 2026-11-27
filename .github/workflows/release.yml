@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ghcr-${{ github.event.release.tag_name }}
-  cancel-in-progress: false
+  group: ghcr-release-${{ github.repository }}
+  queue: max
 
 jobs:
   publish:
@@ -31,7 +31,7 @@ jobs:
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository }}
       MODEL_TOOLS_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/trtvideo-model-tools
-      NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+      HAS_NGC_KEY: ${{ secrets.NGC_API_KEY != '' }}
 
     steps:
       - name: Check out the released tag
@@ -39,6 +39,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
 
       - name: Validate release contract
         id: release
@@ -49,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for command in awk docker git gh; do
+          for command in awk docker git gh make; do
             command -v "$command" >/dev/null || {
               echo "Release runner is missing required command: $command" >&2
               exit 2
@@ -118,7 +119,7 @@ jobs:
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Log in to NVIDIA NGC
-        if: env.NGC_API_KEY != ''
+        if: env.HAS_NGC_KEY == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: nvcr.io
@@ -132,51 +133,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate production image tags
-        id: production_metadata
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.release.outputs.version }}
-            type=raw,value=${{ github.event.release.tag_name }}
-            type=raw,value=sha-${{ steps.release.outputs.revision }}
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
-
-      - name: Build and push production image
+      - name: Prepare production candidate
         id: production_image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: ./.github/actions/release-candidate
         with:
-          context: .
+          image: ${{ env.IMAGE_NAME }}
           target: production
-          platforms: linux/amd64
-          pull: true
-          push: true
-          tags: ${{ steps.production_metadata.outputs.tags }}
-          sbom: true
-          provenance: mode=max
-          build-args: |
-            BUILD_DATE=${{ steps.release.outputs.build_date }}
-            VERSION=${{ steps.release.outputs.version }}
-            VCS_REF=${{ steps.release.outputs.revision }}
-            VCS_DIRTY=0
-            IMAGE_REFERENCE=${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
+          version: ${{ steps.release.outputs.version }}
+          revision: ${{ steps.release.outputs.revision }}
+          build-date: ${{ steps.release.outputs.build_date }}
 
-      - name: Create signed production provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+      - name: Prepare model-tools candidate
+        id: model_tools_image
+        uses: ./.github/actions/release-candidate
         with:
-          subject-name: ${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.production_image.outputs.digest }}
-          push-to-registry: true
-          create-storage-record: false
+          image: ${{ env.MODEL_TOOLS_IMAGE_NAME }}
+          target: model-tools
+          version: ${{ steps.release.outputs.version }}
+          revision: ${{ steps.release.outputs.revision }}
+          build-date: ${{ steps.release.outputs.build_date }}
 
-      - name: Smoke-test published production digest
+      - name: Smoke-test production candidate packaging
         env:
           IMAGE_DIGEST: ${{ steps.production_image.outputs.digest }}
         run: |
           set -euo pipefail
           reference="$IMAGE_NAME@$IMAGE_DIGEST"
-          docker pull "$reference"
           docker run --rm "$reference" trtvideo --help >/dev/null
           docker run --rm "$reference" trtvideo doctor --help >/dev/null
           docker run --rm "$reference" trtvideo compatibility-check --help >/dev/null
@@ -193,20 +175,20 @@ jobs:
           grep -F "Checkpoint compatibility requires the model-tools image" \
             <<<"$output" >/dev/null
           docker run --rm "$reference" build-engine --help >/dev/null
-          docker run --rm "$reference" sh -euc '
+          docker run --rm "$reference" sh -ec '
             command -v trtvideo
             command -v build-engine
             command -v prepare-compatibility-input
-            ! command -v export-onnx
-            ! command -v prepare-onnx
-            ! command -v benchmark-trtvideo
+            for cmd in export-onnx prepare-onnx benchmark-trtvideo; do
+              if command -v "$cmd"; then echo "Unexpected production command: $cmd" >&2; exit 2; fi
+            done
             python3 -c "import importlib.util; assert importlib.util.find_spec(\"torch\") is None"
             test -f /usr/share/doc/trtvideo/LICENSE
             test -f /usr/share/doc/trtvideo/THIRD_PARTY_NOTICES.md
             test -f /usr/share/doc/trtvideo/LICENSING.md
             test -f /opt/nvidia/entrypoint.d/30-container-license.txt
           '
-          docker run --rm "$reference" sh -euc '
+          docker run --rm "$reference" sh -ec '
             python3 -c "from onnx import TensorProto, helper; i = helper.make_tensor_value_info(\"input\", TensorProto.FLOAT, [1, 3, 16, 16]); o = helper.make_tensor_value_info(\"output\", TensorProto.FLOAT, [1, 3, 32, 32]); m = helper.make_model(helper.make_graph([], \"smoke\", [i], [o])); import onnx; onnx.save(m, \"/tmp/static.onnx\")"
             trtvideo compatibility-check \
               --onnx /tmp/static.onnx \
@@ -218,58 +200,19 @@ jobs:
             test ! -e /tmp/report
           '
 
-      - name: Generate model-tools image tags
-        id: model_tools_metadata
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.MODEL_TOOLS_IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.release.outputs.version }}
-            type=raw,value=${{ github.event.release.tag_name }}
-            type=raw,value=sha-${{ steps.release.outputs.revision }}
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
-
-      - name: Build and push model-tools image
-        id: model_tools_image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          target: model-tools
-          platforms: linux/amd64
-          pull: true
-          push: true
-          tags: ${{ steps.model_tools_metadata.outputs.tags }}
-          sbom: true
-          provenance: mode=max
-          build-args: |
-            BUILD_DATE=${{ steps.release.outputs.build_date }}
-            VERSION=${{ steps.release.outputs.version }}
-            VCS_REF=${{ steps.release.outputs.revision }}
-            VCS_DIRTY=0
-            IMAGE_REFERENCE=${{ env.MODEL_TOOLS_IMAGE_NAME }}:${{ github.event.release.tag_name }}
-
-      - name: Create signed model-tools provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
-        with:
-          subject-name: ${{ env.MODEL_TOOLS_IMAGE_NAME }}
-          subject-digest: ${{ steps.model_tools_image.outputs.digest }}
-          push-to-registry: true
-          create-storage-record: false
-
-      - name: Smoke-test published model-tools digest
+      - name: Smoke-test model-tools candidate packaging
         env:
           MODEL_TOOLS_DIGEST: ${{ steps.model_tools_image.outputs.digest }}
         run: |
           set -euo pipefail
           reference="$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
-          docker pull "$reference"
           docker run --rm "$reference" trtvideo compatibility-check --help >/dev/null
           docker run --rm "$reference" trtvideo compatibility-report --help >/dev/null
           docker run --rm "$reference" export-onnx --help >/dev/null
           docker run --rm "$reference" prepare-onnx --help >/dev/null
           docker run --rm "$reference" prepare-compatibility-input --help >/dev/null
           docker run --rm "$reference" build-engine --help >/dev/null
-          docker run --rm "$reference" sh -euc '
+          docker run --rm "$reference" sh -ec '
             test "$TRTVIDEO_IMAGE_VARIANT" = model-tools
             test -n "$TRTVIDEO_IMAGE_REF"
             command -v trtvideo
@@ -277,12 +220,13 @@ jobs:
             command -v prepare-onnx
             command -v prepare-compatibility-input
             command -v build-engine
+            if command -v benchmark-trtvideo; then echo "Unexpected benchmark command" >&2; exit 2; fi
             python3 -c "import torch, spandrel, onnxruntime; print(torch.__version__)"
             test -f /usr/share/doc/trtvideo/LICENSE
             test -f /usr/share/doc/trtvideo/THIRD_PARTY_NOTICES.md
             test -f /usr/share/doc/trtvideo/LICENSING.md
           '
-          docker run --rm "$reference" sh -euc '
+          docker run --rm "$reference" sh -ec '
             touch /tmp/model.pth
             trtvideo compatibility-check \
               --checkpoint /tmp/model.pth \
@@ -300,11 +244,24 @@ jobs:
           MODEL_TOOLS_DIGEST: ${{ steps.model_tools_image.outputs.digest }}
         run: |
           set -euo pipefail
-          docker logout ghcr.io
-          docker image rm "$IMAGE_NAME@$IMAGE_DIGEST" || true
-          docker image rm "$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST" || true
-          docker pull "$IMAGE_NAME@$IMAGE_DIGEST"
-          docker pull "$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
+          anonymous=$(mktemp -d)
+          trap 'rm -rf -- "$anonymous"' EXIT
+          # An explicit empty entry also disables auto-detection of host credential helpers.
+          printf '%s\n' '{"auths":{"ghcr.io":{}}}' > "$anonymous/config.json"
+          docker --config "$anonymous" pull "$IMAGE_NAME@$IMAGE_DIGEST"
+          docker --config "$anonymous" pull "$MODEL_TOOLS_IMAGE_NAME@$MODEL_TOOLS_DIGEST"
+
+      - name: Verify both digests on GPU, then promote without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCTION: ${{ env.IMAGE_NAME }}@${{ steps.production_image.outputs.digest }}
+          MODEL_TOOLS: ${{ env.MODEL_TOOLS_IMAGE_NAME }}@${{ steps.model_tools_image.outputs.digest }}
+          VERSION: ${{ steps.release.outputs.version }}
+          REVISION: ${{ steps.release.outputs.revision }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          bash .github/scripts/release-images.sh publish \
+            "$PRODUCTION" "$MODEL_TOOLS" "$VERSION" "$REVISION" "$PRERELEASE"
 
       - name: Attach immutable digests to GitHub Release
         env:

@@ -1,0 +1,95 @@
+name: Prepare signed release candidate
+description: Build a missing candidate or reuse the signed image from this release run.
+inputs:
+  image:
+    description: GHCR package name
+    required: true
+  target:
+    description: Dockerfile target and expected image variant
+    required: true
+  version:
+    description: Validated project version (without v)
+    required: true
+  revision:
+    description: Validated release commit
+    required: true
+  build-date:
+    description: UTC build timestamp
+    required: true
+outputs:
+  digest:
+    description: Registry digest of the verified candidate index
+    value: ${{ steps.lookup.outputs.digest || steps.build.outputs.digest }}
+runs:
+  using: composite
+  steps:
+    - name: Find candidate from this run
+      id: lookup
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        digest=$(bash .github/scripts/release-images.sh resolve "$IMAGE:candidate-$GITHUB_RUN_ID")
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+    - name: Build and push by digest, without a release tag
+      id: build
+      if: steps.lookup.outputs.digest == ''
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+      with:
+        context: .
+        target: ${{ inputs.target }}
+        platforms: linux/amd64
+        pull: true
+        outputs: type=image,name=${{ inputs.image }},push-by-digest=true,name-canonical=true,push=true
+        sbom: true
+        provenance: mode=max
+        build-args: |
+          BUILD_DATE=${{ inputs.build-date }}
+          VERSION=${{ inputs.version }}
+          VCS_REF=${{ inputs.revision }}
+          VCS_DIRTY=0
+          IMAGE_REFERENCE=${{ inputs.image }}:v${{ inputs.version }}
+
+    - name: Sign the build output, never a digest inferred from a tag
+      if: steps.lookup.outputs.digest == ''
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+      with:
+        subject-name: ${{ inputs.image }}
+        subject-digest: ${{ steps.build.outputs.digest }}
+        push-to-registry: true
+        create-storage-record: false
+
+    - name: Verify provenance before trusting a previous attempt
+      if: steps.lookup.outputs.digest != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REF: ${{ inputs.image }}@${{ steps.lookup.outputs.digest }}
+        REVISION: ${{ inputs.revision }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        gh attestation verify "oci://$REF" --repo "$GITHUB_REPOSITORY" \
+          --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+          --source-digest "$REVISION" --source-ref "refs/tags/v$VERSION"
+
+    - name: Verify image identity and record recoverable candidate
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        DIGEST: ${{ steps.lookup.outputs.digest || steps.build.outputs.digest }}
+        REVISION: ${{ inputs.revision }}
+        VERSION: ${{ inputs.version }}
+        TARGET: ${{ inputs.target }}
+      run: |
+        ref="$IMAGE@$DIGEST"
+        docker pull "$ref"
+        labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.revision"}}' "$ref")
+        [[ "$labels" == "$VERSION $REVISION" ]] || { echo "Invalid version/revision: $labels" >&2; exit 1; }
+        image_env=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$ref")
+        for expected in "TRTVIDEO_BUILD_DIRTY=0" "TRTVIDEO_BUILD_REVISION=$REVISION" \
+                        "TRTVIDEO_IMAGE_VARIANT=$TARGET" "TRTVIDEO_IMAGE_REF=$IMAGE:v$VERSION"; do
+          grep -Fxq "$expected" <<<"$image_env" || { echo "Missing $expected in $ref" >&2; exit 1; }
+        done
+        bash .github/scripts/release-images.sh candidate "$ref" "candidate-$GITHUB_RUN_ID"
+        echo "Candidate ($TARGET): \`$ref\`" >> "$GITHUB_STEP_SUMMARY"

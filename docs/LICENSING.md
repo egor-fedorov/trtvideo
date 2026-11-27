@@ -89,7 +89,9 @@ immutable digests are recorded with the GitHub release. Publication requires
 `ghcr-release` environment. Both GHCR packages must be public so the release
 job's unauthenticated pull check passes. The release evidence must identify the
 exact FFmpeg/x264 package versions and corresponding Ubuntu source packages.
-`make check` and the GPU acceptance in `docs/TESTING.md` apply before a release.
+`make check` remains required. Both signed candidate digests must pass
+[release acceptance](TESTING.md#release-acceptance) before the workflow applies
+user-facing image tags.
 
 No automated check can establish that a use or redistribution is legally
 permitted. Automation records composition and provenance so that a legal
