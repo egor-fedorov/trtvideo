@@ -36,6 +36,52 @@ def probe(path, stream):
 
 
 class VideoTimestampsTest(unittest.TestCase):
+    def test_lossy_mux_rejected_before_engine_initialization(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, output, engine = (
+                root / "original.mkv",
+                root / "existing.mp4",
+                root / "unused.engine",
+            )
+            engine.touch()
+            output.write_bytes(b"previous output")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=s=64x64:r=24:d=0.25",
+                    "-c:v",
+                    "libx264",
+                    "-disposition:v:0",
+                    "original",
+                    str(source),
+                ],
+                check=True,
+            )
+            failed = subprocess.run(
+                [
+                    "trtvideo",
+                    "--engine",
+                    str(engine),
+                    "--input",
+                    str(source),
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("original=1", failed.stderr)
+            self.assertNotIn("Initializing TensorRT", failed.stderr)
+            self.assertEqual(output.read_bytes(), b"previous output")
+            self.assertFalse(list(root.glob(".*.partial.*")))
+
     def test_gpu_timelines(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -85,6 +131,10 @@ class VideoTimestampsTest(unittest.TestCase):
                         "aac",
                         "-movie_timescale",
                         "120000",
+                        "-metadata:s:v:0",
+                        "language=ita",
+                        "-metadata:s:v:0",
+                        "handler_name=Camera A",
                         str(source),
                     ],
                     check=True,
@@ -164,6 +214,10 @@ class VideoTimestampsTest(unittest.TestCase):
                             check=True,
                         )
                         info, actual = probe(output, "v:0")
+                        tags = {k.lower(): v for k, v in info["tags"].items()}
+                        self.assertEqual(
+                            (tags["language"], tags["handler_name"]), ("ita", "Camera A")
+                        )
                         self.assertEqual(
                             info.get("sample_aspect_ratio", "1:1"),
                             source_v.get("sample_aspect_ratio", "1:1"),

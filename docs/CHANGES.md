@@ -73,6 +73,9 @@ Before `1.0.0`, use pragmatic semantic versioning:
 - Video processing and user-supplied compatibility inputs preserve quarter-turn
   display rotation and non-square pixels without changing engine dimensions.
   Unsupported display transforms are rejected before inference.
+- Replacement video tracks retain source language, names and descriptive
+  dispositions. Containers that would silently discard these properties
+  are rejected before inference.
 - CLI smoke checks print compact success lines instead of full help text;
   failed commands retain their captured output and stop the check.
 - Updated production and model-tools to digest-pinned TensorRT `26.11-py3`

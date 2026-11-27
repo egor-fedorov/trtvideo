@@ -8,6 +8,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Literal
 
+from trtvideo.video.metadata import EMPTY_TRACK_PROPERTIES, VideoTrackProperties
 from trtvideo.video.output.preservation import (
     MediaPreservationError,
     preflight_output_container,
@@ -23,10 +24,12 @@ class AtomicOutputTransaction:
         output_path: str,
         *,
         preserve_chapters: bool,
+        track_properties: VideoTrackProperties = EMPTY_TRACK_PROPERTIES,
     ) -> None:
         self._input_path = input_path
         self._output_path = output_path
         self._preserve_chapters = preserve_chapters
+        self._track_properties = track_properties
         self._temporary_path: Path | None = None
 
     def __enter__(self) -> Path:
@@ -34,6 +37,7 @@ class AtomicOutputTransaction:
             self._input_path,
             self._output_path,
             preserve_chapters=self._preserve_chapters,
+            track_properties=self._track_properties,
         )
         self._temporary_path = create_staging_output(self._output_path)
         return self._temporary_path

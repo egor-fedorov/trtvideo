@@ -10,7 +10,7 @@ from typing import Any
 
 from trtvideo.video.fps import parse_fps
 from trtvideo.video.geometry import DisplayGeometry
-from trtvideo.video.metadata import VideoMetadata
+from trtvideo.video.metadata import VideoMetadata, VideoTrackProperties
 
 
 class VideoProbeError(RuntimeError):
@@ -49,6 +49,7 @@ def _video_metadata(stream: dict[str, Any], container_bit_rate: int | None) -> V
             video_bit_rate=_parse_optional_int(stream.get("bit_rate")),
             container_bit_rate=container_bit_rate,
             geometry=DisplayGeometry.from_stream(stream),
+            track_properties=VideoTrackProperties.from_stream(stream),
         )
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
         raise VideoProbeError(f"FFprobe returned invalid video metadata: {exc}") from exc

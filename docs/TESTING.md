@@ -49,6 +49,10 @@ metadata, and an attachment. The test applies the shared output mapping,
 validates every preserved stream with `ffprobe`, and fully decodes video plus
 both audio tracks. A separate case confirms that MP4 preflight rejects source
 streams that cannot be copied into MP4.
+MKV, MP4 and MOV fixtures also check language, track names and dispositions
+on the remuxed file. Negative cases cover conflicting names and an `original`
+flag silently dropped by the MP4 muxer. The GPU timeline smoke checks video
+language and handler name on both full and truncated outputs.
 
 ### CLI/Docker Smoke
 

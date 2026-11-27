@@ -267,12 +267,20 @@ The pipeline uses one media-preservation contract:
   aspect ratio is signalled in both the H.264/HEVC stream and the container.
   Non-default geometry is checked on the staged output before publication;
 - every source audio, subtitle, data, and attachment stream is stream-copied;
-- global metadata, stream tags/dispositions, and chapters are retained;
+- global metadata and chapters are retained. The replacement video carries
+  the first video stream's language, title, handler name and the dispositions
+  `default`, `original`, `dub`, `comment`, `forced`, `hearing_impaired` and
+  `visual_impaired`. Stale technical tags are not copied from that stream;
 - no incompatible stream is silently transcoded or dropped.
 
 A short FFmpeg preflight runs before TensorRT initialization. If the selected
 container cannot represent one of the copied codecs, the command fails and
 recommends MKV rather than processing the video and failing during final mux.
+Both the preflight and final remux probe the written video track: FFmpeg may
+exit successfully even if a muxer discards a property. MKV keeps distinct title
+and handler names. MP4/MOV use one handler name and may mark the single video
+track as default. An absent language and `und` are equivalent, as are an
+absent handler name and the muxer's generic `VideoHandler`.
 When `--max-frames` is used, chapters are omitted because their original
 timestamps can exceed the shortened output.
 
