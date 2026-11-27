@@ -932,6 +932,12 @@ inputs other than `yuv420p`/`nv12` and for HDR transfer functions. NV12/RGB
 conversion uses an explicit CV-CUDA color specification, and the output receives
 explicit color tags instead of `unknown`.
 
+Supported matrix tags are `bt709`, `bt470bg` and `smpte170m` (BT.601), and
+`bt2020nc` (non-constant luminance). Only missing or unspecified metadata
+uses the SD/HD defaults. Explicitly unsupported matrices such as `bt2020c`
+or `smpte240m` are rejected before engine initialization; convert the source
+to a supported SDR space rather than just changing its tags.
+
 ## Quality Checks
 
 Checks run through the Docker development image. Unit tests do not require a GPU

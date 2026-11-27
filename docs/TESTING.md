@@ -94,6 +94,10 @@ before encoding. FP32, true FP16, and mixed input/output types must all pass on
 the production image; a non-linear HWC output must be rejected. This test is
 separate from the GPU-free `make check` gate.
 
+`tests/gpu/check_sdr_color.py` uses the same production-image command as
+`check_binding_strides.py`. It checks the actual RGB model input against
+independent color patches and probes H.264/HEVC container and bitstream tags.
+
 The self-contained manual GPU smoke test is:
 
 ```bash
